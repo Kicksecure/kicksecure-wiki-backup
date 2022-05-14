@@ -1,0 +1,108 @@
+/* Any JavaScript here will be loaded for users using the mobile site */
+
+/* CodeSelect START */
+
+window.SelectText = function (element) {
+    element.focus();
+    element.setSelectionRange(0, element.value.length);
+};
+
+function adjustHeight(element) {
+    element.style.height = "auto";
+    if (element.scrollHeight <= 45)
+        element.style.height = "24px";
+    else
+        element.style.height = (element.scrollHeight - 6) + "px";
+}
+
+$(document).ready(function () {
+    var codeContainers = document.getElementsByClassName("codeContainer");
+    for (var i = 0; i < codeContainers.length; i++) {
+        adjustHeight(codeContainers[i].children[2].children[0]);
+    }
+});
+
+/* CodeSelect END */
+
+// begin sd widget js
+function sdShowDetailed(container) {
+    $(container).addClass('sd-short-hidden').removeClass('sd-detailed-hidden');
+    $(container).find('.sd-btn-short').first().removeClass('active');
+    $(container).find('.sd-btn-detailed').first().addClass('active');
+}
+function sdShowShort(container) {
+    $(container).addClass('sd-detailed-hidden').removeClass('sd-short-hidden');
+    $(container).find('.sd-btn-detailed').first().removeClass('active');
+    $(container).find('.sd-btn-short').first().addClass('active');
+}
+function sdExpandParents(element) {
+    var parents = $(element).parentsUntil('.sd-container');
+    var box = $(parents[parents.length - 1]); // should be a .sd-short or a .sd-detailed
+    var container = box.parent(); // should be a .sd-container
+    if (!container.hasClass('sd-container')) {
+        // parent of box is no .sd-container
+        return;
+    }
+    if (box.hasClass('sd-detailed')) {
+        sdShowDetailed(container);
+    } else { // box.hasClass('sd-short')
+        sdShowShort(container);
+    }
+    sdExpandParents(container);
+}
+function sdJump(element) {
+    var jqElement = $(element);
+    if (jqElement.length === 0) {
+        return;
+    }
+    sdExpandParents(jqElement);
+    var offset = jqElement.offset();
+    $(window).scrollTop(offset.top).scrollLeft(offset.left);
+}
+$(document).ready(function () {
+    var hash = window.location.hash;
+    var sdContainers = $('.sd-container');
+    // if fragment identifier is given, open the matching tab
+    if (window.location.hash.length > 1) {
+        sdJump($(hash));
+    }
+    // add functionality to buttons
+    sdContainers.find('.sd-btn-short').on('click', function () {
+        sdShowShort($(this).closest('.sd-container'));
+    });
+    sdContainers.find('.sd-btn-detailed').on('click', function () {
+        sdShowDetailed($(this).closest('.sd-container'));
+    });
+    // watch window for change to expand tabs for fragments later
+$(window).on('hashchange', (function () {
+    if (hash === window.location.hash) {
+        return;
+    }
+    hash = window.location.hash;
+    switch (hash) {
+        case "#Alternatives":
+            return sdShowDetailed($('.sd-container'));
+        case "#Recommended":
+            return sdShowShort($('.sd-container'));
+        default :
+            return sdJump($(hash));
+    }
+}));
+// make fragment links work
+$('a[href]').filter(function (i, e) {
+    return $(e).attr('href')[0] === '#';
+}).on('click', function () {
+    sdJump($(this).attr('href'));
+});
+// move anchors
+$('.sd-container #Recommended, .sd-container #Alternatives').prependTo('.sd-container');
+});
+// end sd widget js
+
+// begin move mobile table of contents TOC to the top
+$(window).load(function () {
+    $('div.toc-mobile.view-border-box').prependTo('.mf-section-0');
+    $('div.toc-mobile.view-border-box').next().prependTo('.mf-section-0');
+    $('div.toc-mobile.view-border-box').next().css('clear', 'both');
+});
+// end move mobile table of contents TOC to the top
