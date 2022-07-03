@@ -1,13 +1,66 @@
 {{Header}}
 {{#seo:
-|description=cryptsetup-suspend could take care of removing LUKS master key from memory before system shutdown or suspend.
+|description=Implementation notes.
 }}
 {{title|title=
-RAM Wipe Development Notes
+Cold Boot Attack Defense - RAM Wipe Design Documentation
 }}
-{{forkme}}
+= Design =
+Currently only in the developers repository. Will be available in the stable repository in near future.
 
-= cryptsetup-suspend =
+Implemented by dracut module [https://github.com/Kicksecure/security-misc/tree/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense <code>cold-boot-attack-defense</code>] (by security-misc).
+
+# A dracut <code>clearnup</code> hook is declared in [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh <code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh</code>] (by security-misc).
+# During boot, that dracut <code>clearnup</code> hook [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh <code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh</code>] (by security-msic) is calling dracut API function <code>need_shutdown</code> which results in file <code>/run/initramfs/.need_shutdown</code> being created.
+# In result, at shutdown time when <code>/lib/systemd/system/dracut-shutdown.service</code> (by dracut) runs, <code>/usr/lib/dracut/dracut-initramfs-restore</code> (by dracut), will restore the initramfs and pivot into it.
+# During shutdown, dracut will run its usual cleanup tasks such as unmounting the root (main) drive.
+# The <code>shutdown</code> module (by dracut) will <code>source</code> and other shutdown hooks set up by other dracut modules.
+# At time of writing there were no other dracut modules using the dracut shutdown hook known the the author of this website.
+# [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram.sh <code>wipe-ram.sh</code>] (by security-misc) is the dracut shutdown hook.
+# A alternative description of the mechanism of dropping back to the initramfs during shutdown can be found under [https://systemd.io/INITRD_INTERFACE/ The initrd Interface of systemd].
+# At a very late stage during the shutdown process when all disks were already unmounted by dracut, the <code>wipe-ram.sh</code> dracut shutdown hook is executed.
+# The shutdown hook runs:
+
+* <code>echo 3 > /proc/sys/vm/drop_caches</code>
+** To ensure any remaining disk cache is erased by Linux' memory poisoning which was inspired by Tails. <ref>
+https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/initramfs-pre-shutdown-hook
+</ref>   
+* <code>sdmem -l -l -v</code>: To wipe the ram using <code>sdmem</code>.
+** The parameters <code>-l -l</code> result in a single pass of RAM wiping using zeros.
+*** This is to optimize for speed. Otherwise RAM wiping could take several minutes. However, the longer the shutdown process is delayed, the more users would disable this feature. Also after wiping the RAM, it could actually be more important to shutdown to aid decay of RAM contents rather than wiping the RAM over and over for minutes before actually removing power.
+*** When run sdmem manually using these command line parameters it will show "Wipe mode is insecure (one pass with 0x00)" but no evidence that this would be actually insecure could be found. The sdmem manpage refers to Peter Gutmann, but the Gutmann method is about hard drives, not about RAM. No research how many times RAM has to be wiped to be non-recoverable has been found by the author of this website.
+** The parameter <code>-v</code> is for verbose output which only results in a progress indicator.
+** Any output (default or verbose) is only visible if a [[Recovery#Serial_Console|serial console]] is connected. This is because dracut by default hides output of commands it runs. Redirecting the output of sdmem to <code>/dev/kmsg</code> would result in hundreds or thousands of separate <code>*</code> to be written to the console, each in its own line, which would not actually be useful. For a better progress meter of the RAM wipe process, if needed after user feedback, perhaps some buffer mechanism would have to be implemented.
+* <code>dmsetup ls --target crypt</code>: To check if all encrypted disks are unmounted.
+** Because only if all encrypted disks are unmounted, it will be possible for the kernel to wipe the [[Full Disk Encryption]] key from the kernel.
+** Informs the user if all encrypted disks are unmounted in console output. Otherwise shows a warning.
+
+Quote [https://tails.boum.org/contribute/design/memory_erasure/ Tails' Memory erasure]:
+
+<blockquote>First, most memory is erased at the end of a normal shutdown/reboot sequence. This is implemented by the [https://tails.boum.org/contribute/design/kernel_hardening/ Linux kernel's freed memory poisoning feature], more specifically:
+
+* page_poison
+* passing "P" to slub_debug
+* zeroing heap memory at free time (init_on_free=1)</blockquote>
+
+These kernel parameters are implemented in security-misc [https://github.com/Kicksecure/security-misc/blob/master/etc/default/grub.d/40_kernel_hardening.cfg <code>/etc/default/grub.d/40_kernel_hardening.cfg</code>].
+
+RAM wipe is omitted in virtual machines (VMs) by default because it is unclear if that could actually lead to the host operating system using swap. Through use of kernel parameter <code>wiperam=force</code> it is possible to force RAM wipe inside VMs which is useful for testing, development purposes.
+
+Kernel parameter <code>wiperam=skip</code> is provided to support disabling RAM wipe at shutdown, which might be useful to speed up shutdown or in case should there ever be issues.
+
+For potential limitations, the same limitations as under Quote [https://tails.boum.org/contribute/design/memory_erasure/ Tails' Memory erasure] chapter "Limitations" applies.
+
+Future design:
+
+# Keep the current design as is. The current RAM wiping mechanism is useful irrespective if an supplemental kexec based RAM wipe as the latter might be more prone to bugs.
+# Implement kernel parameter <code>wiperam=wipeonly</code> in dracut module <code>cold-boot-attack-defense</code> which results in only wiping the RAM and then powering off.
+# kexec into a new kernel so the existing kernel memory is overwritten.
+# Do not mount the root image.
+# kexec into the new kernel using kernel parameter <code>wiperam=wipeonly</code> so the RAM is wiped again and then shutdown.
+
+= Old RAM Wipe Development Notes =
+== cryptsetup-suspend ==
 * https://manpages.debian.org/cryptsetup-suspend
 * https://bugs.debian.org/cgi-bin/pkgreport.cgi?pkg=cryptsetup-suspend
 * Its in [https://packages.debian.org/bookworm/cryptsetup-suspend Debian bookworm]
@@ -36,7 +89,7 @@ Description: disk encryption support - suspend mode integration
 * https://salsa.debian.org/cryptsetup-team/cryptsetup/-/blob/debian/experimental/debian/scripts/suspend/cryptsetup-suspend-wrapper
 * https://packages.debian.org/experimental/amd64/cryptsetup-suspend/filelist
 
-= Potential cryptsetup-suspend Security Issue =
+== Potential cryptsetup-suspend Security Issue ==
 Might not suspend and wipe cryptsetup key.
 
 <blockquote>Not enough memory available. Please close some programs or add swap space to suspend successfully.</blockquote>
@@ -50,7 +103,7 @@ Might not suspend and wipe cryptsetup key.
         fi
 </pre>
 
-= cryptsetup =
+== cryptsetup ==
 
 Quote [https://manpages.debian.org/cryptsetup <code>cryptsetup luksSuspend</code>, <code>cryptsetup close</code> (previously <code>cryptsetup lukseClose</code>) man page]. (Bold added.)
 
@@ -82,7 +135,7 @@ Quote https://www.freedesktop.org/software/systemd/man/systemd-halt.service.html
 do_stop() {
 </pre>
 
-= systemd =
+== systemd ==
 * systemd feature request: [https://github.com/systemd/systemd/issues/5794 <code>cryptsetup luksSuspend</code> (wipes encryption key from kernel) on suspend]
 * systemd feature request: [https://github.com/systemd/systemd/issues/17887 Wipe LUKS Disk Encryption Key for Root Disk from RAM during Shutdown to defeat Cold Boot Attacks]
 * https://www.freedesktop.org/software/systemd/man/systemd-cryptsetup@.service.html
@@ -90,10 +143,10 @@ do_stop() {
 * https://systemd.io/INITRD_INTERFACE/
 * https://systemd.io/ROOT_STORAGE_DAEMONS/
 
-= initramfs =
+== initramfs ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=778849
 
-= Inspiration =
+== Inspiration ==
 * https://github.com/vianney/arch-luks-suspend
 * https://github.com/nailfarmer/debian-luks-suspend/
 * https://waaaaargh.github.io/gnu&linux/2013/08/06/lukssuspend-with-encrypted-root-on-archlinux/
