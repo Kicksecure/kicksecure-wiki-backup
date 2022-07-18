@@ -16,6 +16,7 @@ title=Documentation for {{project_name_long}} Wiki Devs
 
 * This documentation is meant for developers helping with the maintenance and improvement of this wiki. Editors please read [[Dev/wiki]] instead.
 * This Wiki is a MediaWiki instance. We use a MediaWiki standard, stable installation, which is held up-to-date.
+** Why did we choose MediaWiki: [[Dev/About_Infrastructure#mediawiki_advantages]]
 * Icons: We use Font-Awesome, locally hosted https://www.whonix.org/libs/Font-Awesome/
 * Font: We use Roboto, locally hosted https://www.whonix.org/libs/Roboto/
 
@@ -134,16 +135,27 @@ https://github.com/jthingelstad/foreground/issues/392
 
 The default links in the wiki are realized via the [https://github.com/adrelanos/mediawiki-link-to-archive link-to-archive] MediaWiki Extension
 
+== Wiki editor software enhancements ==
+* The standard wiki editor software is enhanced in multiple ways
+* Extensions
+** We use the [https://www.mediawiki.org/wiki/Extension:CodeEditor extension CodeEditor] which improves coding in JS, CSS and Lua significantly
+** We also use the [https://www.mediawiki.org/wiki/Extension:CodeMirror extension CodeMirror] which adds syntax highlighting and bigger text to wikitext editing
+* In-wiki improvements
+** We created a Fullscreen mode for the editor, see [[#EditorFullscreen]]
+** We created a saving mode which doesn't reload the page, see [[#Editor SaveAndContinue]]
+** We created an auto-backup for wikitext which automatically saves your edits to the browser's localStorage, so you don't lose progress when something goes wrong, see [[#EditorAutoBackup]]
+
 = Implementation Details (in-wiki) =
 
 == CSS ==
 
 * These are the most important CSS files at the moment
-** [[MediaWiki:Common.css]] - very important automatically imported Mediawiki file. It is used to import all other CSS files, because the import function is not available in other files
+** [[MediaWiki:Common.css]] - very important automatically imported Mediawiki file. It is used to import all other general purpose CSS files, because the import function is not available in other files. Is part of [[#MultiWiki]]
+** [[MediaWiki:Fonts.css]] - integration of all the sitespecific fonts
 ** [[MediaWiki:SiteSpecific.css]] - another automatically imported Mediawiki file. Here are styles which are unique to the wiki
 ** [[MediaWiki:Mobile.css]] - another automatically imported Mediawiki file. Not yet in use, because these styles are implemented in the other files
 ** [[MediaWiki:Utility.css]] - imported in Common.css . There are styles which are not only applicable in this wiki but also in other wikis, see [[#MultiWiki]]
-** [[MediaWiki:Bootstrap_Fixes.css]] - imported in Common.css. Used to augment Bootstrap styles which we don't see fitting for our purposes
+** [[MediaWiki:Bootstrap_Fixes.css]] - imported in Common.css. Used to augment Bootstrap styles which we don't see fitting for our purposes. Is part of [[#MultiWiki]]
 * Archived
 ** [[MediaWiki:Archive 2022-01-20 Foreground.css]] - was used to augment the formerly used MediaWiki skin "Foreground".
 ** [[MediaWiki:General_archive-2022-01.css]] (not used as of 2022-01-06)
@@ -152,6 +164,7 @@ The default links in the wiki are realized via the [https://github.com/adrelanos
 
 * The wiki system automatically imports [[MediaWiki:Common.js]] and [[MediaWiki:Mobile.js]] (not yet in use)
 * [[MediaWiki:Common.js]] is used to import all other Javascript files
+* The most important imported file is [[MediaWiki:General.js]] which are library and general purpose level functionality
 
 == Crypto QR Code Image Templates ==
 
@@ -176,6 +189,13 @@ The default links in the wiki are realized via the [https://github.com/adrelanos
 {{CodeSelect|code=
 <div class="our-special-own-footer"></div>
 }}
+* related Links when editing footer
+** https://www.mediawiki.org/wiki/Manual:Footer
+** https://www.whonix.org/wiki/MediaWiki:Copyright
+** https://www.whonix.org/wiki/MediaWiki:Copyrightwarning
+** <code>/etc/apache2/footer.php</code>
+** https://www.whonix.org/wiki/MediaWiki:E-Sign_Consent
+** https://www.whonix.org/wiki/MediaWiki:Imprint
 
 == References and Footer ==
 
@@ -292,6 +312,13 @@ For demonstrative purposes only: https://web.archive.org/web/20220204103725/http
 * We first tried to use frame instead of thumb, as in <code><nowiki>[[File:abc.png|frame|50px]]</nowiki></code>, but the option frame ignores the forced size by design, see https://www.mediawiki.org/wiki/Help:Images#Size_and_frame
 * Next we tried border as in <code><nowiki>[[File:abc.png|border|50px]]</nowiki></code>. This might be useful in some cases, because it does not ignore forced size. But to make it look like thumb is very time consuming
 
+== Back To Top Button==
+
+* Back to Top Button is realized via [[MediaWiki:BackToTopButton.css]] and [[MediaWiki:BackToTopButton.js]] which are imported in Common.css and Common.js and thereby available for all pages, including Vector styled pages
+* The button is automatically integrated in all pages and created a button which only becomes visible when the user is scrolling and offers the feature to "jump" to the top
+* [[MediaWiki:BackToTopButton.js]] has one implicit (but not critical) dependency of FontAwesome for its symbol
+** suggestion: If FontAwesome is removed the <code><nowiki><i class="fas fa-chevron-up"></i></nowiki></code> can be replaced by <code><nowiki><span>UP</span></nowiki></code>
+
 = Development Rules =
 
 Every developer please follow these rules and consult with the admin. A wiki is a collaborative process so compliance with the rules makes everyone's life easier. Thank you.
@@ -308,6 +335,14 @@ Every developer please follow these rules and consult with the admin. A wiki is 
 * screenshot before / after major changes (will be used for public reports)
 * svg is nice as base format but incompatible with Tor Browser maximum security slider setting
 * keep relative link support
+
+== MediaWiki Bugs and Feature Requests ==
+
+* These are requests to MediaWiki which we sent upstream
+* Check in regularely if the responded
+* [https://phabricator.wikimedia.org/T270099 $wgCSPHeader CSP Content Security Policy compatibility with $wgUseFileCache file cache]
+* [https://phabricator.wikimedia.org/T270095 add Widgets extension compatibility with $wgCSPHeader CSP Content Security Policy]
+* https://phabricator.wikimedia.org/p/adrelanos/
 
 == Widgets ==
 
@@ -334,9 +369,43 @@ Every developer please follow these rules and consult with the admin. A wiki is 
 ** [[Template:Footer Dev]]
 ** [[Widget:Footer Dev]]
 
+== Bug report to upstream ==
+
+Sometimes (seldomly) there needs to be a bug report or feature request or suggestion to upstream. Below are the necessary steps for this, demonstrated on a real request which we sent
+
+Example: gerrit patch compare https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CSS/+/759196/
+
+{{CodeSelect|code=
+git clone https://gerrit.wikimedia.org/r/mediawiki/extensions/CSS mediawiki-extension-css
+}}
+
+{{CodeSelect|code=
+cd mediawiki-extension-css
+}}
+
+{{CodeSelect|code=
+git fetch https://gerrit.wikimedia.org/r/mediawiki/extensions/CSS refs/changes/96/759196/1
+}}
+
+{{CodeSelect|code=
+git checkout -b change-759196 FETCH_HEAD
+}}
+
+{{CodeSelect|code=
+git remote add adre https://github.com/adrelanos/mediawiki-extensions-CSS.git
+}}
+
+{{CodeSelect|code=
+git fetch adre
+}}
+
+{{CodeSelect|code=
+git diff -C adre/all-css
+}}
+
 == Image Optimizations ==
 
-=== mat2 - strip of metadata ===
+''' mat2 - strip of metadata '''
 
 To strip files of meta data use mat2 on linux.
 
@@ -370,6 +439,37 @@ Specifically for SVG
 {{CodeSelect|code=
 scour --enable-viewboxing --enable-id-stripping --enable-comment-stripping --shorten-ids --indent=none -i input-file-name -o output-file-name
 }}
+
+== Debug Images Cache ==
+
+We internally create webp images from all images uploaded to the wiki. This sometimes creates problems in realizing if the image is a jpg etc or webp. With the help of these commands this can be debugged
+
+Examples
+
+{{CodeSelect|code=
+curl --silent --head 'https://www.whonix.org/w/images/d/dd/Whonix_concept_refined.jpg' {{!}} grep content-type:
+}}
+
+<pre>
+content-type: image/jpeg
+</pre>
+
+{{CodeSelect|code=
+curl --silent -H 'accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' --head 'https://www.whonix.org/w/images/d/dd/Whonix_concept_refined.jpg' {{!}} grep content-type:
+}}
+
+<pre>
+content-type: image/webp
+</pre>
+
+== Code Resources for MediaWiki ==
+
+As inspiration or directly as a code source.
+
+* https://dev.fandom.com/wiki/Category:JavaScript/Site_enhancements
+* https://dev.fandom.com/wiki/Category:CSS
+* https://dev.fandom.com/wiki/Fandom_Developers_Wiki
+* https://en.m.wikipedia.org/wiki/Wikipedia:User_scripts/List
 
 == Example Pages for CSS Enhancements ==
 
@@ -410,6 +510,112 @@ Instructions to create a bimi logo from an inkspace svg (tested method)
 # remove all animations from logo (if present, usally not)
 # Upload to wiki
 # Check with https://easydmarc.com/tools/bimi-record-generator
+
+== Purge : deleting cached file ==
+
+If you click purge on page or use the respective urls (examples below) then the cached file on the server is deleted and you should get the newest version
+
+Examples
+* https://www.whonix.org/wiki/Tor_Controller?action=purge
+* https://www.whonix.org/wiki/Tor_Controller?useformat=mobile?action=purge
+
+== MediaWiki special resources ==
+
+Those are hard to find via Google, so they are listed here
+
+* [[MediaWiki:Signupstart]]
+* [[MediaWiki:Anoneditwarning]]
+* [[MediaWiki:Shoutwiki-loginform-tos]]
+* [[MediaWiki:shoutwiki-must-accept-tos]]
+* [[MediaWiki:Useragreement]]
+
+* [[MediaWiki:Cookiewarning-info]]
+* [[MediaWiki:Cookiewarning-moreinfo-label]]
+* [[MediaWiki:Cookiewarning-more-link]]
+* [[MediaWiki:Cookiewarning-ok-label]]
+
+== Testing Terms of Service Buttons ==
+
+These buttons are in relation to the Extension NewPageSignup, see [[Special:Version]]
+
+=== Agree Button ===
+
+{{#widget:Terms of Service Agree}}
+
+=== Disagree Button ===
+
+{{#widget:Terms of Service Disagree}}
+
+== Special code resources (possibly outdated) ==
+
+=== Check if scripts are loaded ===
+
+These scripts were used for debugging scripts while es special MediaWiki skin was applied
+
+Using a desktop browser with mobile skin these scripts get loaded (the bold one contains the mobile.js):
+
+<pre>
+* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
+* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery.accessKeyLabel%2Cclient%7Cmediawiki.RegExp%2Cnotify%2Ctemplate%2Cutil%7Cmediawiki.page.startup%7Cmediawiki.template.hogan%7Cmobile.browser%2CmainMenu%2Cmodules%2Coo%2Cview%7Cmobile.loggingSchemas.mobileWebMainMenuClickTracking%7Coojs%7Cskins.minerva.scripts.top&skin=minerva&version=2bcd7ee968a7
+* '''https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery.cookie%2Cthrottle-debounce%7Cmediawiki.api%2Ccldr%2Ccookie%2Cexperiments%2CjqueryMsg%2Clanguage%2Cstorage%2Ctoc%2Cuser%2Cviewport%7Cmediawiki.api.user%7Cmediawiki.language.data%2Cinit%7Cmediawiki.libs.pluralruleparser%7Cmediawiki.ui.input%7Cmobile.ajax%2Cbetaoptin%2Ccontext%2Cdrawers%2Cissues%2CmodifiedBar%2Coverlays%2Cpagelist%2Creferences%2Csearch%2Csettings%2Csite%2Cstartup%2Ctoast%2Ctoggle%2Cuser%2Cwatchstar%7Cmobile.editor.api%7Cmobile.issues.images%7Cmobile.loggingSchemas.edit%2CmobileWebLanguageSwitcher%2CmobileWebSearch%7Cmobile.overlay.images%7Cmobile.pagelist.scripts%2Cstyles%7Cmobile.pagesummary.styles%7Cmobile.references.gateway%2Cimages%7Cmobile.toggle.images%7Cskins.minerva.editor%2Cscripts%2Ctoggling%2Cwatchstar%7Cskins.minerva.icons.images.scripts%7Cuser.defaults&skin=minerva&version=4409fb4608cb'''
+* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=mobile.toc%7Cmobile.toc.images%7Cskins.minerva.tablet.scripts&skin=minerva&version=6b1c9eeeb881
+* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
+</pre>
+
+But using the emulated mobile device with the same skin only these get loaded:
+
+* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
+* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
+
+
+search for
+
+<pre>
+sdShowDetailed
+</pre>
+
+the error only occurs when a mobile device is used and the mobile theme is active
+
+=== Test user agents ===
+
+* Test which different responses the server sends to different user agents
+
+<pre>
+curl https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 1
+</pre>
+
+<pre>
+curl --user-agent "android.mobile" https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 2
+</pre>
+
+<pre>
+curl https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 3
+</pre>
+
+<pre>
+curl --user-agent "android.mobile" https://www.whonix.org/wiki/Tor_Controller > 4
+</pre>
+
+<pre>
+curl --user-agent "android.mobile" https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 5
+</pre>
+
+<pre>
+curl https://www.whonix.org/wiki/Tor_Controller?useformat=mobile?useformat=mobile > 6
+</pre>
+
+<pre>
+meld 1 2
+</pre>
+
+=== Caching or not caching ===
+
+We send a cookie to the server. If the server sends back the same header for both request then caching is off
+
+<pre>
+curl --head --cookie cookie_name=cookie_content https://www.whonix.org/wiki/Tor_Controller
+curl --head https://www.whonix.org/wiki/Tor_Controller
+</pre>
 
 = EXPORT to new wiki =
 
@@ -564,26 +770,32 @@ Template:Donation mininav
 * It has 1 anonymous parameter which sets the id attribute for the span element
 * CSS: The element has no dimension and is relatively positioned above it's normal position about the amount that the Header is high. That way if the anchor is called the header does not overlap the anchored position. This is especially useful when referencing headlines
 * It is usually used to manually set anchors to make old links work with new headlines
-* Example: {{Anchor|my_id}} creates <code><nowiki><span class="manually-placed-anchor" id="my_id"></span></nowiki></code>
+* Example: <code><nowiki>{{Anchor|my_id}}</nowiki></code> creates <code><nowiki><span class="manually-placed-anchor" id="my_id"></span></nowiki></code>
 
 == Archive_link ==
-** [[Template:Archive_link]]
-** [[Widget:Archive_link]]
-** [[MediaWiki:Archive_link.css]]
-** Documentation for wiki editors: [[Dev/wiki#Links]]
 
-== Back To Top Button==
-** [[Mediawiki:BackToTopButton.css]]
-** [[MediaWiki:BackToTopButton.js]]
-* Back to Top Button is realized via [[MediaWiki:BackToTopButton.css]] and [[MediaWiki:BackToTopButton.js]] which are imported in Common.css and Common.js and thereby available for all pages, including Vector styled pages
-* [[MediaWiki:BackToTopButton.js]] has one implicit (but not critical) dependency of FontAwesome for its symbol
-** suggestion: If FontAwesome is removed the <code><nowiki><i class="fas fa-chevron-up"></i></nowiki></code> can be replaced by <code><nowiki><span>UP</span></nowiki></code>
+# Archive_link creates a custom absolute link with an auto-created link to web archive and multiple options. It structurally mimics the Mediawiki extension "Link to archive".
+# Documentation for wiki editors: [[Dev/wiki#Links]]
+# It is realized via the files
+## [[Template:Archive_link]]
+## [[Widget:Archive_link]]
+## [[MediaWiki:Archive_link.css]]
+# Detailed Documentation
+## This template is based on the widget Archive_link and uses styles from Archive_Link.css . 
+## It is designed to display an external link in different ways: (A) as link without any additions (B) as a link with small logo links behind it symbolizing alternative addresses (onion or archive)
+### Caution: As all links are external, the target attribute will be set to "_blank"
+## Parameters
+### url | string, default: "" - the url you want to link to
+### text | string, default: "" - the link text displayed in the main link
+### archive | string, default: "auto" - if not "none" then there will be a logo link to an archive page of the given url. Options are (A) "auto" - where the archive link is auto-generated from the url (B) "copy" - where the link is exactly copied from the url (useful when url is already from web.archive.org) and (C) none - where no logo link is shown
+### onion | string, default: "none" - if not "none" then there will be a logo link to an onion url. Options are (A) none - no logos is generated (B) "copy" - where the url is copied to the logo link (useful if url is already onion link) and (C) [onion-url] - a real onion url which is an alternative url to the main url
+# There is a legacy version, called [[Template:Link]] which might be outdated now but is still in use
 
 == Box and MBox ==
 
-* These are to templates which are used to create special text boxes
-* [[Template:Box]] is a container usually for text. [[Template:MBox]] uses Box and integrates an image into it
-* Box uses the design class "info box", see [[#Design_Classes]]
+* These are 2 templates which are used to create special text boxes
+* [[Template:Box]] is a container usually for text. [[Template:Mbox]] uses Box and integrates an image into it
+* Box uses the design class "info box", see [[#info-box class]]
 * Box has the parameters: |text= and |addToClass
 ** Box can also have one anonymous parameter instead of text
 <pre><nowiki>
@@ -594,83 +806,165 @@ has the same result as
 * MBox has the parameters like Box plus: |image=
 
 == CodeSelect ==
-** [[MediaWiki:CodeSelect.js]]
-** [[MediaWiki:CodeSelect.css]]
-** [[Template:CodeSelect]]
-** [[Widget:CodeSelect]]
 
-== Donation_Panel ==
+# CodeSelect creates a multiline text area or an inline text field to display code or technical information
+## It has a button to copy all text to the clipboard
+## Also all text will be marked if the user clicks into the text area
+## Is No-JS compatible. In No Js mode the copying button is not shown but text is markable and copyable
+# These are the files for CodeSelect
+## [[MediaWiki:CodeSelect.js]]
+## [[MediaWiki:CodeSelect.css]]
+## [[Template:CodeSelect]]
+## [[Widget:CodeSelect]]
+# usage: <code><nowiki>{{CodeSelect|code=your code whatever you want except pipe-Symbol|inline=if true then displaying will be in line}}</nowiki></code>
+## example: <code><nowiki>{{CodeSelect|code=echo "Hello World"|inline=true}}</nowiki></code> will show {{CodeSelect|code=echo "Hello World"|inline=true}}
+
+== Donation Panel ==
+
+* The donation panel is an all-in-one payment tool for donations. It can be implemented in different pages. Usually it will be present in [[Donate]]
+* The relevant files are
+** [[Template:Payments]]
 ** [[MediaWiki:Donation_Panel.css]]
 ** [[Widget:Donation_Panel]]
+* Usage: It is implemented into a page lik so <code><nowiki>{{Payments}}</nowiki></code> using the [[Template:Payments]] which uses the following files automatically. These files need to be present for the donation panel to work: [[Template:Pay_Bitcoin]], [[Template:Pay_bitcoin_qr_imgurl]], [[Template:Pay_Monero]], [[Template:Pay_monero_qr_imgurl]], [[Template:Pay_Ethereum]], [[Template:Pay_ethereum_qr_imgurl]], [[Template:project_name_long]], [[Template:project_name_short]]
 
-== DownloadButton ==
-** [[Template:Download_Button]]
-** [[Widget:Download_Button]]
-** [[MediaWiki:Download_Button.css]]
-** [[MediaWiki:Download_Button.js]]
+== Download Button ==
 
-== Editor enhancement via Javascript ==
+# The download button template offers a convinient way to show a graphically pleasing download button
+# The relevant files are
+## [[Template:Download_Button]]
+## [[Widget:Download_Button]]
+## [[MediaWiki:Download_Button.css]]
+## [[MediaWiki:Download_Button.js]]
+# Usage call the Template <code><nowiki>{{Download_Button...}}</nowiki></code> with the following parameters
+## text | string, mandatory - Visible text on the button
+## url | string, mandatory -  The complete url for the download button
+## os | string/array, mandatory - Will show all the logos of the named operating systems. Options: linux, windows, osx, qubes, kvm, debian, virtualbox, usb. Multiple logos example: |os=linux|os=windows will generate an array
+## addToClass | string, optional - Will be added to class attribute of wrapper-div
+## targetBlank | boolean, optional, default: false - If true will be filling the target attribute with "_blank"
+## redirectUrl | string, optional - If set then after clicking Download and after redirectDelay the page will be redirected to the given URL
+## redirectDelay | number, optional, default: 1000 - The delay in milliseconds to wait after download has been clicked to redirect the page. Only takes effect if parameter redirectUrl is set
+
+== EditorFullscreen ==
+
+* EditorFullscreen is an in-wiki modification (augmentation) of the wikitext editor. Instead of working in a small window the editor has the option to click on the green fullscreen icon on the upper right in the editing line of the editor and set the wikitext editor to fullscreen. If the wikitext editor is in fullscreen mode at the same position there will be the shrink item which restores the wikitext editor to its original windowed size
+* Relevant files:
 ** [[MediaWiki:EditorFullscreen.js]]
 ** [[MediaWiki:EditorFullscreen.css]]
 
-== ExpandAndCollapse ==
-** [[MediaWiki:ExpandAndCollapse.js]]
+== Editor SaveAndContinue ==
+
+* Editor SaveAndContinue an in-wiki modification (augmentation) of the wikitext editor. It adds a new green button "Save continue" to the form which usually just has a "Save Changes" button. But the standard "Save Changes" button reloads the page and disrupts the workflow. The "Save continue" button saves the form via an AJAX request. After that it shows the resulting page for the editor (person) the check if the page really was successfully saved
+* The relevant files are
+** [[MediaWiki:SaveAndContinue.css]]
+** [[MediaWiki:SaveAndContinue.js]]
+
+== EditorAutoBackup ==
+
+* EditorAutoBackup is an in-wiki modification (augmentation) of the wikitext editor. It creates an "saved icon" in the top right corner of the wikitext editor software toolbar. When clicked there will be the wikitext shown of the last edit right after save was clicked and right before the form was sent to the server
+** The functionality is based on Javascript and on the localStorage of the browser
+** When "saved icon" is clicked the data from the editing form will be saved to the browser's localStorage via Javascript. As long as the browser doesn't delete the localStorage (be careful TorBrowser might do that when closing the browser) the edited wikitext from (only!) the last save will be saved in localStorage
+* The relevant files are
+** [[MediaWiki:EditorAutoBackup.css]]
+** [[MediaWiki:EditorAutoBackup.js]]
+
+== Expand Or Collapse All ==
+
+* The Expand Or Collapse All Button is a conveniance feature to deal with page where there are multiple expand/ collapse buttons
+** This only applies to html elements with the class ".mw-collapsible-text", usually divs. Those already have a toggle (expand / collapse) button for each one individually
+** If the Expand Or Collapse All Button is clicked then all ".mw-collapsible-text" elements will be opened
+** If all ".mw-collapsible-text" are already opened then the "Expand All" button will show "Collapse All" and if clicked all ".mw-collapsible-text" elements will be collapsed
+* Relevant files
+** [[Template:Expand_or_Collapse_All]]
 ** [[Widget:Expand_or_Collapse_All]]
+** [[MediaWiki:ExpandAndCollapse.js]]
+* Usage: <code><nowiki>{{Expand_or_Collapse_All}}</nowiki></code>
 
 == FlyInNotification Module ==
-** [[Widget:FlyInNotification]]
-** [[MediaWiki:FlyInNotification.css]]
-** [[MediaWiki:FlyInNotification.js]]
+
 * It is a delayed notification to show a user special information after a period of time of staying on a {{project_name_short}} page.
-** Shown for JavaScript enabled browsers: Yes.
-** Shown for NoScript users: No.
-*** A dismissable Fly-In-Notification which is also functional for no-JS (NoScript) enabled browsers is too much effort to implement. It would require a MediaWiki extension / PHP.
-* The fly-in-notification is defined in [[Template:FlyInNotification]], [[Widget:FlyInNotification]], [[MediaWiki:FlyInNotification.css]] and [[MediaWiki:FlyInNotification.js]]
+* The widget is dismissable and sets a cookie named <code>flyInBannerIdDismissed</code> which is documented in our [[Cookie_Policy#Preferences]].
+* Shown for JavaScript enabled browsers: Yes. ** Shown for NoScript users: No.
+** A dismissable Fly-In-Notification which is also functional for no-JS (NoScript) enabled browsers is too much effort to implement. It would require a MediaWiki extension / PHP.
+* Relevant files
+** [[Template:FlyInNotification]]
+** [[Widget:FlyInNotification]]
+** [[MediaWiki:FlyInNotification.css]] 
+** [[MediaWiki:FlyInNotification.js]]
 * The widget is at the moment wiki wide enabled using [[Template:Header]].
 ** If this changes in the future and the devs want to implement it on a page by page basis, it can be implemented by simply adding <code><nowiki>{{#widget:FlyInNotification}}</nowiki></code> to any page.
 ** In the current implementation the fly-in-notification can be disabled using <code><nowiki>{{#css:Mediawiki:Hide_flyInNotification.css}}</nowiki></code> or generally (and usually) by using [[Template:Hide_all_banners]], i.e. by using the usual wiki syntax to include a wiki template: <code><nowiki>{{hide_all_banners}}</nowiki></code>
 ** It is already disabled on some pages such as Donation related pages and legal related pages.
 ** Dev note: If you want to change this behaviour in the future read [[MediaWiki:Hide_flyInNotification.css]] to learn how CSS works in tandem with JavaScript to hide the notification
-* The widget is dismissable and sets a cookie named <code>flyInBannerIdDismissed</code> which is documented in our [[Cookie_Policy#Preferences]].
-* The general options of <code>currentCookieId</code> and <code>waitInSeconds</code> and the <code>content</code> are set in the JavaScript file. The widget is currently regarded as globally conform, so there are no page specific options.
+* Usage: See [[Template:Header]] for an example. The general options of <code>currentCookieId</code> and <code>waitInSeconds</code> and the <code>content</code> are set in the JavaScript file. The widget is currently regarded as globally conform, so there are no page specific options.
 ** <code>currentCookieId</code>: The id which is stored in the cookie. The <code>currentCookieId</code> will be compared to the id in the cookie, if it matches widget will not be shown. Suggestion: increment the id in integer steps if you want to show the user the next new notification
 ** <code>waitInSeconds</code>: The time to wait until the notification pops up (is shown to the user)
 ** <code>content</code>: HTML content which is defined as a structured string in the JS file
 
+== Mini Modal ==
+
+# MiniModal is a modal as a quick way to create lightweight modals, mainly for backend work like for the wikitext editor (software)
+# Relevant files are
+## [[MediaWiki:MiniModal.js]]
+## [[MediaWiki:MiniModal.css]]
+# Usage: implement the modal with this minimal structure {{CodeSelect|code=<div class="mini-modal" id="your-id-recommended-to-use"></div>|inline=true}}
+## init : MiniModal are lazily initialized when they are shown or hidden. You can also actively initialize them with {{CodeSelect|inline=true|code=$('#your-id-recommended-to-use').miniModal('init');}}. A sub div will be created with the underlay and a close button. And the direct content under the .mini-modal div will be moved to the sub-div .content
+## show / hide : You can programmatically (JS) open the modal with {{CodeSelect|inline=true|code=$('#your-id-recommended-to-use').miniModal('show');}} and close it with {{CodeSelect|inline=true|code=$('#your-id-recommended-to-use').miniModal('hide');}}
+
 == Mini Navigation==
-** [[MediaWiki:Mininav.css]]
-Mininav: Mini navigation: Mini navigation is used to have multiple buttons in a row linking to other pages. The outer element must be a &lt;div class="mininav"&gt; the inner element must be a list of links. This will automatically be transformed to the navigation. Example
+
+* Mininav: Mini navigation: Mini navigation is used to have multiple buttons in a row linking to other pages. The outer element must be a &lt;div class="mininav"&gt; the inner element must be a list of links. This will automatically be transformed to the navigation
+* Relevant files: [[MediaWiki:Mininav.css]]
+Example
  <pre>
  <div class="mininav">
- * [[link1]]
- * [[link2]]
- * [[link3]]
+ * [[Homepage]]
+ * [[Homepage]]
+ * [[Homepage]]
  </div>
  </pre>
+leads to 
+<div class="mininav">
+* [[Homepage]]
+* [[Homepage]]
+* [[Homepage]]
+</div>
 
 == PayViaPaypal module ==
-** [[Mediawiki:PayViaPaypal.css]]
+
+* To offer users to donate via PayPal we offer a form to do so
+** The form is a fully functional PayPal form which combines subscription payment and one time payment by switching input elements (as defined in PayPal's API) according to the user's selection
+** This module is based on Javascript because PayPal also seems at the moment only fully usable with Javascript activated
+* Relevant files
 ** [[Mediawiki:PayViaPaypal.js]]
-* PayPal seems at the moment only fully usable with Javascript activated
-* Therefore we opted to make the form fully Javascript, see [[Mediawiki:PayViaPaypal.js]] and [[Mediawiki:PayViaPaypal.css]] and [[Mediawiki:Nojs.css]] 
-* To integrate the form simply use <code><nowiki><div class="pay-via-paypal-module">[nojs text]</div></nowiki></code> and write the text or markup for nojs users in the div
+** [[Mediawiki:PayViaPaypal.css]]
+** [[Mediawiki:Nojs.css]] 
+* Usage: To integrate the form into a page simply use <code><nowiki><div class="pay-via-paypal-module">[nojs text]</div></nowiki></code> and write the text or markup for nojs users in the div
 ** This text will be replaced by the form via Javascript if Javascript is activated
-* You can also use "smooth" in the class attribute. This makes the form grow smoothly when it's fully loaded instead of popping into position <code><nowiki><div class="pay-via-paypal-module smooth">[nojs text]</div></nowiki></code>
-* The form is a fully functional PayPal form which combines subscription payment and one time payment by switching input elements (as defined in PayPal's API) according to the user's selection
-* On any page there can be multiple forms which are each independent of each other
+** You can also use "smooth" in the class attribute. This makes the form grow smoothly when it's fully loaded instead of popping into position <code><nowiki><div class="pay-via-paypal-module smooth">[nojs text]</div></nowiki></code>
+** On any page there can be multiple forms which are each independent of each other
 
 == Pre : &lt;pre&gt; and &lt;div class="pre"&gt; ==
 
 <code>&lt;pre&gt;</code> and <code>&lt;div class="pre"&gt;</code> are two ways to show preformatted code. Both look very similar. The difference is: In pre tags mediawiki does not parse newlines, variables etc, in div.pre it does. So according to usage scenario either pre or div.pre are preferrable
 
+== sd-start (currently retired) ==
+
+* https://www.whonix.org/wiki/Widget:Sd-start-short
+* https://www.whonix.org/wiki/Widget:Sd-end-short-start-detailed
+* https://www.whonix.org/wiki/Widget:Sd-end-detailed
+* https://www.whonix.org/wiki/Template:Sd-start-short
+* https://www.whonix.org/wiki/Template:Sd-end-short-start-detailed
+* https://www.whonix.org/wiki/Template:Sd-end-detailed
 
 == SiteNotice Donation Banner ==
 * The sitenotice is used to communicated current infos to the user. Up until now it was used for a donation banner. But in the future it will be used more versatile. Also since the Extension:DismissableSiteNotice is installed the user can dismiss a sitenotice permanently.
-* These are the elements used
+* Relevant elements
 ** [[MediaWiki:Sitenotice]]
 ** [[Widget:Sitenotice]]
 ** [[MediaWiki:Sitenotice_id]]
 ** [[MediaWiki:Sitenotice.css]]
+** [[MediaWiki:Sitenotice_SiteSpecific.css]]
 ** [[MediaWiki:Sitenotice.js]]
 ** [[Template:Hide_all_banners]]
 * For testing there is also [[Widget:Sitenotice Test]].
@@ -681,12 +975,20 @@ Mininav: Mini navigation: Mini navigation is used to have multiple buttons in a 
 ** Note that the Sitenotice is made invisible (see [[MediaWiki:Vector.css]]) on pages with the Vector theme as those are for editors anyways.
 * If you want to show the user a new Sitenotice (or an old one AGAIN) simply increment the integer in [[MediaWiki:Sitenotice_id]] because DismissableSiteNotice writes a cookie for the user with the current ID, so for a new ID the user will see the current Sitenotice again.
 
-
 == Subdomain_link ==
-** [[Template:Subdomain_link]]
-** [[Widget:Subdomain_link]]
 
-
+# This template creates a context based link to a subdomain of the wiki project. Works only for the official wiki clearnet and onion domains.
+## Problem: normally it is optimal to use relative links. This is not possible for subdomains here. But to redirect with an absolute link to a subdomain poses the problem if there are multiple domains for the same website like with whonix where there is also an .onion domain
+## This template solves the problem by automatically analysing the context (which domain the user is on) and creating the link automatically based on the context
+# The files which are used, are
+## [[Template:Subdomain_link]] - only this template should be used by editors
+## [[Widget:Subdomain_link]] - this widget should only be edited by devs
+# Parameters
+## text | string, default: "" - the text you want to display in your link
+## sub | string, default: "" - the subdomain without any special character. If you want forums.whonix.org, use "forums"
+## append | string, default: "" - an addition to the link after the domain. Always start with slash "/". Example: "/thread/12387" → "whonix.org/thread/12387"
+## result | string, standard: "link" - determines what the widget returns. Options (A) link - then an a-hyperlink will be created (B) url - then only the final url will be created (C) parts - then a string will be created. First part protocol "http", the comma, then "doamin", example: "https,whonix.org"
+## testingcontext | string, default: "" - give an alternative testing context url to test this template. Parameter remains in production version of this template because there are sophisticated RegExp terms used and for later development and demonstration purposes this is highly useful
 
 == Tables with oversize, ScrollableIndicator ==
 * Tables with oversize: Tables are sometimes too long for viewing on mobile devices. This makes the whole content scrollable to the right. To prevent this editors can wrap the whole table in <code>&lt;div class="scroll-table"&gt;&lt;table&gt;...&lt;/table&gt;&lt;/div&gt;</code> . This makes only the table scrollable, but not the whole document.
@@ -790,187 +1092,7 @@ The following tasks have been considered for realization but have been rejected 
 ** the tabs can be on one line or multiple lines and are therefore responsive
 ** the design is subtle and nice and integrates with the rest of the visual language (gray background for code, but white for functional elements of the website)
 
-
-
-
-
-= Images Cache Debugging =
-{{CodeSelect|code=
-curl --silent --head 'https://www.whonix.org/w/images/d/dd/Whonix_concept_refined.jpg' {{!}} grep content-type:
-}}
-
-<pre>
-content-type: image/jpeg
-</pre>
-
-{{CodeSelect|code=
-curl --silent -H 'accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' --head 'https://www.whonix.org/w/images/d/dd/Whonix_concept_refined.jpg' {{!}} grep content-type:
-}}
-
-<pre>
-content-type: image/webp
-</pre>
-
-= gerrit patch compare =
-https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CSS/+/759196/
-
-{{CodeSelect|code=
-git clone https://gerrit.wikimedia.org/r/mediawiki/extensions/CSS mediawiki-extension-css
-}}
-
-{{CodeSelect|code=
-cd mediawiki-extension-css
-}}
-
-{{CodeSelect|code=
-git fetch https://gerrit.wikimedia.org/r/mediawiki/extensions/CSS refs/changes/96/759196/1
-}}
-
-{{CodeSelect|code=
-git checkout -b change-759196 FETCH_HEAD
-}}
-
-{{CodeSelect|code=
-git remote add adre https://github.com/adrelanos/mediawiki-extensions-CSS.git
-}}
-
-{{CodeSelect|code=
-git fetch adre
-}}
-
-{{CodeSelect|code=
-git diff -C adre/all-css
-}}
-
-== Repository ==
-* https://dev.fandom.com/wiki/Category:JavaScript/Site_enhancements
-* https://dev.fandom.com/wiki/Category:CSS
-* https://dev.fandom.com/wiki/Fandom_Developers_Wiki
-* https://en.m.wikipedia.org/wiki/Wikipedia:User_scripts/List
-
-== MediaWiki Replacement Discussion ==
-* See [[Dev/About_Infrastructure#{{project_name_long}}_homepage_backend]]
-
-== Feature Request ==
-https://forums.whonix.org/t/short-and-detailed-buttons-in-the-wiki-html-help-wanted
-
-== MediaWiki Bugs and Feature Requests ==
-* [https://phabricator.wikimedia.org/T270099 $wgCSPHeader CSP Content Security Policy compatibility with $wgUseFileCache file cache]
-* [https://phabricator.wikimedia.org/T270095 add Widgets extension compatibility with $wgCSPHeader CSP Content Security Policy]
-* https://phabricator.wikimedia.org/p/adrelanos/
-
-== Locations to Edit ==
-=== strapping ===
-No longer using mediawiki skin strapping.
-
-* Mediawiki skin strapping does not use https://www.whonix.org/wiki/MediaWiki:Common.css but <code>/var/www/wiki/skins/strapping/theme.css</code>
-** [https://github.com/{{project_name_short}}/www/blob/master/w/skins/strapping/theme.css /var/www/wiki/skins/strapping/theme.css]
-
-=== sd-start ===
-* https://www.whonix.org/wiki/Widget:Sd-start-short
-* https://www.whonix.org/wiki/Widget:Sd-end-short-start-detailed
-* https://www.whonix.org/wiki/Widget:Sd-end-detailed
-* https://www.whonix.org/wiki/Template:Sd-start-short
-* https://www.whonix.org/wiki/Template:Sd-end-short-start-detailed
-* https://www.whonix.org/wiki/Template:Sd-end-detailed
-
-=== Footer Links ===
-* https://www.mediawiki.org/wiki/Manual:Footer
-* https://www.whonix.org/wiki/MediaWiki:Copyright
-* https://www.whonix.org/wiki/MediaWiki:Copyrightwarning
-* <code>/etc/apache2/footer.php</code>
-* https://www.whonix.org/wiki/MediaWiki:E-Sign_Consent
-* https://www.whonix.org/wiki/MediaWiki:Imprint
-
-== Check if scripts are loaded ==
-
-Using a desktop browser with mobile skin these scripts get loaded (the bold one contains the mobile.js):
-
-<pre>
-* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
-* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery.accessKeyLabel%2Cclient%7Cmediawiki.RegExp%2Cnotify%2Ctemplate%2Cutil%7Cmediawiki.page.startup%7Cmediawiki.template.hogan%7Cmobile.browser%2CmainMenu%2Cmodules%2Coo%2Cview%7Cmobile.loggingSchemas.mobileWebMainMenuClickTracking%7Coojs%7Cskins.minerva.scripts.top&skin=minerva&version=2bcd7ee968a7
-* '''https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery.cookie%2Cthrottle-debounce%7Cmediawiki.api%2Ccldr%2Ccookie%2Cexperiments%2CjqueryMsg%2Clanguage%2Cstorage%2Ctoc%2Cuser%2Cviewport%7Cmediawiki.api.user%7Cmediawiki.language.data%2Cinit%7Cmediawiki.libs.pluralruleparser%7Cmediawiki.ui.input%7Cmobile.ajax%2Cbetaoptin%2Ccontext%2Cdrawers%2Cissues%2CmodifiedBar%2Coverlays%2Cpagelist%2Creferences%2Csearch%2Csettings%2Csite%2Cstartup%2Ctoast%2Ctoggle%2Cuser%2Cwatchstar%7Cmobile.editor.api%7Cmobile.issues.images%7Cmobile.loggingSchemas.edit%2CmobileWebLanguageSwitcher%2CmobileWebSearch%7Cmobile.overlay.images%7Cmobile.pagelist.scripts%2Cstyles%7Cmobile.pagesummary.styles%7Cmobile.references.gateway%2Cimages%7Cmobile.toggle.images%7Cskins.minerva.editor%2Cscripts%2Ctoggling%2Cwatchstar%7Cskins.minerva.icons.images.scripts%7Cuser.defaults&skin=minerva&version=4409fb4608cb'''
-* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=mobile.toc%7Cmobile.toc.images%7Cskins.minerva.tablet.scripts&skin=minerva&version=6b1c9eeeb881
-* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
-</pre>
-
-But using the emulated mobile device with the same skin only these get loaded:
-
-* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
-* https://www.whonix.org/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
-
-
-search for
-
-<pre>
-sdShowDetailed
-</pre>
-
-the error only occurs when a mobile device is used and the mobile theme is active
-
-== Caching ==
-=== Cookies ===
-<pre>
-curl --cookie test=yes https://www.whonix.org/wiki/Tor_Controller
-</pre>
-
-=== Fixing ===
-Sometimes this helps.
-
-https://www.whonix.org/wiki/Tor_Controller?action=purge
-
-https://www.whonix.org/wiki/Tor_Controller?useformat=mobile?action=purge
-
-== Test ==
-<pre>
-curl https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 1
-</pre>
-
-<pre>
-curl --user-agent "android.mobile" https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 2
-</pre>
-
-<pre>
-curl https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 3
-</pre>
-
-<pre>
-curl --user-agent "android.mobile" https://www.whonix.org/wiki/Tor_Controller > 4
-</pre>
-
-<pre>
-curl --user-agent "android.mobile" https://www.whonix.org/wiki/Tor_Controller?useformat=mobile > 5
-</pre>
-
-<pre>
-curl https://www.whonix.org/wiki/Tor_Controller?useformat=mobile?useformat=mobile > 6
-</pre>
-
-<pre>
-meld 1 2
-</pre>
-
-== mediawiki Mobile Frontend ==
-There is no Table of Contents (TOC) when using MobileFrontend with javascript disabled.
-
-== misc notes ==
-* [[MediaWiki:Signupstart]]
-* [[MediaWiki:Anoneditwarning]]
-* [[MediaWiki:Shoutwiki-loginform-tos]]
-* [[MediaWiki:shoutwiki-must-accept-tos]]
-* [[MediaWiki:Useragreement]]
-
-{{#widget:Terms of Service Agree}}
-{{#widget:Terms of Service Disagree}}
-
-* [[MediaWiki:Cookiewarning-info]]
-* [[MediaWiki:Cookiewarning-moreinfo-label]]
-* [[MediaWiki:Cookiewarning-more-link]]
-* [[MediaWiki:Cookiewarning-ok-label]]
-
-== Links ==
-* [[Template:Link]]
-* [[Template:Archive_link]]
+= Archive =
 
 == pagespeed ==
 No longer in use.
@@ -1021,13 +1143,8 @@ we have
 * load.php?[...]modulename.namespace.tool3
 * load.php?[...]differentmodule.tool
 
-== Links ==
-[[Dev/wiki#Links]]
+== Old CSS Checklist ==
 
-== Redirect ==
-* https://www.whonix.org/w/index.php?title=System_Hardening_Checklist&redirect=no
-
-== CSS Checklist ==
 These are actually done but written as if they are not done:
 
 * On for example [[FAQ]] the long title <code>Frequently Asked Questions - Whonix ™ FAQ</code> breaks the layout on mobile. Because the title is too long, one has to scroll to the right side on mobile to read the title in full. Does the title miss some attribute such as "autowrap", "break line if too long"?
@@ -1053,8 +1170,6 @@ Test
 
 * beautify breadcrumbs (zB < dev on top of this page)
 
-= See Also =
-* Wiki EDITORS should visit [[Dev/wiki]] for their tailored information. But it's also informative for developers
 
 {{Footer}}
 
