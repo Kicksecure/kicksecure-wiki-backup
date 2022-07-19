@@ -64,6 +64,84 @@ https://forums.whonix.org/t/starting-xcfe-virtualbox-give-guru-meditation/10378/
 # [[File:Logo-windows-500x500.png|15px|link=]] <u>Windows <code>10</code> users only:</u> <u>Hash Sum mismatch:</u> [[#Core Isolation|Disable Core Isolation]].
 }}
 
+= Linux Host Kernel versus Tor Browser and other Crashes =
+This issue happens after a Linux host kernel upgrade. A common symptoms of this issue are:
+
+* APT showing <code>hashsum mismatch</code>.
+* {{kicksecure_wiki
+|wikipage=Kernel#Kernel_Issues
+|text=other kernel issues
+}}
+* Tor Browser crashes.
+
+<pre>
+ERROR: Tor Browser ended with non-zero (error) exit code!
+
+Tor Browser was started with:
+
+/home/user/.tb/tor-browser/Browser/start-tor-browser --verbose --allow-remote .
+
+Tor Browser exited with code: 139
+</pre>
+
+It is happening because [https://forums.virtualbox.org/viewtopic.php?f=7&t=106272 VirtualBox does not support yet that kernel version]. <ref>
+* https://www.virtualbox.org/ticket/20914
+* https://forums.virtualbox.org/viewtopic.php?f=7&t=106071
+</ref>
+
+This wiki chapter was written on 19 July 2022 and might be improved later perhaps with better options as they become available.
+
+{{box|
+The only known workaround for now is to downgrade to Debian Linux kernel version <code>5.10.0-14</code>. Obviously this is a bad solution.
+
+'''1.''' On the host operating system.
+
+Open a terminal.
+
+'''2.''' [[Update]] the package lists.
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+'''3.''' Install Debian Linux kernel version <code>5.10.0-14</code>.
+
+{{CodeSelect|code=
+sudo apt install linux-image-5.10.0-14-amd64 linux-headers-5.10.0-14-amd64
+}}
+
+'''4.''' Reboot.
+
+'''5.''' grub boot menu.
+
+In grub boot menu select Linux kernel version <code>5.10.0-14</code>.
+}}
+
+Reported functional Debian Linux kernel package versions:
+
+* <code>linux-image-5.10.0-14-amd64</code> / <code>linux-headers-5.10.0-14-amd64</code>
+
+Reported broken Debian Linux kernel package versions:
+
+* <code>linux-image-5.10.0-15-amd64</code> (and equivalent linux-headers version)
+* <code>linux-image-5.10.0-16-amd64</code> (and equivalent linux-headers version)
+
+Reported broken VirtualBox host software Debian package versions:
+
+* <code>6.1.34-dfsg-3~fto11+1</code>
+
+Potential easy, better solutions in the future:
+
+* Ideally, the Debian fasttrack (already recommended under [[VirtualBox/Recommended Version|recommended VirtualBox version]] might provide a newer/fixed version.
+* [[VirtualBox/Other_Versions#Install_from_VirtualBox.org_Repository|Install from VirtualBox.org Repository]] does not at time of writing but might in the near future contain VirtualBox version <code>6.1.35r151864</code> or later.
+
+Potential OK solutions which are [[untested]]:
+
+* Installation of VirtualBox version <code>6.1.35r151864</code> or later from source code.
+
+Forum discussion:
+https://forums.whonix.org/t/tor-browser-crashing/13767
+
 = Failed to open a session for the virtual machine =
 If you see the following error message:
 
@@ -492,22 +570,81 @@ Related: [https://forums.whonix.org/t/hash-sum-mismatch-downloads-all-fail-since
 
 # "Forget" about {{project_name_long}} for a moment and imagine you had never heard of the platform. Test the VirtualBox host software first.
 # Try a VM other than {{project_name_long}}, for example Debian <code>{{Stable project version based on Debian codename}}</code>.
-# If that does not fix the issue, that means the root issue is not caused by {{project_name_long}} i.e. it is [[unspecific]] to {{project_name_long}}. In that case it is recommended to try and resolve the issue as per [[Free Support Principle]].
+# If that does not fix the issue, that means the root issue is not caused by {{project_name_long}}. In other words, the issue is [[unspecific]] to {{project_name_long}}. In that case it is recommended to try and resolve the issue as per [[Free Support Principle]].
 
 = VirtualBox Generic Bug Reproduction =
 
-This entry is based on [[Reporting_Bugs#Bug_Report_Recommendations|Bug Report Recommendations]], specifically [[Reporting_Bugs#Generic_Bug_Reproduction|Generic Bug Reproduction]]. The content is similar to the [[#Try a non-whonix VM|Try a non-{{project_name_long}} VM]] chapter above.
+This entry is based on [[Reporting_Bugs#Bug_Report_Recommendations|Bug Report Recommendations]], specifically [[Reporting_Bugs#Generic_Bug_Reproduction|Generic Bug Reproduction]]. The content is similar to the [[#Try a non-{{project_name_short}} VM|Try a non-{{project_name_long}} VM]] chapter above.
 
-A manual reproduction of the [[Dev/VirtualBox#VirtualBox_Integration|{{project_name_long}} VirtualBox Integration]].
+The following is a manual reproduction of the [[Dev/VirtualBox#VirtualBox_Integration|{{project_name_long}} VirtualBox Integration]].
 
-# Use the [https://whonix.org/wiki/Host_Operating_System_Selection#Recommended_Linux_Distribution recommended] ([http://www.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion/wiki/Host_Operating_System_Selection .onion]) Linux distribution -- [https://www.debian.org/ Debian] <code>{{Stable project version based on Debian codename}}</code> -- as the host operating system. ([[Debian Tips]])
-# Install the [[VirtualBox/Recommended_Version|recommended version of the VirtualBox host software]].
-# Installation of non-freedom software is not required, but the Debian "<code>nonfree</code>" (free in price but non-freedom) repository must be temporarily enabled; the reason is documented below.
-# [https://packages.debian.org/virtualbox-guest-additions-iso <code>virtualbox-guest-additions-iso</code>] (Freedom Software) from the Debian repository on the the Debian host operating system. Due to a [[Dev/VirtualBox#VirtualBox_Guest_Additions_ISO_Freedom_vs_Non-Freedom|Debian packaging bug]] the package is only available from Debian <code>nonfree</code> repository, but the package is not non-freedom. That package provides file <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code>.
-# Install Debian <code>{{Stable project version based on Debian codename}}</code> inside a VirtualBox VM.
-# Mount the VirtualBox Guest Additions CD iso file <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code> inside the Debian VM.
-# Install VirtualBox Guest Additions from the virtual CD-ROM drive inside the Debian VM. Change to the directory where the CD-ROM drive is mounted and run the following command as root: <code>sh ./VBoxLinuxAdditions.run</code>
-# Attempt to reproduce the original issue.
+{{box|
+'''1.''' Use the [https://www.whonix.org/wiki/Host_Operating_System_Selection#Recommended_Linux_Distribution recommended] ([http://www.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion/wiki/Host_Operating_System_Selection .onion]) Linux distribution -- [https://www.debian.org/ Debian] <code>{{Stable project version based on Debian codename}}</code> -- as the host operating system. ([[Debian Tips]]) During installation, preferably choose the same desktop environment that {{project_name_long}} is using, which is Xfce at time of writing.
+
+'''2.''' Install the [[VirtualBox/Recommended_Version|recommended version of the VirtualBox host software]] and follow the instructions from that wiki page.
+
+'''3.''' Install Debian <code>{{Stable project version based on Debian codename}}</code> inside a VirtualBox VM.
+
+'''4.''' Install the VirtualBox Guest Additions from the Debian <code>fasttrack</code> repository inside the VirtualBox VM.
+
+{{box|
+'''A)''' Inside the VirtualBox VM.
+
+Open a terminal.
+
+'''B)''' Add the Debian <code>fasttrack</code> repository.
+
+Update the package lists.
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+'''C)''' Install the Debian <code>fasttrack</code> signing key.
+
+{{CodeSelect|code=
+sudo apt install fasttrack-archive-keyring
+}}
+
+'''D)''' Add the Debian <code>fasttrack</code> repository.
+
+{{CodeSelect|code=
+echo 'deb https://fasttrack.debian.net/debian/ {{Stable_project_version_based_on_Debian_codename}}-fasttrack main contrib non-free' {{!}} sudo tee /etc/apt/sources.list.d/fasttrack.list
+}}
+
+'''E)''' Update the package lists again. <ref>
+This is to acquire the Debian <code>fasttrack</code> repository package sources.
+</ref>
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+'''F)''' Install the VirtualBox Guest Additions.
+
+{{CodeSelect|code=
+sudo apt install virtualbox-guest-x11
+}}
+
+'''G)''' Reboot required.
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+'''H)''' VirtualBox Guest Additions should now be installed.
+
+The procedure of installing the VirtualBox Guest Additions is complete.
+}}
+
+'''5.''' Attempt to reproduce the original issue.
+
+* '''A)''' If the original issue is reproducible: That means the root issue is not caused by {{project_name_long}}. In other words, the issue is [[unspecific]] to {{project_name_long}}. In that case it is recommended to try and resolve the issue as per [[Free Support Principle]]. If a solution was found, please consider editing the [[Documentation|{{project_name_long}} Documentation]] as a small contribution and/or providing a complete answer in the {{project_name_long}} User Forums.
+* '''B)''' If the original issue is not reproducible: Please report this in [https://forums.{{project_clearnet}} {{project_name_long}} forums].
+
+}}
+
+The following deprecated instructions chapter [[Deprecated#VirtualBox Generic Bug Reproduction using virtualbox-guest-additions-iso|VirtualBox Generic Bug Reproduction using virtualbox-guest-additions-iso]] is probably not required but kept here in case it will be needed again in the future.
 
 = Submit a Bug Report =
 
