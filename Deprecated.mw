@@ -1,0 +1,89 @@
+__NOINDEX__
+
+= VirtualBox Generic Bug Reproduction using virtualbox-guest-additions-iso =
+
+This entry is based on [[Reporting_Bugs#Bug_Report_Recommendations|Bug Report Recommendations]], specifically [[Reporting_Bugs#Generic_Bug_Reproduction|Generic Bug Reproduction]]. The content is similar to the [[#Try a non-whonix VM|Try a non-{{project_name_long}} VM]] chapter above.
+
+A manual reproduction of the [[Dev/VirtualBox#VirtualBox_Integration|{{project_name_long}} VirtualBox Integration]].
+
+# Use the [https://www.whonix.org/wiki/Host_Operating_System_Selection#Recommended_Linux_Distribution recommended] ([http://www.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion/wiki/Host_Operating_System_Selection .onion]) Linux distribution -- [https://www.debian.org/ Debian] <code>{{Stable project version based on Debian codename}}</code> -- as the host operating system. ([[Debian Tips]])
+# Install the [[VirtualBox/Recommended_Version|recommended version of the VirtualBox host software]].
+# Installation of non-freedom software is not required, but the Debian "<code>nonfree</code>" (free in price but non-freedom) repository must be temporarily enabled; the reason is documented below.
+# [https://packages.debian.org/virtualbox-guest-additions-iso <code>virtualbox-guest-additions-iso</code>] (Freedom Software) from the Debian repository on the the Debian host operating system. Due to a [[Dev/VirtualBox#VirtualBox_Guest_Additions_ISO_Freedom_vs_Non-Freedom|Debian packaging bug]] the package is only available from Debian <code>nonfree</code> repository, but the package is not non-freedom. That package provides file <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code>.
+# Install Debian <code>{{Stable project version based on Debian codename}}</code> inside a VirtualBox VM.
+# Mount the VirtualBox Guest Additions CD iso file <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code> inside the Debian VM.
+# Install VirtualBox Guest Additions from the virtual CD-ROM drive inside the Debian VM. Change to the directory where the CD-ROM drive is mounted and run the following command as root: <code>sh ./VBoxLinuxAdditions.run</code>
+# Attempt to reproduce the original issue.
+
+= NTP =
+== Disabling NTP ==
+If ISP tampering with NTP is ever confirmed, users are advised to [[Time_Attacks#GNU.2FLinux_Host|disable NTP]] and manually update the host clock out-of-band. For example, a watch or [https://en.wikipedia.org/wiki/Atomic_clock atomic clock] can be used for this purpose. If the tampering is targeted and not a widescale attack, then the user already has much bigger problems to worry about than NTP; see [[Warning#Confirmation_Attacks|Confirmation Attacks]].
+
+If following the advice above -- disabling NTP on the host and adjusting the clock out-of-band -- be aware that clearnet traffic might be easier to fingerprint. <ref>See the [[Fingerprint]] page to discover what fingerprinting means in this case.</ref> The reason is that it introduces a device issuing clearnet traffic (such as OS updates), but without the use of NTP. It is unknown how many people have NTP which is deactivated, broken, uninstalled, or never in fact installed in the first place. Also unknown is how many people are using alternative time synchronization methods such as authenticated NTP, [https://tails.boum.org/contribute/design/Time_syncing/ tails_htp], [https://github.com/ioerror/tlsdate/ tlsdate], [[sdwdate]] or similar. However, search engine research suggests that very few people fall into both these categories.
+
+== NTP Issues ==
+The host system clock synchronization mechanism still uses unauthenticated NTP from a single source. This is not optimal, but there is no real solution to this problem. <ref>See Design: [[Dev/TimeSync]].</ref> A potential attack vector is created by this NTP behavior; the ISP and/or time server could either inadvertently or maliciously introduce a significant clock skew, or the host clock could simply malfunction.
+
+If the host clock value is grossly inaccurate -- more than one hour in the past or more than 3 hours in future -- Tor cannot connect to the Tor network. <ref>In this case, Tor cannot verify the Tor consensus.</ref> This is easily solved by manually fixing the clock on the host, then powering the {{project_name_gateway_long}} off and on again.
+
+Another side effect of a significantly inaccurate host clock concerns operating system (OS) updates and cryptographic verification on the host. Until the host clock is manually fixed, it may no longer be possible to download updates or verify SSL certificates correctly with the host browser.
+
+Users should always check whether a host clock defect relates to an empty battery before assuming the ISP is tampering with NTP.
+
+= ??? =
+== KVM ==
+<div class="toccolours mw-collapsible mw-collapsed">
+For KVM, click on Expand on the right.
+<div class="mw-collapsible-content">
+[[KVM#XML_Modification_.28OPTIONAL.29|Edit the VM xml before import]] or [[KVM#Editing_an_imported_Machine.27s_XML_Configuration|edit the VM xml after import]] and change the following setting.
+{{CodeSelect|code=
+<clock offset='utc'>
+}}
+To.
+
+{{CodeSelect|code=
+<clock offset='variable' adjustment='123456' basis='utc'>
+}}
+
+The <code>adjustment</code> attribute takes any arbitrary value for seconds. The user must pick a random value that is unknown to others, ranging between 0 and 900 (a 15 minute range).
+</div>
+</div>
+
+== Qubes ==
+
+TODO
+
+Unfortunately, it is not yet possible to set a random clock offset for {{q_project_name}} VM to prevent clock correlation attacks since it is [https://phabricator.whonix.org/T440 unsupported by Xen]. A related issue is [https://phabricator.whonix.org/T389 denying {{q_project_name}} access to "clocksource=xen"], which may not be possible without Linux kernel and/or Xen patches. For a detailed discussion of these issues, see [https://groups.google.com/forum/#!topic/qubes-devel/aN3IOv6JmKw here].
+
+== VirtualBox ==
+<div class="toccolours mw-collapsible mw-collapsed">
+For [[VirtualBox]], click on Expand on the right.
+<div class="mw-collapsible-content">
+VirtualBox has a feature to spoof the initial virtual hardware clock offset by setting the clock X milliseconds in the future or past. The syntax is outlined below.
+
+{{CodeSelect|code=
+VBoxManage modifyvm <name> --biossystemtimeoffset -<milliseconds>
+VBoxManage modifyvm <name> --biossystemtimeoffset +<milliseconds>
+}}
+
+It is recommended to add a random delay within the following range.
+
+{{CodeSelect|code=
+VBoxManage modifyvm <name> --biossystemtimeoffset -60000
+VBoxManage modifyvm <name> --biossystemtimeoffset +60000
+}}
+
+A spoofing example is below. Users should select their own unique and random values for both the past (-) and future (+) within the specified range. Different values should be used for each distinct VM (on the host).
+
+{{CodeSelect|code=
+VBoxManage modifyvm "{{project_name_gateway_short}}" --biossystemtimeoffset -35017
+VBoxManage modifyvm "{{project_name_gateway_short}}" --biossystemtimeoffset +27931
+
+VBoxManage modifyvm "{{project_name_workstation_long}}" --biossystemtimeoffset -35017
+VBoxManage modifyvm "{{project_name_workstation_long}}" --biossystemtimeoffset +27931
+}}
+
+Apart from this small <code>biossystemtimeoffset</code>, a clock skew always degrades privacy. <ref><code>biossystemtimeoffset</code> is used to unlink the virtualizer's initial clock synchronization of the VM from the host clock.</ref> <ref>After powering on a VM, it initially synchronizes the VM clock with the host clock until {{project_name_long}} Timesync adjusts it.</ref>
+
+</div>
+</div>

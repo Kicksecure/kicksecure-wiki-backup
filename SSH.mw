@@ -1,0 +1,506 @@
+{{Title|title=Secure Shell (SSH)}}
+{{Header}}
+{{#seo:
+|description=SSH Hardening Tips; Recommended Client and Server Settings for better Security
+|image=SSH.jpg
+}}
+[[image:Sshlogo.png|SSH Logo|thumb]]
+= Introduction =
+
+Secure Shell (SSH) is a core tool in a sysadmin's arsenal and provides a secure and encrypted connection and method of communication between a client user and a server. It is mainly used to remotely control a machine. In the Linux landscape, the package OpenSSH is one of the most popular and complete choices to enable communication via SSH. Newcomers to SSH should first consult the [https://wiki.debian.org/SSH Debian SSH wiki] to learn the basics.
+
+'''Figure:''' ''Example SSH Login'' <ref>https://devconnected.com/how-to-install-and-enable-ssh-server-on-debian-10/</ref>
+
+[[Image:Sshlogin.png|border]]
+
+= General Hardening Tips =
+
+'''Table:''' ''SSH Hardening Recommendations''
+
+{| class="wikitable"
+|-
+
+! scope="col"| '''Recommendation'''
+! scope="col"| '''Description'''
+|-
+
+! scope="row"| Keystroke and Mouse Fingerprinting
+| Beware of keyboard keystroke and computer mouse-based deanonymization as explained in the [[Surfing Posting Blogging]] chapter.
+|-
+
+! scope="row"| Mobile Shell Roaming and Echo
+| [https://packages.debian.org/{{Stable project version based on Debian codename}}/mosh mosh] might be a useful addition. However, it requires UDP and it is therefore difficult to utilize over Tor, see: [[Tunnel UDP over Tor]]. [https://www.youtube.com/watch?v=P_Jd5k0S_AQ Is it safe to mosh?]
+|-
+
+! scope="row"| SSH Breaks
+|
+* Any references to SSH breaks in the Snowden archives applied to some outdated ciphers.
+* This has since been addressed by hardened OpenSSH settings and upstream disabling vulnerable algorithms. <ref>
+https://security.stackexchange.com/questions/112802/why-openssh-deprecated-dsa-keys
+</ref> <ref>
+https://stribika.github.io/2015/01/04/secure-secure-shell.html
+</ref>
+|-
+
+! scope="row"| SSH Keys
+| To generate stronger SSH keys, see [[#Key Generation|Key Generation]].
+|-
+
+! scope="row"| SSH Ports
+| Configuring SSH servers to listen on non-default ports reduces noise (automated hacking attempts) and may also increase security from less skilled attackers.
+|-
+
+! scope="row"| SSH Servers
+|
+* Prefer SSH servers available through a [[Onion Services|Tor Onion Service]] for stronger encryption and authentication.
+* Consider using [[Onion_Services#Step_3:_Configure_Onion_Services_Authentication|Onion Services Authentication]] but also note [[#Onion_Services#Onion_Services_Reliability_Issues|Onion Services Reliability Issues]].
+* Tor also provides [https://en.wikipedia.org/wiki/Hole_punching_%28networking%29 NAT hole-punching] so it is unnecessary to register with a DNS service or open up the LAN to outside access.
+* If the server is known to the public (non-hidden), single Tor hops can be used for the server, see: [[Non Anonymous Onion Encryption and NAT Traversal]].
+|-
+
+! scope="row"| Two-factor Authentication
+| SSH can be combined with [[Two-factor authentication 2FA|Two-factor Authentication (2FA)]], but this and its threat model is [[undocumented]] at present.
+|-
+
+! scope="row"| Miscellaneous
+| For additional tips, refer to the {{project_name_long}} forum discussion: [https://forums.whonix.org/t/locking-down-your-ssh-server-and-client/7896 Locking down your SSH client].
+|-
+
+|}
+
+= Secure SSH Client and Server Settings =
+
+There is a client package and a server package, <code>openssh-client</code> and <code>openssh-server</code>. Covered topics include:
+
+# Key generation for authentication/sign-in purposes.
+# Suggested secure settings for both the client and server configurations.
+# A sample set of iptables rules to allow communication between client and server.
+
+== Key Generation ==
+
+Before you can connect to a server (or host) through SSH using public key authentication, a keypair is required. This consists of a public key, which you share with the server, and a private key which is used to verify that you are actually signing in. A passphrase (strongly recommended) can be added to your key which will be asked each time you sign into a server.
+
+Once the server has your public key, it is placed into an <code>authorized_keys</code> file. The private key is not shared with anyone and should be kept in a safe place -- it typically resides at <code>/home/user/.ssh/private-key</code> on the client's machine with root permissions (0600). The private key is how the server authenticates your username.
+
+{{Box|text=
+'''1.''' Generate the SSH keypair.
+
+Use a tool called "ssh-keygen". On the command line, type.
+
+{{CodeSelect|code=
+ssh-keygen -o -a 75 -t ed25519
+}}
+
+* <code>-o</code> produces a key that is compatible with OpenSSH instead of the older style <code>.pem</code>.
+* <code>-a</code> refers to the number of rounds of KDF (key derivation function). This strengthens the key against a brute force attack to break the passphrase if the (private) key were to be stolen. A value of 75 to 100 is more than adequate. Remember that the more rounds that are specified, the longer it takes to authenticate (sign in). This depends on your CPU, your workload at the time of sign in, the amount of cores, and available memory among other factors.
+* <code>-t</code> specifies what type of key to generate. The choices are: <code>rsa</code>, <code>ecdsa</code> and <code>ed25519</code>. RSA and ECDSA are older keys, and OpenSSH recommends <code>ed25519</code> as the best choice.
+
+'''2.''' Store the SSH keypair.
+
+Upon generation of your keypair, OpenSSH will ask if the keys should be stored at: <code>/home/user/.ssh</code>; reply <code>yes</code>. Permissions will be automatically set in Debian. <ref>
+There have been reports of wrong permissions on certain other distributions. For reference, the correct permissions are as follows:
+
+* for the public key, <code>0644</code> is needed; and
+* for the private key <code>0600</code> (root) is vital.
+
+Having too lax permissions will prevent logins and cause unwanted errors.
+</ref>
+}}
+
+The keypair generation procedure is now complete. You have successfully generated a keypair.
+
+== Key Installation ==
+Copy the key to the server you want to sign into.
+
+Notes:
+
+* This only needs to be done once per server. The <code>ssh-copy-id</code> command works for this task, run.
+* Replace <code>127.0.0.1</code> with the actual IP address of the server.
+* The example user name below is <code>root</code> which is the default first time login user name by many server providers.
+* If this is a first time login and/or password based login, enter the SSH login password. Password should be provided by server provider. No password might be provided if the server provider already pre-installed a ssh key.
+
+{{CodeSelect|code=
+ssh-copy-id -i ~/.ssh/id_ed25519.pub root@127.0.0.1
+}}
+
+The <code>ssh-copy-id</code> utility will check for the correct permissions before it allows the key to be transferred.
+
+The the following example the ssh server fingerprint is <code>zBAIUzWnW+Y9cS+5cND/XWw0XFIhtSnxCEIbNUcCd8c</code>.
+
+<pre>
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/user/.ssh/id_ed25519.pub"
+The authenticity of host '127.0.0.1 (127.0.0.1)' can't be established.
+ECDSA key fingerprint is SHA256:zBAIUzWnW+Y9cS+5cND/XWw0XFIhtSnxCEIbNUcCd8c.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+</pre>
+
+The ssh server fingerprint should be provided by the server provider.
+
+Key installation is now complete.
+
+== Server Login ==
+Once the ssh public key was copied to the server, the user can login any time.
+
+Login into the server.
+
+Note: Replace <code>127.0.0.1</code> with the actual IP address of the server.
+
+{{CodeSelect|code=
+ssh root@127.0.0.1
+}}
+
+A password prompt for the key would be shown if a passphrase has been previously set.
+
+If the ssh login was successful, like the shell prompt will be different from the usual {{project_name_long}} shell prompt <code>user@host</code>. For example <code>root@server</code>.
+
+'''Figure:''' ''Example SSH Login'' <ref>https://devconnected.com/how-to-install-and-enable-ssh-server-on-debian-10/</ref>
+
+[[Image:Sshlogin.png|border]]
+
+== Client and Server Configuration File Settings ==
+
+The next step is to set up secure settings for the client and server configuration files. Examples will be given for both client and server. The relevant files are: <code>/etc/ssh/ssh_config</code> and <code>/etc/ssh/sshd_config</code>.
+
+=== Client Configuration File ===
+{{testers-only}}
+
+[https://forums.whonix.org/t/locking-down-your-ssh-client/7896/9 Review needed!] See also https://manpages.debian.org/ssh_config
+
+<code>/etc/ssh/ssh_config</code>:
+
+<pre>
+Host *
+
+## ipv4
+AddressFamily inet
+
+IdentityFile ~/.ssh/id_ed25519
+
+Port 22
+Protocol 2
+ForwardX11 no
+PubkeyAuthentication yes
+StrictHostKeyChecking ask
+VisualHostKey yes
+HashKnownHosts yes
+User user
+Host host
+SendEnv LANG LC_*
+
+## Strongest ciphers:
+Ciphers chacha20-poly1305@openssh.com
+
+## Most secure MACs:
+MACs hmac-sha2-512-etm@openssh.com
+
+## Secure Kex algos:
+KexAlgorithms curve25519-sha256
+
+Tunnel no
+#TunnelDevice any:any
+#PermitLocalCommand no
+#ProxyCommand ssh -q -W %h:%p gateway.example.com
+</pre>
+
+=== Server Configuration File ===
+{{testers-only}}
+
+[https://forums.whonix.org/t/locking-down-your-ssh-client/7896/9 Review needed!] See also [https://manpages.debian.org/sshd_config <code>sshd</code> configuration file man page].
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+<u>Warnings</u>:
+
+* Changing the <code>sshd</code> configuration can prevent future successful SSH connections to your servers.
+* It is probably best to only set this up for new servers or if you do not mind re-installing the server should you lock yourself out.
+* If a server console interface (ability to run repair commands from server host web administrator interface) is available, it is certainly far less risky to make huge changes to the ssh configuration.
+* Do not proceed without a backup of the server and knowledge of how to restore the server should anything go wrong.
+}}
+
+{{Box|text=
+<u>Prerequisite knowledge</u>:
+
+* How to open a terminal (emulator) such as xfce4-terminal.
+* How to open two terminal emulators or multiple terminal emulator tabs at the same time.
+* Using command line text editors such as <code>nano</code>.
+}}
+
+{{Box|text=
+<u>Instructions</u>:
+
+'''1.''' Open at least two SSH connections to the server in two different terminal (tabs).
+
+One is used as a backup should the SSH connection be accidentally closed in the middle of the setup.
+
+'''2.''' View the fingerprint of the server's ed25519 public key.
+
+Fine hosting providers will also show the server fingerprint in the server web interface.
+
+{{CodeSelect|code=
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+}}
+
+Example output:
+
+<pre>
+256 SHA256:1Ri62BbzONwKbRau92UcyA1K4vu+mctfeddDTUu04ao root@nc-ph-1401-50 (ED25519)
+</pre>
+
+'''3.''' Restart the <code>sshd</code> daemon.
+
+{{CodeSelect|code=
+sudo systemctl restart sshd
+}}
+
+Existing SSH connections should not be interrupted by Debian default.
+
+'''4.''' Open a new terminal (tab) and see if you can still SSH to the server.
+
+If yes, proceed.
+
+'''5.''' Notes.
+
+''Note:'' When using the configuration file below, the following warning might appear. IP address and SHA256 hash will be different.
+
+<pre>
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649.
+Please contact your system administrator.
+Add correct host key in /home/user/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /home/user/.ssh/known_hosts:35
+  remove with:
+  ssh-keygen -f "/home/user/.ssh/known_hosts" -R "xxx.xxx.xxx.xxx"
+ED25519 host key for xxx.xxx.xxx.xxx has changed and you have requested strict checking.
+Host key verification failed.
+</pre>
+
+It will look similar to the following.
+
+<pre>
+256 SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649 root@node (ED25519)
+</pre>
+
+'''6.''' Make a backup of the old SSH configuration file.
+
+{{CodeSelect|code=
+cp /etc/ssh/sshd_config /etc/ssh/sshd_config_backup
+}}
+
+'''7.''' View the backup file <code>/etc/ssh/ssh_config_backup</code> with a text editor to check if the backup was successful.
+
+'''8.''' Clear contents of <code>/etc/ssh/sshd_config</code>.
+
+TODO: Since Debian <code>bullseye</code> it might be better to use file <code>/etc/ssh/sshd_config.d/50_user.conf</code> instead.
+
+{{CodeSelect|code=
+echo "" {{!}} sudo tee /etc/ssh/sshd_config
+}}
+
+'''9.''' Open file <code>/etc/ssh/sshd_config</code> with root rights.
+
+TODO: Since Debian <code>bullseye</code> it might be better to use file <code>/etc/ssh/sshd_config.d/50_user.conf</code> instead.
+
+'''10.''' Paste the following contents.
+
+Notes:
+
+* The following config file no longer allows root login. Either allow it as per next bullet point or make sure that user <code>user</code> can login using ssh (or a different user name).
+* Review the <code>AllowUsers</code> keyword in the following configuration file. Replace <code>AllowUsers user</code> with the actual user name(s) that should still be permitted to login using ssh. For example <code>AllowUsers user root</code> (in case root login should still be permitted).
+* Make sure that any of the <code>AllowUsers</code> are still permitted to gain root using <code>sudo</code> (or otherwise).
+
+<pre>
+## this is a white space separated list of allowed user login names. Only user names on this list will be allowed to login
+AllowUsers user
+
+## Protocol 1 is dangerously outdated!
+Protocol 2
+
+## 22 is standard, you can make it anything.
+## On commandline, when connecting as client,
+## use the “-p” option if not port 22;
+## example port 3243; ssh user@host -p 3243
+Port 22
+
+## means only ipv4, no v6 allowed
+AddressFamily inet
+
+## this is okay because of strict firewall/ AppArmor. For an onion-only server, you listen on 127.0.0.1
+ListenAddress 0.0.0.0
+
+## comment out if ipv6 is disabled via sysctl or iptables or both
+## comment in if ipv6 should be enabled
+#ListenAddress ::
+
+## location of server private key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+## Strongest ciphers:
+Ciphers chacha20-poly1305@openssh.com
+
+## Most secure MACs:
+MACs hmac-sha2-512-etm@openssh.com
+
+## Secure Kex algos:
+KexAlgorithms curve25519-sha256
+
+## Logging - optional - okay to leave commented out
+#SyslogFacility AUTH
+
+# unless you need logging, leave commented out
+#LogLevel INFO
+
+# how long does the prompt stay if client has a passphrase to enter
+LoginGraceTime 2m
+
+# Safer to deny root obviously
+#PermitRootLogin no
+
+# With keypairs, the "prohibit-password" option accomplishes the same thing so root is denied
+PermitRootLogin prohibit-password
+
+## Specifies whether password authentication is allowed. The default is yes.
+## use public keys ed25519 so no password authentication.
+## A passphrase is optional for the key, but that is not part of this option.
+## This option refers to old style password-only authentication (not secure)
+PasswordAuthentication no
+
+# Change to yes to enable challenge-response passwords (beware issues with
+# some PAM modules and threads)
+ChallengeResponseAuthentication no
+
+## number of allowed login attempts, if there is a passphrase associated with the key
+MaxAuthTries 3
+
+## number of allowed sessions with the same client
+## TODO: why would we modify that?
+#MaxSessions 4
+
+## Specifies whether public key authentication is allowed. The default is yes.
+## always use public keys, not passwords
+#PubkeyAuthentication yes
+
+# Set this to 'yes' to enable PAM authentication, account processing,
+# and session processing. If this is enabled, PAM authentication will
+# be allowed through the ChallengeResponseAuthentication and
+# PasswordAuthentication.  Depending on your PAM configuration,
+# PAM authentication via ChallengeResponseAuthentication may bypass
+# the setting of "PermitRootLogin without-password".
+# If you just want the PAM account and session checks to run without
+# PAM authentication, then enable this but set PasswordAuthentication
+# and ChallengeResponseAuthentication to 'no'.
+# The default is no.
+UsePAM no
+
+## circumstance specific.
+## This refers to the ssh-agent.
+## Useful when running a local instance and client/server exist on same machine
+AllowAgentForwarding no
+
+## Be careful with this. Avoid forwarding if you can.
+## If you do not forward tcp, leave this commented out.
+## Default is yes.
+AllowTcpForwarding no
+
+## dependent on connection and network.
+## Sometimes useful, sometimes not.
+## And okay default is to say “no” and if it turns out you need it, then do “yes.”
+TCPKeepAlive yes
+
+## Forwarding X11 is not a good idea
+X11Forwarding no
+
+PrintMotd no
+
+## this prints the "Last login: Mon Dec 5 08:21:15 2019 from 192.33.4444" message
+#PrintLastLog yes
+
+#UseLogin no
+
+#PermitUserEnvironment no
+
+## second amount to keep connection alive
+#ClientAliveInterval 0
+
+UseDNS no
+
+#Banner /etc/issue.net
+
+AcceptEnv LANG LC_*
+
+#Hiding debian version from ssh banner (obsecurity)
+DebianBanner no
+
+#Subsystem sftp /usr/lib/openssh/sftp-server
+
+#PermitTunnel no
+
+#ChrootDirectory none
+</pre>
+
+Save the file.
+
+'''11.''' Restart the <code>sshd</code> daemon. All existing SSH connections will remain open.
+
+{{CodeSelect|code=
+sudo systemctl restart sshd
+}}
+
+Keep the ssh connection open.
+
+'''12.''' Open another terminal (tab) and try to SSH to the server.
+
+* If it works, the process is complete.
+* If it does not work, use your still open terminal to check for configuration errors before trying again.
+}}
+
+=== Notes ===
+
+Those are the completed SSH configuration files. Please note that the entries preceded by a <code>#</code> are not necessary for functional use; they are included only as examples of what is possible in SSH. If you do not have a specific use for any of the commented out options in either configuration file, do not use them at all.
+
+The Ciphers, MACs and Kex algorithms are all the strongest possible at the time of writing with OpenSSH version 7.9 on Debian buster. The entries in the configuration files above are the most important and will establish a functional and well-guarded setup. Use ed25519 keys only -- rsa and ecdsa are outdated. Use the <code>ssh-keygen</code> command to generate the keys.
+
+The <code>VisualHostKey yes</code> entry in the <code>/etc/ssh/ssh_config</code> file is so when you login, openssh shows you an ascii-generated picture of what the key looks like. In addition to all the other verifications, this is one last line of defense to alert you to a changed or wrong key.
+
+Generally the newer OpenSSH versions will choose the strongest cipher on their own when negotiating a connection, but the configuration files establish in what order they are parsed. Both sides need to have the same or compatible openssh versions and cipher, mac, and kex algorithm options.
+
+== Firewall Settings and Rules ==
+{{Testers-only}}
+
+It is necessary to make specific firewall rules for your intended SSH activity. For example, if you wanted to connect to a server at <code>123.45.678</code> and both your configuration and the server's configuration specify port <code>4675</code> to communicate over:
+
+{{CodeSelect|code=
+sudo iptables -A OUTPUT -p tcp -o [interface-name] -s [your client ssh ip] -d [ssh server ip] --dport 4675 --j ACCEPT
+}}
+
+Then to let them respond:
+
+{{CodeSelect|code=
+sudo iptables -A INPUT -p tcp -i [interface-name] -s [ssh server ip] -d [your client ip] --dport 4675 --j ACCEPT
+}}
+
+This assumes a default-deny policy for INPUT and OUTPUT. If you have a default-allow for OUTPUT, then the following rule must be added as the last one in the OUTPUT chain:
+
+{{CodeSelect|code=
+sudo iptables -A OUTPUT --j DROP
+}}
+
+This ensures the outgoing rules you have are the only ones that allow traffic. Iptables parses in order, so when it does not see a rule matching a packet not on your list, it checks each one in the chain until it finds a match with the last rule and drops the packet. Also, SSH only uses the TCP protocol, so no UDP rules are explicitly needed.
+
+This should complete the SSH setup. Some people also recommend re-generating the moduli file that comes in <code>/etc/ssh</code>. If you use the settings above, look at the kex algorithms. Since no diffie hellman group exchange kex algorithms are used to exchange keys, it is unnecessary to regenerate the moduli. The chosen kex algo is curve25519.
+
+= See Also =
+
+* [[Remote Administration]]
+
+= Footnotes =
+<references />
+
+[[Category:Documentation]]
+{{Footer}}

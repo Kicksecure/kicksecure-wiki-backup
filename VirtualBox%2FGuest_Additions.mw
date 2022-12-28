@@ -1,0 +1,333 @@
+{{Title|title=VirtualBox Guest Additions and Shared Folders}}
+{{Header}}
+{{#seo:
+|description=Instructions for installing VirtualBox Guest Additions in {{project_name_long}}. Shared Folders, Clipboard Sharing, Mouse Integration and more.
+|image=Cd-699786640.jpg
+}}
+[[image:Cd-699786640.jpg|thumb]]
+= Introduction =
+
+Bidirectional clipboard sharing is currently enabled by default in {{project_name_long}} VirtualBox VM. <ref>[https://forums.whonix.org/t/host-whonix-gateway-clipboard-sharing-enable-by-default/894 Host -> Whonix-Gateway clipboard sharing enable by default?]</ref> There are good reasons to disable clipboard sharing, Left to the user to decide if he want to disable it or not.
+
+Shared folders are discouraged because it weakens isolation between the guest and the host. Providing a mechanism to access files of the host system from within the guest system via a specially defined path necessarily enlarges the attack surface and provides a potential pathway for malicious actors to compromise the host. <ref>
+https://forums.whonix.org/t/security-risks-of-virtualbox-shared-folders/10119
+</ref> <ref>
+To learn more about VirtualBox shared folders, see: [https://www.virtualbox.org/manual/ch04.html#sharedfolders VirtualBox Manual - Chapter 4. Guest Additions].
+</ref>
+<ref>
+Admittedly, this recommendation does not have a strong rationale. Disabling additional features in other virtualizers or general applications will similarly lead to less code paths being utilized and arguably increasing security. VirtualBox software is not special in this regard.
+</ref>
+
+= Clipboard Sharing =
+
+To change the clipboard sharing setting:
+# Power off the virtual machine. <ref name=poweroff>Because otherwise you cannot change VirtualBox VM settings.</ref>
+# Navigate to <code>VirtualBox machine settings</code> &rarr; <code>General</code> &rarr; <code>Advanced</code> &rarr; <code>Shared Clipboard</code>
+# Set the preferred configuration: <code>Disabled</code>, <code>Guest to Host</code>, <code>Host to Guest</code> or <code>Bidirectional</code>.
+# Power on the virtual machine again.
+
+To learn more, see: [https://www.virtualbox.org/manual/ch03.html#generalsettings VirtualBox Manual - Chapter 3. Configuring Virtual Machines].
+
+= Shared Folder =
+
+== {{project_name_long}}-Default ==
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = <u>Note</u>:
+* From VirtualBox v6+ it is no longer necessary to power off the virtual machine.
+* For better usability, package [https://github.com/{{project_name_short}}/vm-config-dist vm-config-dist] has already added user <code>user</code> to group <code>vboxsf</code>. <ref>
+Using [https://github.com/{{project_name_short}}/vm-config-dist/blob/master/lib/systemd/system/mnt-shared-vbox.service /lib/systemd/system/mnt-shared-vbox.service].
+</ref>
+}}
+
+{{Box|text=
+# Host folder preparation. On the host operating create a folder that should be shared with the {{VM}}. For example, on a Linux host operating system folder <code>/home/user/shared</code>.
+# <code>VirtualBox</code> &rarr; <code>right-click the virtual machine</code> &rarr; <code>Settings</code> &rarr; <code>Shared Folder</code>
+# Click the folder icon that has a <code>+</code> symbol in the upper right-hand section of the screen.
+# <code>Folder Path</code> &rarr; Navigate to the folder you want to share.
+# <code>Folder Name</code> &rarr; Type: <code>shared</code>. A different folder name can be utilized, but <code>shared</code> is recommended so it is the same as the example documented below -- do <u>not</u> use <code>share</code> (without the trailing <code>d</code>)!
+# Uncheck <code>Read-only</code>. <ref>
+If you do not wish to write to that folder from within the VM then the user is free to check/enable this setting.
+</ref>
+# Check <code>Auto-mount</code>. <ref name=vboxversiondependent>
+If the option is unavailable, upgrade VirtualBox.
+</ref>
+# <code>Mount Point</code> &rarr; Leave as is (leave it empty and do not make any changes). <ref>
+Alternatively folder <code>/home/user/shared</code> can be chosen. The VirtualBox default means that folder would be owned by owner <code>root</code> and group <code>vboxsf</code>.
+</ref>
+# Check <code>Make Permanent</code> (if that option exists). <ref>
+This is specific to the VirtualBox version; newer versions do not have this option anymore.
+
+Check <code>Make Permanent</code> if this setting should persist after restart of the virtual machine. Otherwise this setting will be temporary.
+</ref>
+# Press <code>OK</code> to close shared folder dialog.
+# Press <code>OK</code> to close VirtualBox settings.
+# The process is now complete and the shared folder can be used.
+
+VirtualBox shared folders are found inside the virtual machine in folder <code>/media/</code>.
+</ref>
+
+In the above example, the <code>shared</code> folder will become <code>cd /media/sf_shared</code>. <ref>
+By default, VirtualBox uses the prefix <code>sf_</code>.
+</ref> The folder can be opened using a [[Software#File Manager|file manager]] such as for example Thunar. To open it using the the command line, run.
+
+{{CodeSelect|code=
+cd /media/sf_shared
+}}
+}}
+
+== {{project_name_customworkstation_long}} ==
+<div class="toccolours mw-collapsible mw-collapsed">
+<u>If you are using a [[Other Operating Systems|{{project_name_customworkstation_long}}]]</u> additional steps are required. Please click on expand on the right.
+<div class="mw-collapsible-content">
+Two options exist: automatic mounting or manual mounting. The automatic mounting method is described below. For additional information on shared folders refer to the [https://www.virtualbox.org/manual/ch04.html#sharedfolders VirtualBox manual]. Any additional questions are unspecific to {{project_name_long}} and should be addressed as per the [[Support#Free Support Principle|Free Support Principle]].
+
+# Install VirtualBox guest additions inside the VM. <ref>This step is required. Quote [https://www.virtualbox.org/manual/ch04.html#sharedfolders VirtualBox Manual - Chapter 4. Guest Additions]:
+<blockquote>
+With the shared folders feature of Oracle VM VirtualBox, you can access files of your host system from within the guest system. This is similar to how you would use network shares in Windows networks, except that shared folders do not require networking, only the Guest Additions.
+</blockquote>
+</ref>
+# Add the user that will utilize shared folders from inside the VM to group <code>vboxsf</code>: {{CodeSelect|code=
+sudo addgroup user vboxsf
+}}
+# A reboot is required to make group changes take effect.
+# Follow the instructions above.
+</div>
+</div>
+
+<!-- https://www.whonix.org/wiki/ga links to VirtualBox/Guest_Additions#issue -->
+{{Anchor|issue}}
+
+= VirtualBox Guest Additions =
+== Introduction ==
+In {{project_name_long}}, VirtualBox guest additions are installed by default. <ref>
+* [https://forums.whonix.org/t/installing-virtualbox-guest-addition-by-default/700 Installing VirtualBox Guest Addition by Default?]
+</ref>
+
+To avoid any issues with the guest additions, users are highly recommended to:
+
+# Use the [[VirtualBox/Recommended_Version|Recommended VirtualBox Version for use with {{project_name_long}}]].
+# Leave installation of the recommended version of VirtualBox guest additions to {{project_name_long}} as dcoumented and to avoid manual installation. This documentation will be updated as required. Check back later in case you have issues.
+
+There might be a few odd messages during [[Operating_System_Software_and_Updates|updates]] which are actually [[#Non-Issues|non-issues]]. Unless actual functionality is broken, please do not ask about odd messages as per [[Reporting_Bugs#Support_Request_Policy|Support Request Policy]].
+
+In case of issues, see also [[VirtualBox/Troubleshooting|VirtualBox troubleshooting]] and consider a [[Reporting_Bugs|bug report]].
+
+== VirtualBox Guest Additions Installation Sources ==
+There are multiple sources to install {{Code2|VirtualBox guest additions}} from. It is possible to switch from one installation source to another. However, only 1 installation source should be used at the same time. If migrating from one installation source to another, the previous installation source should be disabled.
+
+'''Table:''' ''VirtualBox Guest Additions Installation Sources''
+
+<div class="scroll-table">
+{| class="wikitable"
+|-
+
+! '''Option'''
+! '''Nickname'''
+! '''Installation Source'''
+! '''Technical Difference'''
+! '''Installed by Default'''
+! '''Used by Default'''
+|-
+
+! A
+| Debian Style
+| From Debian's (<code>fasttrack.debian.net</code>) packages <code>virtualbox-guest-utils</code>, <code>virtualbox-guest-x11</code>.
+|
+* Adjusted by Debian specifically for Debian. Works very well when using the same version of the VirtualBox host software as well as VirtualBox guest additions.
+* After installation of the package(s), VirtualBox Guest Additions will be fully setup and functional.
+| {{Yes}}
+| {{Yes}}
+|-
+
+! B
+| Host ISO
+| VirtualBox guest additions ISO / CD
+|
+* This is the VirtualBox guest additions ISO / CD from Oracle, which is the company that develops VirtualBox.
+* This ISO is shipped with the VirtualBox host software.
+* The ISO contains generic VirtualBox guest additions installer for many Linux versions.
+* Not specifically designed for Debian.
+* Only recommended in case [[VirtualBox/Other_Versions#Install_from_VirtualBox.org_Repository|installing a newer version of VirtualBox from the VirtualBox.org Repository]] than available from Debian and only recommended if the ISO cannot instead be installed from the next entry in this table.
+* To actually install VirtualBox guest additions from this source, the user would have to mount or extract the ISO and run the setup installer as was per instructions on the [https://www.virtualbox.org/manual/ch04.html#additions-linux VirtualBox website].
+| {{No}}
+| {{No}}
+|-
+
+! C
+| Oracle Style
+| From Debian's (<code>packages.debian.org</code>) package [https://packages.debian.org/sid/virtualbox-guest-additions-iso <code>virtualbox-guest-additions-iso</code>].
+|
+* Similar to above.
+* A Debian maintainer has built the VirtualBox guest additions ISO and added it to the <code>virtualbox-guest-additions-iso</code> package to provide a more convenient method to acquire the ISO.
+* Installation alone of the package does effectively nothing. The package essentially only includes file <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code>.
+* Only recommended in case [[VirtualBox/Other_Versions#Install_from_VirtualBox.org_Repository|installing a newer version of VirtualBox from the VirtualBox.org Repository]] than available from Debian.
+* To actually install VirtualBox guest additions from this source, the user would have to, either:
+** '''A)''' mount or extract the ISO and run the setup installer as was per instructions on the VirtualBox website, <u>or</u>
+** '''B)''' use [[#vbox-guest-installer|vbox-guest-installer]].
+| {{Yes}}
+| {{No}}
+|-
+
+|}
+</div>
+
+{{Code2|VirtualBox guest additions}} (from packages <code>virtualbox-guest-utils</code>, <code>virtualbox-guest-x11</code>) are installed by default and should be preferred over <code>virtualbox-guest-additions-iso</code>. <ref name=legacy15>
+<code>virtualbox-guest-additions-iso</code> is still installed by default. Should there be issues with <code>virtualbox-guest-utils</code>, <code>virtualbox-guest-x11</code> as there was in past due to unavailability, then it's easier to fall back to that solution. <code>vbox-guest-installer</code>] (installation helper created by {{project_name_long}} developers) is also still installed by default for the same purpose.
+</ref>
+
+== vbox-guest-installer ==
+[https://github.com/{{project_name_short}}/vm-config-dist/blob/master/usr/bin/vbox-guest-installer <code>vbox-guest-installer</code>] is an installation helper created by {{project_name_long}} developers. It is a helper utility for better usability that allows to install {{Code2|VirtualBox guest additions}} from Debian's (<code>packages.debian.org</code>) package [https://packages.debian.org/sid/virtualbox-guest-additions-iso <code>virtualbox-guest-additions-iso</code>].
+
+* Not enabled by default.
+* Usually no user action required.
+* Usually no enable/disable or settings change required.
+
+Whenever the Linux kernel package or <code>virtualbox-guest-additions-iso</code> is upgraded, <code>vbox-guest-installer</code> should be automatically running. <ref>
+<code>debian/vm-config-dist.triggers</code>
+</ref>
+
+<code>vbox-guest-installer</code> will refuse to install VirtualBox guest additions from package <code>virtualbox-guest-additions-iso</code> when either package <code>virtualbox-guest-x11</code> and/or package <code>virtualbox-guest-utils</code> is still installed. This is because only 1 installation source should be used by default as mentions in chapter [[#VirtualBox/Guest_Additions#VirtualBox_Guest_Additions_Installation_Sources|VirtualBox Guest Additions Installation Sources]].
+
+To use <code>vbox-guest-installer</code>, see chapter [[VirtualBox/Guest_Additions#Migration_to_Oracle_Style_VirtualBox_Guest_Additions|Migration to <u>Oracle Style</u> VirtualBox Guest Additions]].
+
+== VirtualBox Guest Additions CD ==
+
+* If using [[VirtualBox|{{project_name_long}} for VirtualBox]] with the [[VirtualBox/Recommended_Version|recommended VirtualBox version]]:
+** VirtualBox guest additions are installed by default. (Debian's (<code>fasttrack.debian.net</code>) packages <code>virtualbox-guest-utils</code>, <code>virtualbox-guest-x11</code>)
+** It is therefore usually unnecessary and discouraged to install guest additions from Debian's (<code>packages.debian.org</code>) package <code>virtualbox-guest-additions-iso</code> or from VirtualBox ISO / CD.
+** Do <code>not</code> use <s><code>VirtualBox</code> &rarr; <code>Devices</code> &rarr; <code>Insert Guest Additions CD image...</code></s>.
+** Doing otherwise could lead to version conflicts of the VirtualBox host version versus the VirtualBox guest additions version such as black screen, screen resolution bug, broken host to VM copy/paste and similar. <ref>
+[https://forums.whonix.org/t/virtualbox-guest-additions/8998/3 Installation of VirtualBox guest additions from CD might also cause issues.]
+</ref>
+* If you are using other operating systems: Using VirtualBox Guest Additions CD is OK. In that case, issues should be resolved as per [[Support#Free Support Principle|Free Support Principle]] because it would be [[unspecific|unspecific to {{project_name_long}}]].
+
+== Migration to Oracle Style VirtualBox Guest Additions ==
+If the user is currently using VirtualBox packages <code>virtualbox-guest-utils</code> and <code>virtualbox-guest-x11</code> (Debian style) and wishes to migrate to Oracle Style VirtualBox Guest Additions from package <code>virtualbox-guest-additions-iso</code>, complete the following steps.
+
+'''1.''' Uninstall the Debian style VirtualBox Guest Additions Packages.
+
+This step is mandatory. Otherwise [[#vbox-guest-installer|vbox-guest-installer]] would refuse to install Oracle Style VirtualBox Guest Additions because only 1 installation source for guest additions must be active at the same time.
+
+{{CodeSelect|code=
+sudo apt purge virtualbox-guest-utils virtualbox-guest-x11
+}}
+
+'''2.''' Make sure package <code>virtualbox-guest-additions-iso</code> is installed.
+
+Should be installed by default. To check and install if required, run.
+
+{{Install Package
+|package=virtualbox-guest-additions-iso
+}}
+
+'''3.''' Run vbox-guest-installer.
+
+{{CodeSelect|code=
+sudo vbox-guest-installer
+}}
+
+'''4.''' Reboot.
+
+'''5.''' Done.
+
+Migration from VirtualBox Guest Additions (Debian style) to VirtualBox Guest Additions ISO (Oracle style) has been completed.
+
+{{Anchor|Migration to Guest Additions Packages}}
+== Migration to Debian Style VirtualBox Guest Additions Packages ==
+If the user is currently using VirtualBox Guest Additions from package <code>virtualbox-guest-additions-iso</code> and/or ISO / CD (Oracle style) and wishes to migrate to VirtualBox packages <code>virtualbox-guest-utils</code> and <code>virtualbox-guest-x11</code> (Debian style), complete the following steps.
+
+'''1.''' [[#Uninstall virtualbox-guest-additions-iso|Uninstall virtualbox-guest-additions-iso]].
+
+'''2.''' Install.
+
+{{Install Package
+|package=virtualbox-guest-utils virtualbox-guest-x11
+}}
+
+'''3.''' Reboot.
+
+'''4.''' Done.
+
+Migration from VirtualBox Guest Additions ISO (Oracle style) to VirtualBox Guest Additions (Debian style) packages has been completed.
+
+== VirtualBox Guest Additions Security ==
+General concerns have been raised about the security of VirtualBox, for example see the article [https://www.phoronix.com/news/OTk5Mw The VirtualBox Kernel Driver Is Tainted Crap] . However, this refers to the kernel driver (on the host), not guest additions. For opposite viewpoints, see [https://lists.debian.org/debian-devel/2013/08/msg00112.html here]  and [https://lists.debian.org/debian-devel/2013/08/msg00116.html here].
+
+= Alternatives =
+It is possible to achieve similar functionality without installing guest additions:
+* For file exchange with {{project_name_long}}, see: [[File Transfer]] and [[File Sharing]].
+* To achieve a higher screen resolution, see: [[VirtualBox/Higher Screen Resolution without installing VirtualBox Guest Additions|Higher Screen Resolution without VirtualBox Guest Additions]].
+* To achieve mouse integration, it is possible to set a USB tablet in VirtualBox settings. This is recommended against because it requires adding a USB controller to VirtualBox. (<code>VirtualBox</code> &rarr; <code>Right-click on Virtual Machine</code> &rarr; <code>Settings</code> &rarr; <code>System</code> &rarr; <code>Enable absolute pointing device</code>)
+
+= Miscellaneous =
+== Uninstall virtualbox-guest-additions-iso ==
+This is discouraged and should not be required. However, if you wish to uninstall VirtualBox guest additions as installed by <code>vbox-guest-installer</code> by {{project_name_long}} developers, follow the steps below.
+
+'''1.''' {{project_name_long}} 16: No purge of package <code>virtualbox-guest-additions-iso</code> required since <code>vbox-guest-installer</code> effectively does nothing if VirtualBox guest additions packages are installed. If purging <code>virtualbox-guest-additions-iso</code> is desired this is OK too.
+
+'''2.''' Remove VirtualBox guest additions (previously installed by {{project_name_long}} from <code>virtualbox-guest-additions-iso</code>. Run VirtualBox guest additions uninstaller by VirtualBox developers. {{CodeSelect|code=
+sudo /usr/sbin/vbox-uninstall-guest-additions
+}}
+
+== Debugging ==
+To help debug issues, inspect the following logs and services.
+
+{{CodeSelect|code=
+cat /var/log/vboxadd-install.log
+}}
+
+{{CodeSelect|code=
+sudo systemctl status vboxadd
+}}
+
+{{CodeSelect|code=
+sudo systemctl status vboxadd-service.service
+}}
+
+{{CodeSelect|code=
+ls -la /opt/VBoxGuestAdditions-*/init/
+}}
+
+=== Kernel Upgrades ===
+The following issue is happening during kernel [[Operating System Software and Updates|upgrades]].
+
+<pre>
+/etc/kernel/postinst.d/vboxadd:
+VirtualBox Guest Additions: Building the modules for kernel 5.6.0-0.bpo.2-amd64.
+Failed to rename process, ignoring: Operation not permitted
+update-initramfs terminated by signal TERM.
+</pre>
+
+Workaround in short: two reboots required.
+
+Workaround details: This results in guest additions being non-functional after the next reboot. During the next reboot VirtualBox guest additions will automatically detect the missing kernel modules for the upgraded kernel and build them. Therefore when rebooting yet another time the issue should be resolved until the next kernel upgrade.
+
+Please [[contribute]] to generic bug reproduction:
+
+* Conceptually: [[Reporting_Bugs#Generic_Bug_Reproduction|Generic Bug Reproduction]]
+* Specifically: [[VirtualBox/Troubleshooting#VirtualBox_Generic_Bug_Reproduction|VirtualBox Generic Bug Reproduction]] and [[#Debugging|Debugging]].
+
+See also {{project_name_long}} specific technical information, [[Dev/VirtualBox#VirtualBox_Integration|VirtualBox Integration]].
+
+One long term solution might be replacing initramfs-tools with dracut but that needs further research and development work. ([https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487 develpoment discussion], [https://github.com/dracutdevs/dracut/issues/1565 issue])
+
+== Non-Issues ==
+<s>If the following message appears during a kernel upgrade, it is a non-issue.</s>
+
+None.
+
+= See Also =
+* [[VirtualBox/Troubleshooting]]
+* [[Dev/VirtualBox]]
+* [[Dev/VirtualBox#VirtualBox_Installation_Challenges|VirtualBox Guest Additions Installation Technical Details]]
+* [[Dev/VirtualBox#VirtualBox_Guest_Additions_ISO_Freedom_vs_Non-Freedom|VirtualBox Guest Additions ISO Freedom vs Non-Freedom]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

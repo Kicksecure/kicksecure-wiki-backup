@@ -1,0 +1,2174 @@
+{{Header}}
+{{title|
+title=Documentation for {{project_name_long}} Wiki Devs
+}}
+{{#seo:
+|description=Layout, Skin, CSS, JavaScript, Links, Header, Footer, CodeSelect, Mobile Frontend, Miscellaneous
+}}
+{{devwiki}}
+= Getting Started - MediaWiki Setup (meta) =
+
+* This documentation is meant for developers helping with the maintenance and improvement of this wiki. Editors please read [[Dev/wiki]] instead.
+* This Wiki is a MediaWiki instance. We use a MediaWiki standard, stable installation, which is held up-to-date.
+** Why did we choose MediaWiki: [[Dev/About_Infrastructure#MediaWiki]]
+* Icons: We use Font-Awesome, locally hosted https://www.{{project_clearnet}}/libs/Font-Awesome/
+* Font: We use Roboto, locally hosted https://www.{{project_clearnet}}/libs/Roboto/
+
+== Extension CSS Fork ==
+
+* We use the MediaWiki [https://www.mediawiki.org/wiki/Extension:CSS Extension:CSS], but a [https://github.com/adrelanos/mediawiki-extensions-CSS fork] which we wrote ourselves.
+* The extension and the fork in general have 3 options: One to write page specific inline CSS in the MediaWiki page itself. The second option allows to link locally hosted CSS files. The third option allows to link internal CSS pages raw as files
+** '''Caution''': The first option of this ORIGINAL extension (not our fork) for a page specific CSS seems experimental to us, because the CSS text is encoded as a base64 string and imported link so <code><nowiki><link rel="stylesheet" href="data:text/css;charset=UTF-8;base64,I3Np...Q7Cn0="></nowiki></code>. This is not widely supported in all browsers so this options does not seem reliable and therefore is not recommended for production use!
+* Our fork
+** Usage option 1 - inline: You can write inline code, e.g. <code><nowiki>{{#css: body { background-color: green; } }}</nowiki></code> . Our fork implements this as a style-Tag (instead of a link tag with base64 like the original extension, see above)
+** Usage option 2 - locally hosted: You can reference locally hosted files, e. g. <code><nowiki>{{#css:/my-style.css }}</nowiki></code> . For this the file has to be hosted in the locally allowed folder. In our case this is set to "/mw-autogen" in localSettings.php via the variable $wgCSSPath which belongs to the Extension:CSS
+** Uage option 3 - from the DB: You can reference files hosted in the DB, e.g. <code><nowiki>{{#css:MediaWiki:Header.css}}</nowiki></code> . This calls the file from the wiki. In our fork we allow the admin to set allowed namespaces, so CSS files in these namespaces are not "sanitized" by Mediawiki which sometimes leads to unexpected problems. In our case we set the namespace "MediaWiki:" to be not sanitized
+* MediaWiki upstream: [https://phabricator.wikimedia.org/tag/mediawiki-extensions-css/ mediawiki-extension-css] feature requests and patches:
+** feature request: [https://phabricator.wikimedia.org/T300704 Enable unsanitized CSS namespaces]
+** patch / pull request: [https://phabricator.wikimedia.org/T37820 Some CSS stripped by MediaWiki parser CSS sanitizer]
+
+== mw-autogen folder ==
+
+* Related to [[#Extension HeadScript|Extension HeadScript]]
+* locations:
+** https://www.kicksecure.com/mw-autogen
+** https://www.whonix.org/mw-autogen
+* gets created by <code>mw-combine.php</code>
+** ask admin for access and additional instructions
+** {{CodeSelect|code=
+https://admin.kicksecure.com/mw-combine.php
+}}
+** {{CodeSelect|code=
+https://admin.whonix.org/mw-combine.php
+}}
+
+== Extension HeadScript ==
+
+* We use the MediaWiki [https://www.mediawiki.org/wiki/Extension:HeadScript Extension:HeadScript] to circumvent the usual code inclusion into the <code>&lt;head&gt;</code> area. This is only used where MediaWiki doesn't offer a realistic option to realize a solution otherwise. This is done in LocalSettings.php
+* Here is a current snapshot of the content that we include via Headscript
+<pre>
+<!-- Begin Extension:HeadScript
+* Path to scripts : /mw-autogen
+* Url query parameter "debug" : undefined
+* Url query parameter "dontload" : undefined
+* $wgResourceLoaderDebug : "" (empty string)
+-->
+<link rel="stylesheet" type="text/css" href="/libs/Font-Awesome/css/all.min.css">
+<link rel="stylesheet" type="text/css" href="/mw-autogen/mw-combined-wikicss.min.css">
+<noscript><link rel="stylesheet" type="text/css" href="/mw-autogen/mw-combined-nojscss.min.css"></noscript>
+<style type="text/css">
+@font-face { font-family: 'Roboto'; src: url('/libs/Roboto/Roboto-Regular-webfont.woff'); font-display: swap; }
+@font-face { font-family: 'Roboto'; font-weight: 300; src: url('/libs/Roboto/Roboto-Light-webfont.woff'); font-display: swap; }
+@font-face { font-family: 'Cousine'; src: url('/libs/Cousine/Cousine-Regular.woff'); font-display: swap; }
+</style>
+<link rel="preload" href="/libs/Roboto/Roboto-Regular-webfont.woff" as="font" crossorigin>
+<link rel="preload" href="/libs/Roboto/Roboto-Light-webfont.woff" as="font" crossorigin>
+<link rel="preload" href="/libs/Cousine/Cousine-Regular.woff" as="font" crossorigin>
+<link rel="preload" href="/libs/Font-Awesome/webfonts/fa-solid-900.woff2" as="font" crossorigin>
+<script type="text/javascript" src="/mw-autogen/mw-combined-wikijs.min.js"></script>
+<!-- End Extension:HeadScript -->
+</pre>
+
+* Solved by this
+** Font-Awesome is included that way
+** Our general minified css included
+** NoJS (no-JavaScript) webpage version included
+** Our general minified JavaScript included
+* Additional info : In the top comment there are multiple relevant variables printed in their current state
+** <code>Path to scripts</code> : The path where CSS and JS files are situated
+** <code>debug</code> : This query parameter determines if the minified version or the readable version is printed (if <code>debug = true</code>)
+** <code>dontload</code> : This parameter offers to not load our auto-generated js or css files. There are 3 options: <code>?dontload=js</code> <code>?dontload=css</code> and <code>?dontload=jscss</code>
+** <code>$wgResourceLoaderDebug</code> is a setting for <code>LocalSettings.php</code> where the whole wiki can go into debug mode. Similar to the url parameter debug
+* Our fonts are now also referenced and loaded with <code>preload</code> this way for better performance. This includes Roboto (regular font), Cousine (monospace font for pre, code etc) and Font Awesome (Icons)
+** Regarding preload a good article as a resource is this: https://www.debugbear.com/blog/rel-preload-problems
+** If crossorigin is omitted the fonts are loaded twice due to the crossorigin settings on the server
+** Only <code>preload</code> is possible. <code>defer</code> or <code>async</code> is only supported by browsers for scripts but not for fonts.
+
+== Extension BodyScript2 - not in use ==
+
+* We created an extension based on the outdated BodyScript-extension and the still active HeadScript extension [https://github.com/adrelanos/mediawiki-extensions-BodyScript2 BodyScript2]
+* With the variable $wgBodyScript2Code in LocalSettings.php we can insert Code at the end of &lt;body&gt; with the help of the hook onSkinAfterContent
+
+== Extension Flagged Revisions ==
+
+* We use the [https://www.mediawiki.org/wiki/Extension:FlaggedRevs Extension Flagged Revisions] to manage content on our wikis. As our content is security and privacy relevant it would not be acceptable to have unexamined content be shown to visitors. However we are always thankful for good content contributions which are mostly accepted. Flagged revisions prevents unchecked content from being shown to visitors and gives a practical way to manage revisions.
+* The top bar will only be shown to admins if there is a pending revision which the admin then can easily accept
+* The bottom bar is always present and gives admins the opportunity to directly accept and unaccept a revision, give a comment and rate the revision in question for accuracy
+** The bottom bar is optically modified via CSS due to our usage of the footer. See [[#MediaWiki_limitations]]
+
+== Extension Dark Mode (Fork) ==
+
+* We use the extension https://www.mediawiki.org/wiki/Extension:DarkMode to offer our users a dark mode experience on our Wikis
+* The extension uses a css filter to invert all colors on the page to dark - except images. We add our own CSS to make the look consistent
+* At the current time (2022-10-25) Tor Browser does not support this mode fully (some weird color glitches) because Tor Browser is currently based on an older Firefox version which had problems with this filter. In the future this will probably be fixed
+* We added a custom button to our custom footer to activate dark mode. This button uses the normal functionality of the extension.
+* Our fork enhances the extension by adding a mode for anonymous users. The original extension saves the "dark mode preference" to the personal user settings of a registered user. Non-registered or non-logged-in users (the majority) therefore have no ability to use dark mode. They can activate it, but once they reload or navigate to another page the dark mode is gone. We fix this by saving the dark mode setting to a cookie with the name "usedarkmode" which is ONLY saved if the user is anonymous and is either "0" (off) or "1" (on). Our fork of the extension will check if this cookie is set to one and activate dark mode - but again ONLY if the user is anonymous. Therefore the basic idea of the extension is kept alive, we just enhanced it for another use case.
+* upstreaming: https://gerrit.wikimedia.org/r/c/mediawiki/extensions/DarkMode/+/849628
+
+== JavaScript and CSS : Combine, Minify, Host Locally ==
+
+* We decided to not use [[MediaWiki:Common.js]] to implement a lot of JavaScript.
+** Calling a lot of JavaScript files via Common.js lead to unexplainable errors in MediaWiki, even small crashes (site not available even when it was) and considerably longer load times.
+** Our speculation is that Common.js or the mw.loader.load uses some pre-parsing to check if JS-files are safe. Other speculation is that it just creates to much load if JavaScript files are always freshly loaded from the wiki db
+** [https://en.wikipedia.org/wiki/MediaWiki:Common.js Even Wikipedia states in their <code>MediaWiki:Common.js</code>]:
+<blockquote>
+* Keep code in MediaWiki:Common.js to a minimum as it is unconditionally
+* loaded for all users on every wiki page. If possible create a gadget that is
+* enabled by default instead of adding it here (since gadgets are fully
+* optimized ResourceLoader modules with possibility to add dependencies etc.)</blockquote>
+
+* Our solution
+** We created file [[MediaWiki:Build.json]]. In this file we describe a build order for all JavaScript files. And also all CSS files. '''Note''' that this file has to have a specific structure. Top level are the keywords "generaljs", "generalcss", headercss" and "nojscss". Also there can be the keyword "__comments" at the top which will be ignored by the parse. Every of those keywords has an array of strings below them. These string should all be callable wiki file pages like "MediaWiki:Header.css" etc. Exception: You can use comments if a string STARTS with "__comment:"
+** Then we created a script which has to be executed and combines all files which are mentioned in Build.json and which are then loaded from the wiki files pages. After that the script combines all files and saves them as a what we call "mw-combined"-file and minifies it and saves it to a second file "mw-combined.min" etc.
+** These files are then called via [[#Extension_HeadScript]] and can also be called in their human readable form if the URL has the parameter ?debug=true
+* CSS : This is also done for general CSS files, the header CSS files and the nojs CSS files
+** The header CSS files however are not included via [[#Extension_HeadScript]] but in the [[Template:Header]] via our [[#Extension_CSS_Fork]]
+* By these measures we drastically improved the load time of the wiki, made it really stable and functional again and circumvented the use of Common.js as also suggested by Wikipedia
+* '''NOTE:''' By using this solution the source files (css js etc) are not directly called when the page is loaded. They are merely the source which the combined, minified files are rendered from. So every time there is a change in the source files it first has to be rendered to the output files.
+
+=== Javascript specific ===
+
+* Since custom scripts offer additional functionality but might degrade performance or  break unrelated functionality (even noJS functionality such as session handling) they have to be handled with care.
+* As earlier discussed in this chapter [[MediaWiki:Common.js]] cannot be used to integrate scripts. However we want to know when Common.js is loaded so we can be sure that the core modules are loaded - specifically jQuery and others
+* Therefore we introduced a Javascript specific wrapper which is used only in generated files for Javascript. This wrapper is not listed in the [[MediaWiki:Build.json]] under "generaljswrapper". This file is currently [[MediaWiki:MwCombineJsWrapper.js]]. The file will be pulled and then split at the keyword "/*WRAPPEDCONTENT*/". The first part comes before all other Javascript. the second part comes after all Javascript.
+* In the Wrapper you will find that we listen to an event called "mediaWikiCommonJsIsLoaded". This event is triggerd in Common.js and is the only use that we have for Common.js
+* The wrapper also introduces the property mwDev globally into the window object. This is basically a variable for us to share data between scripts and other dev strategies. The data is shared in the sub property mwDev.info
+* Also we use this wrapper for the dontload functionality which you can learn more about in our convenience tool [[Dev/mediawiki#Debug-via-url-modal]] for this purpose
+
+== MultiWiki ==
+
+* We maintain multiple wikis for different projects which are very similar in some ways, in particular Kicksecure and Whonix at the moment. We therefore decided to reuse general code on all wikis to avoid code duplication, have consistency and simplify maintenance. "General code" means our own small libraries, usually CSS and JavaScript which are hosted within the wiki content system and usually have the namespace "MediaWiki:".
+* As there is no practical import option in MediaWiki for our purpose we use a "cascading multi-wiki" approach with the assistance of automated scripting.
+** One wiki is the master wiki, this is the Kicksecure wiki.
+** On this and only on this master wiki the "library or general purpose level" code is written and the "cascaded" (one way distributed and overwritten downstream) to the other wikis.
+** All "library or general purpose level" code is given the [[:Category:MultiWiki]]. Only this code will be "cascaded" when the MultiWiki script is executed
+* Therefore it is very sensible and sometimes necessary to split up files in two files: one which is very specific for the wiki and the other which is general purpose.
+** Note that when creating a new wiki we usually also copy the non-MultiWiki files of course because they are also necessary. But the MultiWiki script will only update the MultiWiki files where
+<code>Category:MultiWiki</code> is used as a tag. Wiki pages with this tag are the only ones mirrored from the Kicksecure wiki to the Whonix wiki when the script is executed
+
+=== Adding a Page to the MultiWiki canon ===
+
+<ul>
+<li>
+To add a wiki page to [[:Category:MultiWiki]] the following text needs to be added to that wiki page. By convention, it should be in the footnotes or section or very bottom the footer of the wiki page.
+<ol>
+<li>If it is a wiki '''page''', add:
+<pre>
+[[Category:MultiWiki]]
+</pre>
+</li>
+<li>
+If it is a wiki <b>template</b> or a <b>widget</b>, add:
+<pre>
+<noinclude>
+[[Category:MultiWiki]]
+</noinclude>
+</pre>
+</li>
+<li>
+If it is a <b>CSS page</b> or <b>JavaScript page</b>, add:
+<pre>
+/*
+[[Category:MultiWiki]]
+*/
+</pre>
+</li>
+</ol>
+</li>
+</ul>
+
+* Examples
+** wiki <u>page</u>s that have been added to <code>Category</code> <code>MultiWiki</code>: [[Contact#Footnotes|<code>Contact</code>, chapter <code>Footnotes</code>]]
+** wiki <u>template</u>s that have been added to <code>Category</code> <code>MultiWiki</code>: [[Template:Gpg_key]]
+** The full list of wiki pages currently in <code>Category</code> <code>MultiWiki</code> can be found on the category page: [[:Category:MultiWiki]]
+
+=== Deploying ===
+
+<ul>
+<li>to start mirroring (cascading), from one wiki (Kicksecure wiki) to another wiki (Whonix wiki), run: {{CodeSelect|code=mw-multi-wiki}}</li>
+<li>'''Note : Pages that have not been changed in the source wiki will not result in a recorded change (null edit) in the destination wiki.'''</li>
+<li>How to test:
+<ol>
+<li>Modify a page that is already in [[:Category:MultiWiki]] such as [[Testpage13]] in the source wiki.</li>
+<li>Then run <code>mw-multi-wiki</code></li>
+<li>Check for example if [https://www.whonix.org/wiki/Testpage13 Testpage13 was modified in the destination wiki] by looking at its content or [https://www.whonix.org/w/index.php?title=Testpage13&action=history Testpage13 history].</li>
+</ol>
+</li>
+</ul>
+
+=== Structure of our wikis (How to build) ===
+
+# Our wikis rely on a specific methodology to separate the "backend" from "frontend" look which would usually be the same in other MediaWikis. For page visitors we want to show a "local skin augmentation" which is a more optically pleasing look. This is our own "skin" but not realized as a true MediaWiki skin, but as an augmentation via CSS and JS. But as soon as you edit or go on a special page you get the "common look" of our current MediaWiki skin. This is accomplished by using the [[Template:Header]]. Only wiki pages which have <code><nowiki>{{Header}}</nowiki></code> will have the special look of our local skin augmentation
+# '''Note''': There are basically 3 categories for files on our wikis
+## '''LocalWiki''' means: for the local wiki only. This file is not part of the cascading MultiWiki auto deploy
+## '''LocalSkin''' means: for the local skin augmentation only. The skin is also influenced by the "LocalWiki" files, but local skin is even more specific
+## '''MultiWiki''' means: for all wikis, but as general as "LocalWiki".
+# Entry points
+## The relevant files are all found in [[MediaWiki:Build.json]]. This file has multiple sections. These sections are divided by MultiWiki and LocalWiki files and their dependencies are noted here. So this file is a great way to see the application structure. Sections:
+### wikijs : These files will be combined into one file whose methods will be available on the whole wiki even without the skin applied
+### wikicss : These files will be combined into one file whose styles will be available on the whole wiki even without the skin applied
+### skincss : These files will be combined into one file whose styles will only be available of the <nowiki>{{Header}}</nowiki> template is included in a page
+### nojscss : These files will be combined into one file whose styles will only be applied if the user has Javascript deactivated but on the whole wiki even without the skin applied
+## [[#Extension_HeadScript]] - '''Import combined files''' which are rendered from Build.json
+## [[Template:Header]] / LocalSkin - '''Import CSS files for local skin pages'''. This file has a double function. It introduces the "local skin augmentation" as well as its header. Files are loaded using [[#Extension CSS Fork]]
+# '''Important CSS files'''
+## [[MediaWiki:Common.css]] / MultiWiki - not in use, but MultiWiki, because it's an important system file
+## [[MediaWiki:Fonts.css]] / LocalSkin - integration of all the sitespecific fonts
+## [[MediaWiki:Utility.css]] / MultiWiki - '''Define styles which can be used like tools on the site'''. This file has styles which can be used for all of our wikis. It's general styles which can be used like tools and boilerplate setup styles for things in all wikis which we need to fix
+## [[MediaWiki:Boilerplate.css]] / MultiWiki - '''Define styles which make up our "basic" style on all our wikis'''. This file has styles which can be used for all of our wikis. Boilerplate.css is what all our local wikis skins have in common. It is like LocalSkin.css but for all our wikis. It's also only available if the Header (and therefore LocalSkin) is active
+### [[MediaWiki:LocalSkin.css]] / LocalSkin - '''Define styles for local skin'''. This file has styles which will only be active on local skin pages
+### [[MediaWiki:Nojs.css]] / MultiWiki - '''CSS styles for all our wikis in case of No JS user'''
+# '''Important JavaScript files'''
+## [[MediaWiki:Common.js]] / MultiWiki - '''Trigger / hook to notify our JS that MediaWiki is ready'''
+
+== New Vector Skin and Skin Preferences ==
+
+* MediaWiki states:
+<blockquote>
+Over the next few years, we will be gradually updating the Vector skin. Legacy Vector will allow you to view the old version of Vector (as of December 2019). To learn more about the updates, go to our [https://www.mediawiki.org/wiki/Reading/Web/Desktop_Improvements project page].
+</blockquote>
+* <s>That's why we use the new vector skin [https://www.mediawiki.org/wiki/Skin:Vector/2022 Vector 2022] WITHOUT the [https://www.mediawiki.org/wiki/Manual:$wgVectorResponsive wgVectorResponsive] option already and developed the wiki on top of the new Vector skin</s>
+* '''Skin preference''' is normally deactivated. This is done like described here [https://www.mediawiki.org/wiki/Manual:Skin_configuration#Disable_site_users'_ability_to_choose_skins_in_user_preferences MediaWiki disable skin preference]
+* Explanation
+** Normally logged in users of MediaWiki can choose different "skins" to display the wiki, like
+*** https://www.kicksecure.com/wiki/Special:Preferences#mw-prefsection-rendering
+*** https://www.whonix.org/wiki/Special:Preferences#mw-prefsection-rendering
+** This sometimes means that the page will be displayed differently and that even sometimes the functionality will differ, for example that different API urls are used by different skins. This can lead to serious problems because the devs would have to customized (and bloat) the page for every optional skin available
+** That's why we don't offer skin preferences
+* Almost Everybody uses the standard skin Vector 2022
+
+'''For the admin''': Here are the MediaWiki settings to remove the skin preference choices
+# Under https://www.kicksecure.com/wiki/Special:Preferences#mw-prefsection-rendering:
+## remove "Enable responsive mode"
+## remove "Adapt layout to screen size on mobile"
+## <code><nowiki>$wgHiddenPrefs = array( "skin-responsive", );</nowiki></code>
+# Under https://www.kicksecure.com/wiki/Special:Preferences#mw-prefsection-rendering:
+## remove "Vector legacy (2010) (Preview)"
+## hide 'Vector legacy (2010)'
+## keep 'Vector 2022'
+<pre>
+$wgSkipSkins = [
+    'vector',
+];
+</pre>
+
+== Layout ==
+
+* We MediaWiki's default Vector skin as a base.
+* We avoid custom MediaWiki skins as these break every now and then which then would force us to stick with MediaWiki oldstable or LTS, unable to update to MediaWiki stable. <ref>
+https://github.com/jthingelstad/foreground/issues/392
+</ref>
+* We create [[Template:Footer]] and a [[Template:Header]] which is manually included at the top (header) or bottom (footer) in all relevant content pages such as [[Documentation]], [[Download]], [[FAQ]] and so forth.
+** The header template completely replaces the navigation of the Vector skin and has its own style and JavaScript functionality.
+** The footer template also has its own style and JavaScript functionality.
+* The Header template injects CSS styles from internal MediaWiki:CSS files via our Extension:CSS fork.
+** Example: <code><nowiki>{{#css:Mediawiki:Header.css}}</nowiki></code>
+** So only on pages where the header is present these CSS files will apply.
+** This means that for example on [[Special:SpecialPages]] the unchanged Vector style will be shown.
+** This solution gives us the opportunity to have an appearance like a new skin while also having the fallback to a clean Vector skin.
+
+== Pages.js ==
+
+* Sometimes Javascript is only needed on specific pages for specific tasks. This happens very rarely.
+* So we created [[MediaWiki:Pages.js]] - a LocalWiki file where the page specific JS functions are combined
+
+== FontAwesome ==
+
+* FontAwesome is used as a local webfont to make the site more beautiful.
+* We use our own implementation via mediawiki extension HeadScript. (See [[#Extension HeadScript]])
+* Therefore it is available on all pages.
+
+== MediaWiki Default Links ==
+
+The default links in the wiki are realized via the [https://github.com/adrelanos/mediawiki-link-to-archive link-to-archive] MediaWiki Extension
+
+== Wiki editor software enhancements ==
+
+* The standard wiki editor software is enhanced in multiple ways
+* Extensions
+** We use the [https://www.mediawiki.org/wiki/Extension:CodeEditor extension CodeEditor] which improves coding in JavaScript, CSS and Lua significantly
+** We also use the [https://www.mediawiki.org/wiki/Extension:CodeMirror extension CodeMirror] which adds syntax highlighting and bigger text to wikitext editing
+* In-wiki improvements
+** We created a Fullscreen mode for the editor, see [[#EditorFullscreen]]
+** We created a saving mode which doesn't reload the page, see [[#Editor SaveAndContinue]]
+** We created an auto-backup for wikitext which automatically saves your edits to the browser's localStorage, so you don't lose progress when something goes wrong, see [[#EditorAutoBackup]]
+
+== MediaWiki limitations ==
+
+* Not everything is easily implemented with MediaWiki. One problem we found is that the page content will always be delivered in div#content
+* This leads to problems when elements need repositioning with CSS especially regarding div#mw-data-after-content which will always be rendered after the div#content and which is inconvenient in our case because the footer should be the last thing which can be seen
+* We solved this in the file [[MediaWiki:Utility.css]] where we put the whole div#mw-data-after-content with position absolute "above" the footer so it (and for example the Revision bottom bar) is still usable and not hidden by the footer
+* This might be considered a "harmless" hack. Still it can be deactivated by commenting out the lines in the chapter "Flagged revisions Bottom bar" in [[MediaWiki:Utility.css]]
+
+= Implementation Details (in-wiki) =
+
+== Crypto QR Code Image Templates ==
+
+* QR codes are used for the payment of donations. These codes and urls are outsourced to these templates
+** [[Template:Pay bitcoin qr]]
+** [[Template:Pay bitcoin qr imgurl]]
+** [[Template:Pay monero qr]]
+** [[Template:Pay monero qr imgurl]]
+** [[Template:Pay ethereum qr]]
+** [[Template:Pay ethereum qr imgurl]]
+
+== Header ==
+
+* The header is implemented via [[Template:Header]] and [[MediaWiki:Header.js]] and [[MediaWiki:Header.css]]
+
+== Footer ==
+
+* The footer is implemented in [[Widget:Footer]] and [[MediaWiki:Footer.js]] and [[MediaWiki:Footer.css]]
+* There was an old implementation for the footer which is currently not in use via [https://github.com/adrelanos/mediawiki-extensions-BodyScript2 BodyScript2] MediaWiki Extension
+{{CodeSelect|code=
+<div class="our-special-own-footer"></div>
+}}
+* related Links when editing footer
+** https://www.mediawiki.org/wiki/Manual:Footer
+** https://www.{{project_clearnet}}/wiki/MediaWiki:Copyright
+** https://www.{{project_clearnet}}/wiki/MediaWiki:Copyrightwarning
+** <code>/etc/apache2/footer.php</code>
+** https://www.{{project_clearnet}}/wiki/MediaWiki:E-Sign_Consent
+** https://www.{{project_clearnet}}/wiki/MediaWiki:Imprint
+
+== References and Footer ==
+
+The footer is structually (html) positioned in the main content area. The vector skin footer is made invisible so there is no overlap. If references are auto-generated by mediawiki then they are below the footer structure and so they are overlapped, this is not desirable. Therefore it is common practice to always write the "references..." keyword in the page so the references headline is generated above the footer structure
+
+== RandomNews ==
+
+* '''WARNING:''' This feature is currently deprecated / discussed
+* RandomNews in the footer shows random whonix wews which are fed from [[Template:RandomNews]]
+* The Template is not directly imported into the footer widget, because widgets can take Templates as parameters.
+* The RandomNews template is included in the Template:Footer and made display:none via CSS. If Javascript is present then the RandomNews will be moved to the footer and replace the standard text which is in the RandomNews box in the footer. This happens via [[MediaWiki:Footer.js]]
+
+== Homepage (/wiki/Homepage) ==
+
+* The [[Homepage]] is an improved version of the [https://github.com/{{project_name_short}}/{{project_name_short}}-Website old {{project name long}} plain HTML/CSS based homepage]
+* It is realized via [[Widget:Page_Homepage]] and [[Mediawiki:Page_Homepage.css]]
+* Visitors can view it under <code><nowiki>https://</nowiki>www.{{project clearnet}}</code>.
+** <code><nowiki>https://</nowiki>www.{{project clearnet}}</code> is the canonical domain name.
+** Implemented using <code><nowiki>https://</nowiki>www.{{project clearnet}}/wiki/Homepage</code>.
+** https://www.{{project clearnet}}/robots.txt uses <code>Disallow: /wiki/Homepage</code> to avoid duplicate search engine indexing.
+*** <code><nowiki>https://</nowiki>www.{{project clearnet}}</code> can of course be index normally.
+** <code><nowiki>https://</nowiki>www.{{project clearnet}}/wiki/Homepage</code> while far from being a secret, a technical implementation detail, should not be shown to users as it would confusing.
+** Editing <code><nowiki>https://</nowiki>www.{{project clearnet}}/wiki/Homepage</code> will result in making changes to <code><nowiki>https://</nowiki>www.{{project clearnet}}</code>.
+* Structure
+** The page is wrapped in div with the class <code>section-wrapper</code>
+** Right below there are the sections which can be CSS references via <code>.section-wrapper > div</code>. They all have classes as names that start with <code>section-</code>, e. g. <code>section-banner</code>, <code>section-download</code>, <code>section-press</code>
+** Inside every section there is a <code>div</code> directly below the parent which has the class <code>inner-wrapper</code>, which wraps the inner content and helps with positioning. It is also a resource for future designers to design the content via CSS
+** Right below the section-wrapper there can also be other elements
+** <code>h2</code> is the standard tag for headlines
+* There are special classes for sections which can be used give those sections a special look
+** <code>dark-section</code> : a dark section has a dark background. It can be combined with row-3- and row-5-sections. The dark section spans over the whole page, while the inner content is max 960px
+** <code>row-3-section</code> : These sections have 3 elements on wide displays, 2 on medium displays and 1 on small displays. They are used for testimonials, features or other text heavy tasks
+** <code>row-5-section</code> : The sections have 5 elements on wide displays, 3 on medium displays and 2 on small displays. They are used for icons and low information items
+* There is also a special class for images <code>image-contain</code> which is optional. By default images are in the background with <code>background-size: cover;</code> so the image always fills the whole area but because of the some parts might a cut. While with <code>image-contain</code> the image has <code>background-size: contain;</code> so the image will be fully visible but not cover the whole area. See example below
+'''Creating a new section'''
+* copy the following structure inside of <code><nowiki><div class="section-wrapper"></div></nowiki></code> and exchange <code>yourSectionName</code> by something of your choice
+<pre>
+<div class="section-yourSectionName">
+ <div class="inner-wrapper">
+ </div>
+</div>
+</pre>
+* put all your content inside of the <code>div</code> with <code>inner-wrapper</code>
+* if you want to use one of the special classes, put them behind <code>section-yourSectionName</code> in the class attribute
+'''row-3-section'''
+* If you used row-3-section the direct children of inner-wrapper need to look like this
+<pre>
+<div>
+ <i style="background-image:url('/w/images/thumb/path-to-your-image.bmp');" title="Your title"></i>
+ <span>
+  Your text and possibly links
+ </span>
+</div>
+</pre>
+or
+<pre><div>
+ <a class="image image-contain" href="/your-link" target="_blank" title="Your title"
+    style="background-image:url('/w/images/thumb/path-to-your-image.bmp');"></a>
+ <h4>Headline</h4>
+ <p>
+  Your text and possibly links
+ </p>
+</div></pre>
+* As you can see: The image can be either realized with an i-tag or an a-tag. But if you use an a-tag it needs to have the class "image"
+* Also note there is an example here for the optional use of <code>image-contain</code>, see the explanation of image-contain from above
+* It is also important to note: You can use <code>h4</code>, <code>p</code> and <code>span</code> elements as content
+'''row-5-section
+* If you used row-5-section the direct children of inner-wrapper need to look like this
+<pre><a href="/your-link" target="_blank" rel="noopener">
+ <img src="/w/images/thumb/path-to-your-image.bmp" alt="Alt description" />
+ <span>Your text</span>
+</a></pre>
+
+== Fixed Header Overlap for anchors ==
+
+* We have a fixed header because this is a modern solution which works good for mobile and desktor alike
+* A usual problem with fixed headers however is that the overlap "jump points" / inner page links / anchor links within the page.
+** So you click a link with # and you jump within the current page to the position.
+** However the fixed header appears on top of the element (e.g. a headline) which you therefore can't see
+* We know 3 solutions to this problem
+** The first one is to position and anchor-element (usually &lt;a&gt; but any element with id-attribute works) enough pixels BEFORE the point where you want to jump
+*** This is not possible for us, because were using Vector skin and therefore cannot decide the HTML structure
+** The second solution is to use the CSS property scroll-padding-top. This works in most modern browsers but not always reliably when you have a URL with the # jump point already in it
+** The third solution is to give the element a top padding via CSS and counter via the top margin in the other direction (e.g. padding-top: 50px; margin-top: -50px)
+* Because of the structure of mediawiki and vector skin we use solution two: scroll-padding-top and a version of solution three where we give the headline subelement .mw-headline a padding top which does not show up in the content the element is display inline, but most browser jump to the top position
+
+== CSS: Chrome anchor bug with special chars ==
+
+* For the fixed header to work we add a padding to the id-element with the class .mw-headline within the headline (h1-h6), so when jumping the header does not overlay on the headline
+* however this is not working with Chrome when there are special characters in the ID at the moment (2022-02-02) and this [[https://support.google.com/chrome/thread/11993079/chrome-76-has-anchor-bug-anchors-not-working-correctly-on-web-pages?hl=en bug seems to be known but ignored]] by the dev team
+* to be fair, Mediawiki ultimately causes the problem itself by generating anchor IDs with special characters which is forbidden in HTML. Headline: "What is up?" - ID: #what_is_up?
+** Maybe this can be changed by an extension or by a setting in localsettings.php ?
+
+== Table of Contents ==
+
+* toc is auto-generated on top of a page or explicitely by markup in the body
+* we modified toc in its looks and appearance (expand/collapse instead of show/hide)
+* we also prevent selection of the toc numbering. This means the text in span.tocnumber will not be selected and copied. This is useful when copying parts of the toc to post somewhere
+** CAUTION: This unfortunately doesn't complete work in Chrome. If you mark a little bit more than one toc bullet point and have a space, newline or a part of the next bullet point then the tocnumber in between will be copied to clipboard by Chrome. This is undesired behaviour but tolerated
+
+== Supermenu and Edit Button ==
+
+* The supermenu template [[Template:Header]] gets 2 parameters to the widget [[Widget:Header]] : $page and $revision
+* By that the edit link is constructed: /w/index.php?title=&lt;!--{$page}--&gt;&action=edit&oldid=&lt;!--{$revision}--&gt;
+* This means that even the current revision has the "oldid" url query parameter which is not necessary, but at the moment (2022-02-02) and for the foreseeable future will not cause any problems.
+* However if there will be a problem in the future simply go to [[Widget:Header]] and change the line to /w/index.php?title=&lt;!--{$page}--&gt;&action=edit
+
+== Combined New Custom Header with MediaWiki Custom Header ==
+
+For demonstrative purposes only: https://web.archive.org/web/20220204103725/https://www.{{project_clearnet}}/wiki/Documentation
+
+== Images, Files and usage of thumb ==
+
+* Thumbnails have a specific look to them, but sometimes it is unnecessary to have an enlarge button. Therefore we create hide-enlarge, see [[#hide-enlarge and thumb-hide-enlarge class]]
+* We first tried to use frame instead of thumb, as in <code><nowiki>[[File:abc.png|frame|50px]]</nowiki></code>, but the option frame ignores the forced size by design, see https://www.mediawiki.org/wiki/Help:Images#Size_and_frame
+* Next we tried border as in <code><nowiki>[[File:abc.png|border|50px]]</nowiki></code>. This might be useful in some cases, because it does not ignore forced size. But to make it look like thumb is very time consuming
+
+== Back To Top Button==
+[[File:BackToTheTopButton2.png|thumb|Illustrative, cropped screenshot of the back to the top scrolling button]]
+
+'''Figure:''' ''Back to the Top Button''
+
+[[File:BackToTheTopButton1.png|470px]]
+
+* Back to Top Button is realized via [[MediaWiki:BackToTopButton.css]] and [[MediaWiki:BackToTopButton.js]] which are imported in Common.css and Common.js and thereby available for all pages, including Vector styled pages
+* The button is automatically integrated in all pages and created a button which only becomes visible when the user is scrolling and offers the feature to "jump" to the top
+* [[MediaWiki:BackToTopButton.js]] has one implicit (but not critical) dependency of FontAwesome for its symbol
+** suggestion: If FontAwesome is removed the <code><nowiki><i class="fas fa-chevron-up"></i></nowiki></code> can be replaced by <code><nowiki><span>UP</span></nowiki></code>
+
+== Printing pages ==
+
+* We made some effort to make all pages printable (physically with a browser)
+* Simply press Ctrl+P or select "Print page" in your browser to print the wiki page to your printer or as a PDF file
+* We added some print specific styles in [[MediaWiki:Boilerplate.css]]
+** Especially important: Usually the browser optimizes the web page for printing and does for example not print background-images. We force the browser to print background-images for all elements with the class "image", because those are basically images, just embedded differently via background-image
+*** The CSS command for this is "print-color-adjust: exact;" and "-webkit-print-color-adjust: exact;" for @media print.
+*** Elements with "image" often have their own style attached to it. So if there are elements which also need to be printed because they are background-images, but cannot have the specific image styles, then we use "bg-image" (e. g. <code><nowiki><i class="bg-image" style="background-image:url(...)"></i></nowiki></code>) which has no other style attached to it other than being visible in @media print
+
+== Exclusion of text parts from search engine indexing ==
+
+* Some parts of the page are not good for indexing in search engines. This pertains especially to temporary or functional text or donation requests
+* For this we use the three techniques found here https://stackoverflow.com/questions/6588438/how-can-i-hide-certain-text-from-search-engines/18356829#18356829 as a combined wrapper
+<pre>
+<div class="robots-nocontent"><!--googleoff: index--><!--noindex-->CONTENT<!--/noindex--><!--googleon: index--></div>
+</pre>
+
+= Development Rules =
+
+Every developer please follow these rules and consult with the admin. A wiki is a collaborative process so compliance with the rules makes everyone's life easier. Thank you.
+
+== General ==
+
+* no external libraries hosted on third party servers
+* locally running Open Source code: yes
+* external libraries preferred from packages.debian.org {{Stable project version based on Debian codename}}
+* non-javascript fallbacks required for any new developments
+* Whonix vs Kicksecure website should look different
+* improve from now ~30% design to ~80% design if the remaining ~20% would take \80% of the time
+* keep [[Dev/CSS]] in mind
+* screenshot before / after major changes (will be used for public reports)
+* svg is nice as base format but incompatible with Tor Browser maximum security slider setting
+* keep relative link support
+
+== MediaWiki Upstream Bugs Reports and Feature Requests ==
+
+* These are requests to MediaWiki which we sent upstream
+* Check in regularly if there was any activity.
+* MediaWiki upstream: [https://phabricator.wikimedia.org/tag/mediawiki-extensions-css/ mediawiki-extension-css] feature requests and patches:
+** feature request: [https://phabricator.wikimedia.org/T300704 Enable unsanitized CSS namespaces]
+** patch / pull request: [https://phabricator.wikimedia.org/T37820 Some CSS stripped by MediaWiki parser CSS sanitizer]
+* [https://phabricator.wikimedia.org/T270099 $wgCSPHeader CSP Content Security Policy compatibility with $wgUseFileCache file cache]
+* [https://phabricator.wikimedia.org/T270095 add Widgets extension compatibility with $wgCSPHeader CSP Content Security Policy]
+* https://phabricator.wikimedia.org/p/adrelanos/
+* Bootstrap extension: [https://github.com/ProfessionalWiki/Bootstrap/issues/62 ParserOutput::addModuleStyles with non-array argument was deprecated in MediaWiki 1.38 #62]
+* Widgets extension:
+** [https://phabricator.wikimedia.org/T313367 Allow API editing]
+*** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/815399/
+** [https://phabricator.wikimedia.org/T313363 InvalidArgumentException: NamespaceInfo::isTalk called with non-integer (string) namespace 'NS_WIDGET']
+** [https://phabricator.wikimedia.org/T313365 $wgWidgetsUseFlaggedRevs broken]
+* [https://www.mediawiki.org/wiki/Manual:Grabbers grabbers]: [https://phabricator.wikimedia.org/T313404 grabFiles.php broken in MediaWiki 1.38 due to MediaWiki API changes]
+* [https://phabricator.wikimedia.org/T314593 extraneous newlines caused by templates]
+* [https://phabricator.wikimedia.org/T325471 mediawiki-extensions-widgets: PHP Warning: call_user_func() expects parameter 1 / class 'WidgetRenderer' does not have a method 'initRandomString']
+** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/871225
+
+== Widgets ==
+
+Using a really small fork:
+
+* <code>Whonix-Wiki</code> source code folder (MediaWiki including all extensions) (<code>Whonix-Wiki</code> should be renamed to be more generic) contains a <code>patches</code> subfolder which contains all files which are patched. (<code>LocalSettings.php</code>, <code>robots.txt</code>, <code>mediawiki-widgets-extension.json</code>.)
+* The script <code>wiki-fix-permissions</code> on the server deletes the original <code>extensions/Widgets/extension.json</code> file and replaces it with a symlink in the <code>patches</code> folder, file <code>mediawiki-widgets-extension.json</code>.
+* This patch would be no longer required if [https://phabricator.wikimedia.org/T313367 Allow API editing] ([https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/815399/ allow API editing pull request]) gets merged.
+
+Wiki convention regarding Widgets:
+
+* Widgets shall always be wrapped / encapsulated in Templates and (if possible) never be used except via this Template (or another Template using this widget)
+* Reasons
+** Templates are easier to use for wiki editors.
+** Templates support [[Special:WhatLinksHere]], widgets do not. So we can see where a module is used which makes testing and debugging easier
+* '''Exception:''': In some Widgets we use arrays over which we can loop. This works with Widgets but does not work with Templates. This is also how the Extension:Widgets suggests using arrays. See https://www.mediawiki.org/wiki/Extension:Widgets . Moreover the Extension:Widgets does not allow the modifier "explode" which would usually be used to convert a string to an array in the Smarty template engine. That is why we sometimes use widgets instead of templates. To bypass the "findability" problem of widgets you can search <code>#widget:widget_name</code> to find all Widget instances
+
+== Testing ==
+
+* You can use Testpages in the following style
+** [[Testpage8]]
+** [[Testpage10]]
+** [[Testpage11]]
+** [[Test:test.css]] - the "Test" namespace is a namespace specifically for testing
+
+== Performance Testing ==
+
+# We have implemented a couple of performance testing measures
+# The test results are documented here: [[PerformanceTests]]
+# The relevant Files are
+## [[MediaWiki:MwCombineJsWrapper.js]]
+## [[MediaWiki:JsPerformanceTests.js]]
+# In MwCombineJsWrapper there is the function window.mwDev.test.pageLoading which measures different (manually triggered) events and outputs the difference between all of them
+## The two events currently in use are "pageLoadStart" and "pageLoadFinished". These are written to the console directly.
+## For each event there's the time of occurrence and the diff to all previous events
+# In MwCombineJsWrapper there is also a functionality which gets activated if the url query parameter ?delayedPageLoad=true is used
+## This hides the page for 20 seconds after it is loaded and then makes the page reappear
+## This is done to test whether gtmetrix and pagespeed ignore Javascript or really reander the pages property. Our research from 2022-10-15 shows the both testing pages correctly hid the page and therefore reacted to the javascript correctly
+# In JsPerformanceTests there are these functions. The can be called in the browser console or in other scripts. mwDev is in the global namespace
+## mwDev.test.jsJammer = function( bursts = 10, pause = 300, runs = 100 ) : This method will create 1 millions times bursts (of heavy processor load) with pauses in milliseconds for given amount of runs (repetitions). This is to slow down the browser and create a low performance browser scenario for testing reasons.
+## mwDev.test.scrollPageTest = function( time = 600, runs = 10 ) : This method will scroll the whole page up and down in the give time milliseconds for the given amount of runs (repetitions). One run down will take time to complete. The measurement however is down and up again, so time * 2. Against this will be measured the time it actually took to scroll the page. The difference should give a hint if the page is performing well or not
+
+== Development: use files only if needed ==
+
+* These files are optional for your use in development
+** [[Mediawiki:Dev.css]]
+** [[Template:Header Dev]]
+** [[Widget:Header Dev]]
+** [[MediaWiki:Header Dev.css]]
+** [[Template:Footer Dev]]
+** [[Widget:Footer Dev]]
+
+== Bug report to upstream ==
+
+Sometimes (seldomly) there needs to be a bug report or feature request or suggestion to upstream. Below are the necessary steps for this, demonstrated on a real request which we sent
+
+Example: gerrit patch compare https://gerrit.wikimedia.org/r/c/mediawiki/extensions/CSS/+/759196/
+
+{{CodeSelect|code=
+git clone https://gerrit.wikimedia.org/r/mediawiki/extensions/CSS mediawiki-extension-css
+}}
+
+{{CodeSelect|code=
+cd mediawiki-extension-css
+}}
+
+{{CodeSelect|code=
+git fetch https://gerrit.wikimedia.org/r/mediawiki/extensions/CSS refs/changes/96/759196/1
+}}
+
+{{CodeSelect|code=
+git checkout -b change-759196 FETCH_HEAD
+}}
+
+{{CodeSelect|code=
+git remote add adre https://github.com/adrelanos/mediawiki-extensions-CSS.git
+}}
+
+{{CodeSelect|code=
+git fetch adre
+}}
+
+{{CodeSelect|code=
+git diff -C adre/all-css
+}}
+
+== Image Optimizations ==
+
+''' mat2 - strip of metadata '''
+
+To strip files of meta data use mat2 on linux.
+
+Installation.
+
+{{CodeSelect|code=
+sudo apt update
+sudo apt install mat2 optipng jpegoptim
+}}
+
+Strip images of metadata in place - in the directory where you're in. '''Caution: SVGs might not work properly'''
+
+{{CodeSelect|code=
+mat2 --inplace image-file-name
+}}
+
+Specifically for PNG
+
+{{CodeSelect|code=
+optipng -quiet -o7 -zm9 -zc9 -zm9 -zs3 -f5 --strip all -preserve image-file-name
+}}
+
+Specifically for JPG and JPEG
+
+{{CodeSelect|code=
+jpegoptim --quiet -o --strip-all image-file-name
+}}
+
+Specifically for SVG
+
+{{CodeSelect|code=
+scour --enable-viewboxing --enable-id-stripping --enable-comment-stripping --shorten-ids --indent=none -i input-file-name -o output-file-name
+}}
+
+== Using HTML comments as spacers in Templates ==
+
+* We realized that MediaWiki seems to render (seemingly) unnecessary p-paragraphs if there is a gap between templates used in a page. This leads to unwanted spacing. But if we do not use newlines then the code is very hard to read
+* This seems to be standard behavior and not a bug, as also reported here, especially when dealing with div-elements https://www.mediawiki.org/wiki/Topic:V6leoh5syqlya4kg
+* In this link there is also a suggestion to deal with the problem: adding HTML comments as spacing like so
+<pre>
+<div>something</div><!--
+--><div>something</div><!--
+--><div>something</div>
+</pre>
+* This would also apply for using templates like so
+<pre>
+{{template1}}<!--
+
+-->{{template2}}<!--
+
+-->
+</pre>
+* This is not the most beautiful solution, but better than the alternative having to write everything in the same line
+<pre>
+{{template1
+|param1=value1
+}}{{template2
+|param1=value1
+}}
+</pre>
+* This should not be used permanently. We occasionally use this as a workaround until this is fixed by MediaWiki
+
+== Debug Images Cache ==
+
+We internally create webp images from all images uploaded to the wiki. This sometimes creates problems in realizing if the image is a jpg etc or webp. With the help of these commands this can be debugged
+
+Examples
+
+{{CodeSelect|code=
+curl --silent --head 'https://www.{{project_clearnet}}/w/images/d/dd/Whonix_concept_refined.jpg' {{!}} grep content-type:
+}}
+
+<pre>
+content-type: image/jpeg
+</pre>
+
+{{CodeSelect|code=
+curl --silent -H 'accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' --head 'https://www.{{project_clearnet}}/w/images/d/dd/Whonix_concept_refined.jpg' {{!}} grep content-type:
+}}
+
+<pre>
+content-type: image/webp
+</pre>
+
+== Code Resources for MediaWiki ==
+
+As inspiration or directly as a code source.
+
+* https://dev.fandom.com/wiki/Category:JavaScript/Site_enhancements
+* https://dev.fandom.com/wiki/Category:CSS
+* https://dev.fandom.com/wiki/Fandom_Developers_Wiki
+* https://en.m.wikipedia.org/wiki/Wikipedia:User_scripts/List
+
+== Example Pages for CSS Enhancements ==
+
+* Here you can find examples for module usage and applied CSS classes
+* [[Tor Browser]] - long table of contents, lots of thumb images and images
+* [[Windows Hosts]] - lots of tables
+* [[Comparison with Others]] - lots of tables and footnotes
+* [[VirtualBox]]
+* [[VirtualBox/XFCE]] - example for breadcrumbs navigation (to [[VirtualBox]])
+* [[Download]] - images table is not responsive on mobile
+* [[KVM]] - has table of contents (TOC), [[Template:Contributor]] (<code>About this KVM Page</code>) and illustrative image thumbnail (inofficial KVM logo)
+* [[Troubleshooting]] - uses mini navigation
+* [[Tor]] - example of using CodeSelect for user command and pre tag for expected output style
+
+== BIMI Images ==
+
+* To create BIMI compliant logos follow these resources
+* Examples how other BIMI images look:
+** https://www.valimail.com/wp-content/uploads/2021/04/Amplify-1-920x517-c-default.png
+** https://media.emailonacid.com/wp-content/uploads/2019/08/BIMI-before-and-after-EOA2019.jpg
+** https://public-assets.postmarkapp.com/blog/_630x273_crop_center-center_10_none/BIMI_before_after.png
+* Resources:
+** best resource: https://bimigroup.org/creating-bimi-svg-logo-files/
+** image requirements: https://bimigroup.org/bimi-images-and-resolutions/
+** https://bimigroup.org/bimi-generator/
+** https://easydmarc.com/tools/bimi-record-generator
+* requirements
+** needs to be < 32 kb in size
+** must be square
+
+Instructions to create a bimi logo from an inkspace svg (tested method)
+# open logo in inkscape
+# Save as -> <code>optimized SVG</code>, choose "remove meta information"
+# open logo in gedit (or similar)
+# in svg-tag remove x= and y= attributes and use version="1.2" attribute and add (if not present) baseProfile="tiny-ps" attribute
+# add title="your-title" attribute directly under svg tag. your-title can be your company or product name
+# optionally add desc="your-description" directly after title tag. your-description can be a description of your company or product
+# remove all animations from logo (if present, usally not)
+# Upload to wiki
+# Check with https://easydmarc.com/tools/bimi-record-generator
+
+== Cache ==
+=== MediaWiki Purge : deleting cached file ===
+
+If you click purge on page or use the respective urls (examples below) then the cached file on the server is deleted and you should get the newest version
+
+mediawiki cache purge:
+
+* https://www.{{project_clearnet}}/wiki/FAQ?action=purge
+* https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile?action=purge
+
+=== nginx Cache Bypass ===
+nginx bypass cache example (not really deleting the cache either yet):
+
+* '''A)''' <u>query parameter:</u>
+** https://www.{{project_clearnet}}/wiki/FAQ?nocache=true
+** https://www.{{project_clearnet}}/wiki/FAQ?nocache=true
+* '''B)''' <u>HTTP request header:</u>
+** {{CodeSelect|code=
+curl --head --header "nocache: true" "https://www.kicksecure.com/wiki/Documentation"
+}}
+* '''C)''' <u>HTTP cookie:</u>
+** {{CodeSelect|code=
+curl --head --cookie "nocache=true" "https://www.kicksecure.com/wiki/Documentation"
+}}
+
+If successful, the HTTP response header <code>x-cache-status</code> will show <code>BYPASS</code>.
+
+<pre>
+x-cache-status: BYPASS
+</pre>
+
+== MediaWiki special resources ==
+
+Those are hard to find via Google, so they are listed here
+
+* [[MediaWiki:Signupstart]]
+* [[MediaWiki:Anoneditwarning]]
+* [[MediaWiki:Shoutwiki-loginform-tos]]
+* [[MediaWiki:shoutwiki-must-accept-tos]]
+* [[MediaWiki:Useragreement]]
+
+* [[MediaWiki:Cookiewarning-info]]
+* [[MediaWiki:Cookiewarning-moreinfo-label]]
+* [[MediaWiki:Cookiewarning-more-link]]
+* [[MediaWiki:Cookiewarning-ok-label]]
+
+* [[MediaWiki:Captchahelp-text]]
+
+== Special code resources (possibly outdated) ==
+=== Debugging CSS JS mw-autogen ===
+'''1.''' Check: https://www.kicksecure.com/mw-autogen
+
+Are all files there?
+
+'''2.''' MIME type issues? / <code>content-type: text/html</code>?
+
+Is the file even there?
+
+'''3.''' [[Dev/wiki#Custom_CSS_JavaScript_Debugging|Custom CSS JavaScript Debugging]]
+
+=== Debugging Browser Console Errors ===
+It is useful to enable MediaWiki (JavaScript) debug mode. To do so...
+
+{{box|text=
+'''1.''' go to https://www.whonix.org/wiki/FAQ
+
+'''2.''' click edit
+
+'''3.''' the link being opened will be: https://www.whonix.org/w/index.php?title=FAQ&action=edit
+
+'''4.''' replace <code>action=edit</code> with <code>debug=true</code>
+
+'''5.''' press enter to load the page
+}}
+
+{{box|text=
+'''5.''' or skip the previous steps and direclty to to https://www.whonix.org/w/index.php?title=FAQ&debug=true
+
+'''6.''' consider <code>FAQ</code> with <code>Testpage16</code> or so
+}}
+
+In result in the browser console the scripts in the Debugger part are no longer minified and easier to read.
+
+=== Search Suggestions Debugging ===
+
+* Vector legacy uses:
+** {{CodeSelect|code=
+curl --head https://www.{{project_clearnet}}/w/api.php?action=opensearch&format=json&formatversion=2&search=test&namespace=0&limit=10
+}}
+* Vector 2022 uses:
+** {{CodeSelect|code=
+curl --head https://www.{{project_clearnet}}/w/rest.php/v1/search/title?q=test&limit=10
+}}
+** This was broken in past due to an nginx configuration issue. <code>rest.php</code> was reachable but <code>rest.php/v1/</code> etc. was not.
+
+=== Check if scripts are loaded ===
+
+These scripts were used for debugging scripts while es special MediaWiki skin was applied
+
+Using a desktop browser with mobile skin these scripts get loaded:
+
+<pre>
+* https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
+* https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=jquery.accessKeyLabel%2Cclient%7Cmediawiki.RegExp%2Cnotify%2Ctemplate%2Cutil%7Cmediawiki.page.startup%7Cmediawiki.template.hogan%7Cmobile.browser%2CmainMenu%2Cmodules%2Coo%2Cview%7Cmobile.loggingSchemas.mobileWebMainMenuClickTracking%7Coojs%7Cskins.minerva.scripts.top&skin=minerva&version=2bcd7ee968a7
+* '''https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=jquery.cookie%2Cthrottle-debounce%7Cmediawiki.api%2Ccldr%2Ccookie%2Cexperiments%2CjqueryMsg%2Clanguage%2Cstorage%2Ctoc%2Cuser%2Cviewport%7Cmediawiki.api.user%7Cmediawiki.language.data%2Cinit%7Cmediawiki.libs.pluralruleparser%7Cmediawiki.ui.input%7Cmobile.ajax%2Cbetaoptin%2Ccontext%2Cdrawers%2Cissues%2CmodifiedBar%2Coverlays%2Cpagelist%2Creferences%2Csearch%2Csettings%2Csite%2Cstartup%2Ctoast%2Ctoggle%2Cuser%2Cwatchstar%7Cmobile.editor.api%7Cmobile.issues.images%7Cmobile.loggingSchemas.edit%2CmobileWebLanguageSwitcher%2CmobileWebSearch%7Cmobile.overlay.images%7Cmobile.pagelist.scripts%2Cstyles%7Cmobile.pagesummary.styles%7Cmobile.references.gateway%2Cimages%7Cmobile.toggle.images%7Cskins.minerva.editor%2Cscripts%2Ctoggling%2Cwatchstar%7Cskins.minerva.icons.images.scripts%7Cuser.defaults&skin=minerva&version=4409fb4608cb'''
+* https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=mobile.toc%7Cmobile.toc.images%7Cskins.minerva.tablet.scripts&skin=minerva&version=6b1c9eeeb881
+* https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
+</pre>
+
+But using the emulated mobile device with the same skin only these get loaded:
+
+* https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
+* https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
+
+
+search for
+
+<pre>
+sdShowDetailed
+</pre>
+
+the error only occurs when a mobile device is used and the mobile theme is active
+
+=== Test user agents ===
+Test which different responses the server sends to different user agents
+
+{{CodeSelect|code=
+curl https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile > 1
+}}
+
+{{CodeSelect|code=
+curl --user-agent "android.mobile" https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile > 2
+}}
+
+{{CodeSelect|code=
+curl https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile > 3
+}}
+
+{{CodeSelect|code=
+curl --user-agent "android.mobile" https://www.{{project_clearnet}}/wiki/FAQ > 4
+}}
+
+{{CodeSelect|code=
+curl --user-agent "android.mobile" https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile > 5
+}}
+
+{{CodeSelect|code=
+curl https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile?useformat=mobile > 6
+}}
+
+{{CodeSelect|code=
+meld 1 2
+}}
+
+=== Caching or not caching ===
+
+We send a cookie to the server. If the server sends back the same header for both request then caching is off
+
+{{CodeSelect|code=
+curl --head --cookie cookie_name=cookie_content https://www.{{project_clearnet}}/wiki/FAQ
+}}
+
+{{CodeSelect|code=
+curl --head https://www.{{project_clearnet}}/wiki/FAQ
+}}
+
+= EXPORT to new wiki =
+
+If new wiki shall be created which is similar to the current master (Kicksecure) you can use the Export function to export all necessary pages and files (e. g. images) and then import those files in the new clean slate wiki.
+
+'''CAUTION''': This export is different from the export cascade from Kicksecure (master) to the "slave" wikis. All new design and code inventions on the Kicksecure wiki will be mirrored towards the "slave" wikis once they are finalized and tested. See [[#MultiWiki]] for more information. But this export here is for creating completely new wikis as a copy of the Kicksecure wiki.
+
+In the last main export event (2022-03-19) the following files were exported. To repeat this process
+<ol>
+<li>copy the following files</li>
+<li>insert into [[Special:Export]] and save the resulting XML-file</li>
+<li>go to [new_wiki_domain]/wiki/Special:Import</li>
+<li>Use the following '''Interwiki prefix''': {{CodeSelect|code=en|inline=true}}</li>
+<li>copy the following list and paste into the import list on the <code>Special:Import</code> page<br>
+'''CAUTION''': This list does not claim to be complete or accurate or up-to-date. If you want to be sure you have to check the complete list and remove old files and add new ones. This list is just meant to save you time. Also be so kind to update the list if you have created a new more accurate up-to-date list.</li>
+</ol>
+
+<div class="toccolours mw-collapsible mw-collapsed" style="max-width:100%;">
+'''Show Export List'''
+<div class="mw-collapsible-content">
+{{CodeSelect|code=
+MediaWiki:Common.js
+MediaWiki:Common.css
+MediaWiki:BackToTopButton.js
+MediaWiki:BackToTopButton.css
+Template:Download Button
+Widget:Download Button
+MediaWiki:Download Button.css
+MediaWiki:Download Button.js
+Template:CodeSelect
+Widget:CodeSelect
+MediaWiki:CodeSelect.js
+MediaWiki:CodeSelect.css
+Template:Archive_link
+Widget:Archive_link
+MediaWiki:Archive_link.css
+MediaWiki:Bootstrap Fixes.css
+Widget:Subdomain link
+Template:Subdomain link
+File:Magnifying-glass.png
+File:Support-premium.png
+File:Support-plus.png
+File:Support-free.png
+File:Mastodon-logo.png
+File:Twitter-logo.png
+File:Reddit-logo.png
+File:Facebook-logo.png
+File:Donate-banner.png
+File:Evolution-host.png
+MediaWiki:SaveAndContinue.css
+MediaWiki:SaveAndContinue.js
+File:Chevron.png
+File:X.png
+MediaWiki:Vector.css
+MediaWiki:EditorFullscreen.js
+MediaWiki:EditorFullscreen.css
+MediaWiki:LocalWiki.css
+MediaWiki:Dev.css
+MediaWiki:Fonts.css
+Template:Header
+Widget:Header
+MediaWiki:Header.js
+MediaWiki:Header.css
+Template:Footer
+Widget:Footer
+MediaWiki:Footer.js
+MediaWiki:Footer.css
+MediaWiki:ScrollableIndicator.js
+MediaWiki:Mininav.css
+MediaWiki:Sitenotice
+Widget:Sitenotice
+MediaWiki:Sitenotice_id
+MediaWiki:Sitenotice.css
+MediaWiki:Sitenotice.js
+MediaWiki:Hide siteNotice.css
+File:Grow-symbol.png
+File:Qr-logo-v2.png
+MediaWiki:Donation_Panel.css
+MediaWiki:Donation_Panel.js
+Widget:Donation_Panel
+File:Affiliate 128.png
+File:CAD 128.png
+File:CHAPS 128.png
+File:BACS 128.png
+File:FasterPay 128.png
+File:WireTransfer 128.png
+File:ACH 128.png
+File:Swift 128.png
+File:DirectDebit-card-dark 128.png
+File:Sepa-Last 128.png
+File:Sepa-card-dark 128.png
+File:IBAN 128.png
+File:AUD 128.png
+File:GBP 128.png
+File:Discover-card-dark 128.png
+File:UnionPay-card-dark 128.png
+File:AmericanExpress-dark 128.png
+File:Dollar 128.png
+File:Euro 128.png
+File:Bank-dark 128.png
+File:MasterCard-dark 128.png
+File:Visa-card-dark 128.png
+MediaWiki:PayViaPaypal.css
+MediaWiki:PayViaPaypal.js
+File:Payment-generic-symbol.png
+File:Crypto-generic-symbol.png
+File:Credit-card-generic.png
+File:GiroPay-card-dark-enlarged 128.png
+Widget:Expand_or_Collapse_All
+MediaWiki:ExpandAndCollapse.js
+Widget:FlyInNotification
+MediaWiki:FlyInNotification.css
+MediaWiki:FlyInNotification.js
+MediaWiki:Hide flyInNotification.css
+Template:Pay bitcoin qr
+Template:Pay bitcoin qr imgurl
+Template:Pay monero qr
+Template:Pay monero qr imgurl
+Template:Pay ethereum qr
+Template:Pay ethereum qr imgurl
+Template:Legal documents
+Template:Hide all banners
+Template:Support Choice
+Donate
+Template:Payments
+Donate/Affiliate Link
+Donate/Bank Wire
+Donate/Bitcoin
+Donate/Credit Card
+Donate/Crypto
+Donate/EUR
+Donate/Ethereum
+Donate/GBP
+Donate/Monero
+Donate/PayPal
+Donate/Tax-Deductible
+Donate/USD
+Donate Bitcoin
+Donate Ethereum
+Donate Monero
+Donate by Affiliate Link
+Template:Donation mininav
+}}
+</div>
+</div>
+
+= USAGE : Module Documentation (Alphabetical order) =
+
+== Anchor - manually placed anchors ==
+
+* [[Template:Anchor]] is a span element with the class "manually-placed-anchor"
+* It has 1 anonymous parameter which sets the id attribute for the span element
+* CSS: The element has no dimension and is relatively positioned above it's normal position about the amount that the Header is high. That way if the anchor is called the header does not overlap the anchored position. This is especially useful when referencing headlines
+* It is usually used to manually set anchors to make old links work with new headlines
+* Example: <code><nowiki>{{Anchor|my_id}}</nowiki></code> creates <code><nowiki><span class="manually-placed-anchor" id="my_id"></span></nowiki></code>
+
+== Archive_link ==
+
+# Archive_link creates a custom absolute link with an auto-created link to web archive and multiple options. It structurally mimics the MediaWiki extension "Link to archive".
+# Documentation for wiki editors: [[Dev/wiki#Links]]
+# It is realized via the files
+## [[Template:Archive_link]]
+## [[Widget:Archive_link]]
+## [[MediaWiki:Archive_link.css]]
+# Detailed Documentation
+## This template is based on the widget Archive_link and uses styles from Archive_Link.css .
+## It is designed to display an external link in different ways: (A) as link without any additions (B) as a link with small logo links behind it symbolizing alternative addresses (onion or archive)
+### Caution: As all links are external, the target attribute will be set to "_blank"
+## Parameters
+### url | string, default: "" - the url you want to link to
+### text | string, default: "" - the link text displayed in the main link
+### archive | string, default: "auto" - if not "none" then there will be a logo link to an archive page of the given url. Options are (A) "auto" - where the archive link is auto-generated from the url (B) "copy" - where the link is exactly copied from the url (useful when url is already from web.archive.org) and (C) none - where no logo link is shown
+### onion | string, default: "none" - if not "none" then there will be a logo link to an onion url. Options are (A) none - no logos is generated (B) "copy" - where the url is copied to the logo link (useful if url is already onion link) and (C) [onion-url] - a real onion url which is an alternative url to the main url. '''Note''': If onion is an url or onion is "copy" then the link will have rel="nofollow" to prevent broken links for search engines. In the case of "copy" the main link will also get "nofollow" because it then is obviously an onion url too
+
+Example Usage
+<pre>
+{{Archive_link|text=Whonix Clearnet|url=https://www.whonix.org}}
+</pre>
+
+== Box and MBox ==
+
+* These are 2 templates which are used to create special text boxes
+* [[Template:Box]] is a container usually for text. [[Template:Mbox]] uses Box and integrates an image into it
+* Box uses the design class "info box", see [[#info-box class]]
+* Box has the parameters: <code>|text=</code> and <code>|addToClass</code>
+** addToClass can have every legitimate CSS class to style the class
+** text can have every text
+** Box can also have one anonymous parameter instead of text
+<pre><nowiki>
+{{Box|text=Hello World}}
+has the same result as
+{{Box|Hello World}}
+</nowiki></pre>
+* MBox has the parameters like Box plus: <code>|image=</code>
+* There is a special class "ib-for-thumb". This can and should be used for info-box elements (Box and MBox) that are next to the thumbnail. If these have the class "ib-for-thumb" then the info-box will not be very thin and unreadable for small devices but will be cleared and moved to its own line
+* examples
+<pre>
+{{mbox
+| image = [[File:TestImage.png|40px|alt=Test]]
+| addToClass = ib-for-thumb
+| text = My Text here
+}}
+</pre>
+
+<pre>
+{{box
+| addToClass = ib-for-thumb
+| text = My Text here
+}}
+</pre>
+
+== CodeSelect ==
+
+# CodeSelect creates a multiline text area or an inline text field to display code or technical information
+## It has a button to copy all text to the clipboard
+## Also all text will be marked if the user clicks into the text area
+## Is NoJS (no-JavaScript) compatible. In NoJS mode the copying button is not shown but text is markable and copyable
+# These are the files for CodeSelect
+## [[MediaWiki:CodeSelect.js]]
+## [[MediaWiki:CodeSelect.css]]
+## [[Template:CodeSelect]]
+## [[Widget:CodeSelect]]
+# usage: <code><nowiki>{{CodeSelect|code=your code whatever you want except pipe-Symbol|inline=if true then displaying will be in line|htmlMode=if true content will be inserted as HTML not text}}</nowiki></code>
+## example
+### <code><nowiki>{{CodeSelect|code=echo "Hello World"|inline=true}}</nowiki></code>
+### will show {{CodeSelect|code=echo "Hello World"|inline=true}}
+# usage as HTML : CodeSelect can also be implemented simply by using HTML
+## example: <code><nowiki><div class="code-select inline-style">echo "Hello World"</div></nowiki></code>
+# usage in "Insert HTML mode" : This gives the opportunity to insert structured HTML into the code box, not just text
+## <code><nowiki><div class="code-select">More <b>Info</b> here</div></nowiki></code> <div class="code-select">More <b>Info</b> here</div> vs <code><nowiki><div class="code-select insert-mode-html">More <b>Info</b> here</div></nowiki></code> <div class="code-select insert-mode-html">More <b>Info</b> here</div>
+## '''NOTE''': You can only use this mode with the HTML codeSelect version due wiki internal processes with the template and widget
+# usage: Icon Button Mode
+## We introduced a mode to just have a button to copy code or text to the clipboard.
+## This is simply realized by adding the attribute "data-button-image-src" to wrapper element (HTML implementation) or with the buttonImage-parameter specifying the image source url
+## Note: The image gets an automatic hover effect (= -3% brightness), all controllable via CSS
+## example
+### <code><nowiki>{{CodeSelect|code=echo "Hello World"|buttonImage=/w/images/8/8c/Supermenu3.png}}</nowiki></code>
+### or html <code><nowiki><div class="code-select" data-button-image-src="/w/images/8/8c/Supermenu3.png">echo "Hello World"</div></nowiki></code>
+### will show {{CodeSelect|code=echo "Hello World"|buttonImage=/w/images/8/8c/Supermenu3.png}}
+# dev note
+## CodeSelect is now realized as a jQuery extension. This is availabe after CodeSelect.js has been initialized (see build order in [[Mediawiki:Build.json]]
+## You can call $(selection).codeSelect(action) - with action currently only allowed as 'init'. This will initialized all CodeSelect boxes in the selection. Double initializations are prevented
+
+== Debug-via-url-modal ==
+
+* This modal is a tool to conveniently generate URLs to debug the page for developers and also to be transparent about script use for page visitors
+* The user can generate a link where scripts are activated and deactivated. You can de/activate selected scripts. But you can also deactivate all (custom) js or all (custom) css or all js and all css
+* These are the relevant files
+** [[MediaWiki:DebugViaUrlModal.js]]
+** [[MediaWiki:DebugViaUrlModal.css]]
+[[File:DebugViaUrlModal-legend.jpg|300px]]
+* Here you can see the modal
+** (A) is the CodeSelect-Box where you can copy the generated link
+** (B) is a button where you can directly open the generated link
+** (C) is the navigation. Only if you choose "Select JS" you will see (D) the selection of all current scripts. Otherwise you will deactivate all js/css/js+css
+** (D) If you choose "Select JS" you will see all loaded scripts. Click on them to toggle if they should be active or not. You will see that the CodeSelect box will be immediately updated with the new link. Also the button (B) will be immediately updated according to your selection
+* The modal can be conveniently called like any other miniModal, see [[#Mini_Modal]]
+** It's dom-id reference is #debug-via-url-modal
+
+The modal also has a '''toggle button''' at the top now which de/actives the cookie nocache with the value true. Clicking this button again will delete the cookie again.
+* The cookie communicates to the server that no server cache shall be sent but the fresh current version
+
+== Donation Panel ==
+
+* The donation panel is an all-in-one payment tool for donations. It can be implemented in different pages. Usually it will be present in [[Donate]]
+* The relevant files are
+** [[Template:Payments]]
+** [[MediaWiki:Donation_Panel.css]]
+** [[Widget:Donation_Panel]]
+* Usage: It is implemented into a page lik so <code><nowiki>{{Payments}}</nowiki></code> using the [[Template:Payments]] which uses the following files automatically. These files need to be present for the donation panel to work: [[Template:Pay_Bitcoin]], [[Template:Pay_bitcoin_qr_imgurl]], [[Template:Pay_Monero]], [[Template:Pay_monero_qr_imgurl]], [[Template:Pay_Ethereum]], [[Template:Pay_ethereum_qr_imgurl]], [[Template:project_name_long]], [[Template:project_name_short]]
+
+== Download Button ==
+
+# The download button template offers a convinient way to show a graphically pleasing download button
+# The relevant files are
+## [[Widget:Download_Button]]
+## [[MediaWiki:Download_Button.css]]
+## [[MediaWiki:Download_Button.js]]
+# Usage call the Widget <code><nowiki>{{#widget:Download_Button...}}</nowiki></code> with the following parameters
+## text | string, mandatory - Visible text on the button
+## url | string, mandatory -  The complete url for the download button
+## os | string/array, mandatory - Will show all the logos of the named operating systems. Options: linux, windows, osx, qubes, kvm, debian, virtualbox, usb. Multiple logos example: |os=linux|os=windows will generate an array
+## onion | string - The url for the onion download. Will be generated as an extra HTML element behind download button
+## addToClass | string, optional - Will be added to class attribute of wrapper
+## fontsize | string, optional - If present will be added to style attribute of wrapper as style="font-size: <nowiki>{{{fontsize}}}</nowiki>;"
+## targetBlank | boolean, optional, default: false - If true will be filling the target attribute with "_blank"
+## redirectUrl | string, optional - If set then after clicking Download and after redirectDelay the page will be redirected to the given URL
+## redirectDelay | number, optional, default: 1000 - The delay in milliseconds to wait after download has been clicked to redirect the page. Only takes effect if parameter redirectUrl is set
+# '''NOTE''': We tried using a template to track all usage of the Download_Button. Unfortunately this is technically very unfavorable for this use case. Read [[Widget:Download_Button]] for further information. To find the uses of Download_Button, type into search <code><nowiki>#widget:Download_Button</nowiki></code>
+
+== EditorAutoBackup ==
+
+* EditorAutoBackup is an in-wiki modification (augmentation) of the wikitext editor. It creates an "saved icon" in the top right corner of the wikitext editor software toolbar. When clicked there will be the wikitext shown of the last edit right after save was clicked and right before the form was sent to the server
+** The functionality is based on JavaScript and on the localStorage of the browser
+** When "saved icon" is clicked the data from the editing form will be saved to the browser's localStorage via JavaScript. As long as the browser doesn't delete the localStorage (be careful TorBrowser might do that when closing the browser) the edited wikitext from (only!) the last save will be saved in localStorage
+* The relevant files are
+** [[MediaWiki:EditorAutoBackup.css]]
+** [[MediaWiki:EditorAutoBackup.js]]
+
+== EditorFullscreen ==
+
+* EditorFullscreen is an in-wiki modification (augmentation) of the wikitext editor. Instead of working in a small window the editor has the option to click on the green fullscreen icon on the upper right in the editing line of the editor and set the wikitext editor to fullscreen. If the wikitext editor is in fullscreen mode at the same position there will be the shrink item which restores the wikitext editor to its original windowed size
+* Relevant files:
+** [[MediaWiki:EditorFullscreen.js]]
+** [[MediaWiki:EditorFullscreen.css]]
+
+== EditorMultiwikiNotice ==
+
+* The EditorMultiwikiNotice is an addition to edit pages. The user on an edit page will be notified if he is on a [[ [[:Category:MultiWiki]] ]] page.
+** If this page is on the master wiki (currently the Kicksecure wiki). Then he will be warned to act with caution because these changes will affect all wikis.
+** If the user is on a slave wiki he is discourages to edit on the page and go to the master wiki instead
+** A link to the multi wiki info page and a direct link to the master edit page are also provided
+** The links tor compatible, meaning: If the user uses and onion domain he will be redirected to the master wiki onion domains, if he uses clearnet the clearnet domain he will be redirected to the master wiki clearnet domain.
+* Relevant files:
+** [[MediaWiki:EditorMultiwikiNotice.js]]
+** [[MediaWiki:EditorMultiwikiNotice.css]]
+** [[MediaWiki:Icon_Bullet_List.css]]
+
+== Editor SaveAndContinue ==
+
+* Editor SaveAndContinue an in-wiki modification (augmentation) of the wikitext editor. It adds a new green button "Save continue" to the form which usually just has a "Save Changes" button. But the standard "Save Changes" button reloads the page and disrupts the workflow. The "Save continue" button saves the form via an AJAX request. After that it shows the resulting page for the editor (person) the check if the page really was successfully saved
+* The relevant files are
+** [[MediaWiki:EditorSaveAndContinue.css]]
+** [[MediaWiki:EditorSaveAndContinue.js]]
+
+== EnhanceHeadlines ==
+
+* The important headlines (h1,h2,h3) are enhanced to give the user a better usability experience
+* The edit button is changed from a Text button to an optical button while retaining the original dom structure
+* Also an automatic shareTooltip is added for each important headline, see [[#Share_Tooltip]]
+* The Headlines 
+* EnhanceHeadlines can be prevented in 2 ways
+** by adding the HTML attribute "data-preventEnhanceHeadlines" to an arbitrary HTML element on the page, e. g. <code><nowiki><div data-pageMeta-preventEnhanceHeadlines=""></div></nowiki></code> - the content of the attribute is not relevant it can be empty like <code><nowiki><div data-pageMeta-preventEnhanceHeadlines></div></nowiki></code>. This attribute is just used as a meta control mechanism. If present NO headline on the page will be enhanced
+** or by adding the template [[Template:PreventEnhanceHeadlines]] like so <code><nowiki>{{PreventEnhanceHeadlines}}</nowiki></code> which renders to <code><nowiki><div data-pageMeta-preventEnhanceHeadlines></div></nowiki></code> as explained in variant 1
+* The relevant files are
+** [[MediaWiki:EnhanceHeadlines.js]]
+** [[MediaWiki:Boilerplate.css]]
+
+== Expand Or Collapse All ==
+
+* The Expand Or Collapse All Button is a conveniance feature to deal with page where there are multiple expand/ collapse buttons
+** This only applies to html elements with the class ".mw-collapsible-text", usually divs. Those already have a toggle (expand / collapse) button for each one individually
+** If the Expand Or Collapse All Button is clicked then all ".mw-collapsible-text" elements will be opened
+** If all ".mw-collapsible-text" are already opened then the "Expand All" button will show "Collapse All" and if clicked all ".mw-collapsible-text" elements will be collapsed
+* Relevant files
+** [[Template:Expand_or_Collapse_All]]
+** [[Widget:Expand_or_Collapse_All]]
+** [[MediaWiki:ExpandAndCollapse.js]]
+* Usage: <code><nowiki>{{Expand_or_Collapse_All}}</nowiki></code>
+
+== FlyInNotification Module ==
+
+* It is a delayed notification to show a user special information after a period of time of staying on a {{project_name_short}} page.
+* The widget is dismissable and sets a cookie named <code>flyInBannerIdDismissed</code> which is documented in our [[Cookie_Policy#Preferences]].
+* Shown for JavaScript enabled browsers: Yes. ** Shown for NoScript users: No.
+** A dismissable Fly-In-Notification which is also functional for no-JS (NoScript) enabled browsers is too much effort to implement. It would require a MediaWiki extension / PHP.
+* Relevant files
+** [[Template:FlyInNotification]]
+** [[Widget:FlyInNotification]]
+** [[MediaWiki:FlyInNotification.css]]
+** [[MediaWiki:FlyInNotification.js]]
+* The widget is at the moment wiki wide enabled using [[Template:Header]].
+** If this changes in the future and the devs want to implement it on a page by page basis, it can be implemented by simply adding <code><nowiki>{{#widget:FlyInNotification}}</nowiki></code> to any page.
+** In the current implementation the fly-in-notification can be disabled using <code><nowiki>{{#css:Mediawiki:Hide_flyInNotification.css}}</nowiki></code> or generally (and usually) by using [[Template:Hide_all_banners]], i.e. by using the usual wiki syntax to include a wiki template: <code><nowiki>{{hide_all_banners}}</nowiki></code>
+** It is already disabled on some pages such as Donation related pages and legal related pages.
+** Dev note: If you want to change this behaviour in the future read [[MediaWiki:Hide_flyInNotification.css]] to learn how CSS works in tandem with JavaScript to hide the notification
+* Usage: See [[Template:Header]] for an example. The general options of <code>currentCookieId</code> and <code>waitInSeconds</code> and the <code>content</code> are set in the JavaScript file. The widget is currently regarded as globally conform, so there are no page specific options.
+** <code>currentCookieId</code>: The id which is stored in the cookie. The <code>currentCookieId</code> will be compared to the id in the cookie, if it matches widget will not be shown. Suggestion: increment the id in integer steps if you want to show the user the next new notification
+** <code>waitInSeconds</code>: The time to wait until the notification pops up (is shown to the user)
+** <code>content</code>: HTML content which is defined as a structured string in the JavaScript file
+
+== Icon Bullet List ==
+
+* The Icon Bullet List is like a bullet list with Fontawesome icons instead of bullet points
+* It is realized in the files
+** [[Mediawiki:Icon_Bullet_List.css]]
+** [[Widget:Icon_Bullet_List]]
+
+* '''Usage'''
+** call #widget:Icon_Bullet_List
+** parameter '''item''': This parameter is separated into two parts, separated by a comma ",". The first part is the content of the <code><nowiki><i class="fas..."></i></nowiki></code> class parameter for the Fontawesome image. The second part is the text for the bullet points. HTML elements like <nowiki><b></b></nowiki> are permitted.
+** parameter '''addClass''': This parameter is added the the class-attribute of the <nowiki><ul></ul></nowiki> parent element for the list. You can use the ''specific keywords "minimal" and "inverse"'' (minimal = list is as short as its content, inverse = darker list + white bullet point) or other classes of your liking
+** parameter '''fontSize''' determines the font-size of the list as a CSS expression like "13px" or "3em". The whole list sizes with the font-size, so it's looks very good in every fontSize
+* '''Example'''
+<pre>
+{{#widget:Icon_Bullet_List
+|item=fas fa-check,Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points 
+|item=fas fa-minus,Negative Points
+}}
+</pre>
+
+* Resulting in
+{{#widget:Icon_Bullet_List
+|item=fas fa-check,Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points Plus Points 
+|item=fas fa-minus,Negative Points
+}}
+
+* '''Example using all parameters'''
+** NOTE: div with white background just for demonstration purposes. Do not use in production.
+<pre>
+<div style="background: white; padding: 10px 20px;">
+{{#widget:Icon_Bullet_List|addClass=inverse minimal|fontSize=20px
+|item=fas fa-star,Standard
+|item=fas fa-check cs-green,Plus Points
+|item=fas fa-times cs-red,Negative Points
+|item=fas fa-minus cs-yellow,Equal Points
+|item=fas fa-check cs-blue,Chill Points
+}}
+</div>
+</pre>
+
+* Resulting in
+<div style="background: white; padding: 10px 20px;">
+{{#widget:Icon_Bullet_List|addClass=inverse minimal|fontSize=20px
+|item=fas fa-star,Standard
+|item=fas fa-check cs-green,Plus Points
+|item=fas fa-times cs-red,Negative Points
+|item=fas fa-minus cs-yellow,Equal Points
+|item=fas fa-check cs-blue,Chill Points
+}}
+</div>
+
+* '''NOTE''': The colors of the bullet icons is using our color schemes which you can read about here [[#Color_schemes]]
+
+== Info Tooltip ==
+
+* Info tooltip is a small element to show a tooltip only by using CSS (nojs compatible)
+* Usage
+** give and element the class 'info-tooltip'
+** hide an element inside which will only be shown when user hovers over info button
+** example <code><nowiki><span class="into-tooltip"><span>Here's the hidden info</span></span></nowiki></code>
+** result <span class="info-tooltip"><span>Here's the hidden info</span></span>
+* Relevant files [[Mediawiki:Utility.css]]
+
+== LeftRightImageText ==
+
+* A Template to show an image left and right a text or the other way round for decorative purposes
+* '''Recommended''' to be used as '''template''', but also available as a '''widget''' because as a template there are too many limitations, especially for the style-attribute.
+* It is responsive. And once the screen is smaller than 500px the 2 parts will go width 100% and be below each other with a margin under the image
+* Below 500px the image will ALWAYS be ABOVE the text, to keep a consistent look
+* If the text is longer than the image or the image is longer than the text, the smaller one will always be in the middle
+* Relevant files
+** [[Template:LeftRightImageText]]
+** [[Widget:LeftRightImageText]]
+** [[MediaWiki:LeftRightImageText.css]]
+* Usage
+** Either tempate <code><nowiki>{{LeftRightImageText|...}}</nowiki></code> or widget <code><nowiki>{{#widget:LeftRightImageText|...}}</nowiki></code>
+** '''param |image''': The image with should be shown next to the text. '''NOTE''': For this parameter there is a difference between template and widget. In template you simply use the file name for image like "Information-275708-640.png". In the widget you have to use real relative link like "w/images/thumb/7/70/Information-275708-640.png/300px-Information-275708-640.png"
+** '''param |imagelink''': If you want the image to function as a link give '''|imagelink=your-link-to-image''' and the image will behave as a link with hover effect. '''NOTE''': For this parameter there is a difference between template and widget if it's an wiki internal link. In template you simply use the page name like "About". In the widget you have to use real relative link like "/wiki/About"
+** '''param |text''': The wikitext (template) or html (widget) which should be shown next to the image
+** '''param |imageright''': If you want to image to be right, use the parameter '''|imageright=1''' then the image will be on the right and the text on the left
+** '''param |addclass''': If you want to add classes to the parent element, use the parameter '''|addClass=your-classes'''
+*** '''class promo-style''': One specific class for the parent element is '''"promo-style"''' which will turn all h3 and p elements to bigger stylized text areas
+* Example template
+<pre>
+{{LeftRightImageText
+|image=Information-275708-640.png
+|imagelink=About
+|imageright=1
+|text=
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+}}
+</pre>
+* Example widget
+<pre>
+{{#widget:LeftRightImageText
+|image=/w/images/thumb/7/70/Information-275708-640.png/300px-Information-275708-640.png
+|imagelink=/wiki/About
+|imageright=1
+|text=
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+}}
+</pre>
+* Result for both
+{{LeftRightImageText
+|image=Information-275708-640.png
+|imagelink=About
+|imageright=1
+|text=
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+This is an interesting product. You might want to hear more about it. This is an interesting product. You might want to hear more about it. 
+}}
+
+== Mini Modal ==
+
+# MiniModal is a modal as a quick way to create lightweight modals, mainly for backend work like for the wikitext editor (software)
+# Relevant files are
+## [[MediaWiki:MiniModal.js]]
+## [[MediaWiki:MiniModal.css]]
+# Usage: implement the modal with this minimal structure {{CodeSelect|code=<div class="mini-modal" id="your-id-recommended-to-use"></div>|inline=true}}
+## init : MiniModal are lazily initialized when they are shown or hidden. You can also actively initialize them with {{CodeSelect|inline=true|code=$('#your-id-recommended-to-use').miniModal('init');}}. A sub div will be created with the underlay and a close button. And the direct content under the .mini-modal div will be moved to the sub-div .content
+## show / hide : You can programmatically (JavaScript) open the modal with {{CodeSelect|inline=true|code=$('#your-id-recommended-to-use').miniModal('show');}} and close it with {{CodeSelect|inline=true|code=$('#your-id-recommended-to-use').miniModal('hide');}}
+
+== Mini Navigation==
+
+* Mininav: Mini navigation: Mini navigation is used to have multiple buttons in a row linking to other pages. The outer element must be a &lt;div class="mininav"&gt; the inner element must be a list of elements, for example of links. This will automatically be transformed to the navigation
+* Relevant files: [[MediaWiki:Mininav.css]]
+Example
+ <pre>
+ <div class="mininav">
+ * [[Homepage]]
+ * [[Homepage]]
+ * [[Homepage]]
+ </div>
+ </pre>
+leads to
+<div class="mininav">
+* [[Homepage]]
+* [[Homepage]]
+* [[Homepage]]
+</div>
+
+== PayViaPaypal module ==
+
+* To offer users to donate via PayPal we offer a form to do so
+** The form is a fully functional PayPal form which combines subscription payment and one time payment by switching input elements (as defined in PayPal's API) according to the user's selection
+** This module is based on JavaScript because PayPal also seems at the moment only fully usable with JavaScript activated
+* Relevant files
+** [[Mediawiki:PayViaPaypal.js]]
+** [[Mediawiki:PayViaPaypal.css]]
+** [[Mediawiki:Nojs.css]]
+* Usage: To integrate the form into a page simply use <code><nowiki><div class="pay-via-paypal-module">[nojs text]</div></nowiki></code> and write the text or markup for NoJS users in the div
+** This text will be replaced by the form via JavaScript if JavaScript is activated
+** You can also use "smooth" in the class attribute. This makes the form grow smoothly when it's fully loaded instead of popping into position <code><nowiki><div class="pay-via-paypal-module smooth">[nojs text]</div></nowiki></code>
+** On any page there can be multiple forms which are each independent of each other
+
+== Pre : &lt;pre&gt; and &lt;div class="pre"&gt; ==
+
+<code>&lt;pre&gt;</code> and <code>&lt;div class="pre"&gt;</code> are two ways to show preformatted code. Both look very similar. The difference is: In pre tags mediawiki does not parse newlines, variables etc, in div.pre it does. So according to usage scenario either pre or div.pre are preferrable
+
+== Responsive Thumbnails ==
+
+* Sometimes thumbnails are using to much space on mobile / small devices. Therefore you can add this template to any page and the thumbnails will not float below a certain display width but instead will form a block.
+* Relevant File: [[Template:Responsive_Thumbnails]]
+
+== sd-start (currently retired) ==
+
+* https://www.{{project_clearnet}}/wiki/Widget:Sd-start-short
+* https://www.{{project_clearnet}}/wiki/Widget:Sd-end-short-start-detailed
+* https://www.{{project_clearnet}}/wiki/Widget:Sd-end-detailed
+* https://www.{{project_clearnet}}/wiki/Template:Sd-start-short
+* https://www.{{project_clearnet}}/wiki/Template:Sd-end-short-start-detailed
+* https://www.{{project_clearnet}}/wiki/Template:Sd-end-detailed
+
+== SearchModal ==
+
+* The search is generalized as a modal. Once the user clicks on the search button in the header the modal opens
+* The feature is [[#MultiWiki]] and the relevant files are
+** [[MediaWiki:SearchModal.js]]
+** [[MediaWiki:SearchModal.css]]
+* Depedencies
+** SearchModal.js is dependent on [[MediaWiki:MiniModal.js]]
+** [[MediaWiki:Header.js]] is dependent on MediaWiki:SearchModal.js
+
+== Share Tooltip ==
+
+# A tooltip menu for copying and sharing a url to various social media
+# You can insert the template and optionally reference an anchor. The hover menu will offer the user different sharing options
+# Nojs: These sharing tooltips will not be visible for nojs users
+# JS active: The span element will be used as a wrapper and filled with a complex menu with sharing options for twitter, facebook etc
+# Relevant files (MultiWiki)
+## [[MediaWiki:ShareTooltip.css]]
+## [[MediaWiki:ShareTooltip.js]]
+# dev note
+## ShareTooltip is realized as a jQuery extension. This is availabe after ShareTooltip.js has been initialized (see build order in [[Mediawiki:Build.json]]
+## You can call $(selection).shareTooltip(action) - with action currently only allowed as 'init'. This will initialized all ShareSelect elements in the selection. Double initializations are prevented
+## '''URL parts''' documentation
+### The url parts for each target platform are all in an object with an array for each platform with the url parts as strings
+### The array is iterated in order and normal strings are just statically added to the complete share string
+### Strings that start with "[if-data-...]" are conditionals that are just rendered to the share string if the data part is truthy, e. g. "[if-data-page] page is " is only rendered if data['page'] is truthy
+### Strings that start with "[data-...]" are not parsed literally but just taken from the data, e. g. "[data-page]" renders the page. If the page is not given then empty string will be rendered
+
+# Usage
+## the data-anchor parameter anchor is optional, without it the sharing link is the whole page
+### '''NOTE''': if you use an anchor this anchor (or an element with this id="my-anchor-id") should exist somewhere on this page
+### If the data-anchor parameter is set (only then) you can also use the data-chapter parameter which will explicitly set the title of the chapter for various sharing options. If not the title will be fetched from the target element (e. g. if it's a headline, then the text) or if this also fails then the anchor id will be transformed by replacing "_" with space
+## The color of the Share-Button (placeholder for the menu) can be altered with CSS. Between "filter: brightness(0)" (equals black) and "filter: brightness(2)" (equals white) you can make it every color
+
+<pre>
+<span class="share-tooltip" data-anchor="my-anchor-id" data-chapter="My chapter title"></span>
+</pre>
+
+Result
+
+<span class="share-tooltip" data-anchor="my-anchor-id" data-chapter="My chapter title"></span>
+
+<div id="my-anchor-id">'''/// Example reference element with id="my-anchor-id" ///'''</div>
+
+== SiteNotice Donation Banner ==
+
+# The sitenotice is used to communicated current infos to the user. Up until now it was used for a donation banner. But in the future it will be used more versatile. Also since the [https://www.mediawiki.org/wiki/Extension:DismissableSiteNotice Extension:DismissableSiteNotice] is installed the user can dismiss a sitenotice permanently.
+# Relevant elements
+## [[MediaWiki:Sitenotice]]
+## [[Widget:Sitenotice]]
+## [[MediaWiki:Sitenotice_id]]
+## [[MediaWiki:Sitenotice.css]]
+## [[MediaWiki:LocalSkin.css]]
+## [[MediaWiki:Sitenotice.js]]
+## [[MediaWiki:Nojs.css]]
+## [[Template:Hide_all_banners]]
+# For testing there is also [[Widget:Sitenotice Test]].
+# Sitenotice is currently dependent on Extension:DismissableSiteNotice.
+# Sitenotice is excluded from search engine indexing via [[#Exclusion_of_text_parts_from_search_engine_indexing]]
+# Sitenotice rendering cycle
+## When the page is loaded the Sitenotice has well defined dimensions and display:block to prevent content shift issues for the user and for pageloading tools. But the div is empty for a short time
+## After that if the user has nojs the Sitenotice will always be shown
+## If the user has js active but has not yet dismissed the Sitenotice then the Sitenotice will be shown be and dismissable
+## If the user has js active and has dismissed the Sitenotice in the past then the Sitenotice will not be shown but the reserved space for the Sitenotice will disappear
+## This way page metric webpages like gtmetrix will get no content shift, also very few users will.
+# Sitenotice.js is used
+## to replace the [dismiss] button from the extension with a more beautiful graphical x icon from FontAwesome. As DismissableSiteNotice uses JavasScript (JS) there is no problem in using JS here. For NoJS users the Sitenotice is not dismissable anyways.
+## This file also fixes the behavior of the Extension:DismissableSiteNotice, to satisfy our defined rendering cycle. See "// Fixes Extension:DismissableSitenotice" in the file for the source code
+# Sitenotice.css is for styling the sitenotice. There are also some general settings there
+## Note that the Sitenotice is made invisible (see [[MediaWiki:Vector.css]]) on pages with the Vector theme as those are for editors anyways.
+# If you want to show the user a new Sitenotice (or an old one AGAIN) simply increment the integer in [[MediaWiki:Sitenotice_id]] because DismissableSiteNotice writes a cookie for the user with the current ID, so for a new ID the user will see the current Sitenotice again.
+# If you want to create a new siteNotice
+## Go to [[Widget:Sitenotice]] and create your own siteNotice. The wrapper element has to have the classes "banner" and "banner-[your-id]". The other existing siteNotices don't need to be deleted if you want to use them later. Just add the "active" class to your current banner und remove the "active" class from all other banners
+## No go to [[MediaWiki:LocalSkin.css]] and style your siteNotice using your "banner-[your-id]" class. '''Important''': Make sure to set the expected height of your banner to the #siteNotice parent element. This is to prevent "content jumping"
+# If you want to deactivate your siteNotice in your local wiki, go to [[MediaWiki:LocalSkin.css]] and change <code>#siteNotice { display: block !important; }</code> to <code>#siteNotice { display: none !important; }</code>. This will deactivate the siteNotice in your local wiki, but will not affect other wikis in the [[#MultiWiki]] collection.
+
+== SiteNotice End Of Year Banner ==
+
+# The SiteNotice End Of Year Banner is a complex banner for the donation drive at the end of the year
+# The banner fulfills several requirements: (1) Responsive mobile / desktop (2) Predictable height to prevent content jumping (3) Content as a slideshow (4) Payment gadget always present or one click away (5) Dismissable (by cookie for 1 week) (6) Portable, so it can be loaded on other pages, in this case the forums (7) Customizable so there can be different content on different pages (i. e. Whonix and Kicksecure)
+# Relevant files:
+## [[MediaWiki:Sitenotice_EndOfYear.js]]
+## [[MediaWiki:Sitenotice_EndOfYear.css]]
+## [[MediaWiki:Sitenotice_EndOfYear_LocalWiki.js]]
+## [[MediaWiki:LocalSkin.css]]
+# The main Javascript file is [[MediaWiki:Sitenotice_EndOfYear.js]]. There it provides a function initEndOfYearSitenotice( domElementToPrependTo, assetWikiUrl = '', contentForSlides = '' ). Load this file and execute this function to create gadget.
+## domElementToPrependTo needs to be a jquery dom element or a valid CSS selector. It's the element where this whole banner gadget will be prepended (added to the front)
+## assetWikiUrl, e. g. "https://www.whonix.org", is the baseUrl where the content is loaded from. If this is empty then relative paths will be used - which assumes that on the current URL there is a mediawiki installed
+## contentForSlides needs to be an HTML-String which will then be added to the banner.
+### Every slide (direct child) should be a div element to contain your slide content. This is individual content fitting the current wiki.
+### '''Crypto''': You will have to have an element in your string (e. g. div) which (1) has the attribute data-crypto-addresses (2) is a JSON string (3) and has the keys "payBitcoin", "payMonero" and "payEthereum" with the right addresses as string-values.
+### '''Title''': If you add an h1-element (also a child, use of HTML inside the h1 is allowed) then this will be used as the title of the end of year sitenotice being displayed at the top. If you don't use an h1-element here then there will be a generic title
+# In [[MediaWiki:Sitenotice_EndOfYear.css]] the styles are defined.
+# In [[MediaWiki:Sitenotice_EndOfYear_LocalWiki.js]] the function initEndOfYearSitenotice(...) is called. This must be done for each wiki individually. This is usually where the content is stored.
+# In [[MediaWiki:LocalSkin.css]] we deactivated the usual SiteNotice functionality, specifically just the height of #siteNotice
+# When clicking dismiss a data entry into "localStorage" is written with the current date plus 7 days. Before that time the banner will not be shown again. After that time, the banner will be shown again and the data entry will be deleted
+# History: This functionality was originally using Ajax Calls to get the content. But this was too slow, so all content is stored in [[MediaWiki:Sitenotice_EndOfYear_LocalWiki.js]] now
+
+== Subdomain_link ==
+
+# This template creates a context based link to a subdomain of the wiki project. Works only for the official wiki clearnet and onion domains.
+## Problem: normally it is optimal to use relative links. This is not possible for subdomains here. But to redirect with an absolute link to a subdomain poses the problem if there are multiple domains for the same website like with whonix where there is also an .onion domain
+## This template solves the problem by automatically analysing the context (which domain the user is on) and creating the link automatically based on the context
+# The files which are used, are
+## [[Template:Subdomain_link]] - only this template should be used by editors
+## [[Widget:Subdomain_link]] - this widget should only be edited by devs
+# Parameters
+## text | string, default: "" - the text you want to display in your link
+## sub | string, default: "" - the subdomain without any special character. If you want forums.{{project_clearnet}}, use "forums"
+## append | string, default: "" - an addition to the link after the domain. Always start with slash "/". Example: "/thread/12387" → "{{project_clearnet}}/thread/12387"
+## result | string, standard: "link" - determines what the widget returns. Options (A) link - then an a-hyperlink will be created (B) url - then only the final url will be created (C) parts - then a string will be created. First part protocol "http", the comma, then "doamin", example: "https,{{project_clearnet}}"
+## testingcontext | string, default: "" - give an alternative testing context url to test this template. Parameter remains in production version of this template because there are sophisticated RegExp terms used and for later development and demonstration purposes this is highly useful
+
+== Tab Content Controller ==
+
+* Introduces a tab controller to conveniently show content as tabbed content areas
+* Uses [[#Mini_Navigation]] as an auto-generated navbar
+* For nojs visitors the content is plainly and fully shown without any navigation
+* Relevant files
+** [[MediaWiki:TabContentController.js]]
+** [[MediaWiki:TabContentController.css]]
+** [[MediaWiki:Mininav.css]]
+** [[MediaWiki:Nojs.css]]
+* Usage
+** create a div with the class "tab-content-controller" and the attribute "data-tcc-id"
+** create as many divs (or other elements) with the attribute "data-tcc-id" and the attribute "data-tcc-title" and the attribute "data-tcc-image". Title and image are optional, but if both are missing the tab will be empty confusingly have no indicator.
+** if JS is active then all the elements with the same attribute content of the "data-tcc-id" as the controller will be fetched to the controller and a navigation (Mininav) will be automatically generated with the titles given in "data-tcc-title" and the images given in "data-tcc-image"
+** '''NOTE''' Normally images given in "data-tcc-image" will displayed with a height of 25px (if you don't style otherwise). Keep that in mind to load small images to save bandwidth
+** If a content element shall be pre-selected give that element the class "active". If this is not done then the first element will be selected
+** '''NOTE''' If you don't have an element pre-selected then a content shift will appear because all elements will be hidden for the users until the JS is loaded. If an element has the class "active" however then it will be always be shown and content shift will not appear
+* Example (class info-box is just used for styling candy)
+<pre>
+<div class="tab-content-controller" data-tcc-id="my-test-1"></div>
+<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 1">1 Content division number 1</div>
+<div class="info-box active" data-tcc-id="my-test-1" data-tcc-title="Number 2">22 Content division number 2</div>
+<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 3" data-tcc-image="/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png">333 Content division number 3</div>
+</pre>
+
+<div class="tab-content-controller" data-tcc-id="my-test-1"></div>
+<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 1">1 Content division number 1</div>
+<div class="info-box active" data-tcc-id="my-test-1" data-tcc-title="Number 2">22 Content division number 2</div>
+<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 3" data-tcc-image="/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png">333 Content division number 3</div>
+
+== Tables with oversize, ScrollableIndicator ==
+
+* Tables with oversize: Tables are sometimes too long for viewing on mobile devices. This makes the whole content scrollable to the right. To prevent this editors can wrap the whole table in <code>&lt;div class="scroll-table"&gt;&lt;table&gt;...&lt;/table&gt;&lt;/div&gt;</code> . This makes only the table scrollable, but not the whole document.
+* ScrollableIndicator: This tool is realized by [[Mediawiki:ScrollableIndicator.js]]. For mobile devices it is sometimes not clear if a table is too long to short and therefore scrollable. If ScrollableIndicator is active (JavaScript needs to be active) then the tables gets a special class "scroll-overflow-indicator" which gives it a style so mobile users know they can scroll. Caution: This only works on div-elements with the class "scroll-table", but there automatically
+
+== TOC Level Switcher ==
+[[File:TOCswitcher2.png|90px|border|thumb|Table of Contents Level Switcher wiki button]]
+
+'''Figure:''' ''Table of Contents Level Switcher''
+
+[[File:TOCswitcher1.png|470px|border]]
+
+# There is a lot of content on this wiki and there are many headlines on one page. So the table of contents (toc) is sometimes very overwhelming. To improve this experience for the user we created a JavaScript augmentation for the TOC
+# 3 Buttons are added right of the TOC where you can use the star and show all levels (standard) or click "2" to just show the top 2 levels or click "1" to just show the top level. You can open the levels by using the plus button. And you can see how many children one level has by the number in the brackets on the right. Levels with 0 children will have no plus button to open them
+# The TOC is not shown at all if there is no level 2 headlines, because then the TOC could do nothing. If there is no level 3 headlines then the "Show level 2" button is not shown for the same reason
+# TOC level switcher saves your choice to localStorage. But only if you make a choice.
+## So if you're someone who always likes to just get the top headlines this will help improve your experience across all pages.
+## If you want to delete your choice and the whole data point completely from localStorage just click the star icon and it will be wiped
+# This feature is [[#MultiWiki]] and the relevant files are
+## [[MediaWiki:TocLevelSwitcher.css]]
+## [[MediaWiki:TocLevelSwitcher.js]]
+
+= USAGE : CSS Design Documentation (Alphabetical order) =
+
+== Col Container ==
+
+* The class .col-container is a functional wrapper to have elements equal items in a horizontal list
+* The class .cc-3 (only works in combination with .col-container) defines a horizontal list with 3 columns
+* The used CSS technique is display:flex;
+* Defined in [[Mediawiki:Utility.css]]
+
+== Color schemes ==
+
+* There are 4 double color schemes available for usage in different contexts to your liking. Classes:
+** cs-red, cs-red-light
+** cs-green, cs-green-light
+** cs-blue, cs-blue-light
+** cs-yellow, cs-yellow-light
+* '''Usage:''' Simply add one of the 8 classes to a class-attribute in an html element of your choice
+* They affect background-color and color
+* They are defined in [[Mediawiki:Boilerplate.css]]
+
+== Columns: use-2-columns, use-3-columns ==
+
+* These classes can be used on any element, which has display:block or something similar. The content of the element will be automatically grouped in 2 or 3 columns, separated by lines between them.
+** Note that under a certain page with the class will produce only 2 columns or 1 column to be responsive for mobile devices
+* additional class "strict-list-columns" : If the parent element with the class "use-2-columns" or "use-3-columns" also gets the class "strict-list-columns" then lists ul/ol will be kept together in 1 column. This can be broken by inserting <code><nowiki><div></div></nowiki></code> into a list to break it cleanly into two and let those 2 lists be in different columns
+* sub class "keep-together" : This class can only be effectively used under the "use-2-columns" or "use-3-columns" class. Usually without "keep-together" the 3 columns will be automatically reorganized to occupy as little vertical space as possible. Thereby it will separate line which is sometimes not desirable. To keep lines together wrap them in a span with class "keep together". Example
+<pre><nowiki><div class="use-3-columns">
+<ul>
+<li>List element 1</li>
+<li><span class="keep-together">List element 2</span></li>
+</ul>
+</div></nowiki></pre>
+Example 2 in a Template with "strict-list-columns"
+<pre><nowiki><div class="use-3-columns strict-list-columns">
+* List element 1
+* List element 2
+<div></div>
+* List element 3
+* List element 4
+</ul>
+</div></nowiki></pre>
+
+== General utiliy style classes ==
+
+Special classes are generic classes that are applicable to various html elements. Relevant file mostly [[MediaWiki:Utility.css]]
+
+* class "width-100" : an element gets the style width:100%
+* class "text-align-center" : an element gets the style text-align:center
+* class "vertical-align-middle" : an element gets the style vertical-align:middle
+* class "margin-left-5" (margin-right/top/bottom-0/5/10/20) : adds margin 0, 5, 10 or 20 px in any direction to an element
+* class "vspacer-10" (-0/1/2/3/4/5/10/20/30/50) : block element with no float and 100% width and the given height to make a vertical gap (vspacer = vertical spacer)
+* class "pos-1px-up" (pos-1px/2px/3px-up/down) : positions the element relative and moves it up or down 1, 2 or 3 pixels
+* class "fontsize19" (19/21) : Gives the element font-size: 19px
+
+== hide-enlarge and thumb-hide-enlarge class ==
+
+* A thumb image will usually have an enlarge Button to show the images in full. This is sometimes not desirable. But thumb is sometimes the only useful image option (see [[#Images,_Files_and_usage_of_thumb|#Images, Files and usage of thumb]]). Therefore thumb can be augmented with one of 2 classes hide-enlarge and thumb-hide-enlarge.
+* '''thumb-hide-enlarge''' is the general purpose solution for all thumbnails. Simple wrap a division with the class "thumb-hide-enlarge" around the thumbnail
+** example: <code><nowiki><div class="thumb-hide-enlarge">[[File:Swift 128.png|thumb|100px|link=|SWIFT]]</div></nowiki></code>
+** The enlarge button will be hidden. And the image description text will be centered
+* The second option is a shortcut but '''only works on thumbnails without the link parameter'''. You can add the class parameter with the value '''hide-enlarge''' to the File-tag
+** example: <code><nowiki>[[File:Swift 128.png|thumb|100px|link=|class=hide-enlarge|SWIFT]]</nowiki></code>
+** The effect is the same as with the wrapper
+
+== info-box class ==
+
+* used for container elements to give them rounded borders, a white background and a shadow
+* it is used in the Template Box, see: [[#Box_and_MBox]]
+* There is a special class "ib-for-thumb". Read about it in [[#Box_and_MBox]]
+
+== intro-p Intro Paragraph class ==
+
+* used for an intro paragraph at the box of the page, but can also be used elsewhere to highlight text
+* usage: <code><nowiki><div class="intro-p">Here is your intro-text</div></nowiki></code>
+
+== NoJS classes ==
+
+* The site is generally NoJS compatible. However for JavaScript (JS) users we offer some JS features to make the visit more comfortable.
+** The JS enhanced elements work without JS, but with JS they have full functionality.
+** We also use the [https://www.mediawiki.org/wiki/Extension:Bootstrap Bootstrap] MediaWiki extension and use some of its components, for example <code>.modal</code> which might be impacted by deactivating JavaScript
+* '''IMPLEMENTATION''': For no-JS users we have special files whose styles are only applied if the user has JS deactivated
+** The files are imported by a <code>noscript</code> tag injection into the header via the [[#Extension HeadScript]].
+** Thes files are [[Mediawiki:Nojs.css]]
+** In [[Mediawiki:Utility.css]] there are also some style for NoJS
+* '''USAGE''': We introduced two new classes to show content specifically for NoJS or JS users. These classes are
+** '''.show-for-nojs-only''': show content only if the user has no JS activated
+** '''.show-for-js-only''': show content only if the user has JS activated
+** '''.hide-for-nojs-only''': hide content only if the user has no JS activated
+** '''.hide-for-js-only''': hide content only if the user has JS activated
+* Example: <code><nowiki><div class="show-for-nojs-only">Text is only show when JS is not active</div></nowiki></code>
+
+= USAGE : Server Scripts =
+
+== Images Export Import ==
+
+There are two different scripts on the server.
+
+* <code>images-download-from-kicksecure</code>
+* <code>images-download-from-whonix</code>
+
+This was last tested in March 2022 and worked great.
+
+Currently broken due to upstream bug: [https://phabricator.wikimedia.org/T313404 grabFiles.php broken in MediaWiki 1.38 due to MediaWiki API changes].
+
+=== Images Export Implementation Details ===
+
+Not important. Only for interested readers.
+
+Implemented using [https://github.com/wikimedia/mediawiki-tools-grabbers mediawiki-tools-grabbers]. The following commands would need to be adjusted and executed on the server.
+
+<pre>
+sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.kicksecure.com/w/api.php
+</pre>
+
+<pre>
+sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.whonix.org/w/api.php
+</pre>
+
+= Rejected tasks =
+
+The following tasks have been considered for realization but have been rejected due to the contra arguments.
+
+== MediaWiki Clean vs Unclean Links ==
+* It's about this: [[Forum_Best_Practices#Clean_MediaWiki_Links|Clean MediaWiki Links]]
+* After editing a wiki page, now unclean links are back (<code>index.php</code> version).
+* This is caused by the MediaWiki FlaggedRevisions extension.
+* An alternative might be the MediaWiki ApprovedRevs extension. https://www.mediawiki.org/wiki/Extension:Approved_Revs
+
+== Magic Variables Clearnet/Onion ==
+
+* introduce our own magic variables, especially one to differentiate in templates and widgets between clearnet-request and onion-request
+** This is especially useful in cases where a different link needs to be shown depending if it's onion or clearnet. And if that link is not relative
+** Then give task to dev, so he can fix [[VirtualBox/XFCE]] and remove onion extra link
+* Cumbersome to implement and not that important because there are separate onion download links.
+
+== Expand Button new ==
+
+* usually expand areas are created with .mw-collapsible and .mw-collapsible-content
+** But this is a JavaScript solution and does not work for nojs users. For them the area is automatically expanded
+* A new solution would be to create a widget which creates and expand container and button and content area
+** This solution uses checkboxes for nojs users and a js solution for JavaScript users
+* A second widget might me "Expand All / Collapse all button, like on page [[Documentation]]
+** For nojs users this might also be a checkbox which works in tandem with the other new widget for Expand buttons
+*** A challenge might be that the Expand all checkbox always has to be on the same level as all parent elements of the lower level expand buttons
+* An alternative variant to the Expand all button might be to introduce a parameter to the expand button widget like  "nojsexpanded" where the behavior is like with the current mw-collapsible solution and all areas are expanded if JavaScript is not active
+
+== Sitenotice no-JS Version ==
+
+* The Sitenotice usually is not dismissable by the user
+* We use Extension:DismissableSiteNotice so the user can click away the Sitenotce
+* But the extension has a big flaw. On line 55 to 75 (see [[https://github.com/wikimedia/mediawiki-extensions-DismissableSiteNotice/blob/master/includes/DismissableSiteNoticeHooks.php git of the extension]]) you can see the dev delivers the sitenotice via JavaScript
+** This means the sitenotice is not even visible if the user has JavaScript deactivated.
+** This is not desired behaviour. We want every user to see the notice. And JS users just have the additional luxury of being able to dismiss the sitenotice
+* Solution suggestion
+## We deactivate Extension:DismissableSiteNotice, because the JavaScript way was a deliberate choice of the dev, so even if we can fix the extension the dev very likely won't accept our solution upstream
+## Without the extension the Sitenotice will be there for every user.
+## We write a JavaScript file to make Sitenotice dismissable which saves this info into a cookie similar to Extension:DismissableSiteNotice, so only JS users have the comfort to dismiss a Sitenotice
+
+Patrick said:
+
+* priority: low
+* Let's see what upstream is saying.
+** https://phabricator.wikimedia.org/T11209
+** https://phabricator.wikimedia.org/T225318#7686484
+** Inquiries from 2022-02-06
+
+== CodeSelect Show Copy Contents Feature ==
+
+* pro
+** Would it be possible, and make sense to shop a popup what exactly has been copied to clipboard?
+** Maybe useful for the new donation widget?
+** Maybe useful generally, globally?
+* contra
+** In probably 99.9% of cases the user will immediately insert the contents they just copied into another form or programm. Therefore he will see the full copied content immediately afterwards anyways. So this might be superfluous
+
+== pay what you can for donate panel ==
+
+* pro
+** elementary.io does it
+* contra
+** Confusing for users which might wonder:
+*** Do I get the same version if I choose 0?
+*** Seems like this cannot be downloaded for free.
+
+== External Redirections Enhancements ==
+status: wait
+
+Waiting for new magic words mediawiki extension.
+
+https://github.com/DavisNT/ExternalRedirect/ improvements
+
+example external redirect:
+
+* live:
+** https://www.whonix.org/wiki/OpenPGP
+* wiki source:
+** https://www.whonix.org/w/index.php?title=OpenPGP&redirect=no
+** https://www.whonix.org/w/index.php?title=Moved:OpenPGP&action=edit
+
+* solution?
+** Can we change
+** <code><nowiki>
+{{#externalredirect: https://www.kicksecure.com/wiki/OpenPGP}}
+</nowiki></code>
+** to
+** <code><nowiki>
+{{#externalredirect: {{kicksecure_clearnet_or_onion}}/wiki/OpenPGP}}
+</nowiki></code>
+** ?
+
+* goals:
+** protocol handler respecting redirect.
+*** redirect {{Whonix}} https visitors to {{Kicksecure}} https
+*** redirect {{Whonix}} onion visitors to {{Kicksecure}} onion
+
+* notices:
+** title: <code>Redirection</code>
+** "You are being redirected. Will redirect in 5 seconds to {{Kicksecure}} website."
+** "{{Whonix}} is based on {{Kicksecure}}"
+
+== mininav CSS Improvement ==
+
+* pro
+** The style for example on A) [[USB_Installation]] "table abuse" looks a bit nicer than mininav for example B) [[Dev/website]].
+** "table abuse" is shows all navigation options in the same line on mobile which is great.
+** "table abuse" has a nicer border?
+** "table abuse" has a nicer background color?
+** mininav splits it into multiple lines below each other which is non-ideal.
+* contra
+** mininav is designed with modern standards and especially mobile devices in mind
+** the bottom border indicated like with tabs where the user is at
+** the tabs can be on one line or multiple lines and are therefore responsive
+** the design is subtle and nice and integrates with the rest of the visual language (gray background for code, but white for functional elements of the website)
+
+= Maybe Future TODO =
+== MediaWiki:Page_Homepage.css Question ==
+Only a question.
+
+Could [[MediaWiki:Page_Homepage.css]] be embedded inline into [[widget:Page_Homepage]]? Good idea?
+
+Reason: Potential website speed improvement?
+
+Would get rid of https://www.whonix.org/w/index.php?title=MediaWiki:Page_Homepage.css&action=raw&ctype=text/css&css-extension=1 (the only call to index.php), would get rid of 1 additional file to download.
+
+Might not be needed if nginx server side PHP caching speeds this up.
+
+'''DEV'''
+* Yes, Page_Homepage.css could be embedded
+** Pro: That would improve parallel loading (because the CSS is there earlier). Speed COULD therefore improve a little bit
+** Con: But that would inflate the page even more (which would also negatively impact the PageSpeed "Dom is too large" warning
+* Alternative idea: Load the script directly from /mw-autogen/src-copy folder. This needs some small tweaks, probably in Build.json and/or mw-combine, but might be reasonably quick
+
+== Whonix Homepage Video ==
+=== simplify noJS version ===
+For the more beautiful, feature-rich implementation related to all of these video tasks, would it help if the noJS version would be further simplified?
+
+Potentially acceptable for the homepage noJS version:
+
+* just show the illustrative image
+* direct link to the video
+* video download link
+* could offer many different quality / size versions
+* YouTube link
+* yewtu.be
+* no need to play inside the homepage
+
+=== Separate JS version ===
+Should we add a more pretty video player if JS is available?
+
+The HTML5 player is nice for noJS but has some probably unfixable issues. When playing the video over a slow connection (slow internet; Tor; onion) it starts, is then stuck, loads, play again. That is not very useful. This leads missing the hear the first few seconds of the video and no bearable video experience. Hence above chapter "simplify noJS version".
+
+If we decide to use a JS based video player... Is there a video player for slow connections that
+
+* can buffer the first 10-20 seconds or so?
+* lower the video quality?
+
+=== Streaming Protocols - RTSP RTSPS HLS ===
+What we want is "VOA" - "video on demand". Only playing simple videos. No live streaming.
+
+For adaptive bitrate streaming (lowering the video resolution and quality over slow connections), the whonix.org server would need to support RTSP (actually RTSPS for better security) and HLS? Patrick did preliminary research and thinks its doable.
+
+=== research video players ===
+requirements:
+
+* must be Open Source
+* installed to whonix.org/libs or so (not fetching from third parties such as jsDelivr)
+* can be JS based
+* with HTML5 only (noJS) features are probably limited and no players available?
+* avoid NPM (seems very pretty much doable, players that Patrick has seen are deployed as a single JS file. Trivial to install on the server.)
+
+feature wish list:
+
+* remember video playback position after reload
+* see also requested features above
+
+review todo:
+
+* https://videojs.com/ smoothQualityChange: true, http://rsmck.co.uk/blog/adaptive-hls-streaming-with-nginx/
+* flow player
+* etc
+
+=== lazy load player ===
+If we use a JS based video player, should it be lazy loaded to avoid increasing load times for normal visits?
+
+=== CSS restyle html5 video controls ===
+* Controls always visible because otherwise just a big black area that looks broken over slow connections
+* add additional buttons
+** direct link (https://www.whonix.org/videos/whonix-explainer.mp4)
+** download link
+** youtube link
+** yewtu.be link
+** video supermenu
+** picture in picture restyle
+** always show a progress bar spinner (even if a fake one) (Requires JS? If so, OK.)
+
+resources:
+
+* https://developer.mozilla.org/en-US/docs/Web/Guide/Audio_and_video_delivery/Video_player_styling_basics
+
+=== remember video playback position after reload ===
+
+=== video gallery ===
+Would it make sense to add a video gallery / switcher using arrows so users can watch the other two Whonix explainer videos too?
+
+= Archive =
+== MediaWiki Logo HTTP2 Server Push Preload ==
+MediaWiki by upstream default sends a response header which does a HTTP/2 Server Push. Example:
+
+<pre>
+link: </w/images/2/2a/Kicksecure-text-logo.svg?b0edc>;rel=preload;as=image
+</pre>
+
+Not on the main HTML document but for the CSS load.php. Example:
+
+<pre>
+https://www.kicksecure.com/w/load.php?lang=en&modules=ext.DarkMode.styles%7Cext.dismissableSiteNotice.styles%7Cext.flaggedRevs.basic%2Cicons%7Cjquery.makeCollapsible.styles%7Cmediawiki.widgets.styles%7Coojs-ui-core.icons%2Cstyles%7Coojs-ui.styles.indicators%7Cskins.vector.styles.legacy&only=styles&skin=vector
+</pre>
+
+MediaWiki by upstream default uses the <code>$wgLogos</code> configuration variable to determine the link to the logo.
+
+However, the hash <code>?b0edc</code> is auto generated by MediaWiki and after a cursory look at the source code it seems this cannot be disabled.
+
+This causes the following warning with our custom skin:
+
+<pre>
+The resource https://www.kicksecure.com/w/images/2/2a/Kicksecure-text-logo.svg?b0edc was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+</pre>
+
+This is because it does not know the hash <code>?b0edc</code>.
+
+HTTP2 Server Push is being deprecated by upstream browsers: https://developer.chrome.com/blog/removing-push/
+
+https://phabricator.wikimedia.org/T325960
+
+== Troubleshooting ==
+=== session cache disable ===
+In case there are login issues, the following could be attempted:
+
+https://www.mediawiki.org/wiki/Manual:$wgSessionCacheType
+
+CACHE_NONE
+
+== Notes by Patrick ==
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:Common.js&oldid=58177
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:Common.js&oldid=58384
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:Libraries.js&oldid=58825
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:CodeSelect.js&oldid=58367
+
+Header:
+
+* old: https://www.kicksecure.com/w/index.php?title=MediaWiki:Header.js&oldid=58824
+* new: https://www.kicksecure.com/w/index.php?title=MediaWiki:Header.js&oldid=59272
+* diff: https://www.kicksecure.com/w/index.php?title=MediaWiki%3AHeader.js&type=revision&diff=59272&oldid=58824
+
+Entry point is always [[MediaWiki:Common.js]]?
+
+'''Dev''': Common.js has been transformed into a standalone library and is therefore now marked as Multiwiki. Common.js now imports [[MediaWiki:ImportScripts.js]] which is NOT MultiWiki. This is done so Common.js is a true library and ImportScripts is now LocalWiki specific and there can be individual imports. Note: ImportScripts is loaded at the bottom of the file for call order reasons, therefore every loaded file will have the wikiJsLoader already available.
+
+To disable all, remove all from [[MediaWiki:Common.js]]?
+
+'''Dev''': To disable all remove the following line at the bottom of Common.js
+<pre>
+mw.loader.load( '/w/index.php?title=MediaWiki:ImportScripts.js&action=raw&ctype=text/javascript' );
+</pre>
+
+What if in the future 1 script breaks? Do all scripts break?
+
+'''Dev''': The wikiJsLoader is totally independent and optional to use. You can call scripts the usual way as before. But now you also have the option to call scripts dependent on each other by using wikiJsLoader. If 1 script breaks this will only affect the script itself and all scripts which are made dependent on this script by using wikiJsLoader. But if those scripts are dependent on a broken script you will have to fix this script anyways to get those scripts running again.
+
+Does a unloadable script show an error in the browser console?
+
+'''Dev''': No. This is because all scripts are loaded asynchronously and the loader is specifically built to load a script only when it is ready. However we could use a timer and show all unloaded scripts after 3 seconds, because it should never take this long to load all the scripts. Or we could write an internal log, which can be called to list all actions by the loader.
+
+What is <code>window.</code>?
+
+'''Dev''': Window is a JS Object representing the browser window. It is always available  and represents the "global namespace" where all global objects are referenced.
+
+How can I manually debug, execute [[MediaWiki:MiniModal.js]], [[MediaWiki:Footer.js]], [[MediaWiki:CodeSelect.js]]?
+
+'''Dev''': You can manually load as usual
+
+<pre>
+mw.loader.load( '/w/index.php?title=MediaWiki:MiniModal.js&action=raw&ctype=text/javascript' );
+</pre>
+
+'''Dev''': Or you can use the wikiJsLoader as follows. This is only needed recommended for scripts which are dependent on others.
+
+<pre>
+window.wikiJsLoader.register( 'MiniModal', [], false, function() { ... });
+
+window.wikiJsLoader.exec( ['MiniModal'] );
+</pre>
+
+How to print a debug message with variable name and content to browser console?
+
+'''Dev''': A convenient way is to use console
+
+<pre>
+var whateverYouWantVariable = "String or Object or Boolean or a system variable whatever";
+console.info( "whateverYouWantVariable: ", whateverYouWantVariable );
+</pre>
+
+== pagespeed ==
+
+No longer in use.
+
+* https://www.{{project_clearnet}}
+* https://www.{{project_clearnet}}?PageSpeedFilters=+debug
+* https://www.{{project_clearnet}}?PageSpeed=off
+* https://www.{{project_clearnet}}/wiki/Documentation?PageSpeed=off
+* https://www.{{project_clearnet}}/wiki/Hardened-kernel?PageSpeedFilters=-SupportNoScriptEnabled#Upstreaming
+* [https://github.com/apache/incubator-pagespeed-ngx/issues/1684 https://github.com/apache/incubator-pagespeed-ngx/issues/1684] (fixed by setting <code>pagespeed SupportNoScriptEnabled false;</code>)
+* https://forums.whonix.org/t/speeding-up-whonix-org-through-caching/8733/3
+
+== load.php caching ==
+* https://www.mediawiki.org/wiki/Topic:Vanoebois3bfqxd1
+* https://www.mediawiki.org/wiki/Topic:Runnesgxgk2nc68f
+* https://www.mediawiki.org/wiki/Talk:ResourceLoader
+* https://serverfault.com/questions/677229/setting-expires-headers-for-things-retrieved-via-query-string
+
+== load.php debug mode ==
+* https://www.{{project_clearnet}}/w/index.php?title=Documentation
+* https://www.{{project_clearnet}}/w/index.php?title=Documentation&PageSpeed=off&debug=false
+* https://www.{{project_clearnet}}/w/index.php?title=Documentation&PageSpeed=off&debug=true
+* https://www.{{project_clearnet}}/wiki/Documentation?PageSpeed=off&debug=false
+* https://www.{{project_clearnet}}/wiki/Documentation?PageSpeed=off&debug=true
+
+?pagespeed has no effect on CSS or JavaScript loads
+
+https://github.com/jthingelstad/foreground/issues/370
+
+* debug=true
+49 JS
+12 CSS
+
+* debug=false
+26 JS
+1 CSS
+
+instead of
+
+<pre>
+load.php?[...]modulename.namespace.tool,tool2,tool3|differentmodule.tool,tool2
+</pre>
+
+we have
+
+* load.php?[...]modulename.namespace.tool
+* load.php?[...]modulename.namespace.tool2
+* load.php?[...]modulename.namespace.tool3
+* load.php?[...]differentmodule.tool
+
+== Old CSS Checklist ==
+
+These are actually done but written as if they are not done:
+
+* On for example [[FAQ]] the long title <code>Frequently Asked Questions - Whonix ™ FAQ</code> breaks the layout on mobile. Because the title is too long, one has to scroll to the right side on mobile to read the title in full. Does the title miss some attribute such as "autowrap", "break line if too long"?
+* Images for example on [[Main_Page]] and [[About]] are not response rendered smaller on mobile.
+* blockquotes don't really look like a quote. example:
+
+<blockquote>
+Test
+</blockquote>
+
+* info box overlaps with thumbnail illustrative image
+** Example: [[VirtualBox/Recommended Version]]
+* illustrative image box overwrites normal [[Template:Box]], examples:
+** https://www.{{project_clearnet}}/wiki/First_Time_User
+** https://www.{{project_clearnet}}/wiki/Host_Firewall_Basics
+* [[Template:Box]] generates boxes which are longer than the text which they contain, example:
+** https://www.{{project_clearnet}}/wiki/Host_Firewall_Basics
+* On [[USB Installation]] there is much space between title <code>Installation of Whonix ™ on a USB</code> and the box <code>VM Live Mode	Host Live Mode	Whonix ™ on USB</code>?
+* tables prettification
+** For example on [[Windows Hosts]] the tables look a bit weird. One has to scroll down a lot (specifically on mobile) before having a chance to see what category it is about. Also the colors aren’t great.
+* missing table scroll buttons
+** When viewing [[Comparison with Others]] on mobile it is not obvious that one can scroll the the right. Maybe a scroll button would help? Doesn’t need to be necessarily a scroll button. Also a different table style might be a better solution.
+
+* beautify breadcrumbs (zB < dev on top of this page)
+
+== Wiki Js Loader ==
+
+# As per now our research shows no option of the MediaWiki mw.loader API to load our own scripts and make them dependent on each other. So user script dependency does not seem to be supported
+# Therefore we created our own resource loader under window.wikiJsLoader, see [[MediaWiki:Common.js]]. The challenge is to provide a mechanism to load modules which are yet unknown and which can only be known once they are loaded and registered due to the asynchronous loading by mw.loader.load
+## '''Caution:''' Circular dependencies are not resolved and will be a roadblock for all batches containing these.
+# The loader offers 4 methods
+## register( name, dependencies, waitForCallback, fn ) - This method registers a function (fn,type:function) in the registry, including its module name (name,type:string), its dependencies (depedencies,type:array-of-strings, other user module names) and if the whole mechanism should wait for their callback (waitForCallback,type:boolean)
+### The function fn will get the following parameters: fn(global, callback). global is the getter-setter described below.
+### If waitForCallback is true then the registration will not be considered complete until the callback (calback,type:function) is called via callback()
+## config( key, value ) - sets a wiki js loader configuration. Currently there is only debug (boolean), if true then all outputs will be shonw, not only warnings and errors
+## global( key, value ) - getter-setter. If only key (type:string) is given then the value will be returned. If key and value are given, then key will be set with value
+## exec( moduleNames ) - sets in motion the loading process. moduleNames (type:array-of-strings) are names of our dev scripts which shall be called and executed.
+### First all depedencies will be checked, if they are not met then the script will not execute futher. But if another register process is completed then load will automatically be triggered again to check if NOW all dependencies are met and we can execute further
+### This way scripts will be able to execute exactly when their dependencies are met, not earlier. This is especially necessary as the mw.loader seems to load our scripts asynchronously
+# This feature is [[#MultiWiki]] and the relevant files are
+## [[MediaWiki:Common.js]]
+
+=== Wiki Js Loader Usage ===
+
+1. All JS files which either have dependencies or are dependencies for others should be wrapped into
+{{CodeSelect|code=
+window.wikiJsLoader.register( 'NameOfThisFileWithoutDotJs', ['ModuleDepedency1','ModuleDepedency1'], false, function() {
+...
+});
+}}
+
+2. All other files can be implemented as usual
+
+3. All JS files (including with dependencies) can be called via mw.loader.load(...) as usual
+
+4. To actually execute the managed scripts, use the following. This can be used to execute multiple batches of files or just one big batch
+{{CodeSelect|code=
+window.wikiJsLoader.exec( [ 'NameOfThisFileWithoutDotJs1', 'NameOfThisFileWithoutDotJs2' ] );
+}}
+
+=== Wiki Js Loader Debugging ===
+
+* To debug a page where an error with wikiJsLoader was shown simple use the normal wiki url syntax "debug=true", e. g. like <code>https://www.kicksecure.com/wiki/Dev/mediawiki?debug=true</code>
+* wikiJsLoader will automatically go into debug mode as well and show you way more details
+
+== MediaWiki Gadgets Extension ==
+It's been decided not to port to MediaWiki Gadgets. The wiki now now extended as per the mechanisms documented above.
+
+Archived notes:
+
+* Gadgets features:
+** Supports ResourceLoader. Scripts getting combined and minified.
+** ResourceLoader has a concept of dependencies.
+** Gadgets supports loading some feature only when editing a wiki page.
+** Gadgets supports loading scripts on specific wiki pages only
+* https://www.mediawiki.org/wiki/MediaWiki:Gadget-site.js
+* https://www.mediawiki.org/wiki/Gadget_kitchen
+* https://www.mediawiki.org/wiki/MediaWiki:Gadgets-definition
+** [[MediaWiki:Gadgets-definition]]
+* Gadgets version 2 development by MediaWiki stalled
+
+{{Footer}}
+
+[[Category:Development]]

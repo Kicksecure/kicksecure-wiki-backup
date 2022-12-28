@@ -1,0 +1,41 @@
+{{Header}}
+{{Title|title=
+Debugging Systemd Seccomp
+}}
+{{#seo:
+|description=Seccomp Issues
+}}
+Architecture dependent. What works on Intel / AMD64 might not work on arm64 etc.
+
+To watch for systemd seccomp issues:
+
+{{CodeSelect|code=
+sudo journalctl _AUDIT_TYPE_NAME=SECCOMP -f
+}}
+
+Sample issue ('''bold''' added):
+
+<blockquote>SECCOMP auid=4294967295 uid=108 gid=118 ses=4294967295 subj==/usr/bin/sdwdate (enforce) pid=9740 comm="sdwdate" exe="/usr/bin/python3.7" sig=31 arch=c0000015 '''syscall=140''' compat=0 ip=0x7fff96cc7df4 code=0x0</blockquote>
+
+The relevant part in above log output snippet is <code>syscall=<u>140</u></code>.
+
+Found https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md for a table to translate
+
+<code>140</code>
+
+to
+
+<code>_llseek</code>
+
+Maybe a better table: https://marcin.juszkiewicz.com.pl/download/tables/syscalls.html
+
+Note: Replace <code>sdwdate</code> with the systemd unit name to debug.
+
+{{CodeSelect|code=
+sudoedit /lib/systemd/system/sdwdate.service && sudo systemctl daemon-reload && sudo systemctl restart sdwdate && sudo systemctl --no-pager status sdwdate
+}}
+
+<code>SystemCallFilter=</code> needs to be adjusted.
+
+{{Footer}}
+[[Category:Documentation]]

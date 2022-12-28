@@ -1,0 +1,489 @@
+{{Header}} {{#seo:
+|description=VirtualBox Licensing Issues, unavailable in Debian main and Debian backports, missing features. Is VirtualBox an Insecure Choice? Arguments for keeping VirtualBox Support.
+|image=https://www.{{project_clearnet}}/w/images/d/d5/Virtualbox_logo.png
+}} {{forkme}}
+== VirtualBox versus Other Virtualizers ==
+TODO: expand
+
+Not fully applicable to {{project name long}} but {{whonix}} has a chapter on this:
+https://www.whonix.org/wiki/Dev/VirtualBox#Whonix_VirtualBox_versus_Other_Virtualizers
+
+== VirtualBox missing features ==
+* The following is non-ideal for [[Comparison_with_Others#Verifiable_Builds|verifiable builds]], because we have to convert to vdi first:
+** [https://forums.virtualbox.org/viewtopic.php?f=1&t=58460 export VM using VDI instead of VMDK?]: seems not possible.
+** [https://forums.virtualbox.org/viewtopic.php?f=7&t=58461 Mount VMDK on Debian buster?]: seems not possible.
+* VirtualBox uses VMDK version 3. This is non-ideal, because working with these images is difficult.
+** Converting these images is difficult.
+*** <s>qemu-img version 1.6.1 ({{Code|qemu-img convert "vmdk_file" -O RAW "vdi_file"}}) fails with: {{Code2|qemu-img: 'image' uses a vmdk feature which is not supported by this qemu version: VMDK version 3}}, which is a [https://bugs.launchpad.net/qemu/+bug/1253465 known issue in qemu].</s> As per [https://bugs.launchpad.net/qemu/+bug/1253465 this], QEMU version equal or bigger than {{Code2|2.8}} should be capable to work with VMDK version 3 disks. TODO: try
+*** Therefore it is required to convert them with VBoxManage to .vdi first. ({{Code|VBoxManage clonehd --format VDI "vmdk_file" "vdi_file"}})
+** <s>Therefore the Free guestmount doesn't support mounting VMDK version 3 as well (because it internally uses qemu-img).</s> (Still true?)
+** <s>It requires proprietary software to mount them, such as the proprietary nbdkit plugin [https://github.com/libguestfs/nbdkit/blob/master/plugins/vddk/README.VDDK vddk]. We're not aware of a Free Software alternative yet.</s> (Still true?)
+** When importing VMs these become VDI images nowadays with recent VirtualBox versions.
+* [https://www.virtualbox.org/ticket/734 VirtualBox Guest Additions Debian Packages unavailable from Oracle Repository]
+* [https://forums.virtualbox.org/viewtopic.php?f=1&t=58498 Can a guest find out its host operating system?]: seems not possible. This is is non-ideal, because we can not warn when host operating systems are being used we don't think are the right tool for hosting {{project_name_long}} VMs.
+* Signatures (not important because we offer OpenPGP / gpg signatures):
+** https://forums.whonix.org/t/appliance-is-not-signed/4230
+** https://forums.virtualbox.org/viewtopic.php?f=1&t=94327#p455421
+
+Tickets:
+
+* "modifyvm --resize doesn't work with snapshots" ([https://www.virtualbox.org/ticket/9103 #9103])
+* "modifyhd --resize should warn users about existing snapshots" ([https://www.virtualbox.org/ticket/10818 #10818]), and
+* "modifyhd --resize should not be permitted when snapshots exist" ([https://www.virtualbox.org/ticket/13046 #13046]).
+* [https://www.virtualbox.org/ticket/20335 export VM disk image format: vdi instead of vmdk (ova or different VM container format)]
+
+== VirtualBox Unavailable in Debian stable and backports due to Debian Stable Security Maintenance Issues ==
+Quote https://people.debian.org/~lucas/virtualbox-buster/
+
+<blockquote>
+Virtualbox is not available in Debian 10 (nor in backports). The reasons are discussed at length in https://bugs.debian.org/794466 and various other mailing list threads, but can be summarized as:
+
+* Virtualbox is not suitable for Debian stable releases because of the lack of cooperation of Oracle on security support (that’s the Debian security team decision).
+* Since it is not suitable for stable releases, it cannot be included in the testing suite (that’s the Debian release team decision).
+* It also cannot be included in official backports, as packages must be in testing before they get backported (that’s the Debian backports team’s decision).
+</blockquote>
+
+There is hope this will improve in future: [https://salsa.debian.org/fasttrack-team/support/issues/10 please add VirtualBox to fasttrack]
+
+== VirtualBox Unavailable in Debian main due to Licensing Issues ==
+'''compilation toolchain software freedom issue'''
+
+There's a compilation toolchain software freedom issue. This is not a security issue.
+
+[https://lists.debian.org/debian-devel/2013/08/msg00106.html Quote Debian mailing list]:
+
+<blockquote>Virtualbox ships a BIOS that requires Watcom to compile from real sources, precompiled copy they ship as well is free but is not the preferred form for modification.</blockquote>
+
+'''Sybase Open Watcom Public License'''
+
+The [https://en.wikipedia.org/wiki/Sybase_Open_Watcom_Public_License Sybase Open Watcom Public License] license is:
+
+* OSI (Open Source Initiative) approved: Yes.
+* FSF (Free Software Foundation) approved: No.
+* [https://en.wikipedia.org/wiki/Debian_Free_Software_Guidelines Debian FSG compatible]: No.
+
+'''Does Debian build VirtualBox using Open Watcom?'''
+
+No. Quote [https://salsa.debian.org/pkg-virtualbox-team/virtualbox/-/blob/master/debian/copyright <code>debian/copyright</code> file] from [https://salsa.debian.org/pkg-virtualbox-team/virtualbox Debian VirtualBox Repository]:
+
+<blockquote>
+This package is not part of the Debian operating system.
+It is in the "contrib" area of the Debian archive because it requires a
+non-free compiler (Open Watcom) to build the BIOS.
+Upstream provides pre-built BIOS images which is used instead.
+</blockquote>
+
+Debian is already using <code>VBoxBiosAlternative</code>:
+
+Quote https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/1605337 / https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/1605337/comments/3
+
+<blockquote>
+<oracle> LocutusOfBorg: btw, there are no BIOS binaries in the vbox source tree. only the VBoxBiosAlternative.* files, which are used if you don't have OpenWatcom.
+</blockquote>
+
+'''Licensing Issue or Security Issues?'''
+
+It is a licensing issue only.
+
+Quote VirtualBox developer [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=691148#35 <code>Frank Mehnert <frank.mehnert@oracle.com></code>]:
+
+<blockquote>In my opinion this depends on the definition of the term "source code".
+
+The VirtualBox source code tarball ships two alternative variants of
+the BIOS source code: The first variant is C code mixed with Assembler
+code (in src/VBox/Devices/PC/BIOS/* and src/VBox/Devices/Graphics/BIOS/*).
+The second variant is pure Assembler code which can be found in
+
+  src/VBox/Devices/PC/BIOS/VBoxBiosAlternative.asm and
+  src/VBox/Devices/Graphics/BIOS/VBoxVgaBiosAlternative.asm
+
+Both variants are part of the source code tarball, and the second variant
+allows it to build VirtualBox even if Open Watcom is not available. It
+should not matter that the second variant is generated from the first
+variant because that generation is done by the VirtualBox team and we
+ensure that the 2nd variant will produce the same object code as the 1st
+variant.
+</blockquote>
+
+'''Software Freedom Issues with the Sybase License'''
+
+Quote [[KVM#Why_Use_KVM_Over_VirtualBox.3F|Whonix KVM]]:
+
+<blockquote>The VirtualBox developer team have recently taken the decision to switch out the BIOS in their hypervisor. However, it now comes with one that requires compilation by a toolchain that [[Dev/VirtualBox#VirtualBox_Unavailable_in_Debian_main_due_to_Licensing_Issues|does not meet the definition of Free Software]] as per the guidelines of the Free Software Foundation. This move is considered problematic for free and open source software projects like Debian, on which {{project_name_long}} is based.
+
+The issues of the Open Watcom License are explained in [https://www.mail-archive.com/debian-legal@lists.debian.org/msg34687.html this thread] on the Debian Mailinglist. In summary, there are issues surrounding the contradictory language of the license, the assertion of patents against software that rely upon it, and the placing of certain restrictions on software uses. For these reasons, those who care about running FOSS and appreciate its ethical views are recommended to avoid running VirtualBox; also see  [[Avoid_nonfreedom_software|avoid non-freedom software]].</blockquote>
+
+'''Copyright Holder of the Open Watcom Compiler'''
+
+The company which was the original developer of Open Watcom, [https://en.wikipedia.org/wiki/Sybase Sybase], does no longer exist. It was been purchased by SAP.
+
+'''SAP Plans for the Open Watcom Compiler'''
+
+Sebastian Wolf (SAP Open Source Program Office) expressed that SAP expressed on github [https://github.com/open-watcom/open-watcom-v2/discussions/271#discussioncomment-710110 starting from this message] in 2021 that SAP is in process of re-licensing Open Watcom to resolve the licensing issues.
+
+'''Does SAP support or attack Freedom Software?'''
+
+SAP according to the knowledge of the author of this wiki chapter has no history of attacking Freedom Software or patent trolling. On the contrary, [https://openinventionnetwork.com/community-alphabetical/ SAP is a community member] of the [https://openinventionnetwork.com/ Open Invention Network], which [https://en.wikipedia.org/wiki/Open_Invention_Network quote wikipedia]:
+
+<blockquote>Open Invention Network (OIN) is a company that acquires patents and licenses them royalty-free to its community members who, in turn, agree not to assert their own patents against Linux and Linux-related systems and applications.</blockquote>
+
+'''Conclusion'''
+
+Debian does not use the Open Watcom compiler which is under a problematic license to build VirtualBox. 
+
+Since the current copyright holder of Open Watcom, SAP does not have a history of attacking Freedom Software, is a member of OIN and is intending to change the license of the Open Watcom.
+
+Therefore the risk from patent trolling in this case seems to be minuscule.
+
+The Freedom Software community pointing out software freedom issues is commendable. However, there is no security issue in this case because of this software freedom issue.
+
+'''Related:'''
+
+* <code>VirtualBox Guest Additions</code> and <code>VirtualBox Oracle VM VirtualBox Extension Pack</code> are different things.
+* This is unrelated to <code>VirtualBox Oracle VM VirtualBox Extension Pack</code>, which is proprietary, and which was never in Debian.
+
+'''References:'''
+
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=709899
+* https://lists.debian.org/debian-devel/2013/08/msg00057.html
+* https://lists.torproject.org/pipermail/tor-talk/2013-September/029978.html
+* ticket [https://github.com/open-watcom/open-watcom-v2/discussions/271 asking Sybase to fix licensing issues for Watcom compiler]
+* ticket [https://www.virtualbox.org/ticket/12011 asking Oracle to use a compiler different than Watcom]
+* gcc feature request: [https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99900 feature request: 16-bit x86 C compiler / support compilation of (VirtualBox) BIOS]
+** gcc-ia16 feature request: [https://github.com/tkchia/gcc-ia16/issues/75 upstream to gcc.gnu.org]
+
+'''Future research:'''
+
+* https://github.com/mirror/vbox/blob/master/src/VBox/Devices/PC/BIOS/VBoxBiosAlternative.asm
+* Where is the pre-built BIOS image downloaded from?
+* Where is the pre-built BIOS image in Debian Debian VirtualBox Repository?
+
+== VirtualBox Guest Additions ISO Freedom vs Non-Freedom ==
+* <code>VirtualBox Guest Additions</code> and <code>VirtualBox Oracle VM VirtualBox Extension Pack</code> are different things.
+* This is unrelated to <code>VirtualBox Oracle VM VirtualBox Extension Pack</code>, which is proprietary, and which was never in Debian.
+* Debian lists [https://packages.debian.org/sid/virtualbox-guest-additions-iso virtualbox-guest-additions-iso] as [https://www.debian.org/doc/debian-policy/#the-non-free-archive-area non-free] but that is a bug.
+** Debian bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=962311 move virtualbox-guest-additions-iso from non-free to contrib]
+** Debian pull request: [https://salsa.debian.org/pkg-virtualbox-team/virtualbox-guest-additions-iso/-/merge_requests/2 fix, move from non-free to contrib]
+* <code>VirtualBox Guest Additions</code> are Freedom Software.
+** [https://www.virtualbox.org/ticket/19751#comment:1 Answered] by <code>arudnev</code>, <code>Oracle Corporation</code> <ref>
+VirtualBox bug report: [https://www.virtualbox.org/ticket/19751 clarify license of VBoxGuestAdditions ISO OSE or PUEL (free vs nonfree)]
+
+* See https://forums.virtualbox.org/viewforum.php?f=1 as indicated by the red color for <code>arudnev</code>. (Red indicates forum administrator privileges. Green color indicates forum moderator.
+* <code>arudnev</code> wrote a locked announcement forum thread [https://forums.virtualbox.org/viewtopic.php?f=1&t=99668 VirtualBox 6.1.14 released]. User profile says <code>Oracle Corporation</code>.
+
+* [https://forums.virtualbox.org/memberlist.php?mode=viewprofile&u=110976 virtualbox.org forum profile of <code>arudnev</code>] (login required) stating:
+** Username: <code>arudnev</code>
+** Rank: <code>Oracle Corporation</code>
+** Groups: <code>Administrators</code>
+
+VirtualBox forums question: [https://forums.virtualbox.org/viewtopic.php?f=10&t=21374&p=477656#p477656 Is VBoxGuestAdditions_6.1.10.iso OSE or PUEL?]
+</ref>:
+
+<blockquote>A part of Guest Additions source code is the part of OSE repository and licensed under GPLv2. Guest Additions build also includes big list of 3rd party files under various permissive licenses
+
+At the same time VirtualBox binary packages which are distributed freely includes Guest Additions ISO, and Licensing FAQ (https://www.virtualbox.org/wiki/Licensing_FAQ) clearly states: Yes. The GPLv2 allows you to distribute the VirtualBox Guest Additions, in modified or unmodified form, as long as you adhere to the terms and conditions of the GPLv2.
+
+I hope that answers your question.</blockquote>
+
+== VirtualBox Open Source vs Closed Source ==
+* <code>VirtualBox</code> is Open Source.
+* <code>VirtualBox Guest Additions</code> are Open Source.
+** Installed by default in {{project_name_long}} VirtualBox.
+** See [[#VirtualBox Guest Additions ISO Freedom vs Non-Freedom|VirtualBox Guest Additions ISO Freedom vs Non-Freedom]].
+* <code>VirtualBox Oracle VM VirtualBox Extension Pack</code> is proprietary.
+** Not installed by default in {{project_name_long}} VirtualBox.
+** Neither used nor required by most users.
+
+Open Source here means, the full corresponding source code is released under Free Software Foundation (FSF), Open Source Initiative (OSI) and The Debian Free Software Guidelines (DFSG) approved licenses.
+
+However the is a build toolchain issue elaborated in chapter [[#VirtualBox Unavailable in Debian main due to Licensing Issues|VirtualBox Unavailable in Debian main due to Licensing Issues]].
+
+{{Anchor|VirtualBox Installation Challenges}}
+
+= VirtualBox Integration =
+VirtualBox and guest additions in {{project name long}} 16 and above are acquired from <code>fasttrack.debian.net</code>.
+
+This heavily simplifies the [[#Previous VirtualBox Integration|Previous VirtualBox Integration]].
+
+== Fasttrack ==
+* https://fasttrack.debian.net
+* https://fasttrack.debian.net/debian/pool/contrib/v/virtualbox/
+* https://fasttrack.debian.net/debian/pool/non-free/v/virtualbox-guest-additions-iso/
+** [[#VirtualBox Guest Additions ISO Freedom vs Non-Freedom]]
+* (https://fasttrack.debian.net/debian/pool/contrib/v/virtualbox-ext-pack/)
+** Not required but available.
+
+= Arguments for keeping VirtualBox Support =
+* [[KVM]] is not available to Windows users.
+* Simplicity, as in: [[VirtualBox]] has a VM import GUI feature.
+* Available to users not owning computer providing hardware virtualization. ([[KVM]] requires that. [[QEMU]] may or may not but it is [[unsupported]].)
+* Due to Windows users and simplicity it leads to greater popularity, which in theory attracts more users, developers, auditors, [[payments]], etc and is therefore good for the overall health of the project.
+* Some Windows/[[VirtualBox]] users experimenting with their first Linux ({{project_name_long}}) will one day become users who mainly use Linux as their host operating system.
+
+= VirtualBox Oracle VM VirtualBox Extension Pack =
+* <code>VirtualBox Guest Additions</code> and <code>VirtualBox Oracle VM VirtualBox Extension Pack</code> are different things.
+* <code>VirtualBox Oracle VM VirtualBox Extension Pack</code>:
+** Is proprietary, nonfreedom software.
+** Was never in <code>packages.debian.org</code>.
+
+Quote https://www.oracle.com/uk/virtualization/technologies/vm/downloads/virtualbox-downloads.html
+
+<blockquote>
+Free for personal, educational or evaluation use under the terms of the [https://www.virtualbox.org/wiki/VirtualBox_PUEL VirtualBox Personal Use and Evaluation License] on Windows, Mac OS X, Linux and Solaris x-86 platforms:
+</blockquote>
+
+Quote https://www.virtualbox.org/wiki/Downloads
+
+<blockquote>
+Support for USB 2.0 and USB 3.0 devices, VirtualBox RDP, disk encryption, NVMe and PXE boot for Intel cards. See [https://www.virtualbox.org/manual/ch01.html#intro-installing this chapter from the User Manual] for an introduction to this Extension Pack. The Extension Pack binaries are released under the [https://www.virtualbox.org/wiki/VirtualBox_PUEL VirtualBox Personal Use and Evaluation License (PUEL)].
+</blockquote>
+
+Quote https://www.virtualbox.org/manual/ch01.html#intro-installing
+
+<blockquote>
+The extension pack provides the following added functionality:
+
+* The virtual USB 2.0 (EHCI) device. See [https://www.virtualbox.org/manual/ch03.html#settings-usb Section 3.11.1, “USB Settings”].
+* The virtual USB 3.0 (xHCI) device. See [https://www.virtualbox.org/manual/ch03.html#settings-usb Section 3.11.1, “USB Settings”].
+* VirtualBox Remote Desktop Protocol (VRDP) support. See [https://www.virtualbox.org/manual/ch07.html#vrde Section 7.1, “Remote Display (VRDP Support)”].
+* Host webcam passthrough. See [https://www.virtualbox.org/manual/ch09.html#webcam-passthrough Section 9.5, “Webcam Passthrough”].
+* Intel PXE boot ROM.
+* Disk image encryption with AES algorithm. See [https://www.virtualbox.org/manual/ch09.html#diskencryption Section 9.28, “Encryption of Disk Images”].
+</blockquote>
+
+= Storage Controller Setting =
+Since {{project_name_long}} version <code>15.0.1.7.3</code>: AHCI
+
+Reasons:
+
+* SATA AHCI is the default setting as defined by VirtualBox for new VirtualBox VMs using Debian 64-bit.
+* This setting is better tested by upstream, VirtualBox developers than other settings.
+* In past, a regression introduced in the LsiLogic SAS controller code had been introduced by VirtualBox developer which has not been found in testing VirtualBox before the release.
+** This resulted in this usability issue for {{project_name_long}} users, [[VirtualBox/Troubleshooting#Failed_to_open_a_session_for_the_virtual_machine|Failed to open a session for the virtual machine / <code>NS_ERROR_FAILURE (0x80004005)</code>]] ([https://forums.whonix.org/t/whonix-virtualbox-failed-to-start-ns-error-failure-0x80004005-the-vm-session-was-aborted/11471 Whonix VirtualBox - failed to start - NS_ERROR_FAILURE (0x80004005) - The VM session was aborted.])
+
+Reason why {{project_name_long}} previously used a different setting LsiLogic SAS was avoidance of VirtualBox host software bug, [https://www.virtualbox.org/ticket/10031 High I/O causing filesystem corruption]. See also old {{Whonix}} issue tracker discussion, [https://web.archive.org/web/20210122015240/https://github.com/Whonix/Whonix/issues/274 VirtualBox AHCI].
+
+The current default setting AHCI <u>might</u> lead to the issue [[VirtualBox/Troubleshooting#High Disk Usage Causing Filesystem Corruption|High Disk Usage Causing Filesystem Corruption]] on some (slower) hardware configurations due to VirtualBox host software bug, [https://www.virtualbox.org/ticket/10031 High I/O causing filesystem corruption]. It's speculation and unavoidable. There is no other solution at the moment. Wiki chapter [[VirtualBox/Troubleshooting#High Disk Usage Causing Filesystem Corruption|High Disk Usage Causing Filesystem Corruption]] already contains approaches which might fix this issue in case it manifests.)
+
+= Bugs =
+== [drm:vmw_host_log [vmwgfx]] ERROR Failed to send log ==
+Confusing message but no bad effects.
+
+https://www.virtualbox.org/ticket/19168
+
+== [sda] Incomplete mode parameter data / Assuming drive cache: write through ==
+Confusing error message due to our use of a SAS virtual hard drive controller no bad effects. Error message doesn't happen with SATA controller but we can't use that one
+
+* https://web.archive.org/web/20210122015240/https://github.com/Whonix/Whonix/issues/274
+* https://www.virtualbox.org/ticket/10031
+
+{{Anchor|VirtualBox Guest Additions Bugs}}
+
+= Core Dump =
+Quote https://www.virtualbox.org/wiki/Core_dump
+
+VirtualBox core dump:
+
+<blockquote>
+Note that this core dump can contain a memory dump of your guest which can include sensitive information.
+</blockquote>
+
+Kernel core dump:
+
+<blockquote>
+Privacy information: Also be aware that the above kernel dumps could contain unrelated sensitive and private information about you and your system, e.g. stored passwords in memory. Unfortunately this is unavoidable in those situations, as a kernel dump essentially is an unmodified and unfiltered part of your computer's RAM (main memory).
+</blockquote>
+
+= VirtualBox Bug Reports =
+VirtualBox (Guest Additions) have various issues. Often copy/paste from host to VM does not work or VMs are not automatically reized to optional size.
+
+The internet is full of discussions that lead to no solution. Hard to find good information. It is unhelpful to ask in arbitrary places about it as this only leads to more discussions which go nowhere. The only option is to find out what information VirtualBox developers are asking for, to write a good bug report and to report to virtualbox.org developers.
+
+* Step 1) Research what information VirtualBox developers would be asking for.
+* Step 2) Write a good bug report.
+
+== What Should Be Included In Bug Report ==
+Include as many information as possible.
+
+* bug reporting instructions
+** VirtualBox VM log <code>~/"VirtualBox VMs"/Whonix-Gateway-XFCE/Logs/VBox.log</code>
+** VirtualBox host log <code>~/.config/VirtualBox/VBoxSVC.log</code>
+** read these posts
+*** https://forums.virtualbox.org/viewtopic.php?f=3&t=87130#p416223
+*** https://forums.virtualbox.org/viewtopic.php?f=7&t=77347
+*** https://forums.virtualbox.org/viewtopic.php?f=3&t=91874#p442720
+** VRAM (video RAM) to 128 MB
+** VirtualBox host version
+** VirtualBox guest additions version
+** host operating system
+** guest operating system
+** guest: <code>/var/log/Xorg.0.log</code>
+** guest: <code>sudo lsmod | grep vbox</code>
+** guest: <code>sudo apt update && sudo apt install mesa-utils</code>
+*** <code>glxinfo | grep OpenGL</code>
+*** <code>glxinfo</code>
+** 3D acceleration on/off
+** VMSVGA
+** VBoxVGA
+** VBoxSVGA
+** <code>dpkg -l | grep xorg</code>
+** <code>dpkg -l | grep x11</code>
+
+== Resize Issues ==
+=== Notes ===
+* https://www.virtualbox.org/wiki/Guest_resizing
+** <blockquote>Deleting the file <code>~/config/Monitors.xml</code> in the guest helps.</blockquote>
+** Try without snapshots.
+** Use a real screen not over VNC.
+
+=== Non-Issues ===
+* https://www.virtualbox.org/ticket/17777
+** <blockquote>(EE) Failed to load module "vboxvideo" (module does not exist, 0)</blockquote>
+** <blockquote>As of X.Org server 1.19 we use a kernel driver and the X.Org modesetting driver. See the log section you attached.</blockquote>
+
+= Bug Report Draft =
+
+<pre>
+user@host:~$ dpkg -l | grep x11
+ii  libqt5x11extras5:amd64                        5.11.3-2                     amd64        Qt 5 X11 extras
+ii  libva-x11-2:amd64                             2.4.0-1                      amd64        Video Acceleration (VA) API for Linux -- X11 runtime
+ii  libx11-6:amd64                                2:1.6.7-1                    amd64        X11 client-side library
+ii  libx11-data                                   2:1.6.7-1                    all          X11 client-side library
+ii  libx11-xcb1:amd64                             2:1.6.7-1                    amd64        Xlib/XCB interface library
+ii  libxkbcommon-x11-0:amd64                      0.8.2-1                      amd64        library to create keymaps with the XKB X11 protocol
+ii  virtualbox-guest-x11                          6.1.4-dfsg-2                 amd64        x86 virtualization solution - X11 guest utilities
+ii  x11-common                                    1:7.7+19                     all          X Window System (X.Org) infrastructure
+ii  x11-utils                                     7.7+4                        amd64        X11 utilities
+ii  x11-xkb-utils                                 7.7+4                        amd64        X11 XKB utilities
+ii  x11-xserver-utils                             7.7+8                        amd64        X server utilities
+</pre>
+
+<pre>
+ii  xserver-xorg                                  1:7.7+19                     amd64        X.Org X server
+ii  xserver-xorg-core                             2:1.20.4-1                   amd64        Xorg X server - core server
+ii  xserver-xorg-input-all                        1:7.7+19                     amd64        X.Org X server -- input driver metapackage
+ii  xserver-xorg-input-libinput                   0.28.2-2                     amd64        X.Org X server -- libinput input driver
+ii  xserver-xorg-video-fbdev                      1:0.5.0-1                    amd64        X.Org X server -- fbdev display driver
+ii  xserver-xorg-video-qxl                        0.1.5-2+b1                   amd64        X.Org X server -- QXL display driver
+ii  xserver-xorg-video-vesa                       1:2.4.0-1                    amd64        X.Org X server -- VESA display driver
+</pre>
+
+Bug descriptions:
+
+Broken:
+
+1) Power off the VM.
+2) Restart the VM.
+3) Maximize the VM window after start of the VM as soon as possible.
+4) VirtualBox VM Window → View → Virtual Screen 1 → Choose any, resize to another resolution
+5) VirtualBox VM Window → View → Auto-resize Guest Display / Adjust Window Size
+
+Also broken:
+
+XFCE Start Menu → Settings → Display → Resolution: → Choose a higher resolution resolution → Apply
+
+TODO: manual resize functional using xrandr
+
+= Previous VirtualBox Integration =
+<u>Archived.</u> For current implementation, see chapter [[#VirtualBox Integration|VirtualBox Integration]].
+
+=== Issue ===
+Goal: Installation of the VirtualBox host software with functional VirtualBox guest additions.
+
+This was previously very difficult due to many issues of which none is caused by {{project_name_long}}. The purpose of this chapter is to document the current implementation for those wondering why it has been implemented this way and perhaps hearing if there are any better alternatives. Here is a summary of these issues:
+
+[[#VirtualBox Unavailable in Debian stable and backports due to Debian Stable Security Maintenance Issues|VirtualBox is unavailable in Debian stable and backports due to Debian stable security maintenance Issues]].
+
+[https://forums.whonix.org/t/missing-dependencies-on-buster-for-virtualbox-6-1-6/9634/6 Custom Debian backport building failing due to dependency issues]. [https://forums.whonix.org/t/missing-dependencies-on-buster-for-virtualbox-6-1-6/9634/7 Very difficult]. Even if that was solved, there would still be the [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=942873 broken compilation from source code issue].
+
+The [https://people.debian.org/~lucas/virtualbox-buster Lucas Nussbaum Debian buster backport repository] was not an option either at time of initial implementation. <ref>
+* https://forums.whonix.org/t/installing-virtualbox-on-debian-10-debian-buster-buster-backports-fasttrack/7716
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=942873
+* https://salsa.debian.org/fasttrack-team/support/issues/10
+</ref> In 23 July 2020 VirtualBox latest version in Lucas Nussbaum repository was<br />
+<code>virtualbox_6.1.4-dfsg-1~~bpo10+1_amd64.deb 2020-02-22 07:52</code>
+while upstream virtualbox.org was at<br />
+<code>virtualbox-6.1_6.1.12-139181~Debian~buster_amd64.deb</code>.
+
+[https://salsa.debian.org/fasttrack-team/support/issues/10 VirtualBox was not available from Debian <code>fasttrack</code>] at time of initial implementation during {{project name long}} 15. VirtualBox from Debian <code>fasttrack</code> is used since {{project_name_long}} <code>16</code>.
+
+[https://www.virtualbox.org/ticket/734 VirtualBox Guest Additions Debian Packages are unavailable from upstream virtualbox.org Debian repository].
+
+Previous call for help:
+
+* https://forums.whonix.org/t/missing-dependencies-on-buster-for-virtualbox-6-1-6/9634/5
+* https://twitter.com/Whonix/status/1268525273852661765
+* https://www.facebook.com/Whonix/posts/3899452270096999
+
+What was the importance VirtualBox in Debian <code>buster</code>? It was the base distribution which {{project_name_long}} 15 was based on and the distribution used to build {{project_name_long}} for VirtualBox for [[Linux]], [[Windows]] and [[macOS]] from source code.
+
+Related:
+
+* VirtualBox feature request: [https://www.virtualbox.org/ticket/20475 add Debian 11 / bullseye to Linux Downloads / APT repository]
+
+=== Implementation ===
+TODO: update for {{project_name_long}} which uses Debian fasttrack repository to acquire VirtualBox.
+
+To be able to continue providing [[VirtualBox|{{project_name_long}} for VirtualBox]], from {{project_name_long}} <code>15.0.1.4.8</code> and above the following implementation is in use:
+
+* VirtualBox Host Software
+** {{project_name_long}} build script will download VirtualBox host software package <code>virtualbox-6.1</code> from [https://www.virtualbox.org/wiki/Linux_Downloads upstream virtualbox.org Debian repository]. <ref>
+[[VirtualBox/Other_Versions#Install_from_Oracle_Repository|manual instructions]]
+</ref> That repository contains recent, functional backports for Debian <code>buster</code>.
+*** repository: https://download.virtualbox.org/virtualbox/debian
+*** <code>Packages</code> file: https://download.virtualbox.org/virtualbox/debian/dists/{{Stable project version based on Debian codename}}/contrib/binary-amd64/Packages
+**** At time of initial implementation contained <code>virtualbox-6.1_6.1.12-139181~Debian~buster_amd64.deb</code> (Scroll down. Ignore <code>Package: virtualbox-5.2</code>.). I.e. VirtualBox version <code>6.1.12</code>.
+** Users of Debian <code>buster</code> will be advised to install the VirtualBox from the {{project_name_long}} APT repository on the [[VirtualBox|Whonix for VirtualBox download page]].
+** {{project_name_long}} for VirtualBox download page will recommend a specific version of VirtualBox with a detailed explanation on a separate page [[VirtualBox/Recommended_Version|Recommended VirtualBox Version for use with {{project_name_long}}]].
+
+* VirtualBox Guest Additions
+** {{project_name_long}} build script will download package [https://packages.debian.org/sid/virtualbox-guest-additions-iso virtualbox-guest-additions-iso] from Debian <code>sid</code> (<code>unstable</code>) and upload to {{project_name_long}} APT repository. That package provides file <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code>.
+** At time of initial implementation contained VirtualBox guest additions ISO version <code>6.1.12-1</code>. In short, <code>6.1.12</code>. Ignore the <code>-1</code> which is a Debian package revision number and not the upstream (virtualbox.org) version number.
+** virtualbox.org homepage also advertised version <code>6.1.12</code>.
+** Package <code>virtualbox-guest-additions-iso</code> will be installed by default in new {{project_name_long}} VirtualBox builds.
+** Related: [[#VirtualBox Guest Additions ISO Freedom vs Non-Freedom|VirtualBox Guest Additions ISO Freedom vs Non-Freedom]]
+** Documented here: [[VirtualBox/Guest_Additions#VirtualBox_Guest_Additions]]
+* This is
+** to allow {{project_name_long}} developers test newer versions of VirtualBox host software before these are installed on user's computer and,
+** to allow updating VirtualBox host software and VirtualBox guest additions at the same time, using compatible versions.
+* Package [https://github.com/{{project_name_short}}/vm-config-dist vm-config-dist] will run [https://github.com/{{project_name_short}}/vm-config-dist/blob/master/usr/bin/vbox-guest-installer vbox-guest-installer] (by {{project_name_long}} developers) during upgrade ([https://github.com/{{project_name_short}}/vm-config-dist/blob/master/debian/vm-config-dist.postinst vm-config-dist.postinst]) and therefore also during the {{project_name_long}} VirtualBox <code>ova</code> build process.
+* Package [https://github.com/{{project_name_short}}/vm-config-dist vm-config-dist] has a dpkg trigger since {{project_name_long}} <code>15.0.1.5.1</code> [https://github.com/{{project_name_short}}/vm-config-dist/blob/master/debian/vm-config-dist.triggers vm-config-dist.triggers] which results in running <code>vbox-guest-installer</code> when package <code>virtualbox-guest-additions-iso</code> is upgraded.
+
+# <code>vbox-guest-installer</code> (by {{project_name_long}} developers) will check if any of the packages <code>virtualbox-guest-x11</code>, <code>virtualbox-guest-utils</code> or <code>virtualbox-guest-dkms</code> are still installed and recommend to uninstall those if still installed.
+# And also check if package <code>virtualbox-guest-additions-iso</code> is installed and recommend to install it if not yet installed.
+# If these two conditions are met it will continue.
+# Next is deletion of folder <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-iso</code> and <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-makeself</code> if these are already existing from a previous run.
+# It then follows extraction of <code>/usr/share/virtualbox/VBoxGuestAdditions.iso</code> to folder <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-iso</code>.
+# Making <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-iso/VBoxLinuxAdditions.run</code> executable.
+# Change directory into <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-iso</code>.
+# Executing <code>./VBoxLinuxAdditions.run --check</code>.
+# Extracting <code>./VBoxLinuxAdditions.run</code> to folder <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-makeself</code>.
+# Change directory into folder <code>/var/cache/vm-config-dist/vbox-guest-additions-extracted-makeself</code>.
+# Executing <code>./install.sh force force</code>.
+# Installation of VirtualBox guest additions from package <code>virtualbox-guest-additions-iso</code> should now be completed.
+# Installation using this method also ships required hooks in folder <code>/etc/kernel</code> to rebuild VirtualBox guest additions during kernel upgrade thanks to <code>VBoxGuestAdditions.iso</code>.
+
+Credits: Gratitude is expressed to VirtualBox developers for providing <code>VBoxGuestAdditions.iso</code> and to Debian Developers for providing package <code>virtualbox-guest-additions-iso</code>. The script to improve usability of this named <code>vbox-guest-installer</code> was created by the {{project_name_long}} project.
+
+Forum discussion: https://forums.whonix.org/t/challenges-installing-virtualbox/9984
+
+Related: [[VirtualBox/Troubleshooting#VirtualBox_Generic_Bug_Reproduction|VirtualBox Generic Bug Reproduction]]
+
+= See Also =
+* [[VirtualBox]]
+* [[VirtualBox Testers Only Version]]
+* [[VirtualBox/Recommended Version]]
+* [[VirtualBox/Other Versions]]
+* [[VirtualBox/Guest Additions]]
+* [[VirtualBox/Troubleshooting]]
+* [[VirtualBox/Troubleshooting#VirtualBox_Generic_Bug_Reproduction|VirtualBox Generic Bug Reproduction]]
+* [[VirtualBox/Appliance is not signed]]
+* [[VirtualBox/Higher Screen Resolution without installing VirtualBox Guest Additions]]
+* [[Virtualization Platform Security]]
+
+= References =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Design]]

@@ -1,0 +1,358 @@
+{{Header}}
+{{title|title=
+systemcheck - Security Check Application
+}}
+{{#seo:
+|description=Connectivity Test. Sanity Test. Update Check. And More.
+|image=https://www.{{project_clearnet}}/w/images/7/72/Whonixchecknotification.png
+}}
+[[Image:Systemchecknotification.png|thumb|systemcheck completion]]
+[[Image:Systemcheckgui.png|thumb|systemcheck progress meter]]
+[[Image:Systemcheckcli.png|thumb|systemcheck in Terminal]]
+= Introduction =
+{{Code2|systemcheck}} is a script which checks numerous, important system variables. systemcheck can be run in a CLI environment (such as in terminal emulator xfce4-terminal) or via the GUI option, which has an in-built progress meter and summary notification popup of the results. The script is stored in the {{Code|/usr/bin/systemcheck}} and {{Code|/usr/libexec/systemcheck/}} directories. {{project_name_long}} is functional without the systemcheck script since it only checks the system status; it is not responsible for core settings. Nothing is compiled, and the script can be easily inspected in the source code.
+
+The systemcheck script was inspired by browser based check websites.
+
+Browser based check websites are useful for very specialized checks, but {{project_name_long}} is a complete operating system. This means certain checks can be performed, otherwise a user's security might be endangered.
+
+systemcheck allows the entire {{project_name_long}} community to stay informed about important updates or advice, and this is particularly important for users who might not start the browser or visit the {{project_name_long}} website regularly.
+
+= Running systemcheck =
+systemcheck verifies that the {{project_name_long}} system is up-to-date and that everything is in proper working order.
+
+Follow the steps below to manually run systemcheck and check the system status.
+
+== How-to: Manually Run systemcheck ==
+{{Box|text=
+<u>If you are using [[Qubes|{{q_project_name}}]]</u>, complete the following steps. <ref>
+<code>Qube Manager</code> &rarr; <code>right-click the Whonix VM you want to check</code> &rarr; <code>select "<u>R</u>un command in qube"</code>
+<br/>
+<br/>
+Type each command below, followed by the <code>ENTER</code> key.
+
+{{CodeSelect|code=
+xfce4-terminal-emulator
+}}
+
+{{CodeSelect|code=
+systemcheck
+}}
+</ref>
+
+<code>Qubes App Launcher (blue/grey "Q")</code> &rarr; <code>click the Whonix VM you want to check</code> &rarr; <code>System Check</code>
+
+<u>If you are using a graphical Whonix</u>, complete the following steps.
+
+<code>Start Menu</code> &rarr; <code>System</code> &rarr; <code>systemcheck</code>
+
+<u>If you are using a terminal-only Whonix</u>, complete the following step.
+{{CodeSelect|code=
+systemcheck
+}}
+}}
+
+Depending on system specifications, systemcheck can take up to a few minutes to complete. If everything is working as intended, the output should highlight each <span style="color:#008000"> INFO </span> heading in green (not red). A successful systemcheck process will have output similar to below.
+
+== Sample systemcheck Output ==
+
+<div class="pre">[INFO] [systemcheck] {{project_name_workstation_short}} | {{project_name_workstation_short}} {{project_name_workstation_template}} TemplateBased AppVM | Sun 25 Apr 2021 07:56:41 AM UTC
+[INFO] [systemcheck] Connected to Tor.
+[INFO] [systemcheck] {{project_name_short}} APT Repository: Enabled.
+When the {{project_name_short}} team releases BUSTER-PROPOSED-UPDATES updates,
+they will be AUTOMATICALLY installed (when you run apt full-upgrade)
+along with updated packages from the Debian team. Please
+read https://www.{{project clearnet}}/wiki/Trust to understand the risk.
+If you want to change this, use:
+<code>sudo repository-dist</code>
+[INFO] [systemcheck] Debian Package Update Check: Checking for software updates via apt... ( Documentation: https://www.{{project clearnet}}/wiki/Update )
+[INFO] [systemcheck] Debian Package Update Check Result: No updates found via apt.
+[INFO] [systemcheck] Please donate!
+See: https://www.{{project clearnet}}/wiki/Donate</div>
+
+== Tor Bootstrap ==
+Tor bootstrap refers to the process of attempting to connect to the Tor network (successfully or unsuccessfully). Familiar output related to this process includes: "Tor connecting xx percent...", "Tor not connected", "Tor connected" and so on. Bootstrapping does not refer to related concepts, such as whether connections are "secure", "not secure", "anonymous" or "not anonymous".
+
+= System Checks =
+
+In all the checks below, systemcheck warnings appear if a problem is detected. Conversely, systemcheck output is otherwise quiet unless using the <code>--verbose</code> option. Any operating system updates, downloads or other network activity are Tor stream-isolated by default.
+
+'''Table:''' ''System Checks run by <code>systemcheck</code>''
+
+<div class="scroll-table">
+{| class="wikitable"
+|-
+! scope="col"| '''Check'''
+! scope="col"| '''Description'''
+|-
+
+! scope="row"| Canary
+| An automated {{project_name_long}} warrant canary check is available with the <code>--verbose</code> parameter, see: [[#Warrant Canary Check|Warrant Canary Check]].
+|-
+
+! scope="row"| Clock Source
+| Check if the clock source is KVMClock and warn if that is the case. <ref>
+This is only expected to affect those following the [[KVM]] instructions.
+</ref>
+|-
+
+! scope="row"| Entropy Test
+| An entropy availability check confirms {{Code|/proc/sys/kernel/random/entropy_avail}} contains no less than 112 bytes.
+|-
+
+! scope="row"| Hostname
+| Check if:
+* {{Code|hostname --fqdn}} outputs {{Code|host.localdomain}}.
+* {{Code|hostname }} outputs {{Code|host}}.
+* {{Code|hostname --ip-address }} outputs {{Code|127.0.0.1}}.
+* {{Code|hostname --domain }} outputs {{Code|localdomain}}.
+
+(Relevant inside {{Whonix}} only.)
+|-
+
+! scope="row"| IP Address Routing
+| Check if IP forwarding is disabled on {{project_name_gateway_long}} (<code>{{project_name_gateway_vm}}</code>).
+|-
+
+! scope="row"| Connectivity Tests
+| When using <code>--ip-test</code> (previously called, same as <code>--leak-tests</code>):
+
+# Download https://check.torproject.org with curl through an extra SocksPort.
+# Download https://check.torproject.org with curl through regular connection.
+
+Checks if <code>check.torproject.org</code> reports the IP to be a Tor IP address.
+|-
+
+! scope="row"| Log Inspection
+| When using the <code>--verbose</code> option, check if {{Code|~/.msgcollector/msgdispatcher-error.log}} exist and report this if confirmed.
+|-
+
+! scope="row"| Meta-package Check
+| Check if the relevant meta-packages <ref>These capture packages which depend on all other recommended / default-installed packages.</ref> are installed on {{project_name_gateway_long}}. Also see: [[Debian_Packages|{{project_name_long}} Debian Packages]].
+|-
+
+! scope="row"| Network Connection
+| Check setup-dist has properly configured networking.
+|-
+
+! scope="row"| Operating System Updates
+| ''apt update'' is run through a separate APT SocksPort for stream isolation. A notification is provided whether the system is up-to-date or requires updating.
+|-
+
+! scope="row"| Package Manager
+| Check if a package manager is currently running and wait until the process is finished. <ref>
+Otherwise, eventually the system is locked or the package manager is left in a broken state. Advice is provided on what to do in such circumstances.</ref> This prevents connection failures during concurrent upgrades of the Tor package.
+|-
+
+! scope="row"| Tor
+| Check:
+* If Tor has been enabled by inspecting if {{Code|DisableNetwork 1}} has been commented out from {{Code|/usr/local/etc/torrc.d/50_user.conf}} either manually or via setup-dist.
+* If the Tor process (pid) is running on {{project_name_gateway_long}}.
+* The validity of Tor configuration files in {{project_name_gateway_long}} (<code>{{project_name_gateway_vm}}</code>) by using {{Code|sudo tor --verify-config}}.
+Notify about the Tor connection / IP address. <ref>
+Some users may wonder why it is necessary to check the IP address if the {{project_name_long}} design ensures that the real IP cannot be leaked. Sometimes <code>check.torproject.org</code> reports false positives and fails to detect Tor exit nodes, so it is better to provide information about that possibility. This also reduces support requests and bad press. Users are welcome to investigate a Tor exit node that could not be detected, but it can be stated with high confidence that the IP address will be associated with a known Tor exit node.
+</ref> <ref>
+Another reason to perform this check is because some users set up dangerous and/or unsupported configurations, such as:
+
+* Using virtualizers which are entirely unsupported and untested by {{project_name_long}} developers.
+* Installing arbitrary packages on {{project_name_workstation_long}} (<code>{{project_name_workstation_template}}</code>). This could theoretically create leak vectors, and systemcheck is the last layer of defense against such issues.
+</ref>
+|-
+
+! scope="row"| Repository Notification
+| Notifies whether [[Project-APT-Repository|Derivative APT Repository]] is enabled or not.
+|-
+
+! scope="row"| Stream Isolation
+| When using <code>--ip-test</code> (previously called, same as <code>--leak-tests</code>):
+
+# Download https://check.torproject.org with curl through an extra SocksPort.
+# Download https://check.torproject.org with curl through regular connection.
+
+On {{project_name_workstation_long}} (<code>{{project_name_workstation_vm}}</code>), a stream isolation test checks the IP addresses from (1) and (2) differ.
+|-
+
+! scope="row"| Tor Bootstrap
+| Tor Bootstrap Status:
+
+* TODO: document
+* anondate
+|-
+
+! scope="row"| Miscellaneous
+|
+
+* TODO: document
+* control port filter proxy running
+* remarkable kernel messages
+* timedatectl check
+* timezone
+|-
+
+! scope="row"| Virtualization Platform
+| Check {{project_name_long}} is being run on one of the supported virtualizer platforms, including [[VirtualBox]], [[KVM]] or [[Qubes]].
+|-
+
+|}
+</div>
+
+= Version Numbers =
+{{Anchor|Whonix Build Version}}
+== {{project_name_long}} Build Version ==
+
+The version number of the {{project_name_long}} build never changes. This is acceptable because at build time <ref>The time at which the image was created.</ref> the current {{project_name_long}} version number is added to the image itself. <ref>
+The [https://github.com/{{project_name_short}}/dist-base-files <code>dist-base-files</code>] package, [https://github.com/{{project_name_short}}/dist-base-files/blob/master/debian/dist-base-files.postinst <code>dist-base-files.postinst</code>] [[Dev/Source_Code_Intro#Chroot_Scripts|chroot script]] in essence runs:
+<pre>
+echo "$dist_build_version" > "$build_version_file"
+</pre>
+</ref>
+This information is made available so <code>systemcheck</code> can determine which build script version was used to create that particular image.
+
+This version number should remain static and be unaffected by updating or other issues, since it only applies to specific (usually older) versions of the build script. This is useful for diagnostic purposes and means specific build versions can be deprecated if they are too difficult or expensive to upgrade. In this case, <code>systemcheck</code>'s [[#System_Checks|{{project_name_long}} News]] function would inform users about the change.
+
+By design, the build version number cannot be upgraded. See also [[Operating_System_Software_and_Updates#Update_vs_Image_Re-Installation|Update vs Image Re-Installation]]. It's similar to a day of birth which is also unchangeable.
+
+== Check Version ==
+
+To check the current {{project_name_long}} version, run the following command.
+
+{{CodeSelect|code=
+systemcheck --verbose --function show_versions
+}}
+
+The output should be similar to below.
+
+<blockquote>[INFO] [systemcheck] disp766 | {{project_name_short}} | {{project_name_short_lowercase}}-{{VersionShort}}-dvm DispVM AppVM | Sun 25 Apr 2021 07:13:17 AM UTC
+[INFO] [systemcheck] Input Detection: INPUT_AUTO=true CLI=true GUI=false
+stdin connected to terminal. Using cli output. Not using gui output.
+Alternatively, if want to run from command line, but still use the graphical user interface for input, you could add to command line: --gui
+[INFO] [systemcheck] Root Check Result: Ok, not running as root.
+[INFO] [systemcheck] /etc/{{project_name_short_lowercase}}_version: {{VersionShort}}
+</blockquote>
+
+= Warrant Canary Check =
+
+== Introduction ==
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = Prerequisite knowledge: [[Trust#canary|{{project_name_long}} warrant canary]].
+}}
+
+There are several reasons an Automated Warrant Canary Check is justified:
+
+* {{project_name_long}} warrant canary has limited utility if it is forgotten over time and not regularly verified.
+* It is unlikely the {{project_name_long}} warrant canary is routinely verified by the community.
+* If a community member discovered the {{project_name_long}} warrant canary verification failed, there is no effective way to notify all {{project_name_long}} users.
+
+== Features ==
+
+'''Table:''' ''Automated Warrant Canary Check Features''
+
+<div class="scroll-table">
+{| class="wikitable"
+|-
+! scope="col"| '''Feature'''
+! scope="col"| '''Description'''
+|-
+
+! scope="row"| Function
+| Functions similar to an update check, but it establishes if {{project_name_long}} warrant canary is still valid.
+|-
+
+! scope="row"| Security
+|
+* Downloads over Tor from <code>.onion</code> link [http://download.{{project_onion}}/developer-meta-files/canary/canary.txt.embed.sig <code>canary.txt.embed.sig</code>]. <ref>For convenience, the clearnet link that is unused by systemcheck can be previewed here: https://download.{{project_clearnet}}/developer-meta-files/canary/canary.txt.embed.sig
+</ref>
+* The downloader [https://github.com/{{project_name_short}}/systemcheck/blob/master/usr/libexec/systemcheck/canary-download <code>canary-download.py</code>] is written in the memory-safe python language (<code>python3-requests</code>) and is running under a dedicated and limited Linux user account <code>canary</code>.
+* <code>canary.txt.embed.sig</code> is verified using <code>signify-openbsd</code>. <ref>
+{{CodeSelect|code=
+sudo -u canary signify-openbsd -V -e -p /usr/share/repository-dist/derivative-distribution-signify-key.pub -x /var/lib/canary/canary.txt.embed.sig -m /var/lib/canary/canary-unembed.txt
+}}
+</ref>
+* Has an [https://github.com/{{project_name_short}}/systemcheck/blob/master/etc/apparmor.d/usr.libexec.systemcheck.canary AppArmor profile].
+* Has [https://github.com/{{project_name_short}}/systemcheck/blob/master/lib/systemd/system/canary.service systemd hardening (seccomp)].
+* Similar to [[sdwdate]] it fetches time from onion time sources.
+|-
+
+! scope="row"| Implementation details
+|
+* Minimal [https://github.com/{{project_name_short}}/systemcheck/blob/master/usr/libexec/systemcheck/canary-daemon <code>canary-daemon</code>] (with <code>systemd-notify</code>).
+* The [https://github.com/{{project_name_short}}/systemcheck/blob/master/usr/libexec/systemcheck/canary <code>canary</code>] wrapper includes logic on when to run <code>canary-download.py</code>.
+** This only runs on {{project_name_gateway_short}} to reduce server load.
+* Comprises a systemcheck module [https://github.com/{{project_name_short}}/systemcheck/blob/master/usr/libexec/systemcheck/check_warrant_canary.bsh <code>check_warrant_canary.bsh</code>].
+|-
+
+! scope="row"| Verbose parameter
+| During the initial deployment phase of this new feature, systemcheck will only show canary status information when using the <code>--verbose</code> parameter. The reason is there might be non-security related potential bugs to address:
+
+* The server file location might change.
+* The server file might become unreadable due to Linux file access permissions.
+* Onion connectivity issues could emerge.
+* Server caching issues could serve a stale warrant copy.
+* General warrant canary improvements.
+|-
+
+! scope="row"| Troubleshooting
+| In case of issues, manually verify {{project_name_long}} warrant canary. Also see: [https://forums.whonix.org/t/whonix-warrant-canary/3208/24 Whonix Warrant Canary Forum Discussion]
+|-
+
+|}
+</div>
+
+== Disable Warrant Canary Check ==
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = This disables automated verification of {{project_name_long}} warrant canary when running systemcheck.
+}}
+
+This will prevent the daily {{project_name_long}} census.
+
+{{Open with root rights|filename=
+/etc/systemcheck.d/50_user.conf
+}}
+
+Add the following content.
+
+{{CodeSelect|code=
+canary=false
+}}
+
+= Arg Max Check =
+Only useful in case of systemcheck GUI issues.
+
+{{CodeSelect|code=
+systemcheck --function check_arg_max
+}}
+
+Expected result:
+
+<pre>
+[INFO] [systemcheck] ERROR: ARG_MAX exceeded!
+
+debug information:
+output_func was called with too many arguments.
+${FUNCNAME[0]}: output_func
+${FUNCNAME[1]}: output_func_cli
+${FUNCNAME[2]}: check_arg_max
+${FUNCNAME[3]}: systemcheck_run_function
+${FUNCNAME[5]}: systemcheck_main
+${FUNCNAME[6]}: main
+$0: /usr/libexec/systemcheck/systemcheck
+</pre>
+
+The output message will probably be improved in the future. "ERROR: ARG_MAX exceeded!" will be rewritten to "ARG_MAX detected.".
+
+= Related =
+* [[System Audit]]
+
+= See Also =
+* [[Dev/systemcheck]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]] [[Category:Design]]

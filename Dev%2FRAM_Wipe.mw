@@ -1,0 +1,181 @@
+{{Header}}
+{{#seo:
+|description=Implementation notes.
+}}
+{{title|title=
+Cold Boot Attack Defense - RAM Wipe Design Documentation
+}}
+= Design =
+Currently only in the testers repository. Will be available in the stable repository in near future.
+
+Implemented by dracut module [https://github.com/Kicksecure/security-misc/tree/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense <code>cold-boot-attack-defense</code>] (by [[security-misc]]).
+
+# <code>/usr/lib/dracut/modules.d/90crypt/cryptroot-ask.sh</code> runs <code>need_shutdown</code>.
+# TODO: Does dracut run <code>cryptsetup luksClose</code> during shutdown? The <code>90crypt</code> module does not have a <code>shutdown</code> hook? <code>grep -r hook /usr/lib/dracut/modules.d | grep shutdown</code>
+# A dracut <code>cleanup</code> hook is declared in [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh <code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh</code>] (by security-misc): <code>inst_hook cleanup 80 "$moddir/wipe-ram-needshutdown.sh"</code> Priority is <code>80</code>. TODO
+# During boot, that dracut <code>cleanup</code> hook [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh <code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh</code>] (by security-misc) is calling dracut API function <code>need_shutdown</code> which results in file <code>/run/initramfs/.need_shutdown</code> being created.
+# In result, at shutdown time when <code>/lib/systemd/system/dracut-shutdown.service</code> (by dracut) runs, <code>/usr/lib/dracut/dracut-initramfs-restore</code> (by dracut), will restore the initramfs and pivot into it.
+# During shutdown, dracut will run its usual cleanup tasks such as unmounting the root (main) drive.
+# The <code>shutdown</code> module (by dracut) will <code>source</code> and other shutdown hooks set up by other dracut modules.
+# At time of writing there were no other dracut modules using the dracut shutdown hook known the the author of this website.
+# [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram.sh <code>wipe-ram.sh</code>] (by security-misc) is the dracut shutdown hook.
+# A alternative description of the mechanism of dropping back to the initramfs during shutdown can be found under [https://systemd.io/INITRD_INTERFACE/ The initrd Interface of systemd].
+# At a very late stage during the shutdown process when all disks were already unmounted by dracut, the <code>wipe-ram.sh</code> dracut shutdown hook is executed.
+# The shutdown hook runs:
+
+* <code>echo 3 > /proc/sys/vm/drop_caches</code>
+** To ensure any remaining disk cache is erased by Linux' memory poisoning. <ref>Inspired by Tails.
+https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/initramfs-pre-shutdown-hook
+</ref>
+* <code>sdmem -l -l -v</code>: To wipe the ram using <code>sdmem</code>.
+** The parameters <code>-l -l</code> result in a single pass of RAM wiping using zeros.
+*** This is to optimize for speed. Otherwise RAM wiping could take several minutes. However, the longer the shutdown process is delayed, the more users would disable this feature. Also after wiping the RAM, it could actually be more important to shutdown to aid decay of RAM contents rather than wiping the RAM over and over for minutes before actually removing power.
+*** When run sdmem manually using these command line parameters it will show "Wipe mode is insecure (one pass with 0x00)" but no evidence that this would be actually insecure could be found. The sdmem manpage refers to Peter Gutmann, but the Gutmann method is about hard drives, not about RAM. No research how many times RAM has to be wiped to be non-recoverable has been found by the author of this website.
+** The parameter <code>-v</code> is for verbose output which only results in a progress indicator.
+** Any output (default or verbose) is only visible if a [[Recovery#Serial_Console|serial console]] is connected. This is because dracut by default hides output of commands it runs. Redirecting the output of sdmem to <code>/dev/kmsg</code> would result in hundreds or thousands of separate <code>*</code> to be written to the console, each in its own line, which would not actually be useful. For a better progress meter of the RAM wipe process, if needed after user feedback, perhaps some buffer mechanism would have to be implemented.
+* <code>dmsetup ls --target crypt</code>: To check if all encrypted disks are unmounted.
+** Because only if all encrypted disks are unmounted, it will be possible for the kernel to wipe the [[Full Disk Encryption]] (FDE) key from the kernel.
+** Deletion of FDE key is considered among the most crucial information to be wiped from RAM because if the FDE key could be recovered from RAM then FDE could be broken.
+** Informs the user if all encrypted disks are unmounted in console output. Otherwise shows a warning.
+
+Quote [https://tails.boum.org/contribute/design/memory_erasure/ Tails' Memory erasure]:
+
+<blockquote>First, most memory is erased at the end of a normal shutdown/reboot sequence. This is implemented by the [https://tails.boum.org/contribute/design/kernel_hardening/ Linux kernel's freed memory poisoning feature], more specifically:
+
+* page_poison
+* passing "P" to slub_debug
+* zeroing heap memory at free time (init_on_free=1)</blockquote>
+
+These kernel parameters are implemented in security-misc [https://github.com/Kicksecure/security-misc/blob/master/etc/default/grub.d/40_kernel_hardening.cfg <code>/etc/default/grub.d/40_kernel_hardening.cfg</code>].
+
+RAM wipe is omitted in virtual machines (VMs) by default because it is unclear if that could actually lead to the host operating system using swap. Through use of kernel parameter <code>wiperam=force</code> it is possible to force RAM wipe inside VMs which is useful for testing, development purposes.
+
+Kernel parameter <code>wiperam=skip</code> is provided to support disabling RAM wipe at shutdown, which might be useful to speed up shutdown or in case should there ever be issues.
+
+For potential limitations, the same limitations as under Quote [https://tails.boum.org/contribute/design/memory_erasure/ Tails' Memory erasure] chapter "Limitations" applies.
+
+= Differences of security-misc Wipe RAM versus Tails Memory Erasure =
+
+Tails memory erasure:
+
+* based on Linux memory poisoning
+* requires initramfs-tools
+* based on systemd-shutdown <code>/lib/systemd/system-shutdown</code>
+* requires Tails specific hook scripts such as <code>/usr/local/lib/initramfs-restore</code> / <code>/usr/local/lib/udev-watchdog-wrapper</code>
+* ISO specific / Live boot specific / squashfs specific
+** https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/udev-watchdog-wrapper
+** https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/initramfs-pre-shutdown-hook
+* mixes the panic button / emergency shutdown / ISO removal trigger into the same scripts
+
+security-misc wipe ram:
+
+* based on Linux memory poisoning and and additional run of sdmem
+* requires dracut
+* more generic
+* should work on any Debian
+* should be relatively easy to port to any Linux distribution since implemented as a dracut module
+* should work equally for persistent boot from hard drive, [[grub-live|live boot from hard drive]] or ISO live boot
+* A [https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755 panic button / panic shutdown / USB kill cord for your laptop] feature is not mixed together with this feature. It should be implemented separately as a standalone feature.
+
+= Future Design =
+
+What not to do:
+
+* No C code.
+* No kernel modifications.
+
+What to do:
+
+* Implemented using sh (or bash if needed / supported by dracut) and dracut.
+
+dracut module <code>cold-boot-attack-defense</code>:
+
+* Keep the current dracut module <code>cold-boot-attack-defense</code> design and implementation mostly as is. The current RAM wiping mechanism is useful irrespective if an supplemental kexec based RAM wipe as the latter might be more prone to bugs.
+* The currently already existing dracut module <code>cold-boot-attack-defense</code> in its main source code file <code>wipe-ram.sh</code> (at time of writing below line 71) should use kexec to boot again into the current kernel.
+* <code>kexec</code> should probably be used with the <code>--reuse-cmdline</code> parameter for simplicity and to keep already existing RAM wipe related kernel parameters (the linux kernel's freed memory poisoning feature mentioned above in the current design).
+* Additionally kernel parameter <code>wiperamexit=1</code> should be appended.
+* <code>kexec</code> is used to load a new kernel into the memory so the old kernel memory is overwritten gets overwritten by the new kernel.
+** Maybe it is enough to add <code>--append="wiperamexit=1"</code> to the <code>kexec</code> parameters.
+** Otherwise if <code>--reuse-cmdline</code> cannot be combined with <code>--append="wiperamexit=1"</code> a solution such as <code>cmdline=$(cat /proc/cmdline)</code>, <code>cmdline="$cmdline wiperamexit=1"</code> and <code>kexec</code> with <code>--append="$cmdline"</code> might work.
+* On top of that, kernel parameter <code>wiperamaction=reboot</code>, <code>wiperamaction=poweroff</code>, <code>wiperamaction=halt</code> or <code>wiperamaction=debug</code> should be passed to the next kernel using the same mechanism as above, for example <code>cmdline="$cmdline wiperamexit=1"</code>, <code>cmdline="$cmdline wiperamaction=reboot"</code>.
+** There seems to be already an environment variable <code>ACTION</code> available in dracut <code>shutdown.sh</code> by default that is set to either <code>reboot</code>, <code>poweroff</code>, <code>halt</code> or <code>kexec</code>.
+* Keyword names (such as the <code>wiperamexit</code>, <code>wiperamaction</code>) are just draft open for name change suggestions.
+
+dracut module <code>ram-wipe-exit</code>:
+
+* Implement kernel parameter <code>wiperamexit=1</code> in dracut module <code>ram-wipe-exit</code> which results in only wiping the RAM and then rebooting or powering off.
+* Do not mount the root image.
+** In other words, <code>ram-wipe-exit</code> should run at very early boot before mounting the root image. This can probably be done with dracut hook <code>pre-udev</code> (because that hook seems to run even before <code>pre-mount</code>).
+** Therefore also the full disk encryption (FDE) password entry should not be required.
+** The RAM wipe should be done during dracut initramfs stage before FDE password is requested / before root disk is mounted.
+** The root image should not be mounted at all when kernel parameter <code>wiperamexit=1</code> is set.
+* When kernel parameter <code>wiperamexit=1</code> is set, after RAM wipe at early dracut initramfs stage, the system should be rebooted, powered off depending on the <code>wiperamaction</code> setting.
+** Perhaps when <code>wiperamaction=debug</code>, dracut module <code>ram-wipe-exit</code> should drop to (emergency) shell instead of reboot/power off to ease debugging.
+* Will probably require <code>inst_multiple kexec</code> in <code>module-setup.sh</code>.
+* <code>kexec</code> based wipe cannot be based on <code>systemd</code> with <code>Before=unmount.target</code> because unmounting the root disk and using <code>cryptsetup luksClose</code> so the full disk encryption (FDE) key gets wiped from RAM is one of the most important points of RAM wipe. It would need to be <code>After=unmount.target</code>. But at that stage, there is no more disk mounted with tools. Hence, dropping back to initramfs as already implemented in <code>cold-boot-attack-defense</code> is the correct design.
+* Maybe all that dracut module <code>ram-wipe-exit</code> has to do during dracut hook <code>pre-udev</code> is:
+** run dracut module <code>cold-boot-attack-defense</code> to do the RAM wipe,
+** then run <code>reboot</code>, <code>poweroff</code>, <code>halt</code> as instructed by the previous kernel?
+
+Useful for debugging:
+
+* A Kicksecure or Whonix VM using VirtualBox with a virtual [[Recovery#Serial_Console|serial console]] (<-- see this already existing, fully tested and functional documentation on how to set that up) as this can show/persist <code>echo</code> messages even after the VM was already powered off or rebooted.
+* See the existing <code>wipe-ram.sh</code> on how to echo to console during late shutdown (for user info messages or debugging messages) or use dracut built-in  <code>warn</code> (<code>info</code> does not work).
+* A boot menu entry to run dracut module <code>ram-wipe-exit</code> without needing to poweroff or reboot (similar to [https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/11_linux_live grub-live <code>11_linux_live</code>]). File <code>/etc/grub.d/12_linux_wiperamexit</code>
+* In Kicksecure / Whonix, package [https://github.com/Kicksecure/debug-misc debug-misc] might be useful (<code>sudo apt update && sudo apt install debug-misc</code>) due to:
+** https://github.com/Kicksecure/debug-misc/blob/master/etc/default/grub.d/45_debug-misc.cfg
+** https://github.com/Kicksecure/debug-misc/blob/master/etc/sysctl.d/40_debug-misc.conf
+** https://github.com/Kicksecure/debug-misc/blob/master/etc/dracut.conf.d/40_debug-misc.conf
+** (these files could be used standalone / manually installed or "bulk" installed though installing the debug-misc package)
+
+(This file would be shipped out commented by default. Only useful for development / debugging.)
+
+<pre>
+#!/bin/sh
+
+## Copyright (C) 2022 - 2022 ENCRYPTED SUPPORT LP <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## Untested!
+
+set -e
+
+#GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX wiperamexit=1 wiperamaction=reboot"
+#GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX wiperamexit=1 wiperamaction=poweroff"
+#GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX wiperamexit=1 wiperamaction=halt"
+
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX wiperamexit=1 wiperamaction=debug"
+
+export GRUB_CMDLINE_LINUX
+
+if test -x /etc/grub.d/10_linux ; then
+	/etc/grub.d/10_linux
+fi
+</pre>
+
+<pre>
+sudo update-grub
+</pre>
+
+Maybe useful during development:
+
+* <code>grep -r pre-udev --color /usr/lib/dracut</code>
+
+A [https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755 panic button / panic shutdown / USB kill cord for your laptop] feature is not mixed together with this feature. It should be implemented separately as a standalone feature.
+
+= Forum Discussion =
+https://forums.whonix.org/t/is-ram-wipe-possible-inside-whonix-cold-boot-attack-defense/5596
+
+= See Also =
+* [[Dev/RAM Wipe Old Notes|RAM Wipe Archived Development Notes]]
+* [[Cold Boot Attack Defense]]
+* https://github.com/Kicksecure/security-misc#cold-boot-attack-defense
+* [[security-misc]]
+
+= Footnotes=
+<references/>
+
+{{Footer}}
+
+[[Category: Design]]
+[[Category: Development]]

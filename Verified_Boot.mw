@@ -1,0 +1,275 @@
+{{Header}}
+{{#seo:
+|description=Boot chain and integrity guarantees. What is Verified Boot, Secure Boot, Trusted Boot, dm-verity? Advantages, restrictions for user freedom, and more.
+|image=Verifiedboot1245.png
+}}
+{{forkme}}
+[[File:Verifiedboot1245.png|thumb]]
+= What is Verified Boot? =
+Verified boot is a security feature. In theory, if used right, it improves the security of the user without restricting user freedom. In practice however, for a large part, verified boot is used to enforce user-freedom restrictions.
+
+Let's start with the advantages, and a bit of technical background of verified boot.
+
+[https://web.archive.org/web/20220927012232/https://source.android.com/docs/security/features/verifiedboot Quote]:
+
+<blockquote>Verified Boot strives to ensure all executed code comes from a trusted source (usually device OEMs), rather than from an attacker or corruption. It establishes a full chain of trust, starting from a hardware-protected root of trust to the bootloader, to the boot partition and other verified partitions including system, vendor, and optionally oem partitions. During device boot up, each stage verifies the integrity and authenticity of the next stage before handing over execution.
+
+[...] Rollback protection helps to prevent a possible exploit from becoming persistent by ensuring devices only update to newer versions of Android.
+
+In addition to verifying the OS, Verified Boot also allows Android devices to communicate their state of integrity to the user.</blockquote>
+
+= User Freedom =
+Freedom Software can be compatible with verified boot. No user freedom restrictions required. While verified boot is often used to restrict user freedom, to prevent the user from modifications and installing another operating system, verified boot is not inherently bad.
+
+It depends on the details, if if the keys used to enforce verified boot are controlled by the vendor or by the user as well as on how the operating system implements verified boot. User-controlled keys are possible.
+
+[https://blog.torproject.org/mission-improbable-hardening-android-security-and-privacy Quote]:
+
+<blockquote>
+Nexus and Pixel lines support Verified Boot with user-controlled keys
+</blockquote>
+
+= Verified Boot Comparison of Third-Party Controlled versus User-Controlled =
+{| class="wikitable"
+! '''Category''' !! '''Vendor-Controlled Verified Boot''' !! '''User-Controlled Verified Boot'''
+|-
+
+| Improves security
+| {{Yes}}
+| {{Yes}}
+|-
+
+| Does not restrict user freedom
+| {{No}}
+| {{Yes}}
+|-
+
+| Does not hinder the user auditing their system for compromises.
+| {{No}}
+| {{Yes}}
+|-
+
+|-
+|}
+
+= How does verified boot work? =
+It's based on digital software signatures. Only operating systems that come with a valid digital software signature that is signed with a public key that is trusted by the device are booted. Otherwise, the device will refuse to boot.
+
+Lower stage (such as firmware) and hands over control to the next level (such as bootloader). However, every stage will verify the digital software signature of the next stage.
+
+The stage are approximately (simplified):
+
+<code>hardware trust root</code> → <code>firmware</code> → <code>bootloader</code> → <code>kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>init</code>
+
+Or specifically on some Linux desktop distributions:
+
+<code>hardware trust root</code> → <code>firmware</code> → <code>shim</code> -> <code>grub</code> <code>bootloader</code> → <code>Linux kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>systemd</code> <code>init</code>
+
+Should at any stage the digital software verification fail, then the boot process will be aborted.
+
+There is no technical requirement for each stage to be signed with the same key. Each stage can ship its own keys and/or key management system.
+
+= What are the advantages of verified boot? =
+Due to this integrity check, unauthorized malware will be gone after reboot (if the device is capable to to revert to a clean backup image) or will refuse to boot.
+
+Conceptually this improves security because the user runs only applications that have a valid digital signature. This obviously excludes third-party unauthorized malware since this would not be signed with a valid digital signature.
+
+= What are the limitations of verified boot? =
+Unauthorized malware? Is there such a thing as authorized malware, is this even a thing? Yes. For example the pre-installed Google Play Services on Google Android. See [[Mobile_Phone_Security#Espionage_Data_Harvesting|massive espionage data harvesting on Google Android.]] Verified boot is a security technology but conceptually cannot stop [[malware]] that is built-into the operating system by its producer. That does not take away from its useful potential as a security improvement for users.
+
+= Who uses verified boot? =
+At the time of writing, there was no Freedom Software Linux desktop distribution that implemented full verified boot which means a full chain of digital software verification starting form the hardware trust root up to all pre-installed applications that come with the Linux distribution. Only kernel module digital software verification is supported. The verified boot for initrd and beyond is not yet implemented. ([[Verified_Boot#Other_Distributions_implementing_Verified_Boot|Other Distributions implementing Verified Boot
+]])
+
+By comparison, for example Android and iOS supports full verified boot.
+
+= What are the dangers of verified boot? =
+The main risks are mistreatment of users, user software freedom restrictions, taking power away from users and handing it over to operating system and application developers.
+
+As verified boot is currently implemented, for the vast supermajority of users the key is controlled by the operating system vendor. Users enrolling their own keys in the hardware key store or at any later stage of the boot process is often literally impossible <ref>
+Many Android devices come with locked bootloaders. Many Android phones could not have been modded by the modding community because no way to break the verified boot chain and gain full read/write access to their own devices could be found.
+</ref>, undocumented, not well supported, and even discouraged.
+
+Many user-freedom restrictions are enforced using verified boot, locked bootloaders and non-root enforcement. This includes [[Mobile_Operating_System_Comparison#Android_Anti-Features|Android Anti-Features]], prevention of replacing the stock operating system on mobile devices and [[Miscellaneous_Threats_to_User_Freedom#mobile_devices_restrictions|many other mobile devices restrictions]].
+
+= Verified Boot Compatibility with Rooted Phones =
+Yes, verified boot can be compatible with rooted devices.
+
+Verified boot with root support and even with user-locked bootloader would be possible if support for that is built-in into the boot process (bootloader, recovery image). But how to modify the system partition without breaking verified boot? Modern root solutions such as for example Magisk support "systemless" root, via file system overlays.
+
+Verified boot would be compatible with root if an approach similar to such as for example Magisk is using built into the bootloader / recovery image prior signing it.
+
+Furthermore, for compatibility with verified boot, user modifications to the system partition could be reset at device reboot boot time from a known signed good image. This is technically very doable because Android already does something similar with its A/B update mechanism. <ref>
+https://source.android.com/docs/core/ota/ab
+</ref> Then how would the user make their system modifications persistent? Via file system overlays and/or automation scripts that run after the boot process. There could even be an boot menu option to boot with versus without user system modifications.
+
+Related forum discussion:
+https://forums.whonix.org/t/overview-of-mobile-projects-that-focus-on-either-and-or-security-privacy-anonymity-source-available-freedom-software/4557/46
+
+= Rooted Security versus Non-Rooted Security =
+Quote <ref>
+https://news.ycombinator.com/item?id=28096914
+</ref>
+
+Anti user freedom viewpoint:
+
+<blockquote>And what the hell? Root with verified boot? That's like having the most secure castle while leaving the door open for anyone, you can't have both worlds.</blockquote>
+
+Pro user freedom viewpoint:
+
+<blockquote>Root doesn't mean you give root permissions to any dumb app. I implied proper permission management and authorization, of course.
+Then it's just like a secure castle where the user can go into all of the rooms, to some with a special key. You don't have to go into those rooms, but you have the option to at any time. And, depending on the implementation, you may change the special room, but if you return after the next reboot, it will be reverted back.
+
+Actually, the castle analogy goes further: Unfortunately, many seem to interpret "verified boot" and "most secure" as "protects the dumbest user from shooting themselves in the foot on purpose by locking them into that castle. That is exactly where the recent apple scandal is coming from: The user is subservient to the OS vendor, and the OS vendor can abuse the user as they please.
+
+Security is very important. Why? In order to not be exploited by strangers (criminals, spys...) against my interests. If security enables exploitation against my interests (by whomever, be it the OS vendor, the movie industry, or the government), it is not the security I want. This one OS is different than all the other evil ones? That's what Apple said before...</blockquote>
+
+Anti user freedom viewpoint:
+
+<blockquote>If you're rooted your security is way lower. Simple as that. Rooting can be used against you, it can lead to exploitation, and likely has been.
+Note: you can have secure boot without root and using your own Android build, such as CalyxOS. Not rooting doesn't imply using the stock firmware, never has been.</blockquote>
+
+Pro user freedom viewpoint:
+
+<blockquote>I honestly don't understand why it should be "Simple as that"? If you have the phone rooted, as long as you don't grant root to any application, why should it be less secure than if you hadn't rooted it? (assumed everything else the same, specifically the rom supporting verified boot with root) Then, by granting root permissions to apps, of course the attack surface gets larger, but this is a thing you control yourself.
+Your note was always understood. Of course not rooting doesn't imply using the stock firmware. It however implies that you are submitting to a different master. Who may be different, and maybe a bit more lenient than Google/Samsung/whoever, but that other master will still enforce any dumb app's will against you.</blockquote>
+
+= Ideological Considerations =
+Before discussion the technical implementation details and security it might make sense to lay out one's position on who should have more power. Device owners or vendors.
+
+* Should the operating system obey the user? Yes | No
+* Should the user should have ultimate control? Yes | No
+* Should the operating system make guarantees to app developers in case these guarantees are to the disadvantage of the user? Yes | No
+* Does one oppose the war on War on General Purpose Computing? Yes | No
+* Does one support the right to general computing? Yes | No
+
+It is primarily a project goal and policy decision.
+
+Technical excuses are mood. If there's a commitment pro freedom and against anti-features, then there's a way. Security needs to take the backseat if it curtails user freedom. A prison cell is more secure from car accidents but yet we don't want to live in a golden cage. If you want, you will find a way, if you don't want to, you will find reasons.
+
+For example, in case of GrapheneOS non-root enforcement is a project goal and policy decision. Quote [https://www.reddit.com/r/GrapheneOS/comments/du23la/rooted_or_root/?sort=old GrapheneOS lead developer] <ref>
+https://archive.ph/94YVQ
+</ref>:
+* <blockquote>It doesn't sound like you want GrapheneOS since you don't care about the core security goals. I recommend using something else.</blockquote>
+* <blockquote>GrapheneOS is not aimed at power users or hobbyists aiming to tinker with their devices more than they can via the stock OS or AOSP.</blockquote>
+
+([[Mobile_Operating_System_Comparison#resign-android-image|resign-android-image]] is a script that attempts to provide root access for GrapheneOS.)
+
+= {{project name short}} Verified Boot Development Ideas =
+== Verified VM Boot Sequence without Secure Boot ==
+
+(Same security level as Secure Boot?)
+
+Talking about VMs only in this concept.
+
+We could boot from a virtual, read-only (write protected) boot medium such as another virtual HDD or ISO. Such a boot medium which only contains a bootloader (shim or grub?) which only task is to verify the bootloader on the main hard drive that contains the bootloader, kernel, debian. That boot medium (such as IOS) could be shipped on {{project_name_long}} Host through a <code>deb</code> package <code>/usr/share/verified-boot/check.iso</code>.
+
+Presuppositions:
+
+* the virtual BIOS cannot be flashed/compromised
+* host not compromised
+
+boot sequence:
+
+VM powered on &rarr; virtual BIOS loads boot DVD ISO (or alternatively another hard drive) (contains a bootloader only) &rarr; this initial bootloader signature is not verified but secure since boot from read-only medium &rarr; verify bootloader on main hard drive &rarr; bootloader of main hard drive does signature verification of kernel &rarr; continue boot
+
+What we need for that: <code>grub-pc</code> (not <code>grub-efi</code>) with signature verification. <ref>
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=939188
+* https://savannah.gnu.org/bugs/index.php?56887
+</ref>
+
+By not booting from that initial boot medium (for testing or if that was broken or so), users could do regular boots without verification of the bootloader on the main drive. From the perspective of the main drive, nothing would change. Except we'd enable grub signature verification of the kernel on the main drive.
+
+The boot medium should not load the actual kernel for simplicity of the implementation. Since it is read-only it cannot be easily updated. Kernel packages change and during kernel upgrades <code>/boot</code> and <code>grub.cfg</code> on the main disk changes. If <code>/boot</code> was write protected, that would fail. Therefore the initial boot medium is only a simplified alternative to EFI Secure Boot. By making the initial boot medium as simple as possible, i.e. only chainloading the next bootloader, it does not need frequent updates and does not need to be updated when kernel versions change.
+
+If we could make <code>grub-pc</code> (not <code>grub-efi</code>) use <code>check_signatures=enforce</code>, then maybe we don't need to port to EFI and/or Secure Boot soon and perhaps never?
+
+The disadvantage of this concept is that it is only as secure as Secure Boot. [https://forums.whonix.org/t/enable-linux-kernel-gpg-verification-in-grub-and-or-enable-secure-boot-by-default/7894/30 initrd could still be compromised].
+
+== Hash Check all Files at Boot ==
+Higher security level as Secure Boot.
+
+Talking about VMs only in this concept.
+
+We could boot from a virtual, read-only (write protected) boot medium such as another virtual HDD or ISO. Such a boot medium which runs a minimal linux distribution which then compares against checksums from Debian repository on the main boot drive:
+
+* The MBR (master boot record)
+* The VBR (volume boot record)
+* [A] the booloader
+* [B] the partition table
+* [C] the kernel
+* [D] the initrd
+* [E] all files shipped by all packages
+
+There are tools that can help with checking all files on the hard drive such as <code>debsums</code>. However, while <code>debsums</code> is more popular, it is unsuitable. <ref>
+Quote https://www.elstel.org/debcheckroot/
+
+<blockquote>
+Usage of debsums instead of Debian-checkroot is strongly discouraged because debsums uses locally stored md5sums which can be modified by an attacker along with the files themselves. It has been meant for integrity checking not for security issues! Debsums furthermore does not provide an output as clean and neatly structured as checkroot and does not spot files additionally added to your system by someone else.
+</blockquote>
+</ref>
+
+A tool such as [https://www.elstel.org/debcheckroot/ debcheckroot] might be more suitable for this task.
+
+During development of [[Verifiable Builds]] experiences were made with verification of MBR, VBR, bootloader, partition table, kernel and initrd. Source code was created to analyze such files. <ref>
+https://github.com/{{project_name_short}}/derivative-maker/blob/master/build-steps.d/2800_create-report
+</ref>
+
+Extraneous files would be reported, with option to delete them, to move them to quarantaine and/or to view them.
+
+Initrd is by Debian default, auto generated on the local system. Hence, there is nothing to compare with from Debian repository. However, after verification of everything (all files from all packages) it would be secure to chroot into the verified system and to re-generate the initrd. Then to compare both versions. This might not be required if initrd can be extracted and compared against files on the root disk.
+
+That boot medium (such as IOS) could be shipped on {{project_name_long}} Host through a <code>deb</code> package <code>/usr/share/verified-boot/check.iso</code>.
+
+Disadvantage of this concept might be that it might be slower than dm-verity. On the other hand the advantage of this concept is that this does not require a OEM image. Also it might be more secure since it does not verify against an OEM image but would verify the individual files. Another advantage is that users are free to install any package and not limited by a readonly root image. Users do not have to wait for the vendor to update the OEM image.
+
+== dm-verity ==
+Once the boot chain is verified, the kernel should verify the rest of the OS with something similar to dm-verity. Verified boot that covers only the boot chain is mostly useless but with some exceptions <ref>For example, {{project_name_long}} loads apparmor-profile-everything from the initramfs which it will cover.</ref>.
+
+We can have 2 separate partitions for the base system and user-installed apps. Mount the base system partition as read-only and verify it with dm-verity. Mount the apps partition as <code>/apps</code> and <code>chroot</code> into it. The apps partition will not be verified.
+
+For example:
+
+{{CodeSelect|code=
+mount /path/to/unverified_image /apps
+
+for dir in bin sbin usr lib lib64 var etc
+do
+  mkdir "/apps/${dir}"
+  mount -o bind "/${dir}" "/apps/${dir}"
+done
+
+mkdir /apps/{proc,sys,dev}
+mount proc /apps/proc -t proc
+mount sysfs /apps/sys -t sysfs
+mount devtmpfs /apps/dev -t devtmpfs
+mount devpts /apps/dev/pts -t devpts
+
+apt install -o Dir=/apps $program
+chroot /apps $program
+}}
+
+== Status ==
+* Help welcome to implement this.
+* https://forums.whonix.org/t/no-longer-add-virtual-dvd-drive-to-vm-by-default/9337 needs to be undone or considered. Could auto-add a DVD drive as long as needed.
+
+= Other Distributions implementing Verified Boot =
+* https://docs.clip-os.org/clipos/boot_integrity.html
+* https://source.android.com/security/verifiedboot/
+* https://www.chromium.org/chromium-os/chromiumos-design-docs/verified-boot
+* https://blogs.oracle.com/solaris/post/solaris-verified-boot
+* https://web.archive.org/web/20201126091953/https://coreos.com/blog/verifying-os-at-runtime.html
+* https://blog.verbum.org/2017/06/12/on-dm-verity-and-operating-systems/
+* https://fedoraproject.org/wiki/Changes/FsVerityRPM
+
+= Forum Discussion =
+https://forums.whonix.org/t/enable-linux-kernel-gpg-verification-in-grub-and-or-enable-secure-boot-by-default/7894
+https://forums.whonix.org/t/fs-verity-in-linux-5-4/8911
+
+= Footnotes=
+<references/>
+
+{{Footer}}
+
+[[Category: Design]]
+[[Category: Development]]

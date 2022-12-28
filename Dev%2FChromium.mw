@@ -1,0 +1,390 @@
+{{forkme}}
+{{#seo:
+|description=Development Considerations regarding default installation of Chromium in {{project_name_long}}
+}}
+{{Header}}
+'''DISCLAIMER: This is only a collection of mostly user contributed notes. It will be reviewed, commented at a later time.'''
+
+This page is a collection of notes, issues, criticism, advantages of Chromium. Development Considerations regarding default installation of Chromium in [[Kicksecure]].
+
+== Firefox and Chromium Security ==
+https://madaidans-insecurities.github.io/firefox-chromium.html
+
+Daniel Micay, security researcher, KSPP member, developer of GrapheneOS, linux-hardened, hardened_malloc and more:
+
+https://grapheneos.org/usage#web-browsing
+
+https://twitter.com/DanielMicay/status/1154510616222142467
+
+https://twitter.com/DanielMicay/status/1263895065224712192
+
+https://twitter.com/DanielMicay/status/1264204763748589568
+
+https://twitter.com/DanielMicay/status/1111034447824969728
+
+https://old.reddit.com/r/firefox/comments/gokcis/firefox_is_insecure_refuted/frh286y/
+
+https://old.reddit.com/r/GrapheneOS/comments/ciizae/vanadium_and_bromium_privacy/ev6m2ot/?context=3
+
+https://old.reddit.com/r/GrapheneOS/comments/bx6h6s/apps_and_phone_set_up_grapheneos/eqcqayp/
+
+https://old.reddit.com/r/GrapheneOS/comments/c4y8j2/web_browsing_section_added_to_the_official/erzhszu/
+
+https://old.reddit.com/r/GrapheneOS/comments/c4y8j2/web_browsing_section_added_to_the_official/erzux4s/
+
+https://old.reddit.com/r/GrapheneOS/comments/bg03np/browsers/elhivgg/
+
+Thaddeus Grugq (thegrugq), information security researcher:
+
+https://medium.com/@thegrugq/tor-and-its-discontents-ef5164845908
+
+Dan Guido, CEO of Trail of Bits:
+
+https://news.ycombinator.com/item?id=13623735
+
+Matthew Green, cryptography expert:
+
+https://twitter.com/matthew_d_green/status/830488564672626690
+
+Thomas Ptacek, founder of Matasano Security, security researcher at Latacora:
+
+https://twitter.com/tqbf/status/930807512609296384
+
+https://twitter.com/tqbf/status/930860544927649792
+
+https://twitter.com/tqbf/status/830511154950766595
+
+https://twitter.com/tqbf/status/1107763320428417030
+
+Theo de Raadt, founder and leader of OpenBSD:
+
+https://marc.info/?l=openbsd-misc&m=152872551609819&w=2
+
+PaXTeam/Pipacs of GRsecurity:
+
+https://archive.fo/9aBLk
+
+== Chromium Debian Package Security ==
+Contributed b @madaidan.
+
+The Chromium package on Debian has massively crippled security and disables numerous, important security mechanisms, a few examples of which are documented below:
+
+* The Debian Chromium package is not a production build so basic security features like sandboxing, ASLR and CFI are crippled or nonexistent. <ref><code>is_official_build=true</code> is not set and its default value is false; it must be explicitly enabled which Chromium does not do:
+
+* https://salsa.debian.org/search?utf8=✓&search=is_official_build&group_id=3323&project_id=20972
+* https://github.com/chromium/chromium/blob/d7da0240cae77824d1eda25745c4022757499131/base/BUILD.gn#L55-L58
+* https://groups.google.com/a/chromium.org/g/chromium-dev/c/4F5hM8XMOhQ</ref>
+* Clang's type-based, forward-edge Control-Flow Integrity is not enabled. <ref><code>is_cfi=true</code> is also not set: https://salsa.debian.org/search?utf8=%E2%9C%93&search=is_cfi&group_id=3323&project_id=20972 Compare this to another distribution which does such as Arch Linux: https://github.com/archlinux/svntogit-packages/blob/2cbe439471932d30ff2c8ded6b3dfd51b312bbc9/trunk/PKGBUILD#L145</ref>
+* Automatic variable initialization is disabled with a source code patch. <ref>https://salsa.debian.org/chromium-team/chromium/-/blob/e55c310bb078d3c2b10fd27935b6a5a1a207f480/debian/patches/buster/clang7.patch</ref>
+* Debian disables Chromium's own hardened memory allocator (PartitionAlloc) and defaults to the likely non-hardened system malloc implementation (usually glibc). <ref>https://salsa.debian.org/chromium-team/chromium/-/blob/7810576a1215c28d5daff0e0fbd0e3687fc43d72/debian/rules#L64</ref>
+* Debian applies many of its own patches to Chromium. Many of these are unnecessary and can potentially introduce new vulnerabilities. <ref>https://salsa.debian.org/chromium-team/chromium/-/tree/7810576a1215c28d5daff0e0fbd0e3687fc43d72/debian/patches One of these patches have likely introduced a memory corruption bug that is currently causing hardened_malloc to kill Chromium:
+
+* https://forums.whonix.org/t/hardened-malloc-hardened-memory-allocator/7474/118
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=971876
+</ref>
+* Furthermore, Debian's current Chromium package is extremely outdated, making it miss countless security fixes and new security features. It has even been susceptible to publicly known exploits being used in the wild. <ref>https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388/49</ref> In addition, Debian's Clang package is also severely outdated, making it impossible to enable any modern compiler mitigations even if the Debian maintainers cared enough to.
+
+Thus, the Debian Chromium has substantially worsened security than an official version. However, despite this, it may still be more secure than Firefox (Firefox never had many of the disabled mitigations in the first place).
+
+== Chromium Doesnt give your Freedom of Modifications ==
+
+Chromium doesnt has the easiness of <code>about:config</code> in Firefox for e.g if you want to disable certain TLS ciphers or WebRTC its not possible because its not there, This will force the users to only stick to whatever comes by default (unless recompile).
+
+Note: Although Chromium has <code>chrome://flags</code> but its way less powerful/modifiable than Firefox <code>about:config</code>.
+
+== Chromium and Google API keys ==
+
+Chromium uses API resides in google, only keys shipped within Debian/Chromium <ref>
+https://lists.debian.org/debian-legal/2013/10/msg00021.html
+</ref>
+
+Someone suggested this <ref>
+https://lists.debian.org/debian-legal/2013/10/msg00023.html
+</ref>
+
+<blockquote> Why not modify chromium to read the api keys from a file, rather than
+building them into the binary? The file could then be put in a separate
+package. If necessary in non-free.
+
+This would have the additional benefit that those of us who want
+chromium to under no circumstances send every word we type and every
+website we visit to Google would no longer need to dig around in
+multiple prefereces dialogs to diable the multiple antifeatures enabled
+by the keys.</blockquote>
+
+
+== Chromium Unknown Licenses with automated tool ==
+
+Many of them comes with free software, but there is no indication all of them are. (+10 years ticket) <ref>
+https://bugs.chromium.org/p/chromium/issues/detail?id=28291
+</ref>
+
+== Distribution of Adobe "Pepper" Flash Player proprietary plugin ==
+<blockquote>
+Chromium comes with proprietary abilities within itself one of them is Adobe Flash Player <ref>
+https://lists.debian.org/debian-legal/2013/02/msg00010.html
+</ref>.
+</blockquote>
+
+This was resolved a long time ago. pepperflashplugin-nonfree is now its own separate package. https://packages.debian.org/pepperflashplugin-nonfree
+
+== Chromium reduced capabilities to plugin with adblocker==
+
+<blockquote>
+Ad blocking poses an existential threat to publishers and big sellers of digital ads like Google — which is reported to have lost as much as $US6.6 billion in revenue to ad blockers last year.
+
+Now one former Googler is fighting back against the blockers.
+</blockquote><ref>
+https://www.businessinsider.com.au/former-google-exec-launches-sourcepoint-with-10-million-series-a-funding-2015-6
+</ref>
+
+<blockquote>
+The move has angered Chrome users beyond belief, with many vowing to switch browsers, and many setting their eyes on Firefox, whose developers have been working to transform and rebrand the former fan-favorite into a privacy-first product.
+
+But Google's planned Manifest V3 changes are being added to the Chromium base, meaning they'll also likely impact other Chromium-based browsers as well.
+</blockquote><ref>
+https://www.zdnet.com/article/opera-brave-vivaldi-to-ignore-chromes-anti-ad-blocker-changes-despite-shared-codebase/
+</ref>
+
+Reply by madaidan: <ref>
+https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388
+</ref>
+
+<blockquote>
+The goal of manifest v3 is not to neuter ad blockers. It allows content filtering in a more secure way while also not allowing extensions to spy on users extensively. It doesn’t kill ad blocking - it only provides a safer way of doing it. Manifest v3 removes the legacy webRequest and replaces it with declarativeNetRequest.
+
+https://developer.chrome.com/extensions/declarativeNetRequest
+
+https://blog.chromium.org/2018/10/trustworthy-chrome-extensions-by-default.html
+
+Besides, this hasn’t even been implemented yet and likely won’t be for a long time. Other browsers will probably follow suit too. For example, this is how it already works in Safari.
+</blockquote>
+
+Reply by Patrick:
+
+<blockquote>
+Technically too difficult to compare the old API with the new API. It cannot be deduced from media reports. Developers of existing adblocking extensions might also be less than happy if they have to rewrite their extensions, i.e. trash a lot of previous work.
+
+In conclusion, it remains to be seen if the new API will result in a significantly worse adblocking experience for Chromium versus lets say Firefox users. Should that be the case, it would a a disadvantage. Until that happens, it doesn't speak against Chromium.
+</blockquote>
+
+Another reply by Patrick:
+
+<blockquote>
+"The goal of manifest v3 is not to neuter ad blockers." - Goals, intentions are not the most important point here. These will be speculative and hard to proof beyond reasonable denial. What however does matter here is the outcome.
+
+Quote Raymond Hill, the developer behind uBlock Origin and uMatrix, explained in the Chromium bug tracker that one of the changes in Manifest v3 would break complex content filtering:
+
+https://bugs.chromium.org/p/chromium/issues/detail?id=896897#c23
+
+"Key portions of uBlock Origin and all of uMatrix use a different matching algorithm than that of the declarativeNetRequest API. Block/allow rules are enforced according to their *specificity*, whereas block/allow rules can override each others with no limit. This cannot be translated into a declarativeNetRequest API (assuming a 30,000 entries limit would not be a crippling limitation in itself)."
+
+Many extension developers complaining about new API, saying it would break their extension:
+
+https://groups.google.com/a/chromium.org/forum/#!topic/chromium-extensions/veJy9uAwS00%5B1-25%5D
+</blockquote>
+
+== Chromium: secretly stores referrer and URL for downloaded files ==
+
+Can have impact on privacy and security <ref>
+https://green-possum-today.blogspot.com/2018/09/chromechromium-is-storing-url-and.html
+</ref>, Bug was fixed later <ref>
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=883746
+</ref>.
+
+Reply by Patrick:
+
+<blockquote>
+Bug happen. If now fixed, not sure it's even worth mentioning it.
+</blockquote>
+
+== Chromium: unconditionally downloads binary blob ==
+
+Nasty bug,Got fixed <ref>
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=786909
+</ref>.
+
+
+<blockquote>
+Bug happen. If now fixed, not sure it's even worth mentioning it.
+</blockquote>
+
+== Questionable Chromium Privacy ==
+
+Chromium privacy infrastructure is basically Google <ref>https://www.chromium.org/Home/chromium-privacy</ref>:
+
+<blockquote>
+"Additional Information on Chromium, Google Chrome, and Privacy
+Features that communicate with Google made available through the compilation of code in Chromium are subject to the Google Privacy Policy."
+</blockquote>
+
+Reply by madaidan:
+
+<blockquote>
+Chromium has some telemetry by default but it can all be disabled in the settings. By default, it's actually *less* invasive than others like Firefox.
+
+https://www.scss.tcd.ie/Doug.Leith/pubs/browser_privacy.pdf
+</blockquote>
+
+== Google Chrome and (weird) DNS requests ==
+
+This is part of chromium/chrome design <ref>
+https://isc.sans.edu/diary/Google+Chrome+and+%28weird%29+DNS+requests/10312
+</ref> <ref>
+https://sites.google.com/a/chromium.org/dev/developers/design-documents/dns-prefetching
+</ref>:
+
+<blockquote>
+When Chrome is started it will lookup domain names for previously opened web pages early in the startup process so if the user clicks on one of those links Chrome can connect to the target site immediately.
+</blockquote>
+
+madaidan reply:
+
+<blockquote>
+This isn’t weird. It improves page load time and is a standard thing that’s done in other browsers like Firefox. It can also be disabled.
+
+https://support.mozilla.org/en-US/kb/how-stop-firefox-making-automatic-connections
+</blockquote>
+
+Patrick reply:
+
+<blockquote>
+This is called DNS Prefetching.
+
+chromium does it: https://sites.google.com/a/chromium.org/dev/developers/design-documents/dns-prefetching
+
+firefox also does it: https://support.mozilla.org/en-US/kb/how-stop-firefox-making-automatic-connections
+</blockquote>
+
+== What Chromium features are removed for privacy/security reasons? (Done by Brave Browser) ==
+
+<blockquote>
+- Disable google services in privacy settings [https://github.com/brave/brave-core/pull/244 #244]
+
+- Disable Prediction Service - DNS prefetching [https://github.com/brave/brave-core/pull/340 #340]
+
+- Disable Chrome Google URL Tracker [https://github.com/brave/brave-core/pull/248 #248]
+
+- On startup disable connections to google domains [https://github.com/brave/brave-browser/issues/514 #514]
+
+- Disable chrome.webstore.install for inline extensions [https://github.com/brave/brave-browser/issues/614 #614]
+
+- Disable anchor ping attribute [https://github.com/brave/brave-browser/issues/764 #764]
+
+- Disabling getBattery | bluetooth | credential.get/store | navigator.usb apis [https://github.com/brave/brave-core/pull/114 #114]
+
+- Disable network time tracker [https://github.com/brave/brave-core/pull/792 #792]
+
+- Block ChromeMetadataSource network access [https://github.com/brave/brave-core/pull/769 #769]
+
+- Remove dl.google.com repository from Linux packages [https://github.com/brave/brave-core/pull/1078 #1078]
+
+- Disabling metrics reporting; Updating ad-block deps to fix audit_deps error; Updating crypto deps to fix audit_deps error; [https://github.com/brave/brave-core/pull/2029 #2029]
+
+And Others you can check them here [https://github.com/brave/brave-browser/wiki/Deviations-from-Chromium-(features-we-disable-or-remove)#what-chromium-features-are-removed-for-privacysecurity-reasons here].
+</blockquote>
+
+Patrick reply:
+
+<blockquote>
+Please sort this list according to different lists:
+
+* privacy impact only
+* security impact only
+* security and privacy impact (optional category)
+</blockquote>
+
+= Remotely Exploitable Chromium Security Vulnerability CVE-2021-21193 exploited in the wild =
+== Summary ==
+Viewing the situation as of <code>14 March 2021</code>:
+
+* Remotely exploitable Chromium security vulnerability {{Archive_link|url=https://web.archive.org/web/20210314094707/https://vulmon.com/vulnerabilitydetails?qid=CVE-2021-21193|text=CVE-2021-21193}} is {{Archive_link|url=https://web.archive.org/web/20210313231830/https://chromereleases.googleblog.com/2021/03/stable-channel-update-for-desktop_12.html|text=as reported by Google being used in the wild}}.
+* {{Archive_link|url=https://web.archive.org/web/20210314095053/https://security-tracker.debian.org/tracker/CVE-2021-21193|text=Unfixed in Debian.}}
+* {{Archive_link|url=https://web.archive.org/web/20210219011022/https://flathub.org/apps/details/org.chromium.Chromium|text=Unfixed in Chromium on Flathub.}}
+* {{Archive_link|url=https://web.archive.org/web/20210314131844/https://snapcraft.io/chromium|text=Unfixed in Chromium on Snap Store}}
+* Fixed in official Google [[Chrome]] ([[Avoid_nonfreedom_software|non-freedom]]!) version.
+* Fixed in {{Archive_link|url=https://security.archlinux.org/CVE-2021-21193|text=Arch Linux}}.
+
+Viewing the situation as of <code>03 April 2021</code>:
+
+* {{Archive_link|url=https://web.archive.org/web/20210403133824/https://security-tracker.debian.org/tracker/CVE-2021-21193|text=Still unfixed in Debian stable (buster at time of writing).}}
+* {{Archive_link|url=https://web.archive.org/web/20210403133839/https://flathub.org/apps/details/org.chromium.Chromium|text=Fixed on flathub on 31 March 2021 (version 89.0.4389.114)}}
+* {{Archive_link|url=https://web.archive.org/web/20210403134234/https://snapcraft.io/chromium|text=Fixed on Snap Store on 31 March 2021 (version 89.0.4389.114)}}
+
+== Sources ==
+Quote [https://web.archive.org/web/20210313231830/https://chromereleases.googleblog.com/2021/03/stable-channel-update-for-desktop_12.html Official Chrome Blog]:
+
+* <blockquote>Google is aware of reports that an exploit for CVE-2021-21193 exists in the wild.</blockquote>
+* Fixed in version <blockquote>89.0.4389.90</blockquote>
+
+Quote [https://web.archive.org/web/20210314094707/https://vulmon.com/vulnerabilitydetails?qid=CVE-2021-21193 vulmon] (Bold added.):
+
+<blockquote>Google Chrome could allow a remote malicious user to execute arbitrary code on the system, caused by a use-after-free in Blink. By persuading a victim to visit a specially crafted Web site, '''a remote attacker could exploit this vulnerability to execute arbitrary code''' or cause a denial of service condition on the system.</blockquote>
+
+[https://web.archive.org/web/20210219011022/https://flathub.org/apps/details/org.chromium.Chromium version of Chromium on Flathub]:
+
+<blockquote>89.0.4389.82</blockquote>
+
+[https://web.archive.org/web/20210314131844/https://snapcraft.io/chromium version of Chromium on Snap Store]
+
+<blockquote>89.0.4389.82</blockquote>
+
+Debian:
+
+* https://web.archive.org/web/20210314095053/https://security-tracker.debian.org/tracker/CVE-2021-21193
+* https://web.archive.org/web/20210314095657/https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=985142
+
+[[Chrome]] ([[Avoid_nonfreedom_software|non-freedom]]!) version.
+
+{{CodeSelect|code=
+dpkg -l {{!}} grep chrome
+}}
+
+<blockquote>89.0.4389.90-1</blockquote>
+
+== Conclusion ==
+TODO: write conclusion
+
+notes:
+
+* <code>03 April 2021</code>
+* {{Archive_link|url=https://web.archive.org/web/20210403135929/https://security-tracker.debian.org/tracker/source-package/firefox-esr|text=firefox-esr on Debian Security Tracker}}
+** One unimportant issue.
+** No security vulnerabilities reported being exploited in the wild.
+
+* {{Archive_link|url=https://web.archive.org/web/20210403140013/https://security-tracker.debian.org/tracker/source-package/chromium|text=chromium on Debian Security Tracker}}
+** 6 CVEs.
+** At least 1 vulnerability reported being exploited in the wild.
+
+= Google Chrome Repository Insecurity =
+See [[Google Chrome Repository Insecurity|Google Chrome Repository Insecurity]].
+
+= Hardened Malloc =
+https://forums.whonix.org/t/hardened-malloc-hardened-memory-allocator/7474/147
+
+* Can Chromium from Flatpak be used with [[Hardened Malloc]]?
+* Which memory allocator is more secure, Chromium’s built-in or Hardened Malloc?
+
+= Chromium Forks =
+* https://github.com/brave/brave-browser
+** https://github.com/brave/brave-browser/issues/1084
+* https://github.com/Eloston/ungoogled-chromium
+* https://github.com/GrapheneOS/Vanadium
+* https://github.com/bromite/bromite
+
+= Development Discussion =
+[https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388 Chromium Browser for {{kicksecure}} Discussions (not Whonix)]
+
+= Related =
+* [[Dev/Default Browser]]
+* [https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388 Chromium Browser for {{kicksecure}} Discussions (not Whonix)]
+* [[Chromium|Chromium in {{project_name_long}}]]
+* [[Chrome|Chrome in {{project_name_long}}]]
+* [[Google Chrome Repository Insecurity|Google Chrome Repository Insecurity]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Design]]

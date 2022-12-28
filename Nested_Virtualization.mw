@@ -1,0 +1,123 @@
+{{Header}}
+{{#seo:
+|description=It is possible to run Virtual Machines (VMs) inside other VMs. That is called Nested Virtualization.
+|image=Mastomys-332686640.jpg
+}}
+[[image:Mastomys-332686640.jpg|thumb]]
+= Introduction =
+It is possible to run virtual machines (VMs) inside other VMs. This configuration is known as nested virtualization: <ref>
+https://www.webopedia.com/TERM/N/nested-virtualization.html
+</ref>
+<blockquote>
+Nested virtualization refers to virtualization that runs inside an already virtualized environment. In other words, it's the ability to run a hypervisor inside of a virtual machine (VM), which itself runs on a hypervisor.
+
+With nested virtualization, you're effectively nesting a hypervisor within a hypervisor. The hypervisor running the main virtual machine is considered a level 0, or LO hypervisor, and the initial hypervisor running inside the virtual machine is referred to as a level 1 or L1 hypervisor. Further nested virtualization would result in a level 2 (L2) hypervisor inside the nested VM, then a level 3 (L3) hypervisor within that nested VM, and so forth.
+
+Not all hypervisors and operating systems support nested virtualization.
+</blockquote>
+
+[[Support#Free Support Principle|Free Support Principle]] applies.
+
+= Security Considerations =
+Nested virtualization is not a simple by-product of developing a virtualizer. Nested virtualization is not automatically offered as a feature and this is also true for various third party virtualizers. For example while the VirtualBox virtualizer has existed for years, the ability to run VirtualBox inside VirtualBox using Intel CPUs was only offered as a feature in v6.1 released in 2020. <ref>
+
+https://www.virtualbox.org/ticket/4032#comment:163
+
+<blockquote>
+Hardware-assisted Nested virtualization on Intel CPUs has been available starting with VirtualBox 6.1.0
+</blockquote>
+</ref> This demonstrates that extra code is required for this functionality and that also implies a greater attack surface.
+
+By mixing virtualizers -- for example by running VirtualBox inside the VMware virtualizer -- the attack surface is increased because the virtualizer code of both products is involved which increases risk of a "break out".
+
+= Qubes =
+Running VirtualBox, KVM or Qubes inside Qubes is difficult and is not offically supported by the Qubes developers; this is unrelated to {{project_name_long}}. To learn more about the current state of support,  search the [https://www.mail-archive.com/qubes-devel@googlegroups.com/ qubes-devel] and [https://www.mail-archive.com/qubes-users@googlegroups.com/ qubes-users] mailing lists for terms such as VirtualBox, KVM and/or nested virtualization.
+
+= KVM =
+See [[KVM#Nested_KVM_Virtualization|Nested KVM Virtualization]].
+
+= VirtualBox inside VirtualBox =
+
+== Host Steps ==
+
+Perform these steps on the host (<code>L0</code>).
+
+{{Box|text=
+'''1.''' Power off the VM (<code>L1</code>) if running.<br />
+'''2.''' Change the host key.
+
+* <code>VirtualBox</code> &rarr; <code>Preferences</code> &rarr; <code>Input</code> &rarr; <code>Host Key</code>.
+* The "outside" (<code>L0</code>) and the "inside" (<code>L1</code>) Host Key must differ, otherwise you can not leave the "inside" (<code>L1</code>) VM anymore.<br />
+
+'''3.''' Enable nested virtualization.
+
+* <code>VirtualBox</code> &rarr; <code>click a VM</code> &rarr; <code>Settings</code> &rarr; <code>System</code> &rarr; <code>Processor</code> &rarr; <code>Enable 'Nested VT-x/AMD-V</code> &rarr; <code>OK</code> (If that does not work, see footnote.) <ref>
+Replace <code>Whonix-Workstation-XFCE</code> with the actual name of the VM, for example if the VM was renamed or multiple {{project_name_workstation_long}} are in use.
+
+The following command works on Linux. It is untested on Windows but it should be possible to make this command work. Its purpose is adding VBoxManage to PATH (if that is not the default) or using the full path to VBoxManage.
+
+{{CodeSelect|code=
+VBoxManage modifyvm Whonix-Workstation-XFCE --nested-hw-virt on
+}}
+</ref><br />
+'''4.''' Assign less virtual CPUs.
+
+For example if the host has 4 physical CPU cores, reduce the VM to 3: <ref>
+https://www.virtualbox.org/ticket/19500
+</ref>
+* <code>VirtualBox</code> &rarr; <code>click a VM</code> &rarr; <code>Settings</code> &rarr; <code>System</code> &rarr; <code>Processor</code> &rarr; <code>Reduce to 3</code> &rarr; <code>OK</code><br />
+
+'''5.''' Increase virtual RAM.
+
+* <code>Virtual machine</code> &rarr; <code>Menu</code> &rarr; <code>Settings</code> &rarr; <code><i>Adjust</i></code> <code>Memory slider</code> &rarr; <code><i>Click:</i> OK</code><br />
+
+'''6.''' Using I/O APIC can speed up the VM.
+
+* <code>VirtualBox</code> &rarr; <code>right-click on VM</code> &rarr; <code>Settings</code> &rarr; <code>System</code> &rarr; <code>check "Enable I/O APIC"</code> &rarr; <code><i>Click:</i> OK</code> <ref>
+{{CodeSelect|code=
+vboxmanage "{{project_name_workstation_short}}" modifyvm --ioapic on
+}}
+</ref> <ref>
+So does enabling ACPI. Enabling ACPI in all VMs significantly speeds up the "inside" VM (<code>L1</code>).
+
+{{CodeSelect|code=
+vboxmanage "{{project_name_workstation_short}}" modifyvm --acpi on
+}}
+
+Quote [https://www.virtualbox.org/manual/ch03.html#settings-motherboard VirtualBox manual]:
+
+<blockquote>
+ACPI is the current industry standard to allow OSes to recognize hardware, configure motherboards and other devices and manage power. As most computers contain this feature and Windows and Linux support ACPI, it is also enabled by default in Oracle VM VirtualBox.
+</blockquote>
+</ref> <ref>
+These settings are in use for {{project_name_long}} VMs by default.
+</ref><br />
+'''7.''' Power on the VM (<code>L1</code>).
+}}
+
+== VM Steps ==
+
+Perform these steps inside the VM (<code>L1</code>).
+{{Box|text=
+'''1.''' Install VirtualBox.
+
+{{Install Package|
+package=virtualbox
+}}
+
+'''2.''' It should now be possible to use VirtualBox inside the VM (<code>L1</code>).<br />
+'''3.''' Make CPU core adjustments.
+
+If the VM (<code>L1</code>) has 3 "physical" (actually virtual) CPU cores do not assign more than 2 virtual CPU cores to VM (<code>L2</code>). Start with 1 virtual CPU for the VM (<code>L2</code>). If that performs well, consider experimenting with an increased number:
+* <code>VirtualBox</code> &rarr; <code>click a VM</code> &rarr; <code>Settings</code> &rarr; <code>System</code> &rarr; <code>Processor</code> &rarr; <code>Increase to 2</code> &rarr; <code>OK</code>
+}}
+
+= Running {{project_name_long}} in a Nested Virtual Machine =
+Only {{project_name_long}} 64-bit builds are available for download; see [[Dev/64bit|32-bit or 64-bit?]] for reasons why. Some virtualizers provide nil or limited support for running nested VMs that require 64-bit. This might be an issue when trying to run {{project_name_long}} in a nested virtual machine.
+
+= Footnotes =
+{{reflist|close=1}}
+
+[[Category:Documentation]]
+
+{{Footer}}

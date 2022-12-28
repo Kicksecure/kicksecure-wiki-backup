@@ -1,0 +1,416 @@
+{{Header}}
+{{#seo:
+|description=Troubleshooting Installation and Network Issues with {{project_name_long}}
+|image=Troubleshooting-114197640.jpg
+}}
+[[image:Troubleshooting-114197640.jpg|thumb]]
+
+[[#Connectivity Troubleshooting|Connectivity Troubleshooting]] | [[#General Troubleshooting|General Troubleshooting]]
+
+__TOC__
+
+= Connectivity Troubleshooting =
+== ICMP Fix ==
+
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=info]]
+| text    = Note: Kicksecure firewall does not exist yet at time of writing.
+}}
+
+Therefore no such fix required yet.
+
+== Qubes-specific Connectivity Issue ==
+Complete the following steps:
+
+# Shut down <code>{{project_name_gateway_vm}}</code>.
+# Change the <code>{{project_name_gateway_vm}}</code> NetVM setting from <code>sys-firewall</code> to <code>sys-net</code>.
+# Restart <code>{{project_name_gateway_vm}}</code>.
+
+This procedure might help, but should not be considered a final solution. <ref>
+This procedure was useful for [[Qubes|{{q_project_name}}]] R3.2 users, although the Qubes bug report is now resolved: https://github.com/QubesOS/qubes-issues/issues/2141
+</ref>
+
+== Why can't I Ping the {{project_name_gateway_long}}? ==
+
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=info]]
+| text    = Note: Kicksecure firewall does not exist yet at time of writing.
+}}
+
+<s>The {{project_name_gateway_long}} does not respond to ping or similar commands because it is firewalled for security reasons; see ''{{W_Firewall}}'' or refer to the {{project_name_long}} source code. In most cases it is unnecessary to ping the {{project_name_gateway_long}} anyhow.
+
+If you insist on pinging the {{project_name_gateway_long}} or have a unique setup that requires it, then this can be tested by clearing all firewall rules with the [https://github.com/{{project_name_short}}/developer-meta-files/blob/master/dangerous_scripts/dev_clearnet dev_clearnet] script. Alternatively, a script can be run to try and [[Dev/Firewall_Unload|unload / remove every iptables rule]], or the {{project_name_long}} firewall can be hacked to not load at all. The latter method is only for experts and it is necessary to comment out ''exit 0'' at the beginning.</s>
+
+----
+
+= General Troubleshooting =
+
+== Introduction ==
+
+Troubleshooting issues can be time intensive and success cannot be guaranteed. Some users expect {{project_name_long}} to provide an easy experience. While the {{project_name_long}} developers make every effort to meet user expectations, limited funding and human resources makes meeting these expectations impossible.
+
+Even though problems emerge when using {{project_name_long}}, the cause is most often unrelated to {{project_name_long}} code. For example, users often report the same {{project_name_long}} release worked on different hardware and/or with a different host operating system. Most software such as the host operating system or the virtualizer is developed by independent entities; this is the norm in Linux distributions. See [[Linux User Experience versus Commercial Operating Systems]] to learn more about these relationships, as well as organizational and funding issues in the Open Source ecosystem.
+
+== Essential General Troubleshooting Steps ==
+
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=info]]
+| text    = The following recommended steps will fix many startup, freezing or other unusual issues in {{project_name_long}}. Skips steps that are no longer possible if a virtual machine is not bootable.
+}}
+
+{{box|text=
+'''1.''' "Forget" about {{project_name_long}} for a moment and imagine you had never heard of the platform. Test your host computer first.
+
+'''2.''' Exclude basic [[#Hardware Issues|hardware issues]].
+
+'''3.''' Ensure the virtual machine (VM) images have been imported into a supported virtualizer listed on the [[Download]] page.
+
+'''4.''' Debian (based) Linux host operating system users only: The following command should not show any errors. <ref name=lengthy_test>
+This process can be lengthy.
+</ref>
+
+{{CodeSelect|code=
+sudo dpkg-reconfigure -a
+}}
+
+'''5.''' Debian (based) Linux host operating system users only: The following command should be silent and not show any errors or output at all. <ref name=lengthy_test />
+
+{{CodeSelect|code=
+sudo dpkg --configure -a
+}}
+
+'''6.''' Debian (based) Linux host operating system users only: Next attempt to retrieve all available updates.
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+{{CodeSelect|code=
+sudo apt full-upgrade
+}}
+
+'''7.''' Check for possible [[#Low RAM Issues|Low RAM Issues]].
+
+* [[#Free up Additional Memory Resources|Free up Additional Memory Resources]].
+* Also refer to [[RAM|Advice for Systems with Low RAM]].
+
+'''8.''' Virtualizer-specific troubleshooting.
+
+* [[VirtualBox/Troubleshooting|VirtualBox Troubleshooting]] / [[VirtualBox/Troubleshooting#General VirtualBox Troubleshooting Steps|General VirtualBox Troubleshooting Steps
+]]
+* [[KVM#Troubleshooting|KVM Troubleshooting]]
+
+'''9.''' Check if other VMs are functional, such as newly created ones or those from a different vendor.
+
+# "Forget" about {{project_name_long}} for a moment and imagine you had never heard of the platform. Test the virtualizer host software first.
+# Try a VM other than {{project_name_long}} such as Debian <code>{{Stable project version based on Debian codename}}</code>.
+# If the issue persists, this means the root issue is not caused by {{project_name_long}}, see: [[unspecific]] to {{project_name_long}}. In this case, attempt to resolve the issue as per [[Support#Free Support Principle|Free Support Principle]].
+
+'''10.''' Check [[#System Logs|System Logs]].
+
+* Sometimes crashing or freezing issues are easier to detect by [[#Watch Systemd Journal Log of Current Boot|Watching Systemd Journal Log of <u>Current</u> Boot]].
+* Sometimes it is necessary to [[#Enable Persistent Systemd Journal Log|Enable Persistent Systemd Journal Log]] and to [[#Check Systemd Journal Log of Previous Boot|Check Systemd Journal Log of <u>Previous</u> Boot]].
+
+'''11.''' If a graphical environment (where one can use a computer mouse) is unavailable after booting, utilize a virtual console to acquire system logs.
+
+# [[Recovery#Virtual_Consoles|Recovery, Virtual Consoles]].
+# Check system logs of the previous boot (step 10).
+
+'''12.''' Use recovery mode to acquire system logs.
+
+# Boot in [[Recovery#Recovery_Mode|recovery mode]].
+# Check system logs of previous boot (step 10).
+
+'''13.''' Use a chroot to acquire system logs.
+
+If a virtual console is inaccessible and recovery mode is also broken, try [[Recovery#Chroot|using a chroot for recovery]].
+}}
+
+== Low RAM Issues ==
+
+If insufficient RAM is available for {{project_name_long}} VM they might become unusable. Low RAM issues in {{project_name_long}} are commonly caused by:
+
+* Unnecessary processes running and/or multi-tasking on the host OS.
+* Multiple, open browser tabs.
+* Unnecessary processes running in the {{project_name_long}} VM.
+* Allocating more RAM to the {{project_name_long}} VM than is available; this prevents the VM from booting.
+* Insufficient RAM allocated to the {{project_name_long}} VM.
+* Other non-{{project_name_long}} VM running in parallel.
+
+Insufficient RAM can cause multiple issues, but the most common effects include:
+
+* Slow or unresponsive applications.
+* The VM, mouse and/or keyboard freeze.
+* Scrolling causes window staggers or jumps.
+* Issues become worse when additional browser tabs or processes are spawned.
+* Overall performance is poor.
+
+See also: [[RAM|Advice for Systems with Low RAM]].
+
+=== Free up Additional Memory Resources ===
+
+If a VM needs additional memory, then free up resources and/or add more RAM to the VM:
+
+* Terminate any non-essential processes on the host.
+* Shut down any non-essential VM.
+* Shut down and/or close non-essential processes and browser tabs in {{project_name_long}} VM.
+
+To add additional RAM to the {{project_name_long}} VM, follow the platform-specific advice below.
+
+=== KVM ===
+{{KVM_RAM}}
+
+=== {{q_project_name}} ===
+
+Utilize Qube Manager: <br />
+* <code>Qube Manager</code> &rarr; <code>VM_name</code> &rarr; <code>Qubes s<u>e</u>ttings</code> &rarr; <code>Advanced</code> &rarr; <code>Max memory:</code> <code><i>mem_size</i></code>
+
+=== VirtualBox ===
+
+# To add RAM in VirtualBox the VM <u>must</u> first be powered down.
+# <code>Virtual machine</code> &rarr; <code>Menu</code> &rarr; <code>Settings</code> &rarr; <code><i>Adjust</i></code> <code>Memory slider</code> &rarr; <code><i>Hit:</i> OK</code>
+
+See also: [[VirtualBox/Troubleshooting]].
+
+= System Logs =
+<ref>
+"user support template": https://forums.whonix.org/t/workstation-keeps-freezing/7693/6
+</ref>
+
+== Check Systemd Journal Log of Current Boot ==
+To inspect the systemd journal log of the current boot, run.
+
+{{CodeSelect|code=
+sudo journalctl -b
+}}
+
+This command requires pressing arrow keys like &uarr;, &darr;, &larr;, &rarr;, as well as <code>PgUp</code> and <code>PgDn</code> for scrolling.
+
+For convenient reading of the log (until the command is issued), the log can be dumped to file. For example, the following command would write the log to file <code>~/systemd-log</code>.
+
+{{CodeSelect|code=
+sudo journalctl -b > ~/systemd-log
+}}
+
+Use any available editor to read the log file, such as <code>mousepad</code>.
+
+{{CodeSelect|code=
+mousepad ~/systemd-log
+}}
+
+== Watch Systemd Journal Log of Current Boot ==
+It is possible to to watch the systemd journal log as it is written.
+
+{{CodeSelect|code=
+sudo journalctl -b -f
+}}
+
+== Enable Persistent Systemd Journal Log ==
+By default, a persistent systemd journal log is not enabled in Debian. <ref>
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=801906
+</ref> To enable it, apply the following steps.
+
+Platform specific notes:
+
+* <u>{{project_name_long}} non-Qubes</u>: No special steps are required; follow the steps below.
+* <u>Qubes users</u>: The following changes must be applied in a VM with a persistent root image like a Template or Standalone. It could be confusing if applied in App Qubes since the systemd journal log might be mixed up with boots by the Template, while the App Qube systemd journal logs would not be persistent. [https://www.qubes-os.org/doc/bind-dirs/ bind-dirs] might be helpful, but further research is required.
+
+{{Box|text=
+'''1.''' Create folder <code>/etc/systemd/journald.conf.d</code>.
+
+{{CodeSelect|code=
+sudo mkdir -p /etc/systemd/journald.conf.d
+}}
+
+'''2.''' {{Open with root rights|filename=
+/etc/systemd/journald.conf.d/60_persistent_journal.conf
+}}
+
+'''3.''' Add the following setting.
+
+{{CodeSelect|code=
+[Journal]
+Storage=persistent
+}}
+
+Save.
+
+'''4.''' Restart <code>systemd-journald</code>.
+
+{{CodeSelect|code=
+sudo systemctl restart systemd-journald
+}}
+
+A persistent systemd journal log has now been enabled.
+}}
+
+== Check Systemd Journal Log of Previous Boot ==
+
+After following the [[#Enable Persistent Systemd Journal Log|Enable Persistent Systemd Journal Log]] steps, it is possible to inspect the systemd journal log of the previous boot.
+
+{{CodeSelect|code=
+sudo journalctl -b -1
+}}
+
+This command requires pressing arrow keys like &uarr;, &darr;, &larr;, &rarr;, as well as <code>PgUp</code> and <code>PgDn</code> for scrolling.
+
+For convenient reading of the log (until the command is issued), the log can be dumped to file. For example, the following command would write the log to file <code>~/systemd-log-previous</code>.
+
+{{CodeSelect|code=
+sudo journalctl -b -1 > ~/systemd-log-previous
+}}
+
+Use any available editor to read the log file, such as <code>mousepad</code>.
+
+{{CodeSelect|code=
+mousepad ~/systemd-log-previous
+}}
+
+== View List of Systemd Journal Logs ==
+{{CodeSelect|code=
+sudo journalctl --list-boots
+}}
+
+{{Anchor|Daemon Log}}
+
+== Daemon Log View ==
+To view the log of a specific systemd unit. Syntax:
+
+(Replace <code>unit-name</code> with the actual name of the systemd unit.)
+
+{{CodeSelect|code=
+sudo journalctl -b --no-pager -u unit-name
+}}
+
+Example:
+
+{{CodeSelect|code=
+sudo journalctl -b --no-pager -u sdwdate
+}}
+
+== Daemon Log Follow ==
+To follow the log of a specific systemd unit. Syntax:
+
+(Replace <code>unit-name</code> with the actual name of the systemd unit.)
+
+{{CodeSelect|code=
+sudo journalctl -f -b --no-pager -u unit-name
+}}
+
+Example:
+
+{{CodeSelect|code=
+sudo journalctl -f -b --no-pager -u sdwdate
+}}
+
+== Daemon Status ==
+To view the status of a specific systemd unit. Syntax:
+
+(Replace <code>unit-name</code> with the actual name of the systemd unit.)
+
+{{CodeSelect|code=
+sudo systemctl status --no-pager unit-name
+}}
+
+Example:
+
+{{CodeSelect|code=
+sudo systemctl status --no-pager sdwdate
+}}
+
+== Check Systemd Journal Log of Failed Boot ==
+
+An alternative to recovery mode might be [[Desktop#Virtual_Consoles|virtual consoles]], since they are an easier and more lightweight solution. A virtual console login might still be possible when the graphical user interface no longer starts.
+
+Prerequisite knowledge: [[Desktop#Virtual Consoles|Virtual Consoles]]. Try to log in to a virtual console in a functional VM as an exercise. If that works, try a virtual console login in the broken VM.
+
+If a virtual console is unavailable:
+
+# Boot into [[Recovery|Recovery Mode]].
+# [[#Enable_Persistent_Systemd_Journal_Log|Enable Persistent Systemd Journal Log]] (if not previously enabled).
+# Reboot into normal mode so a log for the failed boot will be written (if not previously enabled).
+# Boot into recovery mode again.
+# [[#Check_Systemd_Journal_Log_of_Previous_Boot|Check Systemd Journal Log of Previous Boot]].
+
+= Permission Fix =
+
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=info]]
+| text    = If something does not work, do not arbitrarily try to use sudo / root without any indication this is appropriate. Otherwise, this can negatively affect the correct user home folder permissions. See also: [[root|Safely Use Root Commands]].
+}}
+
+{{Open a product ws terminal}}
+
+{{CodeSelect|code=
+sudo chown --recursive user:user /home/user
+}}
+
+= Hardware Issues =
+
+== General Recommendations ==
+
+Rhetorical questions:
+
+* When was the last time a qualified person disassembled your computer/notebook and removed dust from the fan and checked the cooling system of the CPU?
+* How often should maintenance be performed?
+* What is your CPU temperature under heavy system load?
+* What is the room temperature where the computer is operating?
+
+Recommendations:
+
+* Ensure your computer or notebook has regular, proper maintenance.
+* Monitor CPU temperature by utilizing relevant host operating system tools.
+* Consider cooling the room where computers/notebooks operate.
+* Better placement (more air space) around computers or notebooks can help.
+* Consider a passive or active (notebook) cooling pad. <ref>Perform thorough research beforehand.</ref>
+* [[#memtest86+|Run <code>memtest86+</code>]] to rule out RAM problems.
+
+None of these issues are related to {{project_name_long}}. Therefore, please do not ask these questions in {{project_name_long}} support channels (until there is a {{project_name_long}} Host DVD available) as per [[Support#Free Support Principle|Free Support Principle]].
+
+== memtest86+ ==
+
+{{Box|text=
+'''1.''' Install the <code>memtest86+</code> tool.
+
+On Debian (based) hosts such as [[Kicksecure]].
+
+{{Install Package|package=
+memtest86+
+}}
+
+For other host operating systems, refer to <code>memtest86+</code> upstream documentation.
+
+'''2.''' Reboot.
+
+'''3.''' Start <code>memtest86+</code> from (grub) boot menu.
+
+'''4.''' Keep <code>memtest86+</code> running for a significant period.
+
+This should be run for as long as practically possible; for example, ideally overnight or for 8+ hours.
+
+'''5.''' Check the <code>memtest86+</code> output.
+
+If there are any issues, red error messages appear in the middle of the screen.
+
+'''6.''' Done.
+
+The memory test is complete.
+
+If <code>memtest86+</code> identified any issues, these can manifest in various ways such as system crashes at random times. In such cases, the only likely solution is replacing the faulty hardware (RAM banks). <ref>RAM bank warranties may apply.</ref>
+}}
+
+= See Also =
+
+* [[RAM|Advice for Systems with Low RAM]]
+* [[VirtualBox/Troubleshooting|VirtualBox Troubleshooting]]
+* [[KVM#Troubleshooting|KVM Troubleshooting]]
+* [[Recovery|Recovery Mode]]
+* [[SysRq|System Recovery using SysRq Key]]
+* [[Core Dumps]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

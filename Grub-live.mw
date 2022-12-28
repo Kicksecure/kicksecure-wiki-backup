@@ -1,0 +1,363 @@
+{{Header}}
+{{Title|
+title=grub-live - boot an existing Host OS or VM into Live Mode
+}}
+{{#seo:
+|description=Add a Live Mode entry to the grub boot menu on your existing Debian host platform. Stop Persistent Malware. Read-only mode. Make all writes go to non-persistent storage (RAM) instead of the hard disk.
+|image=Grublive123123.jpg
+}}
+<div class="intro-p">
+The grub-live package offers an additional "LIVE mode" boot menu entry for the [https://www.gnu.org/software/grub/|GNU GRUB boot loader]. This package is compatible with many Linux distributions, including Debian and Ubuntu. In Kicksecure and Whonix it is installed by default. Grub-live can be applied for a host {{os}} as well as for a guest OS on a virtual machine.
+</div>
+
+[[image:Grub-live_mode_indicator_in_debian.cleaned.png|thumb|Debian Live Mode Boot ([[Live Mode]])]]
+
+[[image:Grub-live mode indicator in kicksecure.cleaned.png|thumb|[[Kicksecure|{{kicksecure}}]] Live Mode Boot ([[Live Mode]])]]
+
+[[image:live_boot.png|Live Mode Boot|thumb|[[Whonix|{{Whonix}}]] Live Mode Boot ([[Live Mode]])]]
+
+{{live}}
+
+= Compatibility =
+
+grub-live is compatible and tested with '''Debian, Kicksecure and Whonix'''. In Kicksecure and Whonix it is installed by default. It should also without any problems run on Ubuntu and other Linux distributions which implement Debian live boot. But due to little user adoption and testing at this point in time grub-live for those distributions is still labelled [[untested]].
+
+= Installation / Getting started =
+
+The grub-live package is hosted under the [https://github.com/Kicksecure/grub-live grub-live GitHub repository]. There you will also find the '''installation guide'''.
+
+After the installation you can instantly use the Live Mode in your operating system. Simply boot/reboot your system and choose the new "LIVE mode" option in the boot menu. For {{project_name_long}} specifically read: [[Live_Mode|Detaillled documentation for using the live mode for {{project_name_long}}]].
+
+{{Anchor|grub-default-live}}
+= Set grub-live as Default in GRUB boot menu =
+
+If you have installed grub-live and you want the "LIVE mode" option to be the default selected option in your grub menu please follow the instructions below. Be aware however that due to little user adoption and testing yet this options is still labelled '''[[untested]]'''.
+
+<span class="fontsize19">1. Do a grub-live package installation check</span>
+
+By default the <code>grub-live</code> package is installed in {{project_name_long}}. If you boot your system and a boot menu entry "LIVE mode" is already avaialble, then <code>grub-live</code> is already installed.
+
+Alternatively you can make sure the package [https://github.com/{{project_name_short}}/grub-live <code>grub-live</code> package] is installed. The following command can be used to check on the command line if the package is already installed by default.
+
+{{CodeSelect|code=
+dpkg -l {{!}} grep grub-live
+}}
+
+<span class="fontsize19">2. Set LIVE mode as default boot menu entry</span>
+
+There are 2 ways to accomplish this. Choose one ot these options
+
+'''Option (A) -  symlink method'''
+
+* Advantage: This is easier because updates to [[grub-live]] will be automatically applied.
+* Disadvantage: There will be a duplicate live boot menu entry.
+* Copy and execute the following command
+
+{{CodeSelect|code=
+sudo ln -s /etc/grub.d/11_linux_live /etc/grub.d/09_linux_live
+}}
+
+'''Option (B) - moving method'''
+
+* Advantage: No duplicate live boot menu entry.
+* Disadvantage: Updates to [[grub-live]] will '''NOT''' be automatically applied.
+* Copy and execute the following command
+
+{{CodeSelect|code=
+sudo mv /etc/grub.d/11_linux_live /etc/grub.d/09_linux_live
+}}
+
+<span class="fontsize19">3. Re-generate grub boot menu</span>
+
+The grub boot menu needs to be regenerated for the changes to be applied. Copy and execute the following command
+
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+<span class="fontsize19">4. DONE</span>
+
+The process of changing from "live mode opt-in through boot grub menu" to "live boot by default" has been completed.
+
+<span class="fontsize19">5. Updates</span>
+
+If in step 2 "option (B)" was chosen then this process might need to be repeated from time to time if there have been updates to GRUB or to your system. The need to repeat this process from step 1 to step 4 will be indicated as soon as the "LIVE mode" entry will not be the default entry in the GRUB boot menu anymore.
+
+If in step 3 "option (A)" was chosen then this step is not needed. Updates will be applied automatically.
+
+= Get GRUB to remember your last choice (e. g. Live mode) =
+
+If you don't want to set Live Mode as your permanent default boot option but still want the comfort of having GRUB remember your last choice, e. g. "Live mode", then follow these instructions. <ref>
+Based on [https://askubuntu.com/a/149572 this askubuntu answer].
+</ref>
+
+'''1.''' {{Open with root rights|filename=
+/etc/default/grub.d/50_user.conf
+}}
+
+'''2.''' Now add those two lines to this file: {CodeSelect|inline=true|code=
+GRUB_DEFAULT=saved
+GRUB_SAVEDEFAULT=true
+}}
+
+'''3.''' Finally execute this command: {{CodeSelect|inline=true|code=
+sudo update-grub
+}}
+
+'''4.''' Done.
+
+Your boot menu now remembers your last choice.
+
+= Troubleshooting =
+
+Here are some problems you might encouter and their possible solutions.
+
+== Live Check Systray Issues ==
+
+The live mode is indicated by a Live Check Systray icon. I can happen that this icon has an issues. If so here's what you can do.
+
+First of all this is '''NOT an [[Malware and Firmware Trojans#Valid_Compromise_Indicators_versus_Invalid_Compromise_Indicators|indication of compromise by malware]]'''. The real issue is as simple as: '''The Live Check Systray is broken'''. Please follow these steps:
+
+<span class="fontsize19">1. Is livecheck.sh showing an error?</span>
+
+If [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/usr/share/livecheck/livecheck.sh livecheck] is showing an error it might be the following issue. Live check runs command <code>sudo --non-interactive /bin/lsblk --noheadings --all --raw --output RO</code> as the current unprivileged user. You can test this for yourself with the following command. If this is working then this is NOT the issue
+
+{{CodeSelect|code=
+sudo --non-interactive /bin/lsblk --noheadings --all --raw --output RO
+}}
+
+If this is not working the problem might be that [https://forums.whonix.org/t/whonix-xfce-development/6213/102 this will only work by default for the user <code>user</code>], no other user. For example it will not work by default for the Linux user account <code>user2</code> or any other than <code>user</code>.
+
+If the problem is that a user other than <code>user</code> is the logged in subject then
+
+* '''option (A)''' the current user - for example <code>user2</code> - needs an exception in <code>/etc/sudoers.d</code>. For comparison see file [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/etc/sudoers.d/desktop-config-dist <code>/etc/sudoers.d/desktop-config-dist</code>].
+* '''option (B)''' the current user - for example <code>user2</code> - needs to be or become a member of any of the following Linux user groups:
+<code>users</code>
+<code>staff</code>
+<code>adm</code>
+<code>sudo</code>
+<code>root</code>
+<code>wheel</code>
+<code>console</code>
+<code>console-unrestricted</code>
+
+<span class="fontsize19">2. Try lsblk</span>
+
+If the above method does not work try also this:
+
+{{CodeSelect|code=
+sudo /bin/lsblk --all
+}}
+
+<span class="fontsize19">3. If nothing works, report the bug</span>
+
+If you are still having issues you can [[Reporting_Bugs|report a bug]] with the output from above two <code>lsblk</code> commands included from above.
+
+= Alternative to grub-live =
+
+As an alternative to grub-live it is also possible to automatically detect
+if the disk is set to read-only and enable live mode automatically using the
+<code>ro-mode-init</code> package. Read
+[[VM_Live_Mode/ro-mode-init|VM Live Mode - Alternative ro-mode-init Configuration]]
+for further instructions.
+
+<code>ro-mode-init</code> is currently less tested than <code>grub-live</code>.
+
+= Comparison between grub-live and Tails =
+
+Tails is its own operating system whereas grub-live is a package enabling Live Mode on different Linux distributions. The following table will show advantages and disadvantages of grub-live in regard to Tails. It shall be noted however that whereas Tails is optimized in regard to Live mode grub-live is vastly more compatible with other systems.
+
+'''Table:''' ''Comparison of grub-live and Tails''
+
+<div class="scroll-table">
+{| class="wikitable" style="text-align: center; background-color: #fff"
+|- style="background-color: #f9f9f9"
+
+! style="height: 35px"| '''Aspect'''
+! '''grub-live on the host''' <ref>Meaning, <code>grub-live</code> outside of a virtual machine. For <code>grub-live</code> in a VM, see [[Live Mode]].</ref> /<br />'''grub-default-live on the host'''
+! '''Tails DVD only'''
+! '''Tails USB / DVD, with persistent USB'''
+! '''Tails read-only medium all other writable disks unplugged''' <ref>Assuming Tails on a DVD which can only be written to once, not DVD-RW.</ref> <ref>Or Using Tails USB with physical, active and effective (non-circumventable by software) write protection switch enabled.</ref>
+|-
+
+! Common <ref>As in a substantial user group willing and able to do this.</ref> mode of operation
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+| {{No}} <ref>This would be a prudent approach but search engines indicate that no or very few users run this configuration.</ref>
+|-
+
+! Amnesic / protects against disk modifications <ref>Excluding malware compromise.</ref>
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Protects against malware persistence on hard drive after malware compromise
+| {{No}} <ref name=targeted_persistent_malware>Once targeted malware is active it can circumvent read-only settings, mount the harddrive, and add malware which becomes active after next boot.</ref>
+| {{No}} <ref name=targeted_persistent_malware />
+| {{No}} <ref name=targeted_persistent_malware />
+| {{Yes}} <ref name=targeted_persistent_malware />
+|-
+
+! Protects against [[Malware_and_Firmware_Trojans#Firmware_Trojans|firmware trojans]] after malware compromise
+| {{No}} <ref name=targeted_persistent_malware>Once targeted malware is active it can circumvent read-only settings, mount the harddrive, and add malware which becomes active after next boot.</ref>
+| {{No}} <ref name=targeted_persistent_malware />
+| {{No}} <ref name=targeted_persistent_malware />
+| {{No}} <ref name=targeted_persistent_malware />
+|-
+
+! Avoid writing to arbitrary (non-boot) host disks
+| ?
+| {{Yes}} <ref name=tails-avoid-host-disk-usage>
+Quote https://tails.boum.org/contribute/design/
+
+<blockquote>
+Tails takes care not to use any filesystem that might exist on the host machine hard drive, unless explicitly told to do so by the user. The Debian Live persistence feature is disabled by passing <code>nopersistence</code> over the kernel command line to live-boot.
+</blockquote>
+</ref>
+| {{Yes}} <ref name=tails-avoid-host-disk-usage />
+| {{Yes}} <ref name=tails-avoid-host-disk-usage />
+|-
+
+! Disables removable drives auto-mounting
+| {{No}}
+| {{Yes}} <ref name=tails-disables-removable-drives-auto-mounting>
+Quote https://tails.boum.org/contribute/design/#index39h3
+
+<blockquote>
+Removable drives auto-mounting is disabled in Tails 0.7 and newer.
+
+https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/etc/dconf/db/local.d/00_Tails_defaults</blockquote></ref> <ref>
+https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/etc/dconf/db/local.d/00_Tails_defaults contains a configuration for GNOME only. This is reasonable in the Tails context since its default desktop is GNOME and others are unsupported.
+</ref>
+| {{Yes}} <ref name=tails-disables-removable-drives-auto-mounting />
+| {{Yes}} <ref name=tails-disables-removable-drives-auto-mounting />
+|-
+
+! Disables swap
+| ?
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Disabled virtual machine shared folders
+| {{No}} <ref>
+Considered a feature or bug?
+</ref>
+| ?
+| ?
+| ?
+|-
+
+! Wipe RAM on shutdown
+| {{No}} <ref>
+It might be possible to create a separate package <code>wiperam</code>.
+
+* https://forums.whonix.org/t/is-ram-wipe-possible-inside-whonix/5596
+* https://github.com/QubesOS/qubes-issues/issues/1562
+
+Then a meta package <code>amnesia</code> could depend on both <code>grub-live</code> and <code>wiperam</code> to simplify live boot for users.
+</ref>
+| Yes, but with limitations. <ref name=tails_wipe_ram>https://tails.boum.org/contribute/design/memory_erasure/</ref>
+| Yes, but with limitations. <ref name=tails_wipe_ram />
+| Yes, but with limitations. <ref name=tails_wipe_ram />
+|-
+
+! Wipe video RAM on shutdown
+| {{No}} <ref>
+https://github.com/QubesOS/qubes-issues/issues/1563
+</ref>
+| {{No}} <ref name=tails-wipe-video-ram>https://gitlab.tails.boum.org/tails/tails/-/issues/5356</ref>
+| {{No}} <ref name=tails-wipe-video-ram />
+| {{No}} <ref name=tails-wipe-video-ram />
+|-
+
+! Emergency shutdown on USB removal
+| {{No}}
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Live Mode Usability <ref>The user being aware of currently running in live mode vs persistent mode.</ref>
+| style="background-color: {{Yellow}}"| Average <ref>
+Without Live Mode Indicator (see below) it is not obvious to the user if they booted into persistent or live mode. This might lead to a mistake where live boot is not selected from the grub boot menu (persistent mode is instead set), but the user believes otherwise.
+</ref>
+| style="background-color: {{Green}}"| Good <ref name=tails-amnesia-usability>Consistently good because amnesia has always has been a core Tails feature. It is obvious to the user that nothing persists except folders that have selective persistence enabled.</ref>
+| style="background-color: {{Green}}"| Good <ref name=tails-amnesia-usability />
+| style="background-color: {{Green}}"| Good <ref name=tails-amnesia-usability />
+|-
+
+! Live Mode Indicator
+| style="background-color: {{Yellow}}"| For Xfce only. Not yet documented. <ref>
+https://github.com/{{project_name_short}}/desktop-config-dist
+</ref>
+| style="background-color: {{Green}}"| Unneeded
+| style="background-color: {{Green}}"| Unneeded
+| style="background-color: {{Green}}"| Unneeded
+|-
+
+! Unified Amnesic + Anonymous User Experience
+| {{No}} <ref>{{project_name_long}} is primarily run inside virtualizers. <code>grub-live</code> is an extra configuration step on the user's host.</ref>
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Easy standard ("everyday") upgrades <ref name=using-apt>Using standard package managers such as <code>apt</code>.</ref>
+| {{Yes}}
+| ?
+| ?
+| ?
+|-
+
+! [[Release Upgrade|Release upgrades]] <ref>Such as from Debian <code>stretch</code> to Debian <code>buster</code>.</ref> possible anytime  <ref name=using-apt />
+| {{Yes}}
+| {{No}} <ref name=tails-release-upgrade>Release upgrade of Tails from lets say Debian <code>stretch</code> to Debian <code>buster</code> is a non-trivial development effort. See also: https://tails.boum.org/doc/upgrade/</ref>
+| {{No}} <ref name=tails-release-upgrade />
+| {{No}} <ref name=tails-release-upgrade />
+|-
+
+! Live boot by default
+|
+* grub-live: <span style="background:{{Red}}">No</span> <ref name=grub-live-persistent-default>Persistent boot is the default option in grub boot menu.</ref>
+* grub-default-live: <span style="background:{{Green}}">Yes</span>
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Persistent boot by default
+|
+* grub-live: <span style="background:{{Green}}">Yes</span> <ref name=grub-live-persistent-default>Persistent boot is the default option in grub boot menu.</ref>
+* grub-default-live: <span style="background:{{Red}}">No</span>
+| {{No}}
+| {{No}}
+| {{No}}
+|-
+
+! Full disk encryption compatibility
+| {{Yes}}
+| {{No}}
+| {{No}}
+| {{No}}
+|-
+
+! Encrypted persistence supported
+| {{Yes}}
+| {{Yes}} <ref name=tails-encrypted-persistence>https://tails.boum.org/doc/first_steps/persistence/index.en.html</ref>
+| {{Yes}} <ref name=tails-encrypted-persistence />
+| {{Yes}} <ref name=tails-encrypted-persistence />
+|-
+
+|}
+</div>
+
+= Footnotes =
+
+{{reflist|close=1}}
+[[Category:Documentation]]
+{{Footer}}

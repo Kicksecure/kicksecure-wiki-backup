@@ -1,0 +1,317 @@
+{{Header}}
+{{#seo:
+|description=Hardened Memory Allocator for many Applications to increase Security - installation from {{project_name_long}} repository
+|image=Malloc423.jpg
+}}
+{{Title|title=
+Hardened Malloc (Default)
+}}
+[[image:Malloc423.jpg|thumb]]
+{| class="wikitable" style="background-color:#fff;text-align:center"
+|- style="background-color: #f9f9f9"
+| [[Hardened Malloc|Hardened Malloc (Default)]]
+| [[Hardened Malloc Light]]
+|}
+= Introduction =
+
+Hardened Malloc (Default) is a hardened memory allocator which can be used with many applications to increase security.
+
+According to the author's GitHub description: <ref>
+https://github.com/GrapheneOS/hardened_malloc
+</ref>
+
+<blockquote>This is a security-focused general purpose memory allocator providing the malloc API along with various extensions. It provides substantial hardening against heap corruption vulnerabilities. The security-focused design also leads to much less metadata overhead and memory waste from fragmentation than a more traditional allocator design. It aims to provide decent overall performance with a focus on long-term performance and memory usage rather than allocator micro-benchmarks. It offers scalability via a configurable number of entirely independently arenas, with the internal locking within arenas further divided up per size class.</blockquote>
+
+Readers who wish to discuss the integration of Hardened Malloc with {{project_name_long}} should refer to [https://forums.whonix.org/t/hardened-malloc-hardened-memory-allocator/7474 this forum thread].
+
+= Naming =
+The author of <code>Hardened Malloc</code> uses only the terms:
+
+* <code>Hardened Malloc</code>
+* <code>Hardened Malloc Light</code>
+
+To distinguish better which version is used, this websites uses the terms:
+
+* <code>Hardened Malloc (Default)</code> (also historically called <code>Hardened Malloc original</code> - this term is deprecated in the [[systemcheck]] utility and will be changed in the next update)
+* <code>Hardened Malloc Light</code>
+
+This is unrelated to price. Both versions are Freedom Software, free as in price as well as in freedom.
+
+<code>Hardened Malloc Light</code> is provided for cases in which <code>Hardened Malloc (Default)</code> cannot be used due to application specific issues. <code>Hardened Malloc (Default)</code> might trigger issues due to memory allocation bugs found in some applications.
+
+= Installation =
+
+Hardened Malloc (Default) is pre-installed.
+
+= How-to: Launch Applications with Hardened Malloc Default =
+{{Testers-only}}
+
+== Launch Specific Applications with Hardened Malloc Default ==
+To launch chosen applications with Hardened Malloc (Default), the <code>LD_PRELOAD</code> environment variable must be edited before starting the application.
+
+For example, to launch <code>application-name</code> in this way, run.
+
+{{CodeSelect|code=
+LD_PRELOAD='/usr/lib/libhardened_malloc.so/libhardened_malloc.so' application-name
+}}
+
+Using administrative rights, example:
+
+{{CodeSelect|code=
+sudo LD_PRELOAD='/usr/lib/libhardened_malloc.so/libhardened_malloc.so' apt update
+}}
+
+== Launch Systemd Services with Hardened Malloc Default ==
+To launch individual systemd services with Hardened Malloc (Default), add a drop-in systemd configuration snippet.
+
+{{CodeSelect|code=
+Environment="LD_PRELOAD='/usr/lib/libhardened_malloc.so/libhardened_malloc.so'"
+}}
+
+== Launch All Applications by Default with Hardened Malloc Default ==
+It is possible to make all applications use Hardened Malloc (Default) as the default memory allocator.
+
+<u>Note</u>:
+
+* <u>If using a graphical desktop environment</u> (such as Xfce): This action breaks the graphical desktop environment (Xorg). Most users using a graphical desktop environment (such as Xfce) should not proceed enabling Hardened Malloc (Default) for all applications. Only [[Hardened Malloc Light]] is suitable for that.
+* <u>If using a command line interface (CLI)</u> (no graphical desktop environment) (such as a server): This can be attempted! Testers only!
+
+To configure this option, the path to the <code>hardened_malloc.so</code> library must be added to the <code>/etc/ld.so.preload</code> file. <ref>
+[https://www.gnu.org/software/libc/ <code>glibc</code>] feature request: [https://sourceware.org/bugzilla/show_bug.cgi?id=24913 <code>/etc/ld.so.preload.d</code> drop-in configuration folder support]
+</ref>
+
+{{Box|text=
+'''1.'''
+{{Open with root rights|filename=
+/etc/ld.so.preload
+}}
+
+'''2.''' Add the <code>hardened_malloc.so</code> library.
+
+Paste.
+
+{{CodeSelect|code=
+/usr/lib/libhardened_malloc.so/libhardened_malloc.so
+}}
+
+'''3.''' Save the file.
+
+'''4.''' Done.
+
+The procedure is complete. Hardened Malloc Default has been enabled for all applications by default.
+}}
+
+== Disable Hardened Malloc per Application ==
+In case Hardened Malloc Default/Light is enabled globally for all applications it is possible to disable it for select applications should that be required due to application incompatibilities.
+
+Apply the following steps to disable Hardened Malloc Default/Light per application.
+
+Prepend the [https://github.com/Kicksecure/helper-scripts/blob/master/usr/bin/ld-system-preload-disable <code>ld-system-preload-disable</code>] wrapper.
+
+Syntax:
+
+{{CodeSelect|code=
+ld-system-preload-disable application
+}}
+
+Example:
+
+Notes:
+
+* This disabled all ld system preload. This only matters in case the user previously modified ld system preload configuration file <code>/etc/ld.so.preload</code> which the vast majority of users does not do.
+* Replace <code>[[chromium]]</code> with the actual application which should be started without ld system preload.
+
+{{CodeSelect|code=
+ld-system-preload-disable chromium
+}}
+
+= Issues =
+== Incompatible Applications ==
+=== Graphical Desktop Environment Xorg ===
+<div class="scroll-table">
+{| class="wikitable"
+|
+!'''Hardened Malloc (Default)'''
+!'''[[Hardened Malloc Light]]'''
+|-
+
+!{{project name long}} on the host
+|{{Yes}}, functional.
+|{{Yes}}, functional.
+|-
+
+!{{project name long}} inside VirtualBox Xfce
+|{{No}}, Xorg broken.
+|{{Yes}}, functional.
+|-
+
+!{{project name long}} inside VirtualBox CLI
+|{{Yes}}, functional. (Not using Xorg.)
+|{{Yes}}, functional. (Not using Xorg.)
+|-
+
+!{{project name long}} inside KVM
+|{{Yes}}, functional.
+|{{Yes}}, functional.
+|-
+
+!{{Q_project_name}}
+|{{Yes}}, functional. (Not using Xorg.)
+|{{Yes}}, functional. (Not using Xorg.)
+|-
+
+|}
+</div>
+
+TODO: Xorg systemd drop in InaccessiblePaths=-/etc/ld.so.preload
+
+=== VirtualBox Host Software ===
+[https://www.virtualbox.org/ticket/20107 VirtualBox crashes with hardened memory allocator Hardened Malloc on the host.] <ref>
+* https://www.virtualbox.org/wiki/VBoxMainLogging
+* https://www.virtualbox.org/wiki/Core_dump
+</ref>
+
+However, using HM inside VirtualBox VMs is different. For that, see above.
+
+=== Browsers ===
+
+Using Hardened Malloc Default/Light with Tor Browser or Firefox is difficult and [[unsupported]]. <ref name=firefox-based>
+Tor Browser is also based on Firefox, therefore the following advice equally applies.
+
+<blockquote>
+LD_PRELOAD='/path/to/libhardened_malloc.so' /path/to/program will do nothing or approximately nothing.
+</blockquote>
+
+The reason is recompilation is necessary.
+
+<blockquote>
+To successfully replace Firefox memory allocator you should either use LD_PRELOAD _with_ a --disable-jemalloc build OR Firefox's replace_malloc functionality:
+https://searchfox.org/mozilla-central/source/memory/build/replace_malloc.h
+
+Sources:
+
+* https://lists.torproject.org/pipermail/tor-dev/2019-August/013982.html
+* https://lists.torproject.org/pipermail/tor-dev/2019-August/013990.html
+</blockquote>
+</ref>
+
+It is unknown whether other browsers can benefit from Hardened Malloc Default/Light.
+
+=== Flatpak ===
+[[Install_Software#Flatpak|Flatpak]] does not honor <code>/etc/ld.so.preload</code>. Therefore using Hardened Malloc with Flatpak applications is currently [[unsupported]]. <ref>
+[[Install_Software#Flatpak|Flatpak]] does not honor <code>/etc/ld.so.preload</code>.
+Viewing contents of <code>/etc/ld.so.preload</code> on the host operating system.
+
+{{CodeSelect|code=
+cat /etc/ld.so.preload
+}}
+
+Expected output:
+
+<pre>
+/usr/lib/libhardened_malloc.so/libhardened_malloc-light.so
+</pre>
+
+Starting a shell inside a Flatpak application sandbox. This example uses <code>org.chromium.Chromium</code> and could be replaced with any other Flatpak application.
+
+{{CodeSelect|code=
+flatpak run --command=sh org.chromium.Chromium
+}}
+
+Viewing contents of <code>/etc/ld.so.preload</code> inside the Flatpak sandbox.
+
+{{CodeSelect|code=
+cat /etc/ld.so.preload
+}}
+
+Conclusion: File  <code>/etc/ld.so.preload</code> does not exist inside the Flatpak sandbox.
+
+<pre>
+cat: /etc/ld.so.preload: No such file or directory
+</pre>
+</ref>
+
+=== snap ===
+[[Install_Software#snap|snap]] is [[untested]]. Possibly has the same issue as [[#Flatpak|Flatpak]].
+
+=== Others ===
+Other applications might not easily benefit from Hardened Malloc Default/Light for the same reasons outlined in the [[#Browsers|browsers]] section above.
+
+Whether an application can benefit from Hardened Malloc Default/Light or not depends on technical implementation details of the application in question. Vendors of applications will probably know if their application is compatible with Hardened Malloc Default/Light. Community wiki contributions are most welcome -- please post any additional vendor Q&As here.
+
+== workaround available ==
+Slowdown of swap-file-creator at shutdown.
+
+* related to above cryptsetup slowdown by factor ~ 7
+* workaround OK https://github.com/Kicksecure/swap-file-creator/commit/c65edf17f952ac4a296ae6a0aac5a10541579ff6
+
+[[chromium]] requires <code>ld-system-preload-disable</code>
+
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=971876
+** workaround <code>ld-system-preload-disable chromium</code> ok
+** chromium from flathub also functional (Hardened Malloc Light is disregarded inside flatpak's bubblewrap based sandbox)
+
+== no workaround available ==
+major issues:
+
+* cryptsetup slowdown by factor ~ 6
+** reported upstream: [https://gitlab.com/cryptsetup/cryptsetup/-/issues/617 cryptsetup luksFormat slowdown of factor ~ 6 when using hardened memory allocator Hardened Malloc]
+* might break {{project_name_long}} build process
+** TODO: test building {{project_name_long}} with Hardened Malloc Light enabled
+
+minor issues:
+
+* Qubes issues (when using Debian based VMs inside Qubes OS):
+** [https://github.com/QubesOS/qubes-issues/issues/6873 Installing Hardened Malloc and enforce enabling it will lead to duplication in Copy to VM & Move to VM]
+** [https://github.com/QubesOS/qubes-issues/issues/7431 Memory issue founded by Hardened-Malloc - "icon-sender: segfault at ... libc-2.31.so"]
+* element bug report: [https://github.com/vector-im/element-web/issues/21805 Memory issues detected by hardened malloc - libva error: vaGetDriverNameByIndex() failed with unknown libva error, driver_name = (null)]
+
+== Development Notes ==
+* [https://www.gnu.org/software/libc/ <code>glibc</code>] feature request: [https://sourceware.org/bugzilla/show_bug.cgi?id=24913 <code>/etc/ld.so.preload.d</code> drop-in configuration folder support]
+* <code>glibc</code> feature request: [https://sourceware.org/bugzilla/show_bug.cgi?id=26723 LD_ETC_IGNORE - environment variable to ignore /etc/ld.so.preload configuration file on a per-application basis]
+* Debian <code>glibc</code> feature request: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=945457 consider using hardened malloc (hardened memory allocator)]
+* Debian request for packaging: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=945455 RFP: hardened-malloc -- hardened memory allocator]
+* Qubes feature request: [https://github.com/QubesOS/qubes-issues/issues/7444 Hardened Malloc For Qubes OpenQA]
+* chromium feature request: [https://bugs.chromium.org/p/chromium/issues/detail?id=1204783 consider using hardened malloc]
+* https://sourceware.org/bugzilla/show_bug.cgi?id=25223
+* Tor Browser feature request: [https://gitlab.torproject.org/tpo/applications/tor-browser/-/issues/31440 consider using Hardened Malloc for better security in TBB]
+* tor-dev mailing list: [https://lists.torproject.org/pipermail/tor-dev/2019-August/013989.html TBB Memory Allocator choice fingerprint implications]
+
+= How-to: Check Hardened Malloc Status =
+== Check If Hardened Malloc is Enabled ==
+
+Open the terminal and type either:
+
+* '''A)''': Using <code>hardened-malloc-enabled-test</code>. {{CodeSelect|code=
+hardened-malloc-enabled-test
+}}
+** If enabled, should output should show: <blockquote>yes</blockquote>
+* '''B)''': For advanced users: Using [[systemcheck]] with command line parameter <code>--verbose</code>. {{CodeSelect|code=
+systemcheck --verbose
+}}
+** If enabled, should output should include: <blockquote>[INFO] [systemcheck] Hardened Malloc: Hardened Malloc enabled.</blockquote>
+
+== Check If Hardened Malloc Default or Hardened Malloc Light is Enabled ==
+
+{{CodeSelect|code=
+hardened-malloc-type-test
+}}
+
+Possible outputs:
+
+* <code>none</code>
+* <code>original</code> - meaning Hardened Malloc (<code>Default</code>)
+* <code>light</code>
+
+= Credits and Source Code =
+
+The [https://github.com/GrapheneOS/hardened_malloc Hardened Malloc upstream source code] is maintained by security researcher, Daniel Micay.
+
+[[Hardened_Malloc|This website]] is the [https://en.wikipedia.org/wiki/Fork_(software_development) software fork] homepage for Hardened Malloc, with a focus on easy installation, added user documentation, and integration with [[Main_Page|{{project name long}}]], [https://www.whonix.org {{Whonix}}], Debian, and other distributions. The {{project_name_long}} software fork source code can be found [https://github.com/Kicksecure/hardened_malloc here].
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

@@ -1,0 +1,264 @@
+{{Header}}
+{{#seo:
+|description=Documentation for package security-misc.
+|image=Securitymisc.jpg
+}}
+{{title|title=
+security-misc: Enhance Miscellaneous Security Settings
+}}
+[[image:Securitymisc.jpg|thumb]]
+
+= Stable Features =
+[https://github.com/{{project_name_short}}/security-misc#enhances-miscellaneous-security-settings Described here].
+
+= system map =
+TODO: document
+
+* https://forums.whonix.org/t/kernel-hardening/7296/84
+* https://forums.whonix.org/t/remove-system-map-cannot-work-lib-modules-is-mounted-read-only/13324
+
+= Testing Features =
+{{Anchor|Restrict Hardware Information to Root}}
+== Reduce Kernel Information Leaks ==
+By default, on most if not all (Linux based) operating systems, the Linux kernel makes lots of information available to running programs (and therefore by extension also to [[Malware]]). There's an optional feature to reduce such kernel information leaks.
+
+{{Testers-only}}
+
+{{box|text=
+* <u>Security Impact</u>: There are many of hardware, kernel, debug information, etc. in <code>/sys</code> and <code>/proc</code>, which is especially problematic and has been the cause of many infoleaks such as kernel pointer leaks.
+* <u>Security / Privacy Impact</u>: Details about your hardware can aid attacks and can be used for identification.
+* <u>Threat</u>: This information is per Debian (and probably most popular Linux distributions) available to attackers with local code execution privileges which includes,
+** malicious applications collecting such information and submitting it to data collectors,
+** as well as both, compromised non-privileged users and the privileged root user.
+* <u>Non-Threat</u>: This information does not randomly leak to third parties on clean (non-compromised) machines through use of legitimate applications such as the APT package manager. Legitimate applications do not request the information from the kernel, let alone leak them to third-parties over the internet.
+* <u>Goal</u>: This information should by default be unavailable to non-privileged users and [[Dev/boot_modes|untrusted root]].
+* <u>Solution</u>: Therefore security-misc includes the <code>hide-hardware-info.service</code> systemd unit.
+** Restricts access to <code>/sys</code>, <code>/proc/cpuinfo</code>, <code>/proc/bus</code>, and <code>/proc/scsi</code> to the root user only.
+** This also hides most hardware identifiers.
+* <u>Status</u>: This setting is disabled by default because it might break many applications. Testers-only! Call for testers and forum discussion: [https://forums.whonix.org/t/restrict-hardware-information-to-root-testers-wanted/8618 Restrict Hardware Information to Root - Testers Wanted!]
+* <u>Enable</u>: It can optionally be enabled by running the following command.
+** {{CodeSelect|code=
+sudo systemctl enable hide-hardware-info.service
+}}
+** Reboot required.
+** A whitelist that allows specific applications to access <code>/sys</code> and <code>/proc/cpuinfo</code> is enabled by default to maintain basic functionality. <ref>
+https://github.com/Kicksecure/security-misc/blob/master/lib/systemd/system/user%40.service.d/sysfs.conf
+</ref> For example, this allows the launching of applications like XFCE.
+* <u>Limitations of Solution</u>:
+** <u>root compromise:</u> Attackers which gained root compromise and/or malicious/compromised whitelisted applications have access to this information.
+** <u>CPUID:</u> Cannot hide [[CPUID]].
+* <u>Testing:</u> See [[#Testing]]
+* <u>Possible Future Enhancements</u>: [[Dev/boot_modes|untrusted root]]
+}}
+
+=== Whitelisting Applications ===
+
+To whitelist applications, they must be run under the <code>sysfs</code> group (if allowing access to <code>/sys</code>) and/or the <code>cpuinfo</code> group (if allowing access to <code>/proc/cpuinfo</code>).
+
+Remember that any whitelisted applications add to the attack surface. An attacker can attempt to exploit a vulnerability in the whitelisted application(s) to gain access to hardware information.
+
+==== addgroup method ====
+'''1.''' For example, to add user <code>user</code> to group <code>cpuinfo</code>, run the following command. (Note, this is weakening protections.)
+
+{{CodeSelect|code=
+sudo addgroup user cpuinfo
+}}
+
+'''2.''' For example, to add user <code>user</code> to group <code>sysfs</code>, run the following command. (Note, this is weakening protections.)
+
+{{CodeSelect|code=
+sudo addgroup user sysfs
+}}
+
+'''3.''' Re-login required after changing groups.
+
+Easiest: reboot. <ref>
+No reboot required: Use the execute command as different group ID command line utility <code>sg</code> to execute the <code>cpu-info</code> (from Debian package <code>cpuinfo</code>) application under group <code>cpuinfo</code>.
+
+{{CodeSelect|code=
+sg cpuinfo cpu-info
+}}
+</ref> <ref>
+Also no reboot required:
+
+{{CodeSelect|code=
+sudo -u user bash
+}}
+
+{{CodeSelect|code=
+cpu-info
+}}
+
+Or.
+
+{{CodeSelect|code=
+sudo -u user cpu-info
+}}
+</ref>
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+'''4.''' Done.
+
+For example, after reboot it would be possible to run the <code>cpu-info</code> utility (from Debian package <code>cpuinfo</code>).
+
+{{CodeSelect|code=
+cpu-info
+}}
+
+==== systemd ====
+For example, to run a systemd service as the <code>sysfs</code> group, create a [[Configuration_Files#Configuration_Drop-In_Folders|drop-in directory]] and add the following.
+
+{{CodeSelect|code=
+[Service]
+SupplementaryGroups=sysfs
+}}
+
+==== setgid method ====
+To run a specific binary as the <code>sysfs</code> group, the binary must be owned by the <code>sysfs</code> group and be made setgid. To achieve this,
+
+'''1.''' change the ownership of the binary by running the following.
+
+{{CodeSelect|code=
+sudo chgrp sysfs /path/to/binary
+}}
+
+'''2.''' Then make the binary setgid.
+
+{{CodeSelect|code=
+sudo chmod g+s /path/to/binary
+}}
+
+'''3.''' Done.
+
+The binary will now run with the permissions of the <code>sysfs</code> group and have access to <code>/sys</code>.
+
+All of these steps can also be applied to the <code>cpuinfo</code> group.
+
+=== Disable the Whitelist ===
+
+In order to reduce the attack surface as much as possible, optionally the whitelist can be disabled entirely.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=warning]]
+| text    =
+'''Warning:'''
+
+Note that this setting will break many applications; for example, the desktop environment will not even start. Do not perform this action unless you understand the implications and can reverse the change.
+}}
+
+'''1.''' {{Open with root rights|filename=
+/etc/hide-hardware-info.d/50_user.conf
+}}
+
+'''2.''' Add.
+
+{{CodeSelect|code=
+sysfs_whitelist=0
+cpuinfo_whitelist=0
+}}
+
+'''3.''' Save.
+
+'''4.''' Done.
+
+=== Testing ===
+Optional: Users who wish to verify the functionality can perform the instructions in the following box.
+
+{{box|text=
+'''1.''' Install <code>pciutils</code>.
+
+{{Install Package|package=
+pciutils
+}}
+
+'''2.''' Run <code>lspci</code>.
+
+{{CodeSelect|code=
+lspci
+}}
+
+Expected printout:
+
+<pre>
+pcilib: Cannot open /proc/bus/pci
+lspci: Cannot find any working access method.</pre>
+
+'''3.''' Attempt to view contents of virtual file <code>/proc/cpuinfo</code>:
+
+{{CodeSelect|code=
+cat /proc/cpuinfo
+}}
+
+Expected printout:
+
+<pre>
+cat: /proc/cpuinfo: Permission denied
+</pre>
+
+Note: [[CPUID|CPUID is still not hidden]].
+}}
+
+== SUID Disabler and Permission Hardener ==
+See [[SUID Disabler and Permission Hardener]].
+
+== hidepid ==
+TODO: document
+
+sudo systemctl enable proc-hidepid.service
+
+= Experimental Features =
+Unreleased. (Developers only.) Will flow into other repositories as per usual.
+
+{{anchor|suid}}
+== Remount Secure ==
+Feature not ready!
+
+* https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707/27
+* https://github.com/{{project_name_short}}/security-misc/blob/master/lib/systemd/system/remount-secure.service
+* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/remount-secure
+* [[Dev/remount-secure]]
+
+{{CodeSelect|code=
+sudo touch /etc/noexec
+}}
+
+{{Anchor|install}}
+
+= Installation of security-misc =
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=Whonix / {{kicksecure}} default admin password is: changeme]]
+| text    =
+This chapter is only required for users which aren't users of {{project_name_long}} or its derivatives (such as {{Whonix}}). That is because security-misc is installed by default in {{project_name_long}} and {{project_name_long}} derivatives.
+}}
+
+Prerequisites:
+
+{{Prerequisites}}
+
+{{Box|text=
+{{Project-APT-Repository-Add Easy}}
+}}
+
+{{Box|text=
+Install <code>security-misc</code>.
+
+{{Install Package|package=
+security-misc
+}}
+}}
+
+= selinux =
+{{Community_Support}}
+
+* https://github.com/{{project_name_short}}/security-misc/pull/100
+* https://forums.whonix.org/t/restrict-hardware-information-to-root/7329/88
+
+= References =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

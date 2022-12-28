@@ -1,0 +1,187 @@
+{{Header}}
+{{#seo:
+|description=Deciding on a Virtualization Platform and Configuration, VirtualBox Hardening
+|image=Virtualizationsec2342342.jpg
+}}
+[[image:Virtualizationsec2342342.jpg|thumb]]
+= Host Insecurity leads VM Compromise =
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = If the host {{os}} or host computer is ever compromised, then any VMs it hosts are also effectively compromised.
+
+The host is from a technical viewpoint a "lower level". A VM is a "higher level". In computer security, the lower levels can always beat the higher levels. That is why host security is crucially important. See also [[Basic Host Security|Essential Host Security]].
+}}
+
+= Type 1 vs Type 2 Hypervisors =
+
+{{mbox
+| type      = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = Do not install Qubes inside a virtual machine - Qubes uses its own bare-metal hypervisor (Xen). <ref>https://www.qubes-os.org/doc/system-requirements/</ref>
+}}
+
+Terminology: {{os}}
+
+According to qubes-os.org: <ref name=hypervisors>https://www.qubes-os.org/intro/</ref>
+
+<blockquote>Not all virtual machine software is equal when it comes to security. You may have used or heard of VMs in relation to software like VirtualBox or VMware Workstation. These are known as “Type 2” or “hosted” hypervisors. (The hypervisor is the software, firmware, or hardware that creates and runs virtual machines.) These programs are popular because they’re designed primarily to be easy to use and run under popular OSes like Windows (which is called the host OS, since it “hosts” the VMs). However, the fact that Type 2 hypervisors run under the host OS means that they’re really only as secure as the host OS itself. If the host OS is ever compromised, then any VMs it hosts are also effectively compromised.
+
+By contrast, Qubes uses a “Type 1” or “bare metal” hypervisor called Xen. Instead of running inside an OS, Type 1 hypervisors run directly on the “bare metal” of the hardware. This means that an attacker must be capable of subverting the hypervisor itself in order to compromise the entire system, which is vastly more difficult.</blockquote>
+
+The take-home message is that [[Qubes|{{q_project_name}}]] is more secure than the default {{project_name_long}} configuration using a Type 2 hypervisor like VirtualBox. Therefore, it is recommended to install {{q_project_name}} if users have suitably [https://www.qubes-os.org/doc/system-requirements/ modern hardware].
+
+= VM Snapshots =
+
+Apart from offering protection against hardware serial leaks, VMs have another major advantage: the ability to quickly discard and restore a system. Platform specific:
+
+* [[Qubes|{{q_project_name}}]]: This process is easy in {{q_project_name}}, since every template-based AppVM used for activities is based on a Template which is only used for software installation and updates, and nothing else. AppVMs are easily discarded and recreated in a clean state whenever the user requires it. <ref>
+https://www.qubes-os.org/doc/templates/
+</ref>
+* [[{{non_q_project_name_short}}|{{non_q_project_name_short}}]]: In {{non_q_project_name_short}} for other virtualizers, greater precaution is required. See below.
+
+== Best Practice ==
+
+It is <u>strongly recommended</u> to keep a master copy of the {{project_name_workstation_long}} VM which is:
+
+* Kept updated.
+* Does not have any additional software installed.
+* Does not have any default settings changed.
+* Is not used directly for any activities.
+
+The correct method for the safest operation of {{non_q_project_name_short}} is as follows:
+
+# Import the VM into the virtualizer.
+# Start the VM.
+# [[Operating_System_Software_and_Updates#Updates|Securely update]] the VM.
+# After the updates have finished, shut the VM down. <u>Do not</u> browse anywhere or open any unauthenticated communication channels to the internet.
+# Create snapshots the VM in their clean state.
+# Only use the snapshots for browsing or initiating any external connections.
+
+Note: The only exception made is running <code>apt</code>, since it has a guaranteed way to securely download and verify packages.
+
+If this advice is disregarded and a master, clean copy of {{project_name_workstation_long}} is unavailable for cloning/snapshot purposes, possible workarounds include: <ref>
+https://forums.whonix.org/t/help-with-setting-up-multiple-workstations/12235
+</ref>
+
+# Renaming the existing {{project_name_workstation_long}} and re-importing a new one.
+# Renaming the new VM during the import wizard.
+
+== Tools ==
+
+<div class="toccolours mw-collapsible mw-collapsed">
+<u>For important [[VirtualBox]] information</u>, please press on Expand on the right.
+<div class="mw-collapsible-content">
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = '''Warning''': VirtualBox's VM Snapshot feature is recommended against because [https://forums.whonix.org/t/whonix-apparmor-profiles-development-discussion/108/136 data loss] has been experienced using it. Instead, use clones or other reliable methods outlined below.
+}}
+
+{{Anchor|Reliable Alternative To Virtualbox VM Snapshots}}
+
+Although VirtualBox's snapshot feature is useful when making interim snapshots of live running systems, it is not recommended as a reliable method for backing up VMs. Data loss is possible, primarily in the form of corrupted virtual hard drives (VHDs). Following VHD corruption, reverting can be very painful or even impossible. Alternative methods are copy / paste, cloning, and exporting / importing. These methods reliably provide VM backups, but disk resources are used inefficiently and manual versioning is required.
+
+=== SubVersioN (SVN) Backup Tool ===
+
+[https://en.wikipedia.org/wiki/Apache_Subversion SubVersioN] is considered the best alternative tool for backing up VM operating environments. It is similar to VirtualBox's snapshot feature, but is much more reliable and efficient. Prior to using it, familiarize yourself with the tool's [https://subversion.apache.org/docs/ documentation] and design. SVN [https://en.wikipedia.org/wiki/Comparison_of_Subversion_clients clients] are available for various platforms.
+
+SVN is a tool typically used by software developers to conduct: collaborative configuration management, version control, and backup / restore of file sets under development by many people over extended period of time. Basic functionality of versioning, backing up and restoring changes to sets of files is available. However, SVN is considered superior to CVS, GIT and other options for VM backups, because it does not have any file size limitations by design. Regardless of how big or small the files are, SVN handles them reliably and efficiently. See the following section: [https://svn.apache.org/repos/asf/subversion/trunk/doc/user/svn-best-practices.html "Be patient with large files"].
+
+When versioning file sets, SVN employs [https://en.wikipedia.org/wiki/Atomic_commit "atomic commits"]. By way of comparison, [https://en.wikipedia.org/wiki/Concurrent_Versions_System Concurrent Versions System (CVS)] does not employ [https://en.wikipedia.org/wiki/Atomic_commit atomic commits]. Manual backup procedures are inherently not [https://en.wikipedia.org/wiki/Atomic_commit atomic functions]. Additionally, SVN also handles [https://en.wikipedia.org/wiki/Sparse_file sparse (dynamic)] virtual hard disk files, an option VirtualBox offers when [https://www.virtualbox.org/manual/ch01.html#gui-createvm instantiating new virtual disk drives].
+
+Similar to VirtualBox's snapshot capability, SVN also takes into consideration differences in files -- both textual and binary -- from version to version. For instance, if a 50 GB virtual hard drive grows by an additional 60 GB over the course of a week, SVN's repository will not necessarily increase by an additional 60 GB when a new backup is performed. The outcome depends on how much of the original file changed since the previous backup. SVN will analyze differences between newer files against older files in its repository and only save the differences. Therefore, the repository may only grow as little as 10 GB+, making more efficient use of system resources.
+
+VirtualBox's snapshot feature provides [https://forums.virtualbox.org/viewtopic.php?f=3&p=123806 'branching'] capability. This means it is possible to revert to an earlier version of the VM and start a new branch / version of the VM from where you left off earlier. SVN also provides similar [https://svnbook.red-bean.com/en/1.7/svn.branchmerge.html branching] capability.
+
+{{mbox
+| type      = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = '''Tip:''' For backups and restores, configuration management tools like SVN require significant additional disk space over and above the size of the file.
+}}
+
+For instance, a 50 GB file typically requires approximately 150 GB of disk space to manage that instance of the VM. The reason is you require: 50 GB for the original source file, 50 GB in SVN's database [https://en.wikipedia.org/wiki/Apache_Subversion#Repository_types repository], and another 50 GB for SVN's [https://svnbook.red-bean.com/en/1.6/svn.tour.initial.html local workspace] working folder ('./.svn'). Although this overhead may seem inefficient, it is not when you consider SVN's functionality and reliability in comparison to manual backup methods outlined earlier.
+
+=== Complete Operating Environment Backups ===
+
+In addition to backing up the {{project_name_gateway_long}} and {{project_name_workstation_long}}(s) virtual hard drive files, it is also possible to back up the whole VirtualBox application and {{project_name_long}} environment for a completely restorable solution. Cloning is another possible option, but that requires more advanced technical skills.
+
+Usually the VirtualBox application that is installed has been provided by [https://www.virtualbox.org Virtualbox.org]. However, a [https://en.wikipedia.org/wiki/Portable_application portable application] version of VirtualBox is available via a tool provided by [https://www.vbox.me VBox.me]. This application converts VirtualBox's "install application" into a "portable application", thereby providing the option to port VMs to other computers via external USB hard drives and/or sticks. By instantiating VMs under portable VirtualBox's ''~/data/.VirtualBox/Machines'' folder, it is possible to backup and restore the complete operating environment of not only {{project_name_long}}, but also specific instances of VirtualBox and SVN for complete portability. This method captures the entire {{project_name_long}} operating environment under one parent folder, rather than distributing it across various user and system folders.
+
+'''Figure:''' ''Complete {{project_name_long}} OS Backup #1''
+
+[[File:2014-05-11 09_42_19.png]]
+
+'''Figure:''' ''Complete {{project_name_long}} OS Backup #2''
+
+[[File:2014-05-11 09_46_43.png]]
+
+'''Figure:''' ''Complete {{project_name_long}} OS Backup #3''
+
+[[File:2014-05-11 09_54_39.png]]
+</div>
+</div>
+
+= VirtualBox Hardening =
+
+For an overview on VM security risks in general, see: [https://security.stackexchange.com/questions/3056/how-secure-are-virtual-machines-really-false-sense-of-security How secure are Virtual Machines really?]
+
+The less features enabled, the smaller the [https://en.wikipedia.org/wiki/Attack_surface attack surface]. The following features can be removed or disabled without impacting core functionality:
+<div style="column-count:2;-moz-column-count:2;-webkit-column-count:2">
+* Remove the virtual audio controller to VMs from getting access to a [[Hardware_Threat_Minimization#Microphone|microphone (eavesdropping risk)]] or [[Hardware_Threat_Minimization#Speakers|speaker]] ([[Hardware_Threat_Minimization#Profiling_Threat|profiling threat]]).
+* Do not enable Shared Folders.
+* Do not enable video acceleration.
+* Do not enable 3D acceleration. <ref>
+Quote https://www.virtualbox.org/manual/ch04.html#guestadd-3d
+<blockquote>
+Untrusted guest systems should not be allowed to use VirtualBox's 3D acceleration features, just as untrusted host software should not be allowed to use 3D acceleration. Drivers for 3D hardware are generally too complex to be made properly secure and any software which is allowed to access them may be able to compromise the operating system running them. In addition, enabling 3D acceleration gives the guest direct access to a large body of additional program code in the VirtualBox host process which it might conceivably be able to use to crash the virtual machine.
+</blockquote>
+</ref> <ref>
+Quote https://hsmr.cc/palinopsia/
+<blockquote>
+If the "3D-Acceleration" feature of VirtualBox is activated, running the proof-of-concept code from inside the VM provides the ability to read framebuffers from the host system.
+</blockquote>
+</ref>
+* Do not enable the Serial Port.
+* Remove the Floppy drive.
+* Remove the CD/DVD drive.
+* Do not enable the Remote Display server.
+* Enable PAE/NX (NX is a security feature).
+* Do not attach USB devices.
+* Disable the USB controller which is enabled by default. Set the Pointing Device to "PS/2 Mouse" or changes will revert.
+</div>
+It is unclear whether disabling/enabling ACPI, I/O APIC, EFI will provide additional protection; further investigation is required. <ref>
+Advanced Configuration and Power Interface (ACPI)
+
+[https://github.com/{{project_name_short}}/derivative-maker/blob/master/build-steps.d/2600_create-vbox-vm For a comment, search here for <code>ACPI</code>.]
+
+ACPI information is passed to the guest OS by default, which allows it to obtain battery status and manufacturer information.
+syntax:
+
+<pre>
+VBoxManage modifyvm "vm-name" --acpi off
+</pre>
+
+Examples:
+
+{{CodeSelect|code=
+VBoxManage modifyvm "{{project_name_short}}-XFCE" --acpi off
+}}
+</ref> <ref>
+When attempting to disable I/O APIC, quote VirtualBox settings graphical user interface:
+
+<blockquote>
+The I/O APIC feature is not currently enabled in the Motherboard section of the System page. This is needed to support more than one virtual processor. It will be enabled automatically if you confirm your changes.
+</blockquote>
+
+Since 1 virtual process is probably too slow nowadays this might be a bit theoretic.
+</ref>
+
+= See Also =
+{{physical-mininav}}
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

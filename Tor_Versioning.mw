@@ -1,0 +1,248 @@
+{{Header}}
+{{#seo:
+|description=How-to: Install Newer Versions of Tor
+|image=https://www.{{project_clearnet}}/w/images/7/73/Torversioning243231.png
+}}
+{{title|title=
+Installing Newer Tor Versions
+}}
+[[image:Torversioning243231.png|thumb]]
+= Introduction =
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = Testers only.
+}}
+
+Note that a later Tor version will not always be installed from The Tor Project APT repository -- in the recent past, the Debian <code>bullseye</code> repositories for <code>packages.debian.org</code> and <code>deb.torproject.org</code> had identical Tor versions. In general, as the Debian stable release ages, the likelihood of receiving a newer Tor version from <code>deb.torproject.org</code> increases.
+
+{{Anchor|Newer Tor Versions: {{project_name_long}} Repository}}
+
+{{Anchor|Newer Tor Versions: The Tor Project Repository}}
+
+= The Tor Project APT Repository =
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = If the latest Tor version from ''deb.torproject.org'' has not been fully tested by {{project_name_long}} developers at a specific point in time, then problems can emerge such as broken connectivity. <ref> At the time of writing Tor v4.2.5 is non-functional in {{project_name_long}}.</ref> Testers should <u>always</u> maintain a separate, working version of {{project_name_long}} so future connectivity problems can be averted.
+}}
+
+If you wish to proceed despite the risk, two steps are required:
+* The <code>deb.torproject.org</code> repository must be enabled.
+* The [https://github.com/{{project_name_short}}/anon-shared-build-apt-sources-tpo <code>anon-shared-build-apt-sources-tpo</code>] package must be installed, since it enables The Tor Project's APT signing key and installs the apt source ''torproject.list'' <ref>Alternatively, [https://support.torproject.org/apt/#tor-deb-repo The Tor Project's native instructions for Debian] can be used, but the manual steps are more difficult and involved. The verification of The Tor Project APT signing key is also harder. Since you already [[trust]] {{project_name_long}}, the logical choice is to trust another {{project_name_long}} package to install the right signing key.</ref>
+{{Box|text=
+'''1.''' In {{project_name_gateway_long}} (<code>{{project_name_gateway_template}}</code>), [[Operating_System_Software_and_Updates#Updates|update]] the package lists.
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+'''2.''' Install <code>anon-shared-build-apt-sources-tpo</code>.
+
+{{CodeSelect|code=
+sudo apt install anon-shared-build-apt-sources-tpo
+}}
+
+'''3.''' ''<u>Optional</u>'': select an alternative Tor Project distribution for the Tor package.
+
+{{Open with root rights|
+filename=/etc/apt/sources.list.d/torproject.list
+}}
+
+Comment out <code>deb tor+https://deb.torproject.org/torproject.org {{Stable project version based on Debian codename}} main</code> by adding a hash (<code>#</code>) in front of it. Comment in a different [https://deb.torproject.org/torproject.org/dists/ distribution] by removing the hash in front of it or by adding a newer <code>deb</code> URI line.
+
+Save the file.
+
+'''4.''' Refresh the package lists. <ref>So the newly installed <i>/etc/apt/sources.list.d/torproject.list</i> takes effect.</ref>
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+'''5.''' Install the (potentially) newer version of the <code>tor</code> package.
+
+This step also installs the <code>deb.torproject.org-keyring</code> package which keeps the Tor Project repository apt key up-to-date.
+
+{{CodeSelect|code=
+sudo apt install tor deb.torproject.org-keyring
+}}
+}}
+
+{{Anchor|Onionize Tor Project Updates}}
+
+= Onionize Tor Project APT Repository =
+
+Only follow these instructions if [[#Newer Tor Versions: The Tor Project Repository|Newer Tor versions from The Tor Project Repository]] was configured. Note that The Tor Project deb apt signing key must be added first (see the prior link), or error messages will appear when completing these steps.
+
+Run the following commands in {{project_name_long}}.
+
+{{Box|text=
+'''1.''' Create a ''torproject.list'' file using an editor.
+
+{{Open with root rights|filename=
+/etc/apt/sources.list.d/torproject.list
+}}
+
+'''2.''' Cut and paste the following text and comment out (#) the corresponding http repository.
+
+{{CodeSelect|code=
+#deb     [signed-by=/usr/share/keyrings/deb.torproject.org-keyring.gpg] https://deb.torproject.org/torproject.org bullseye main
+deb     [signed-by=/usr/share/keyrings/deb.torproject.org-keyring.gpg] tor+http://apow7mjfryruh65chtdydfmqfpj5btws7nbocgtaovhvezgccyjazpqd.onion/torproject.org bullseye main
+}}
+
+Save and exit.
+}}
+
+{{Anchor|Qubes R4}}
+
+= Install Tor from Source Code =
+Advanced users only!
+
+All steps should be performed inside {{project_name_gateway_short}} (<code>{{project_name_gateway_vm}}</code>).
+{{Box|text=
+'''1.''' Add the Debian <code>{{Stable project version based on Debian codename}}</code> <u>source</u> repository.
+
+{{CodeSelect|code=
+echo "deb-src tor+https://deb.debian.org/debian {{Stable project version based on Debian codename}} main" {{!}} sudo tee /etc/apt/sources.list.d/debian-source.list
+}}
+
+'''2.''' [[Update]] the package lists.
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+'''3.''' Install build dependencies for Tor.
+
+{{CodeSelect|code=
+sudo apt build-dep tor
+}}
+
+'''4.''' Fetch the signing key. <ref>
+* https://2019.www.torproject.org/docs/signing-keys.html.en
+* https://support.torproject.org/tbb/how-to-verify-signature/
+* [https://gitlab.torproject.org/tpo/web/support/-/issues/152 stop using gpg keyservers / provide OpenPGP keys for download as files from torproject.org]
+* https://gitlab.torproject.org/tpo/web/support/-/issues/139
+</ref>
+
+{{Gpg_key_download}}
+
+{{CodeSelect|code=
+gpg --keyserver keys.openpgp.org --recv-keys 7A02B3521DC75C542BA015456AFEE6D49E92B601
+}}
+
+If the attempt fails, utilize the v3 onion service instead.
+
+{{CodeSelect|code=
+gpg --keyserver zkaan2xfbuxia2wpf7ofnkbz6r5zdbbvxbunvp5g2iebopbfc4iqmbad.onion --recv-keys 7A02B3521DC75C542BA015456AFEE6D49E92B601
+}}
+
+'''5.''' Download the Tor source code archive.
+
+<u>Note</u>: Replace Tor version <code>{{Tor_upstream_version}}</code> with the actual Tor version to be downloaded.
+
+{{CodeSelect|code=
+scurl-download https://dist.torproject.org/tor-{{Tor_upstream_version}}.tar.gz
+}}
+
+'''6.''' Download and verify the Tor source code OpenPGP signature.
+
+{{CodeSelect|code=
+scurl-download https://dist.torproject.org/tor-{{Tor_upstream_version}}.tar.gz.asc
+}}
+
+{{CodeSelect|code=
+gpg --verify tor-{{Tor_upstream_version}}.tar.gz.asc
+}}
+
+The output should look similar to the following.
+
+<blockquote>gpg: assuming signed data in 'tor-{{Tor_upstream_version}}.tar.gz'
+gpg: Signature made Mon 09 Dec 2019 06:21:51 PM UTC
+gpg:                using RSA key 7A02B3521DC75C542BA015456AFEE6D49E92B601
+gpg: Good signature from "Nick Mathewson <nickm@alum.mit.edu>" [unknown]
+gpg:                 aka "Nick Mathewson <nickm@wangafu.net>" [unknown]
+gpg:                 aka "Nick Mathewson <nickm@freehaven.net>" [unknown]
+gpg:                 aka "Nick Mathewson <nickm@torproject.org>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 2133 BC60 0AB1 33E1 D826  D173 FE43 009C 4607 B1FB
+     Subkey fingerprint: 7A02 B352 1DC7 5C54 2BA0  1545 6AFE E6D4 9E92 B601</blockquote>
+
+'''7.''' Extract the Tor source code archive.
+
+{{CodeSelect|code=
+tar xvzf tor-{{Tor_upstream_version}}.tar.gz
+}}
+
+'''8.''' Navigate to the Tor source code folder.
+
+{{CodeSelect|code=
+cd tor-{{Tor_upstream_version}}/
+}}
+
+'''9.''' Run configure and build the binary package.
+
+{{CodeSelect|code=
+./configure
+}}
+
+{{CodeSelect|code=
+make
+}}
+
+The build should now be finished.
+
+'''10.''' Check the version of the built binary.
+
+{{CodeSelect|code=
+./src/app/tor --version
+}}
+
+The output should show.
+
+<blockquote>Tor version {{Tor_upstream_version}}.</blockquote>
+
+'''11.''' ''{{q_project_name}} only'': copy the newly built binary to {{project_name_gateway_long}} Template (<code>whonix-gw-{{VersionShort}}</code>).
+
+{{CodeSelect|code=
+qvm-copy ./src/app/tor
+}}
+
+'''12.''' Stop Tor.
+
+{{CodeSelect|code=
+sudo systemctl stop tor
+}}
+
+'''13.''' Copy the newly build Tor binary to the system.
+
+{{CodeSelect|code=
+sudo cp ./src/app/tor /usr/sbin/tor
+}}
+
+Copy the binary again. <ref>
+<code>apt-file list tor</code> shows both locations <code>/usr/bin/tor</code> and <code>/usr/sbin/tor</code>.
+</ref>
+
+{{CodeSelect|code=
+sudo cp ./src/app/tor /usr/bin/tor
+}}
+
+'''14.''' Restart Tor.
+
+{{CodeSelect|code=
+sudo systemctl start tor
+}}
+
+The process of installing Tor from source code is now complete.
+}}
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

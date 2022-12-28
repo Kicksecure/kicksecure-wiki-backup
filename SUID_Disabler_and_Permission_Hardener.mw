@@ -1,0 +1,605 @@
+{{Header}}
+{{#seo:
+|description=Attack surface reduction via disabling of SUID-enabled binaries.
+|image=Suidhardener.jpg
+}}
+[[image:Suidhardener.jpg|350px|thumb]]
+{{title|title=
+SUID Disabler and Permission Hardener
+}}
+= Introduction =
+SUID Disabler and Permission Hardener aims to increase the security of the system by improving [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]], setting more restrictive file permissions and reducing attack surface through disabling of SUID-enabled binaries. <ref>
+[https://web.archive.org/web/20180212122001/https://pen-testing.sans.org/resources/papers/gcih/discovering-local-suid-exploit-105447 Discovering a Local SUID Exploit]
+</ref> This feature is part of [[security-misc]].
+
+== SUID vs. SGID ==
+SUID (Set owner User ID up on execution) is: <ref>https://web.archive.org/web/20211101172007/https://www.linuxnix.com/suid-set-suid-linuxunix/</ref>
+<blockquote>... a special type of file permissions given to a file. Normally in Linux/Unix when a program runs, it inherit’s access permissions from the logged in user. SUID is defined as giving temporary permissions to a user to run a program/file with the permissions of the file owner rather that the user who runs it. In simple words users will get file owner’s permissions as well as owner UID and GID when executing a file/program/command.</blockquote>
+
+In simple terms, SUID (or setuid) allows a user to execute a binary with the privileges of the binary's owner. This is often used to allow unprivileged users to utilize certain functionality that is normally only reserved for the root user. As such, many SUID binaries have a history of privilege escalation security vulnerabilities.
+
+Quote [https://web.archive.org/web/20190221212225/https://www.thern.org/projects/linux-lecture/intro-to-linux/node10.html Removing SUID and SGID flags off binaries]:
+
+<blockquote>SUID and SGID binaries pose a risk of exploitation due to them running as user 'root' or as group 'root' (or some other group or user).</blockquote>
+
+A related Linux functionality is SGID (Set Group ID up on execution). This is: <ref>https://web.archive.org/web/20170522054219/https://www.linuxnix.com/sgid-set-sgid-linuxunix/</ref>
+<blockquote>... a special type of file permissions given to a file/folder. Normally in Linux/Unix when a program runs, it inherit’s access permissions from the logged in user. SGID is defined as giving temporary permissions to a user to run a program/file with the permissions of the file group permissions to become member of that group to execute the file. In simple words users will get file Group’s permissions when executing a Folder/file/program/command.
+
+SGID is similar to SUID. The difference between both is that SUID assumes owner of the file permissions and SGID assumes group’s permissions when executing a file instead of logged in user inherit permissions.</blockquote>
+
+This page sometimes only refers to SUID while it means both, <u>SUID and SGID</u>. Even the name of the program -- SUID Disabler and Permission Hardener -- leaves out SGID, even though SGID disabling is included.
+
+== Disabled Binaries and Libraries ==
+
+SUID Disabler and Permission Hardener configuration folders are <code>/etc/permission-hardening.d</code> and <code>/usr/local/etc/permission-hardening.d</code>. ([https://github.com/{{project_name_short}}/security-misc/tree/master/etc/permission-hardening.d SUID Disabler and Permission Hardener default configuration folder])
+
+SUID Disabler and Permission Hardener searches the following folders for SUID/SGID binaries/libraries and disables all except those which are whitelisted in the configuration file. The following list of folders were copied from the default configuration file at the time of writing.
+
+<pre>
+## Remove all SUID/SGID binaries/libraries.
+
+/bin/ nosuid
+/usr/bin/ nosuid
+/usr/local/bin/ nosuid
+/sbin/ nosuid
+/usr/sbin/ nosuid
+/usr/local/sbin/ nosuid
+/lib/ nosuid
+/lib32/ nosuid
+/lib64/ nosuid
+/usr/lib/ nosuid
+/usr/lib32/ nosuid
+/usr/lib64/ nosuid
+/usr/local/lib/ nosuid
+/usr/local/lib32/ nosuid
+/usr/local/lib64/ nosuid
+</pre>
+
+It does not search the whole hard drive because:
+
+* No known Debian packages or other software following the file hierarchy standard installs SUID/SGID binaries/libraries into other disk locations. Since installation of new malicious root owned SUID/SGID binaries/libraries would require root, this is outside of the threat model. An attacker capable of creating malicious root owned SUID/SGID binaries/libraries in non-standard disk locations already owns the system. The purpose of SUID Disabler is to avoid malicious/compromised non-root accounts from escalating to root using SUID, not to control what an attacker with root can do. For that, see [https://forums.whonix.org/t/untrusted-root-improve-security-by-restricting-root/7998 Untrusted Root - improve Security by Restricting Root], [[apparmor-profile-everything]] and [[Dev/boot_modes|Multiple Boot Modes for Better Security - a Design for the Implementation of Untrusted Root]].
+* It does not search <code>/mnt</code> or <code>/media</code> because another Linux installation could be mounted in that folder which should not be broken by SUID Disabler. <ref>
+https://forums.whonix.org/t/suid-disabler-and-permission-hardener/7706/70
+</ref>
+* It does not search folders <code>/root</code> because no SUID binaries should be there by default. That folder is by default readable only by <code>root</code>. If <code>root</code> was to create a custom SUID and move it there, then <code>root</code> should be able to execute it.
+* It searches folders <code>/opt</code> or <code>/usr/local/opt</code> by default (version <code>19.7-1</code> and above). These folders do not exist in a default installation. Rationale for that is that some manually installed software installs itself there. Some lesser important functionality might require SUID/SGID. The SUID/SGID bit might have been accidentally set by a developer. (Or part of legacy install scripts. Useful in past, then forgotten, now obsolete.) Removal of SUID/SGID might in many cases go unnoticed by the user. I.e. user might not notice any broken functionality. For example, cases where that software is run as root anyhow. <ref>
+https://forums.whonix.org/t/suid-disabler-and-permission-hardener/7706/68
+</ref>
+* This process is re-done every time SUID Disabler and Permission Hardener is started at system boot time. Searching the whole disk would slow down the boot process.
+* Another feature by [[security-misc]], [[Security-misc#Remount_Secure|Remount Secure]] will in future re-mount folders such as <code>/home</code> with mount options <code>noexec</code> and <code>noexec</code> at early boot time anyhow. This is a better solution. Therefore there is no need to duplicate that functionality in SUID Disabler.
+
+Some SUID/SGID binaries such as <code>sudo</code> whitelisted by default because otherwise a Linux desktop computer would be unusable. The choice of whitelisted SUID/SGID binaries is justified in [https://github.com/{{project_name_short}}/security-misc/tree/master/etc/permission-hardening.d SUID Disabler and Permission Hardener default configuration folder] and in its [https://forums.whonix.org/t/suid-disabler-and-permission-hardener/7706 development discussion].
+
+It would however in theory be desirable to have a system fully free of SUID/SGID binaries for general and kernel related attack surface reduction. <ref>
+https://forums.whonix.org/t/suid-disabler-and-permission-hardener/7706/65
+</ref> [https://github.com/QubesOS/qubes-issues/issues/2695 Quote] security researcher Solar Designer:
+
+<blockquote>Ideally, there should be no SUID binaries reachable from the user account, as otherwise significant extra attack surface inside the VM is exposed (dynamic linker, libc startup, portions of Linux kernel including ELF loader, etc.)</blockquote>
+
+Operating such as system might however be impractical and at odds with other security advice. One would have to operate without both, <code>sudo</code> and <code>su</code>, would have to ignore advice to not login as root as explained on the [[root|Safely Use Root Commands]] wiki page. Therefore such a configuration is still [[undocumented]]. To aid such experiments, research, developers and advanced users, SUID Disabler and Permission Hardener has an optional feature to [[#Disable All SUID Binaries|Disable All SUID Binaries]].
+
+Implementation:
+
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/permission-hardening <code>/usr/libexec/security-misc/permission-hardening</code>].
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/permission-hardening-undo <code>/usr/libexec/security-misc/permission-hardening-undo</code>].
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/lib/systemd/system/permission-hardening.service systemd unit file]
+
+= Enable SUID Disabler and Permission Hardener =
+{{Testers-only}}
+
+== Temporary Until Package Re-Installation ==
+As long as SUID Disabler and Permission Hardener is for testers-only, it is recommended to initially manually run from the command line. Optional. This is useful to better understand what SUID Disabler and Permission Hardener is actually doing.
+
+{{CodeSelect|code=
+sudo /usr/libexec/security-misc/permission-hardening
+}}
+
+(The printout will look similar to [[#SUID Disabler and Permission Hardener Printout|this]].)
+
+However, if any package that ships any SUID binary is re-installed, the SUID bit will be re-enabled. Therefore it is recommend to permanently enable SUID Disabler and Permission Hardener to ensure that re-installed packages will keep previously disabled SUID binaries permanently disabled.
+
+== Permanently ==
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = These commands are only required once.
+}}
+
+Enable systemd unit.
+
+{{CodeSelect|code=
+sudo systemctl enable permission-hardening.service
+}}
+
+Start systemd unit.
+
+{{CodeSelect|code=
+sudo systemctl start permission-hardening.service
+}}
+
+= SUID Disabler and Permission Hardener Operations =
+
+== Show dpkg-statoverride List ==
+SUID Disabler is based on the standard Debian tool <code>dpkg-statoverride</code> ([https://manpages.debian.org/dpkg-statoverride man page]). It is a tool to reliably override ownership and mode of files.
+
+SUID Disabler would be incomplete if it did not use <code>dpkg-statoverride</code>. This is because when a package is upgraded or re-installed, <code>dpkg</code> would reset the original file permissions. I.e. re-enable SUID. To prevent a race condition (malware abusing SUID before SUID can re-disable), <code>dpkg-statoverride</code> is being used.
+
+It might be helpful to view the list of overwritten dpkg file permissions.
+
+{{CodeSelect|code=
+dpkg-statoverride --list
+}}
+
+Note that even when not using SUID Disabler at all, Debian (and a few other packages) by default adds a few dpkg statoverwrites by themselves. Not all entries in the list of dpkg statoverwrites are the caused by SUID Disabler. Therefore SUID Disabler maintains its own lists of changes. It records permissions before it applies any changes as well as records the new permissions set by SUID Disabler. In case of any issues it might however be useful to check the list of file permission changes enforced by <code>dpkg-statoverride</code>.
+
+== View List of Debian Default File Permissions Before Changes ==
+File <code>/var/lib/permission-hardening/existing_mode/statoverride</code> records modes before changing them using SUID Disabler and Permission Hardener. To view, run the following command.
+
+{{CodeSelect|code=
+cat /var/lib/permission-hardening/existing_mode/statoverride
+}}
+
+== View List of Changed Mode Permissions ==
+File <code>/var/lib/permission-hardening/new_mode/statoverride</code> records modes that were changed by SUID Disabler and Permission Hardener. To view, run the following command.
+
+{{CodeSelect|code=
+cat /var/lib/permission-hardening/new_mode/statoverride
+}}
+
+Alternatively see [[#Show_dpkg-statoverride_List|dpkg-statoverride list]].
+
+== Compare Mode Changes ==
+To view previous modes and how these were changed (replace <code>meld</code> with your favorite <code>diff</code> viewer):
+
+{{CodeSelect|code=
+meld /var/lib/permission-hardening/existing_mode/statoverride /var/lib/permission-hardening/new_mode/statoverride
+}}
+
+== Re-enable Specific SUID Binaries ==
+Syntax:
+
+{{CodeSelect|code=
+sudo /usr/libexec/security-misc/permission-hardening-undo /full/path/to/file
+}}
+
+Example:
+
+{{CodeSelect|code=
+sudo /usr/libexec/security-misc/permission-hardening-undo /usr/sbin/exim4
+}}
+
+This is only effective only reboot. To make the change permanent the SUID binary needs to be whitelisted as per the next chapter.
+
+== Whitelist Specific SUID Binaries ==
+{{Box|text=
+'''1.''' Create settings folder.
+
+{{CodeSelect|code=
+sudo mkdir -p /etc/permission-hardening.d
+}}
+
+'''2.''' {{Open with root rights|filename=
+/etc/permission-hardening.d/20_user.conf
+}}
+
+'''3.''' Learn the syntax.
+
+Do <u>not</u> add this.
+
+{{CodeSelect|code=
+/full/path/to/file exactwhitelist
+}}
+
+'''4.''' Add.
+
+Example. Replace <code>/usr/sbin/exim4</code> with the actual path to the binary intended to be whitelisted.
+
+{{CodeSelect|code=
+/usr/sbin/exim4 exactwhitelist
+}}
+
+'''5.''' Save.
+
+'''6.''' Re-enable SUID binary.
+
+Steps in this chapter by itself are not sufficient. It is required to [[#Re-Enable Specific SUID Binaries|re-enable the specific SUID binary]] as per above chapter.
+
+'''7.''' Done.
+
+Steps to whitelist SUID binary are complete.
+}}
+
+== Whitelist Specific Capability Binaries ==
+{{Box|text=
+'''1.''' Follow the same instructions as in above chapter [[#Whitelist Specific SUID Binaries|Whitelist Specific SUID Binaries]] even though this is a capability binary and not a SUID binary.
+
+'''2.''' Learn the syntax.
+
+Do <u>not</u> run this command.
+
+{{CodeSelect|code=
+sudo setcap capability /full/path/to/binary
+}}
+
+'''3.''' Re-add previously removed capability.
+
+The following example adds capability <code>cap_net_raw+ep</code> to binary <code>/bin/ping</code>. Replace <code>cap_net_raw+ep</code> with the actual capability and binary <code>/bin/ping</code> with the actual binary intended to be re-added.
+
+{{CodeSelect|code=
+sudo setcap cap_net_raw+ep /bin/ping
+}}
+
+'''4.''' Verify capability was re-added.
+
+Syntax.
+
+{{CodeSelect|code=
+sudo getcap /full/path/to/binary
+}}
+
+Example.
+
+{{CodeSelect|code=
+sudo getcap /bin/ping
+}}
+
+Should show.
+
+<pre>
+/bin/ping = cap_net_raw+ep
+</pre>
+
+'''5.''' Done.
+}}
+
+== Disable All SUID Binaries ==
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=Whonix first time users warning]]
+| text    =
+'''Warning:'''
+
+Advanced users only! This breaks even <code>sudo</code>.
+}}
+
+{{CodeSelect|code=
+whitelists_disable_all=true
+}}
+
+== Disable SUID Disabler and Permission Hardener ==
+Undo all changes. The following command is is only efficient until upgrade of package security-misc or reboot. To disable permanently the subsequent <code>systemctl</code> commands are required as well.
+
+{{CodeSelect|code=
+sudo /usr/libexec/security-misc/permission-hardening-undo all
+}}
+
+Stop systemd unit.
+
+{{CodeSelect|code=
+sudo systemctl stop permission-hardening.service
+}}
+
+Mask systemd unit.
+
+{{CodeSelect|code=
+sudo systemctl mask permission-hardening.service
+}}
+
+= SUID SGID Hardening Issues =
+This is a list of SUID/SGID programs which have their <code>set-user-id</code> bit and/or <code>set-group-id</code> bit removed.
+
+To use the following programs you need to:
+
+* either use [[root]] rights, OR
+* restore SUID/SGID (undocumented)
+
+Standard GNU/Linux utilities:
+
+* These tools probably are used much nowadays on Linux desktop single user computers. If you need any of this, you are better off using root.
+* <code>passwd</code> [https://manpages.debian.org/passwd man] (change user password)
+* <code>chage</code> [https://manpages.debian.org/chage man] (change user password expiry information)
+* <code>expiry</code> [https://manpages.debian.org/expiry man] (check and enforce password expiration policy)
+* <code>chfn</code> [https://manpages.debian.org/chfn man] (change real user name and information)
+* <code>chsh</code> [https://manpages.debian.org/chsh man] (change login shell)
+* <code>gpasswd</code> [https://manpages.debian.org/gpasswd man] (administer <code>/etc/group</code> and <code>/etc/gshadow</code>)
+* <code>newgrp</code> [https://manpages.debian.org/newgrp man] (log in to a new group)
+
+applications related:
+
+* <code>/usr/lib/kde4/libexec/fileshareset</code>: thunar
+* <code>/usr/lib/openssh/ssh-keysign</code>
+* <code>ssh-agent</code>
+* <code>pppd</code> [https://manpages.debian.org/pppd man] (Point-to-Point Protocol Daemon) Dial up modem only?
+
+root rights related:
+
+* <code>su</code>: substitute user. See also [[Root#Substitute_User_.28su.29_Command|documentation about <code>su</code>]]
+* <code>pkexec</code> [https://forums.whonix.org/t/cannot-use-pkexec/8129 some issues unrelated to SUID]
+* <code>/usr/lib/kde4/libexec/kdesud</code>
+
+mount related:
+
+* <code>mount</code>
+* <code>umount</code>
+* <code>mount.nfs</code>
+* <code>mount.cifs</code>
+* <code>ntfs-3g</code>
+* <code>/usr/lib/eject/dmcrypt-get-device</code>
+
+virtualization related:
+
+* <code>/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic</code> (Manage nics in another network namespace) Does [[Anbox]] need this?
+
+namespace related:
+
+* <code>newgidmap</code> [https://manpages.debian.org/newgidmap man] (set the gid mapping of a user namespace)
+* <code>newuidmap</code> [https://manpages.debian.org/newuidmap man] (set the uid mapping of a user namespace)
+
+crontab related:
+
+* You are better off editing any non-root user's crontab with root rights.
+* <code>crontab</code> [https://manpages.debian.org/crontab man] (Manage users crontab files)
+* <code>at</code> [https://manpages.debian.org/at man] (executes commands at a specified time)
+
+local mail, mailspool, printing related:
+
+* Related to local mail, mailspool. Webmail and e-mail clients should be fine. These tools probably are used much nowadays on Linux desktop single user computers.
+* <code>dotlockfile</code> [https://manpages.debian.org/dotlockfile man] (Utility to manage lockfiles)
+* <code>dotlock.mailutils</code> [https://manpages.debian.org/dotlock.mailutils man] (lock mail spool files) Also related to printing?
+* <code>exim4</code> [https://manpages.debian.org/exim4 man] (Mail Transfer Agent)
+* <code>/usr/lib/evolution/camel-lock-helper-1.2</code> See [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=336755 this].
+
+system local messaging:
+
+* Even more obscure than above. Linux multi user systems could send each other local messages.
+* <code>wall</code> [https://manpages.debian.org/wall man] (write a message to all users)
+* <code>write</code> / <code>bsd-write</code> [https://manpages.debian.org/bsd-write man] (send a message to another user)
+
+<code>Network Information Server</code> (<code>NIS</code>):
+
+* <code>unix_chkpwd</code> [https://manpages.debian.org/unix_chkpwd man] (Helper binary that verifies the password of the current user) Related to <code>Network Information Server</code> (<code>NIS</code>)? See [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=155583 this discussion]. Does not look important.
+
+== passwd ==
+Running <code>su</code> results in (simplified) <code>/usr/libexec/security-misc/pam-abort-on-locked-password</code> running <code>passwd -S "$PAM_USER"</code>. This fails since SUID Disabler and Permission Hardener processes <code>passwd</code> by default as mentioned above.
+
+TODO: expand
+
+Related: [[root]]
+
+= SUID SGID Troubleshooting =
+Syntax:
+
+{{CodeSelect|code=
+stat -c "%n %a %U %G" /path/to/filename
+}}
+
+Example:
+
+{{CodeSelect|code=
+stat -c "%n %a %U %G" /usr/bin/sudo
+}}
+
+Expected output.
+
+<pre>
+/usr/bin/sudo 4755 root root
+</pre>
+
+= SUID Disabler and Permission Hardener Design =
+
+* Some binaries like <code>su</code> when SUID removed will pretend to work but then always give a permission denied error. Therefore, SUID Disabler and Permission Hardener will remove SUID (<code>s</code>) / SGID (<code>g</code>) and execute permission <code>x</code> for 'group' (<code>g</code>) and 'others' (<code>o</code>). Similar to <code>chmod og-sgx /path/to/filename</code>. Removing execution permission is useful to make binaries such as <code>su</code> fail closed rather than fail open if SUID was removed from these. It does not remove SUID/SGID and execute permissions for 'owner' (<code>u</code>). It does not run similar to <s><code>chmod u-sgx /path/to/filename</code></s>.
+
+* SUID Disabler and Permission Hardener does not remove read access since there is no security benefit and it is easier to manually undo. Preventing read access to a binary can prevent an attacker from reverse engineering it and discovering vulnerabilities to exploit however the attacker could also simply read the source code of the binary since {{project_name_long}} is comprised of Freedom Software. Even ignoring that, there are still ways to leak the contents of unreadable binaries. <ref>https://forums.grsecurity.net/viewtopic.php?t=2939</ref> Thus, this would be an incomplete and easily circumvented form of security through obscurity.
+
+* Are there SUID or SGID binaries which are still useful if executable by anyone if SUID/SGID has been removed from these? Yes. For example, the <code>mount</code> command.
+
+* Are there SUID or SGID binaries which are still useful if executable by non-root users if SUID/SGID has been removed from these? Yes. For example, the <code>mount</code> command.
+
+= SUID Disabler and Permission Hardener Printout =
+This printout was added in November 2020. It might not be kept up to date. It is for illustrative purposes to document what SUID Disabler and Permission Hardener is actually doing.
+
+When initially running SUID Disabler and Permission Hardener for the first time.
+
+{{CodeSelect|code=
+sudo /usr/libexec/security-misc/permission-hardening
+}}
+
+The printout will look like the following.
+
+<pre>
+INFO: START parsing config_file: '/etc/permission-hardening.d/30_default.conf'
+run: dpkg-statoverride --add --update root root 745 /bin/mount
+run: dpkg-statoverride --add --update root root 745 /usr/bin/mount
+run: dpkg-statoverride --add --update root root 0755 /home
+run: dpkg-statoverride --add --update user user 0700 /home/user
+run: dpkg-statoverride --add --update root root 0700 /root
+run: dpkg-statoverride --add --update root root 0700 /boot
+run: dpkg-statoverride --add --update root root 0600 /etc/permission-hardening.d
+INFO: fso: '/usr/local/etc/permission-hardening.d' - does not exist. This is likely normal.
+run: dpkg-statoverride --add --update root root 0700 /lib/modules
+INFO:  set-group-id found - file_name: '/bin/expiry' | existing_mode: '2755' | new_mode: '744'
+run: dpkg-statoverride --add --update root shadow 744 /bin/expiry
+INFO: set-user-id  found - file_name: '/bin/chfn' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/chfn
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/bin/fusermount' | existing_mode: '4755' | matchwhite_list_entry: '/fusermount'
+INFO:  set-group-id found - file_name: '/bin/bsd-write' | existing_mode: '2755' | new_mode: '744'
+run: dpkg-statoverride --add --update root tty 744 /bin/bsd-write
+INFO: set-user-id  found - file_name: '/bin/umount' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/umount
+INFO: set-user-id  found - file_name: '/bin/gpasswd' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/gpasswd
+INFO: set-user-id  found - file_name: '/bin/newgrp' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/newgrp
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/bin/bwrap' | existing_mode: '4755'
+INFO:  set-group-id found - file_name: '/bin/chage' | existing_mode: '2755' | new_mode: '744'
+run: dpkg-statoverride --add --update root shadow 744 /bin/chage
+INFO: set-user-id  found - file_name: '/bin/su' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/su
+INFO: set-user-id  found - file_name: '/bin/pkexec' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/pkexec
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/bin/sudo' | existing_mode: '4755'
+INFO: set-user-id  found - file_name: '/bin/passwd' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/passwd
+INFO:  set-group-id found - file_name: '/bin/wall' | existing_mode: '2755' | new_mode: '744'
+run: dpkg-statoverride --add --update root tty 744 /bin/wall
+INFO:  set-group-id found - file_name: '/bin/crontab' | existing_mode: '2755' | new_mode: '744'
+run: dpkg-statoverride --add --update root crontab 744 /bin/crontab
+INFO: set-user-id  found - file_name: '/bin/chsh' | existing_mode: '4755' | new_mode: '744'
+run: dpkg-statoverride --add --update root root 744 /bin/chsh
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/bin/fusermount' | existing_mode: '4755' | matchwhite_list_entry: '/fusermount'
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/usr/bin/bwrap' | existing_mode: '4755'
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/usr/bin/sudo' | existing_mode: '4755'
+INFO:  set-group-id found - file_name: '/sbin/unix_chkpwd' | existing_mode: '2755' | new_mode: '744'
+run: dpkg-statoverride --add --update root shadow 744 /sbin/unix_chkpwd
+INFO: SKIP matchwhitelisted -  set-group-id found - file_name: '/lib/x86_64-linux-gnu/utempter/utempter' | existing_mode: '2755' | matchwhite_list_entry: '/utempter/utempter'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/lib/dbus-1.0/dbus-daemon-launch-helper' | existing_mode: '4754' | matchwhite_list_entry: 'dbus-daemon-launch-helper'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/lib/qubes/qfile-unpacker' | existing_mode: '4755' | matchwhite_list_entry: '/qubes/qfile-unpacker'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/lib/policykit-1/polkit-agent-helper-1' | existing_mode: '4755' | matchwhite_list_entry: 'polkit-agent-helper-1'
+INFO: SKIP matchwhitelisted -  set-group-id found - file_name: '/usr/lib/x86_64-linux-gnu/utempter/utempter' | existing_mode: '2755' | matchwhite_list_entry: '/utempter/utempter'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/lib/dbus-1.0/dbus-daemon-launch-helper' | existing_mode: '4754' | matchwhite_list_entry: 'dbus-daemon-launch-helper'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/lib/qubes/qfile-unpacker' | existing_mode: '4755' | matchwhite_list_entry: '/qubes/qfile-unpacker'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/lib/policykit-1/polkit-agent-helper-1' | existing_mode: '4755' | matchwhite_list_entry: 'polkit-agent-helper-1'
+INFO: fso: '/usr/local/lib32/' - does not exist. This is likely normal.
+INFO: fso: '/usr/local/lib64/' - does not exist. This is likely normal.
+INFO: END parsing config_file: '/etc/permission-hardening.d/30_default.conf'
+INFO: START parsing config_file: '/etc/permission-hardening.d/30_ping.conf'
+run: dpkg-statoverride --add --update root root 0755 /bin/ping
+run: setcap -r /bin/ping
+INFO: END parsing config_file: '/etc/permission-hardening.d/30_ping.conf'
+</pre>
+
+= SUID Disabler and Permission Hardener Log Analysis =
+== Applied Permission Changes ==
+=== Permission Hardening ===
+<pre>
+run: dpkg-statoverride --add --update root root 0755 /home
+run: dpkg-statoverride --add --update user user 0700 /home/user
+run: dpkg-statoverride --add --update root root 0700 /root
+run: dpkg-statoverride --add --update root root 0700 /boot
+run: dpkg-statoverride --add --update root root 0600 /etc/permission-hardening.d
+run: dpkg-statoverride --add --update root root 0700 /lib/modules
+</pre>
+
+=== SUID Disabling ===
+<pre>
+run: dpkg-statoverride --add --update root root 745 /bin/mount
+run: dpkg-statoverride --add --update root root 745 /usr/bin/mount
+run: dpkg-statoverride --add --update root shadow 744 /bin/expiry
+run: dpkg-statoverride --add --update root root 744 /bin/chfn
+run: dpkg-statoverride --add --update root tty 744 /bin/bsd-write
+run: dpkg-statoverride --add --update root root 744 /bin/umount
+run: dpkg-statoverride --add --update root root 744 /bin/gpasswd
+run: dpkg-statoverride --add --update root root 744 /bin/newgrp
+run: dpkg-statoverride --add --update root shadow 744 /bin/chage
+run: dpkg-statoverride --add --update root root 744 /bin/su
+run: dpkg-statoverride --add --update root root 744 /bin/pkexec
+run: dpkg-statoverride --add --update root root 744 /bin/passwd
+run: dpkg-statoverride --add --update root tty 744 /bin/wall
+run: dpkg-statoverride --add --update root crontab 744 /bin/crontab
+run: dpkg-statoverride --add --update root root 744 /bin/chsh
+run: dpkg-statoverride --add --update root shadow 744 /sbin/unix_chkpwd
+run: dpkg-statoverride --add --update root root 0755 /bin/ping
+</pre>
+
+=== Capability Removal ===
+<pre>
+run: setcap -r /bin/ping
+</pre>
+
+== Parsed Configuration Files ==
+<pre>
+INFO: START parsing config_file: '/etc/permission-hardening.d/30_default.conf'
+INFO: END parsing config_file: '/etc/permission-hardening.d/30_default.conf'
+INFO: START parsing config_file: '/etc/permission-hardening.d/30_ping.conf'
+INFO: END parsing config_file: '/etc/permission-hardening.d/30_ping.conf'
+</pre>
+
+== Whitelisted SUID Binaries ==
+<pre>
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/bin/fusermount' | existing_mode: '4755' | matchwhite_list_entry: '/fusermount'
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/bin/bwrap' | existing_mode: '4755'
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/bin/sudo' | existing_mode: '4755'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/bin/fusermount' | existing_mode: '4755' | matchwhite_list_entry: '/fusermount'
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/usr/bin/bwrap' | existing_mode: '4755'
+INFO: SKIP whitelisted - set-user-id  found - file_name: '/usr/bin/sudo' | existing_mode: '4755'
+INFO: SKIP matchwhitelisted -  set-group-id found - file_name: '/lib/x86_64-linux-gnu/utempter/utempter' | existing_mode: '2755' | matchwhite_list_entry: '/utempter/utempter'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/lib/dbus-1.0/dbus-daemon-launch-helper' | existing_mode: '4754' | matchwhite_list_entry: 'dbus-daemon-launch-helper'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/lib/qubes/qfile-unpacker' | existing_mode: '4755' | matchwhite_list_entry: '/qubes/qfile-unpacker'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/lib/policykit-1/polkit-agent-helper-1' | existing_mode: '4755' | matchwhite_list_entry: 'polkit-agent-helper-1'
+INFO: SKIP matchwhitelisted -  set-group-id found - file_name: '/usr/lib/x86_64-linux-gnu/utempter/utempter' | existing_mode: '2755' | matchwhite_list_entry: '/utempter/utempter'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/lib/dbus-1.0/dbus-daemon-launch-helper' | existing_mode: '4754' | matchwhite_list_entry: 'dbus-daemon-launch-helper'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/lib/qubes/qfile-unpacker' | existing_mode: '4755' | matchwhite_list_entry: '/qubes/qfile-unpacker'
+INFO: SKIP matchwhitelisted - set-user-id  found - file_name: '/usr/lib/policykit-1/polkit-agent-helper-1' | existing_mode: '4755' | matchwhite_list_entry: 'polkit-agent-helper-1'
+</pre>
+
+== Non-Existing Folders ==
+<pre>
+INFO: fso: '/usr/local/etc/permission-hardening.d' - does not exist. This is likely normal.
+INFO: fso: '/usr/local/lib32/' - does not exist. This is likely normal.
+INFO: fso: '/usr/local/lib64/' - does not exist. This is likely normal.
+</pre>
+
+= Permission Hardener Issues =
+The following folders are only readable with root rights.
+
+* <code>/boot</code>
+** Issue: Breaks KVM direct kernel boot using kernel images located in <code>/boot</code>. I.e. when using KVM to boot a kernel from the host disk located in folder <code>/boot</code> will not be possible by default. The safest alternative would be using another file location for kernel images or inside VM kernel images.
+
+= Search for SUID SGID =
+After enabling SUID Disabler and Permission Hardener.
+
+Search for SUID binaries.
+
+{{CodeSelect|code=
+sudo find / -perm -4000 -type f -executable
+}}
+
+Ignore the following.
+
+<pre>
+find: ‘/proc/5422/task/5422/fd/6’: No such file or directory
+find: ‘/proc/5422/task/5422/fdinfo/6’: No such file or directory
+find: ‘/proc/5422/fd/5’: No such file or directory
+find: ‘/proc/5422/fdinfo/5’: No such file or directory
+</pre>
+
+The following list shows only white listed SUID binaries.
+
+<pre>
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/qubes/qfile-unpacker
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/bin/fusermount
+/usr/bin/bwrap
+/usr/bin/sudo
+</pre>
+
+Search for SGID binaries.
+
+{{CodeSelect|code=
+sudo find / -perm -2000 -type f -executable
+}}
+
+The following list shows only white listed SGID binaries.
+
+<pre>
+/usr/lib/x86_64-linux-gnu/utempter/utempter
+</pre>
+
+= Debugging =
+Look what SUID Disabler and Permission Hardener is actually doing. Most interesting to run this command during initial enabling of SUID Disabler and Permission Hardener.
+
+{{CodeSelect|code=
+sudo journalctl --no-pager -b -o cat -u permission-hardening
+}}
+
+= Future Work =
+* Add a scan script for scanning folders where SUID binaries commonly reside. Option to scan whole disk.
+* Add an APT hook to scan folders where SUID binaries commonly reside to scan after package installation and notify user when new SUID where installed.
+
+= References =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

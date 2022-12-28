@@ -1,0 +1,406 @@
+{{Header}}
+{{title|title=
+Anbox - Run Android Applications and Games
+}}
+{{#seo:
+|description=Anbox allows Android applications and mobile games to run inside {{project_name_long}}.
+|image=https://www.{{project_clearnet}}/w/images/1/1e/Anbox_apps_short.png
+}}
+<!--|image=https://www.{{project_clearnet}}/w/images/c/c9/Android23432.png-->
+[[File:anbox_apps_short.png|thumb|800px|center]]
+[[File:Androidosicon.png|Android OS Icon|250px|thumb]]
+
+= Introduction =
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+Anbox disables the majority of the Android security model <ref>For example it disables SELinux which is a core part of the security model; see https://github.com/anbox/platform_system_core/commit/71907fc5e7833866be6ae3c120c602974edf8322</ref> and it uses a very outdated Android version with known vulnerabilities. <ref>See the dates on the Github repositories. https://github.com/anbox</ref>
+}}
+
+[https://anbox.io/ Anbox] is a third party project that allows Android applications and mobile games to run inside {{project_name_long}}. According to the Anbox website: <ref>https://anbox.io/#about</ref>
+<blockquote>Anbox puts the Android operating system into a container, abstracts hardware access and integrates core system services into a GNU/Linux system. Every Android application will be integrated with your operating system like any other native application.
+
+To achieve our goal we use standard Linux technologies like containers (LXC) to separate the Android operating system from the host. Any Android version is suitable for this approach and we try to keep up with the latest available version from the Android Open Source Project.</blockquote>
+
+The project is open source and theoretically any application can be run. Anbox does not have direct access to a user's hardware or data. It should be noted that while it is possible to install the Google Play Store, Google will not allow anyone to ship applications if the device is not certified and the vendor has not signed an agreement. <ref>https://anbox.io/#faq</ref>
+
+{{Community_Support}}
+
+= Security Specific =
+
+* Do not use physical devices (mobile phones or tablets) for any kind of privacy activities because any physical device has a unique IMEI number which can be easily fetched by Android applications. Always use virtual devices such as Anbox or Waydroid or Android x86 for these kind of activities.
+* Always prefer using free and open source (FOSS) Android applications because they usually don't use any kind of surveillance. Using applications from [https://f-droid.org/ F-Droid] repositories is recommended.
+* Do not install Android Package Kits (APKs) directly from untrusted sources. <ref>do not download and install APKs from third-party websites because it can be dangerous.</ref>
+* Always check permissions before starting an application. Note the Android settings menu only allows the user to manage dangerous permissions (such as Camera, Storage, Location, Phone etc.) but not AppOps (application operations) permissions. ADB shell or extended [https://f-droid.org/en/packages/io.github.muntashirakon.AppManager GUI application/permission manager] (root required) is needed in order to display and manage not only dangerous but AppOps permissions.
+* Do not store any private information inside Anbox or Waydroid or Android x86 filesystems.
+* As the Android system cannot prevent applications from accessing the Internet, additional firewall management is required. Android uses Linux iptables firewall manager so a GUI application like [https://f-droid.org/en/packages/dev.ukanth.ufirewall AFWall+] can be used to control what applications are allowed to access the Internet (root needed).
+* If a proprietary, non-free Android application installation is required An [https://f-droid.org/en/packages/com.aurora.store Aurora Store] application can be useful for this purpose. Do not use any real (linked to your identity) account. <ref>Note that most non-free applications from Google Play Store will not work properly without Google Play Services installed. Some will never work at all because an Android virtual device cannot pass Google's SafetyNet mechanism.</ref>
+
+= General Issues =
+
+There are several issues with running popular Android applications using Anbox or Android x86 Workstation on top of a non-physical, certified Android device.
+
+== Unsupported CPU Architecture ==
+
+Most popular Android applications (especially from Google Play Store) were written for ARMv7 and rarely for ARMv8 architectures. Therefore, some applications do not have support for x86 or x86_64 architectures. Android x86 users can use the <code>libhoudini</code> library in order to try to emulate ARMv7 architecture but many Android applications written for ARM still don't work.
+
+== Device Fingerprint ==
+
+Many non-free, popular Android applications check the device fingerprint for hardware identification purposes. Anbox and Waydroid and Android x86 have emulator fingerprints so applications can easily detect that an emulator is in use. It is generally possible to spoof the device fingerprint, but it is necessary to rebuild the Android image for Anbox/Waydroid. Android x86 can utilize the Magisk module called MagiskHide Props Config in order to spoof the device fingerprint.
+
+== Network Interface Detection ==
+
+Most popular Android applications detect network adapters and will not work properly if no Wi-Fi or mobile connection is established. Anbox/Waydroid uses a bridge network interface by default so some applications will not see the Internet connection. However, Android x86 starting from Nougat has a built-in virtual Wi-Fi interface so applications think that a real Wi-Fi connection is established.
+
+== Google Play Services Mechanisms ==
+
+At present, the biggest problem with running popular Android applications on top of a non-physical Android device is passing SafetyNet by Google. Android consists of two parts:
+
+* The Android system itself (Android Open Source Project). This is a base system.
+* A proprietary subsystem called Google Play Services. This helps applications from Google Play Store to interact with Google servers. This is an optional subsystem but all Android devices which are certified by Google have this arrangement.
+
+If only free software (FOSS) applications will be run, then Google Play Services is unneeded since all applications from F-Droid are built without a dependency upon Google Play Services. If some types of proprietary applications are needed, this can be problematic because some will use the Google Play Services mechanism.
+
+Generally, Google Play Services consists of two important parts:
+
+* GCM (Google Cloud Messages)
+* SafetyNet
+
+GCM is a proprietary mechanism for delivering Push Notifications from Google servers. GCM is used by ~70-80% of proprietary applications from Google Play Store which rely upon the mechanism. It is not difficult to enable GCM support for Android x86 and Anbox and Waydroid. The Android x86 image comes with built-in, non-free Google Play Services so GCM is enabled by default. With Anbox/Waydroid, it is possible to install either proprietary Google Play Services (OpenGAPPS) or an open-source implementation of Google Play Services called Micro-G.
+
+SafetyNet is a mechanism which verifies the integrity of the device. If a device is not certified by Google Corporation then most of the proprietary Android applications from Google Play Store will not run because many use SafetyNet to check the device is authentic and has not been tampered with. Nowadays there is no way to pass SafetyNet on Android x86 or Anbox/Waydroid because Google uses its own closed-source algorithm for non-real devices detection. SafetyNet is used by ~30-50% of Google Play Store applications, especially those relating to banking and social networks such as Tinder.
+
+= Anbox inside {{project_name_long}} Advantages and Disadvantages =
+
+There are both distinct advantages and disadvantages of running Android applications in {{project_name_long}}. <ref>https://forums.whonix.org/t/integrate-anbox-into-whonix-workstation/9642</ref>
+
+'''Table:''' ''Anbox Advantages and Disadvantages'' <ref>The networking and software disadvantages below are very critical.</ref>
+
+{| class="wikitable"
+|-
+
+! scope="col"| '''Category'''
+! scope="col"| '''Notes'''
+|-
+
+! scope="row"| Bootloader / Ramdisk
+| Anbox does not have any type of bootloader and ramdisk. Consequently it is impossible to install Magisk or some kind of recovery tool which is probably necessary for some operations like hiding root from applications (for example Magisk Hide).
+|-
+
+! scope="row"| Emulation
+| No emulation is required, therefore Android applications can be run in a native {{project_name_long}} environment.
+|-
+
+! scope="row"| Flexibility
+|
+* It is easy to use Android Debug Bridge (<code>adb</code>) to install/remove applications and to push/pull files from/to the Anbox environment.
+* Root access - Anbox does not provide a superuser binary and manager. A manual installation of a superuser binary and application is required, which necessitates a rebuild of the Android image.
+|-
+
+! scope="row"| Networking
+| Anbox does not provide a virtual Wi-Fi (<code>wlan0</code>) interface so some applications will not see the Internet connection.
+|-
+
+! scope="row"| Operating System
+| Anbox is not full Android stack implementation or as full operating system similar to Android x86 workstation.
+|-
+
+! scope="row"| Software
+| Anbox provides only Nougat android version.
+|-
+
+! scope="row"| Speed
+| Android applications run faster in this configuration.
+|-
+
+|}
+
+= Anbox Installation =
+
+== Base Software ==
+
+{{Install Package|
+package=linux-image-amd64 linux-headers-amd64 adb fastboot anbox
+}}
+
+== Android Image ==
+
+{{Box|text=
+'''1.''' Download Anbox Android image.
+
+If this is required inside a Qubes Template then parameter <code><nowiki>--proxy http://127.0.0.1:8082</nowiki></code> must be added to <code>scurl</code> as shown below.
+
+Supported only <code>--tlsv1.2</code> at time of writing. <ref>
+https://forums.whonix.org/t/anbox-install-trouble-handshake-failure/13308
+</ref>
+
+* [[{{non_q_project_name_short}}|{{Non_q_project_name}}]] (or [[Qubes]] StandaloneVM): {{CodeSelect|code=
+scurl --tlsv1.2 --remote-name https://build.anbox.io/android-images/2018/07/19/android_amd64.img
+}}
+* [[{{Q_project_name_short}}|{{Q_project_name}}]] Template: {{CodeSelect|code=
+scurl --proxy http://127.0.0.1:8082 --tlsv1.2 --remote-name https://build.anbox.io/android-images/2018/07/19/android_amd64.img
+}}
+
+'''2.''' Download Anbox Android image <code>sha256sum</code> file.
+
+* {{Non_q_project_name}} (or Qubes StandaloneVM): {{CodeSelect|code=
+curl --tlsv1.2 --remote-name https://build.anbox.io/android-images/2018/07/19/android_amd64.img.sha256sum
+}}
+* {{q_project_name}} Template:{{CodeSelect|code=
+curl --proxy http://127.0.0.1:8082 --tlsv1.2 --remote-name https://build.anbox.io/android-images/2018/07/19/android_amd64.img.sha256sum
+}}
+
+'''3.''' Verify the image.
+
+{{CodeSelect|code=
+sha256sum --check android_amd64.img.sha256sum
+}}
+
+Should show:
+
+<pre>
+android_amd64.img: OK
+</pre>
+
+'''4.''' Move (rename) <code>android_amd64.img</code> to <code>/var/lib/anbox/android.img</code>. <ref>
+<code>anbox-container-manager.service</code> expects this file name.
+</ref>
+
+{{CodeSelect|code=
+sudo mv android_amd64.img /var/lib/anbox/android.img
+}}
+
+}}
+
+<ref>
+The following steps are probably not required because it should work out of the box after rebooting.
+
+{{Box|text=
+Start kernel module.
+
+{{CodeSelect|code=
+sudo modprobe ashmem_linux
+}}
+
+Start kernel module.
+
+{{CodeSelect|code=
+sudo modprobe binder_linux
+}}
+
+Start anbox systemd service.
+
+{{CodeSelect|code=
+sudo systemctl start anbox-container-manager.service
+}}
+
+Check if anbox systemd service is functional.
+
+{{CodeSelect|code=
+sudo systemctl status anbox-container-manager.service
+}}
+
+Should show something similar to the following.
+
+<pre>
+● anbox-container-manager.service - Anbox Container Manager
+   Loaded: loaded (/lib/systemd/system/anbox-container-manager.service; enabled; vendor preset: enabled)
+   Active: active (running) since Mon 2018-12-31 06:23:49 EST; 874ms ago
+     Docs: man:anbox(1)
+  Process: 1996 ExecStartPre=/usr/share/anbox/anbox-bridge.sh start (code=exited, status=0/SUCCESS)
+  Process: 1991 ExecStartPre=/sbin/modprobe binder_linux (code=exited, status=0/SUCCESS)
+  Process: 1986 ExecStartPre=/sbin/modprobe ashmem_linux (code=exited, status=0/SUCCESS)
+ Main PID: 2074 (anbox)
+    Tasks: 9 (limit: 4915)
+   Memory: 5.1M
+      CPU: 51ms
+   CGroup: /system.slice/anbox-container-manager.service
+           └─2074 /usr/bin/anbox container-manager --daemon --privileged --data-path=/var/lib/anbox
+
+Dec 31 06:23:48 debian systemd[1]: Starting Anbox Container Manager...
+Dec 31 06:23:49 debian systemd[1]: Started Anbox Container Manager.
+</pre>
+}}
+</ref>
+
+== Qubes ==
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = [[Qubes]] users only.
+}}
+
+A StandaloneVM is most suitable, otherwise changes will be non-persistent (lost after VM restart). Instructions on how to make Anbox persistent using a TemplateBased AppVM do not exist yet; see footnote for experimental instructions. <ref>
+These steps do not work yet.
+
+<pre>
+[ 2019-10-14 11:00:41] [launch.cpp:214@operator()] Session manager failed to become ready
+</pre>
+
+{{Box|text=
+'''1.''' Increase VM private storage.
+
+* Power off the VM.
+* Add at least 2 GB more private storage to the VM. This can be done using Qubes VM Manager (QVMM).
+* Reboot the VM.
+
+'''2.''' Add <code>/var/lib/anbox</code> to [https://www.qubes-os.org/doc/bind-dirs/ Qubes bind-dirs].
+
+Create folder <code>/rw/config/qubes-bind-dirs.d</code>.
+
+{{CodeSelect|code=
+sudo mkdir -p /rw/config/qubes-bind-dirs.d
+}}
+
+Create a new configuration file <code>/rw/config/qubes-bind-dirs.d/50_user.conf</code>.
+
+{{CodeSelect|code=
+sudoedit /rw/config/qubes-bind-dirs.d/50_user.conf
+}}
+
+Paste.
+
+{{CodeSelect|code=
+binds+=( '/var/lib/anbox' )
+}}
+
+Save.
+
+'''3.''' Reboot the VM.
+
+This results in storing <code>/var/lib/anbox</code> in the private rather than the root image. This means changes will persist rather than be lost after a VM restart.
+
+'''4.''' Fix file permissions.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = Warning: the following steps might cause security issues.
+}}
+
+{{CodeSelect|code=
+sudo systemctl stop anbox-container-manager.service
+}}
+
+{{CodeSelect|code=
+sudo chown --recursive user:user /var/lib/anbox
+}}
+
+{{CodeSelect|code=
+sudo systemctl start anbox-container-manager.service
+}}
+}}
+</ref>
+
+{{Q_project_name}} requires the use of a [https://www.qubes-os.org/doc/managing-vm-kernel/ Qubes VM kernel]. <ref>
+Using a VM kernel is currently challenging to use because Anbox is implemented using kernel modules, see: [https://github.com/QubesOS/qubes-issues/issues/5212#issuecomment-533873012 Simplify and promote using in-vm kernel].</ref> Users can follow the instructions from the Qubes website [https://www.qubes-os.org/doc/managing-vm-kernel/#installing-kernel-in-debian-vm Installing kernel in Debian VM] which are equally functional in {{Q_project_name}}.
+
+It has been [https://github.com/QubesOS/qubes-issues/issues/2233#issuecomment-593137226 reported] that it is necessary to enable [https://docs.anbox.io/userguide/advanced/software_rendering.html Anbox software rendering], but it is unclear how to accomplish that at present. The command from the previous link is likely non-functional because this guide does not use snap.
+
+= Start Anbox =
+== From Start Menu ==
+<code>Start menu</code> &rarr; <code>Accessories</code> &rarr; <code>Anbox</code>
+
+== From Command Line ==
+<ref>
+<code>/usr/share/applications/anbox.desktop</code>
+</ref>
+
+{{CodeSelect|code=
+anbox launch --package=org.anbox.appmgr --component=org.anbox.appmgr.AppViewActivity
+}}
+
+= Usage =
+== F-Droid Installation ==
+
+It is suggested to install F-Droid. The instructions below document how to download and verify F-Droid inside {{project_name_workstation_long}}. <ref>https://f-droid.org/docs/Release_Channels_and_Signing_Keys/</ref>
+
+{{Box|text=
+
+'''1.''' Download the F-Droid signing key.
+
+{{gpg key
+|url=scurl-download "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x37d2c98789d8311948394e3e41e7044e1dba2e89"
+|source_filename='lookup?op=get&search=0x37d2c98789d8311948394e3e41e7044e1dba2e89'
+|fingerprint=37D2C98789D8311948394E3E41E7044E1DBA2E89
+|gpg_fingerprint_output=
+gpg: key 41E7044E1DBA2E89: 60 signatures not checked due to missing keys
+pub   rsa4096/41E7044E1DBA2E89 2014-04-25 [C]
+      Key fingerprint = 37D2 C987 89D8 3119 4839  4E3E 41E7 044E 1DBA 2E89
+uid                            F-Droid <admin@f-droid.org>
+sub   rsa3072/5DCCB667F9BF9046 2014-04-25 [E] [expires: 2026-04-25]
+sub   rsa3072/7A029E54DD5DCE7A 2014-04-25 [S] [expires: 2026-04-25]
+}}
+
+'''2.''' Download F-Droid.
+
+{{CodeSelect|code=
+scurl-download https://f-droid.org/FDroid.apk
+}}
+
+'''3.''' Download F-Droid signature.
+
+{{CodeSelect|code=
+scurl-download https://f-droid.org/FDroid.apk.asc
+}}
+
+'''4.''' Verify F-Droid.
+
+{{CodeSelect|code=
+gpg --verify FDroid.apk.asc
+}}
+
+Should show.
+
+<pre>
+gpg: assuming signed data in 'FDroid.apk'
+gpg: Signature made Fri 16 Apr 2021 09:26:14 AM UTC
+gpg:                using RSA key 802A9799016112346E1FEFF47A029E54DD5DCE7A
+gpg: Good signature from "F-Droid <admin@f-droid.org>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 37D2 C987 89D8 3119 4839  4E3E 41E7 044E 1DBA 2E89
+     Subkey fingerprint: 802A 9799 0161 1234 6E1F  EFF4 7A02 9E54 DD5D CE7A
+</pre>
+
+'''5.''' Install F-Droid inside Anbox using <code>adb</code>.
+
+{{CodeSelect|code=
+adb install FDroid.apk
+}}
+}}
+
+== Images ==
+
+'''Figure:''' ''F-Droid Images''
+
+[[File:fdroid.png|1000px]]
+
+[[File:fdroid2.png|1000px]]
+
+[[File:fdroid3.png|1000px]]
+
+== File Sharing ==
+In a terminal, run. <ref>
+https://forums.whonix.org/t/running-android-apps-inside-whonix-workstation-anbox-proof-of-concept/7441/13
+</ref>
+
+{{CodeSelect|code=
+lxsudo thunar
+}}
+
+Browse to:
+
+{{CodeSelect|code=
+/var/lib/anbox/rootfs/data/media/0/
+}}
+
+Files dropped to this download directory are readily visible to applications within Anbox.
+
+= Alternatives =
+* Successor of anbox as alternative is [https://waydro.id Waydroid] but it requires wayland compatible desktop environment which is what [https://wiki.xfce.org/releng/wayland_roadmap xfce still lack] at the moment of writing thus [[Undocumented]] for {{project_name_long}}.
+
+= Footnotes =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

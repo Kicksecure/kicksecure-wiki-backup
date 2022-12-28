@@ -1,0 +1,581 @@
+{{Header}}
+{{#seo:
+|description=AppArmor profiles (Security Hardening) for {{project_name_long}} and other Linux distributions.
+|image=Coat-of-mail-948960640.jpg
+}}
+{{title|title=
+AppArmor
+}}
+[[File:2000px-AppArmor logo.svg.png ‎|AppArmor Icon|thumb]]
+__FORCETOC__
+= Introduction =
+According to debian.org: <ref>
+https://wiki.debian.org/AppArmor
+</ref>
+
+<blockquote>AppArmor is a Mandatory Access Control framework. When enabled, AppArmor confines programs according to a set of rules that specify what files a given program can access. This proactive approach helps protect the system against both known and unknown vulnerabilities.</blockquote>
+
+{{project_name_long}} contributor [https://forums.whonix.org/users/madaidan/activity madaidan] has noted:
+<ref name=madaidan_MAC>
+https://madaidans-insecurities.github.io/guides/linux-hardening.html#mac
+</ref>
+<blockquote>Mandatory access control (MAC) systems give fine-grained control over what programs can access. This means that your browser won't have access to your entire home directory or similarly.
+
+The most used MAC systems are SELinux and AppArmor. SELinux is a lot more secure than AppArmor as it is more fine-grained. For example, it's inode-based rather than path-based, allows enforcing [https://selinuxproject.org/page/ObjectClassesPerms significantly stronger restrictions], can [https://kernsec.org/files/lss2015/vanderstoep.pdf filter kernel ioctls] and much more. Unfortunately, this comes at the cost of being much more difficult to use and harder to learn so AppArmor may be preferred by some.</blockquote>
+
+AppArmor provides a number of advantages: <ref>
+https://gitlab.com/apparmor/apparmor/-/wikis/FAQ
+</ref>
+
+* It protects the operating system and applications from external or internal threats, including zero-day attacks.
+* "Good behavior" is enforced and it mitigates exploits via unknown application flaws.
+* AppArmor security policies define the system resources that individual applications can access, and with what privileges. For instance:
+** Network access.
+** Raw socket access.
+** Read, write or execute file permissions on specific paths.
+
+= Installation =
+{{project name long}} comes with the following packages installed by default. <ref>
+https://forums.whonix.org/t/install-apparmor-profiles-apparmor-profiles-extra-apparmor-profiles-kicksecure-by-default/13753
+</ref> Therefore no manual user action is required.
+
+* <code>apparmor-profiles</code>
+* <code>apparmor-profiles-extra</code>
+* <code>apparmor-profiles-kicksecure </code>
+
+== Qubes Users Note ==
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt={{q_project_name}} Note]]
+| text    =
+[[Qubes|{{q_project_name}}]] users require some extra steps to set up AppArmor. [[{{non_q_project_name_short}}|{{non_q_project_name}}]] users can skip this section.
+<ref>
+{{Non-qubes-project}}
+</ref>
+<ref>Advanced users attempting to enable SE Linux instead would utilize the following parameters in this section:
+{{CodeSelect|code=
+selinux=1 security=selinux
+}}
+</ref>
+}}
+
+<div class="toccolours mw-collapsible mw-collapsed">
+If you are interested, click on Expand on the right.
+<div class="mw-collapsible-content">
+{{Qubes_AppArmor}}
+</div>
+</div>
+
+== View Installed AppArmor Profiles ==
+Some AppArmor profiles for some default installed applications are enforced by default. Some are installed by default but not enforced by default.
+
+To see which, run.
+
+'''1.''' Run <code>aa-status</code>.
+
+{{CodeSelect|code=
+sudo aa-status
+}}
+
+'''2.''' See the output of <code>aa-status</code>.
+
+* '''A)''' Profiles under <code>profiles are in enforce mode.</code> are enforced by default. A few profiles are being enforced for software that is not installed, but this does not have any adverse impacts.
+* '''B)''' Profiles under <code>profiles are in complain mode.</code> are not enforced.
+
+Additional AppArmor profiles are available for testers. See below.
+
+== Enabling Additional AppArmor Profiles ==
+* '''A)''' Default profiles: As mentioned in the [[#Introduction|introduction]], a number of AppArmor profiles are already enabled by default
+* '''B)''' Additional profiles: Can be enabled by following the instructions below.
+
+Some profiles in the <code>apparmor-profiles</code> and <code>apparmor-profiles-extra</code> packages are not enforced by default because the Debian maintainers do not believe they are mature enough. <ref>
+https://packages.debian.org/{{Stable project version based on Debian codename}}/apparmor-profiles
+</ref>
+
+<blockquote>apparmor-profiles provides various experimental AppArmor profiles. Do not expect these profiles to work out-of-the-box.
+
+These profiles are not mature enough to be shipped in enforce mode by default on Debian. They are shipped in complain mode so that users can test them, choose which are desired, and help improve them upstream if needed.
+
+Some even more experimental profiles are included in folder <code>/usr/share/apparmor/extra-profiles</code>. </blockquote>
+
+{{Box|text=
+{{testers-only}}
+
+'''1.''' Check which profiles are in complain mode (not actually providing protection) and which are in enforce mode (providing actual protection).
+
+Run.
+
+{{CodeSelect|code=
+sudo aa-status
+}}
+
+'''2.''' Locate the profile to enable.
+
+To enable a profile which is currently in complain mode, locate it in folder <code>/etc/apparmor.d</code>.
+
+{{CodeSelect|code=
+ls /etc/apparmor.d
+}}
+
+'''3.''' Enable the profile.
+
+After locating the relevant profile, enable it. For example.
+
+(The following example is already enforced by default if installed as per above.)
+
+{{CodeSelect|code=
+sudo aa-enforce /etc/apparmor.d/home.tor-browser.firefox
+}}
+
+It might be inadvisable or unsuitable to enable all available AppArmor profiles.
+
+'''4.''' Inspect other available AppArmor profiles.
+
+The <code>/usr/share/apparmor/extra-profiles</code> folder has additional AppArmor profiles.
+
+{{CodeSelect|code=
+ls /usr/share/apparmor/extra-profiles
+}}
+
+'''5.''' Copy relevant AppArmor profiles.
+
+Testers only!
+
+* Option '''A)''' If any of these applications are in use, copy the profile over to folder <code>/etc/apparmor.d</code>.
+** Note: Replace <code>bin.netstat</code> with the actual AppArmor profile to enable.
+** Example: {{CodeSelect|code=
+sudo cp /usr/share/apparmor/extra-profiles/bin.netstat /etc/apparmor.d
+}}
+* Option '''B)''' Copy all profiles. {{CodeSelect|code=
+sudo cp /usr/share/apparmor/extra-profiles/* /etc/apparmor.d
+}}
+
+'''6.''' View all available AppArmor profiles in the <code>/etc/apparmor.d</code> folder.
+
+Optional.
+
+{{CodeSelect|code=
+ls -la /etc/apparmor.d/*
+}}
+
+Alternatively also any other tool such as a graphical file manager could be used.
+
+'''7.''' Enable the additional profile(s).
+
+* Option '''A)''' Enable a profile.
+** Note: Replace <code>bin.netstat</code> with the actual AppArmor profile to enable.
+** Example: {{CodeSelect|code=
+sudo aa-enforce /etc/apparmor.d/bin.netstat
+}}
+* Option '''B)''' Enable all profiles. {{CodeSelect|code=
+sudo aa-enforce /etc/apparmor.d/*
+}}
+}}
+
+== Install Select AppArmor Profiles ==
+<div class="toccolours mw-collapsible mw-collapsed">
+Click on Expand on the right side.
+<div class="mw-collapsible-content">
+[[Update]] your package lists.
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+----
+
+<code>apparmor-profiles</code>
+
+* [https://packages.debian.org/{{Stable_project_version_based_on_Debian_codename}}/apparmor-profiles <code>apparmor-profiles</code> package description]
+* [https://packages.debian.org/{{Stable_project_version_based_on_Debian_codename}}/all/apparmor-profiles/filelist <code>apparmor-profiles</code> file list]
+
+{{CodeSelect|code=
+sudo apt install apparmor-profiles
+}}
+
+----
+
+<code>apparmor-profiles-extra</code>
+
+* [https://packages.debian.org/{{Stable_project_version_based_on_Debian_codename}}/apparmor-profiles-extra <code>apparmor-profiles-extra</code> package description]
+* [https://packages.debian.org/{{Stable_project_version_based_on_Debian_codename}}/all/apparmor-profiles-extra/filelist <code>apparmor-profiles-extra</code> file list]
+
+{{CodeSelect|code=
+sudo apt install apparmor-profiles-extra
+}}
+
+----
+
+Profile for [[Tor Browser]]. Useful in {{project_name_workstation_long}}. <ref>
+Tor Browser is installed by [[Tor Browser#Update Tor Browser|tb-updater]]; the latter is a default {{project_name_long}} application.
+</ref>
+
+{{CodeSelect|code=
+sudo apt install apparmor-profile-torbrowser
+}}
+
+----
+
+Profile for the [[HexChat]] client. Useful in {{project_name_workstation_long}}. (Soon to be renamed <code>apparmor-profile-hexchat</code>.)
+
+{{CodeSelect|code=
+sudo apt install apparmor-profile-xchat
+}}
+
+----
+
+Profile for the [[E-Mail#Mozilla_Thunderbird_with_TorBirdy|Mozilla Thunderbird]] [[E-Mail]] client. Useful in {{project_name_workstation_long}}. (Soon to be renamed <code>apparmor-profile-thunderbird</code>.)
+
+{{CodeSelect|code=
+sudo apt install apparmor-profile-thunderbird
+}}
+</div>
+</div>
+
+== Profile Unloading ==
+
+The name of the specific profile to unload must be known in advance; refer to the [[#Install_Select_AppArmor_Profiles|list]] above.
+
+'''1.''' If it is necessary to disable an AppArmor profile, first list those which are available.
+
+{{CodeSelect|code=
+ls /etc/apparmor.d/
+}}
+
+Or.
+
+{{CodeSelect|code=
+sudo aa-status
+}}
+
+'''2.''' Once a profile is loaded in the kernel, it can be easily removed.
+
+{{CodeSelect|code=
+sudo aa-disable /etc/apparmor.d/profile-name
+}}
+
+This command expects the profile file to exist, so if it has been manually deleted or removed via <code>apt purge</code>, it can only be unloaded by rebooting.
+
+'''3.''' Done.
+
+The process of disabling the AppArmor profile has been completed.
+
+'''4.''' Verification.
+
+Optional. To confirm, use the <code>aa-status</code> command.
+
+{{CodeSelect|code=
+sudo aa-status
+}}
+
+= Common Operations =
+
+== Maintain Tor Browser Functionality ==
+
+Tor Browser upgrades frequently break the {{project_name_long}} AppArmor profile used to contain it. Even when AppArmor-related fixes are confirmed in forums.{{project_clearnet}}, most often updated, fixed packages are immediately made available to {{project_name_long}} stable or even the developer version.
+
+If Tor Browser is non-functional with the available AppArmor profile, follow these steps to rectify the problem.
+
+{{Box|text=
+'''1.''' Open a terminal in {{project_name_workstation_long}} (<code>{{project_name_workstation_template}}</code>).
+
+<code>{{project_name_workstation_template}}</code> &rarr; <code>Xfce Terminal</code>
+
+'''2.''' List the available AppArmor profiles.
+
+{{CodeSelect|code=
+ls /etc/apparmor.d/
+}}
+
+'''3.''' Edit the Tor Browser AppArmor profile.
+
+Note: change the name of the file to match whatever version is installed on the system.
+
+{{CodeSelect|code=
+sudoedit /etc/apparmor.d/home.tor-browser.firefox
+}}
+
+'''4.''' Navigate to the {{project_name_long}} Github resource for AppArmor.
+
+The latest git commits can be found [https://github.com/{{project_name_short}}/apparmor-profile-torbrowser here].
+
+Select <code>Code</code> &rarr; <code>etc/apparmor.d</code> &rarr; <code>home.tor-browser.firefox</code>
+
+Select the <code>Raw</code> button on the right-hand side. <ref>
+Otherwise essential profile formatting might break or unwanted content (such as line numbers) might be copied inadvertently, leading to a non-functional profile.
+</ref>
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = It is recommended to check the profile does not contain any unexpected content. For greater security, utilize a different viewer and/or retrieve the profile using git and perform git commit gpg verification.
+}}
+
+Cut and paste the profile text into the old Tor Browser profile which is open in nano. Save and exit.
+
+'''5.''' Enforce the new Tor Browser profile.
+
+In the command below, change the name of the file to match whatever version is installed on the system.
+
+In {{project_name_workstation_long}} (<code>{{project_name_workstation_template}}</code>), run.
+
+{{CodeSelect|code=
+sudo aa-enforce /etc/apparmor.d/home.tor-browser.firefox
+}}
+
+'''6.''' Shutdown {{project_name_workstation_long}} (<code>{{project_name_workstation_template}}</code>).
+
+'''7.''' Restart {{project_name_workstation_long}} (<code>{{project_name_workstation_vm}}</code>).
+
+Launch Tor Browser. If everything has been applied correctly, Tor Browser will have full functionality. If the following AppArmor warning appears, it can be safely ignored.
+
+<pre>
+Profile: /etc/apparmor.d/home.tor-browser.firefox Operation: open Name: /dev/ Denied: r Logfile: /var/log/kern.log For more information, please see: https://wiki.ubuntu.com/DebuggingApparmor
+</pre>
+
+'''8.''' Manually check AppArmor is correctly running and enforced.
+
+In a terminal, run.
+
+{{CodeSelect|code=
+sudo aa-status
+}}
+
+The output should show the Tor Browser profile is loaded and in enforce mode.
+}}
+
+== Manually Updating Other {{project_name_long}} AppArmor Profiles ==
+
+The same method can be used to resolve other AppArmor problems impacting full functionality of applications in {{project_name_long}}. For instance, the [[systemcheck|<code>systemcheck</code>]] AppArmor profile previously caused continuous "denied" messages in [[Qubes|{{q_project_name}}]]. <ref>
+In {{project_name_long}} 13.
+</ref> Correcting this issue was quite simple: <ref>
+This issue was fixed in the {{project_name_long}} 14 release.
+</ref>
+
+# Navigate to the [https://raw.githubusercontent.com/{{project_name_short}}/systemcheck/master/etc/apparmor.d/usr.bin.systemcheck raw, updated <code>systemcheck</code> profile].
+# Replace the existing content in <code>/etc/apparmor.d/usr.bin.systemcheck</code> with the updated github content, in both Templates <code>{{project_name_gateway_template}}</code> and <code>{{project_name_workstation_template}}</code>.
+# Shut down both Templates and any running instances of <code>{{project_name_gateway_vm}}</code> and <code>{{project_name_workstation_vm}}</code>.
+# Restart <code>{{project_name_gateway_vm}}</code> and <code>{{project_name_workstation_vm}}</code>.
+
+== AppArmor Notifications ==
+=== apparmor-info ===
+[https://github.com/Kicksecure/helper-scripts/blob/master/usr/sbin/apparmor-info <code>apparmor-info</code>] is a helper utility to simplify viewing AppArmor logs. It parses AppArmor logs, hides unnecessary information <ref>
+<blockquote>Jul 18 13:50:28 host kernel: [  117.212029] audit: type=1400 audit(1626616228.947:23):</blockquote>
+</ref> and removes duplicates.
+
+{{CodeSelect|code=
+sudo apparmor-info --boot {{!}} grep DENIED
+}}
+
+=== apparmor-notify ===
+[https://packages.debian.org/{{Stable project version based on Debian codename}}/apparmor-notify apparmor-notify] is not installed by default. <ref>
+https://forums.whonix.org/t/whonix-14-debian-stretch-apparmor-related-changes/3563
+</ref> By installing it, desktop notifications would appear concerning AppArmor denied messages, which are stored in file <code>/var/log/kern.log</code>.
+
+To install:
+
+{{Install Package|
+package=apparmor-notify
+}}
+
+If <code>apparmor-notify</code> is manually installed, then on occasion an application may be functional but AppArmor "denied" messages constantly appear. Rather than updating the relevant AppArmor profile(s), it is possible to disable notifications instead.
+
+In the offending {{project_name_long}} (App)VM, launch Xfce Terminal and run.
+
+{{CodeSelect|code=
+sudo killall aa-notify
+}}
+
+To revert this change, reboot the VM.
+
+=== Manual Notifications Inspection ===
+Use of [[#apparmor-info|<code>apparmor-info</code>]] is simpler.
+
+{{Box|text=
+'''1.''' Manually inspect relevant logs.
+
+{{Open with root rights|filename=
+/var/log/kern.log
+}}
+
+'''2.''' Show denied AppArmor messages of any age.
+
+Run.
+
+{{CodeSelect|code=
+sudo cat /var/log/kern.log {{!}} grep DENIED
+}}
+
+'''3.''' ''Optional'': Keep watching the file as it is appended.
+
+This is useful for reproducing AppArmor denied messages and testing amended profiles.
+
+{{CodeSelect|code=
+sudo tail -f /var/log/kern.log {{!}} grep --line-buffered DENIED
+}}
+}}
+
+== More Profiles ==
+
+It is possible to utilize profiles by other vendors since AppArmor is [[unspecific|unspecific to {{project_name_long}}]]. This however is [[unsupported]] by {{project_name_long}} developers due to time constraints. As a reminder, it is not necessary to install AppArmor profiles for any applications that are unlikely to be used (such as dovecot). Additional options include:
+
+# Debian has packages that can be [https://wiki.debian.org/AppArmor/HowToUse#Enable_.2F_install_more_profiles easily installed via the APT package manager].
+# Ubuntu also [https://bazaar.launchpad.net/~apparmor-dev/apparmor-profiles/master/files/head:/ubuntu/16.10/ provides profiles]. It is not easy to download these as a package to be installed in Debian. Further, the profiles may or may not differ from (or complement) profiles listed earlier.
+# Advanced users can attempt to create additional, strict AppArmor profiles by executing: <ref name=madaidan_MAC />
+
+{{CodeSelect|code=
+aa-genprof $path_to_program
+}}
+
+Then open the program and use it as normal. AppArmor detects which files need to be accessed and adds them to the profile if you choose. This is insufficient for high quality profiles though; refer to the [https://gitlab.com/apparmor/apparmor/-/wikis/Documentation AppArmor documentation] for further details.
+
+== Fix Profiles ==
+'''1.''' Put folder <code>/etc/apparmor.d</code> under git version control.
+
+Git is a useful tool to record which files in a folder changed in what way.
+
+{{box|text=
+Git setup for folder <code>/etc/apparmor.d</code>.
+
+{{Git_version_control
+|sudo_maybe=sudo
+|folder=/etc/apparmor.d
+}}
+}}
+
+'''2.''' Open your application/s which caused the Denied/Allowed messages.
+
+'''3.''' Use <code>aa-logprof</code> to correct them. <ref>
+https://gitlab.com/apparmor/apparmor/-/issues/200#note_685907209
+</ref>
+
+{{CodeSelect|code=
+sudo aa-logprof
+}}
+
+This is an example for fixing the AppArmor profile for Tor Browser.
+
+Sample printout:
+
+<pre>
+Reading log entries from /var/log/audit/audit.log.
+Updating AppArmor profiles in /etc/apparmor.d.
+Enforce-mode changes:
+
+Profile:  /**/*-browser/Browser/firefox
+Path:     /sys/bus/pci/devices/
+New Mode: r
+Severity: 4
+
+ [1 - #include <abstractions/totem>]
+  2 - /sys/bus/pci/devices/ r,
+(A)llow / [(D)eny] / (I)gnore / (G)lob / Glob with (E)xtension / (N)ew / Audi(t) / Abo(r)t / (F)inish
+</pre>
+
+Answer with A
+
+Sample printout:
+
+<pre>
+Adding #include <abstractions/totem> to profile.
+Deleted 19 previous matching profile entries.
+
+Profile:  /**/*-browser/Browser/firefox
+Path:     /proc/1342/cgroup
+New Mode: owner r
+Severity: 6
+
+ [1 - owner /proc/*/cgroup r,]
+  2 - owner /proc/1342/cgroup r,
+(A)llow / [(D)eny] / (I)gnore / (G)lob / Glob with (E)xtension / (N)ew / Audi(t) / (O)wner permissions off / Abo(r)t / (F)inish
+</pre>
+
+Answer with A
+
+Sample printout:
+
+<pre>
+Adding owner /proc/*/cgroup r, to profile.
+
+= Changed Local Profiles =
+
+The following local profiles were changed. Would you like to save them?
+
+ [1 - /**/*-browser/Browser/firefox]
+(S)ave Changes / Save Selec(t)ed Profile / [(V)iew Changes] / View Changes b/w (C)lean profiles / Abo(r)t
+</pre>
+
+Answer with S
+
+Sample printout:
+
+<pre>
+Writing updated profile for /**/*-browser/Browser/firefox.
+</pre>
+
+Done.
+
+'''4.''' Re-run any applications that had any AppArmor issues
+
+'''5.''' Repeat step 2 and 3 until there are no new AppArmor denied or allowed messages.
+
+It should give you similar output if there is nothing left to resolve:
+
+<pre>
+Reading log entries from /var/log/audit/audit.log.
+Updating AppArmor profiles in /etc/apparmor.d.
+Enforce-mode changes:
+</pre>
+
+'''6.''' See which files were modified by <code>aa-logprof</code>.
+
+From the same folder.
+
+{{CodeSelect|code=
+git status
+}}
+
+<code>git</code> will show which files have been modified.
+
+Sample printout:
+
+<pre>
+On branch master
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   home.tor-browser.firefox
+
+no changes added to commit (use "git add" and/or "git commit -a")
+</pre>
+
+'''7.''' Open the modified file(s) with a text editor.
+
+{{CodeSelect|code=
+sudoedit /etc/apparmor.d/home.tor-browser.firefox
+}}
+
+'''8.''' Submit fixes to developers, if applicable (general bug).
+
+Ideally to github:
+
+* https://github.com/Kicksecure/?q=apparmor&type=all&language=&sort=
+* Related: [[Dev/git#Search_the_Source_Code|Search the Source Code]] and [[Dev/git#Find_Files|Find Files]].
+* In doubt ask in [https://forums.{{project_clearnet}}/c/apparmor {{project_name_long}} AppArmor Forum].
+
+= Support =
+* Need help? Visit the [https://forums.{{project_clearnet}}/c/apparmor {{project_name_long}} AppArmor Forum].
+* [https://forums.whonix.org/t/profile-creation-advice/1127 Profile Creation Advice]
+
+= Development =
+* [https://forums.whonix.org/t/whonix-apparmor-profiles-development-discussion/108 {{project_name_long}} AppArmor Profiles Development Discussion]
+* [https://phabricator.whonix.org/tag/apparmor/ Open Tasks]
+
+= Footnotes =
+{{box|text=
+This box <code>Expand All</code> is mostly useful for wiki editors. Users can safely ignore it.
+
+{{Expand_or_Collapse_All}}
+}}
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

@@ -1,0 +1,199 @@
+{{Header}}
+{{#seo:
+|description=Everything you should know about Configuration Drop-in Folders and Files.
+|image=Five-elements-379106640.jpg
+}}
+__TOC__
+[[image:Five-elements-379106640.jpg|thumb]]
+{{Anchor|.d Style Configuration Folders}}
+= Introduction =
+
+When changing any configurations it is recommended to use configuration drop-in folders whenever available to avoid the [[#Ordinary_Configuration_Files|disadvantages of ordinary configuration files]]. To use a configuration drop-in folder means "to drop a configuration snippet", which translates to creating a new configuration file in a configuration drop-in folder.
+
+This applies to most, if not all, other (Debian-based) Linux distributions including {{project_name_long}}.
+
+= Configuration Drop-In Folders =
+
+[https://github.com/{{project_name_short}} Most] [[Debian Packages|{{project_name_long}} packages]] provide configuration drop-in folders:
+
+* <code>/etc/systemcheck.d</code>
+* <code>/etc/{{project_name_short lowercase}}_firewall.d</code>
+* <code>/etc/{{project_name_short lowercase}}_buildconfig.d</code> (Only if you build from source code.)
+* <code>/etc/sdwdate.d</code>
+* <code>/etc/sdwdate-gui.d</code>
+* <code>/etc/uwt.d</code>
+* <code>/etc/onion-grater-merger.d</code>
+* <code>/etc/torbrowser.d</code>
+* <code>[[#/usr/local/etc|/usr/local/etc]]/torbrowser.d</code>
+
+Note that configuration of Tor is a special case; see [[Tor#Configuration|here]] for further details.
+
+To explain this concept, consider the [[sdwdate]] example. <code>/etc/sdwdate.d/30_default.conf</code> states:
+
+<blockquote>Please use "/etc/sdwdate.d/50_user.conf" for your custom configuration,
+which will override the defaults found here. When {{project_name_long}} is updated, this
+file may be overwritten.
+</blockquote>
+
+The same message is described elsewhere as follows.
+
+<blockquote>
+Instead of editing this file, please create and use the file
+"/etc/sdwdate.d/50_user.conf". When {{project_name_long}} is updated,
+"/etc/sdwdate.d/30_default.conf" will be overwritten. Files in folder
+"/etc/sdwdate.d/" are sourced in alphabetical order. Anything in
+"/etc/sdwdate.d/50_user.conf" will always override the defaults,
+allowing the user to keep their settings after updating {{project_name_long}}.</blockquote>
+
+In simple terms, files in configuration drop-in folders are usually sourced in lexical order. That means files named <code>30_...</code> will always be overruled by files named <code>50_...</code>.
+
+In this example, directly editing <code>/etc/sdwdate.d/30_default.conf</code> is recommended against. This is because the next time {{project_name_long}} is updated, <code>/etc/sdwdate.d/30_default.conf</code> may get new and improved settings. In this case it would cause a {{Code2|dpkg interactive conflict resolution dialog}}, which would look like the following.
+
+<pre>
+Configuration file `/etc/sdwdate.d/30_default.conf'
+ ==> Modified (by you or by a script) since installation.
+ ==> Package distributor has shipped an updated version.
+   What would you like to do about it ?  Your options are:
+    Y or I  : install the package maintainer's version
+    N or O  : keep your currently-installed version
+      D     : show the differences between the versions
+      Z     : background this process to examine the situation
+ The default action is to keep your current version.
+*** interfaces (Y/I/N/O/D/Z) [default=N] ? N
+</pre>
+
+Modifications coming with {{project_name_long}} will always fall back to reasonable defaults, if you were still using an old version. However, to prevent such conflicts in the first place it is better to:
+* read <code>/etc/sdwdate.d/30_default.conf</code>
+* leave <code>/etc/sdwdate.d/30_default.conf</code> untouched
+* copy settings you wish to overrule from <code>/etc/sdwdate.d/30_default.conf</code> and paste them into <code>/etc/sdwdate.d/50_user.conf</code>
+
+Since configuration drop-in folders are not standardized, configuration drop-in snippets are processed in very different ways depending on the software that reads the configuration. Sample differences in drop-in folders include:
+
+* Some allow overwriting configuration variables from lexical lower configuration files, such as <code>/etc/default/grub.d</code> (grub configuration). Conversely, some do not allow this such as <code>/etc/apt/sources.list.d</code> (where APT repository definitions can be dropped) or <code>/etc/apt/trusted.gpg.d</code> (where APT signing keys can be dropped).
+* Some are <code>source</code>ed <ref>
+<code>source</code>ed as in:
+
+* <code>bash</code> <code>source</code>, or
+* <code>sh</code> (shell script) <code>.</code> (same as <code>bash</code> <code>source</code>).
+
+https://superuser.com/questions/46139/what-does-source-do
+</ref> in lexical order such as <code>/etc/profile.d</code> or <code>/etc/X11/Xsession.d</code>.
+* Some contain scripts which are executed, like <code>/etc/grub.d</code> (boot grub menu generation).
+
+= Ordinary Configuration Files =
+
+In some cases a configuration drop-in folder is unavailable and edits must be made to ordinary configuration files. This applies to {{project_name_long}} as well as most, if not all, other Debian-based Linux distributions.
+
+Consider the following <code>/etc/hdparm.conf</code> example:
+* no <code>/etc/hdparm.d</code> folder exists
+* any changes must be made directly to <code>/etc/hdparm.conf</code>
+* editing this file comes with a disadvantage -- next time the file is changed by the <code>hdparm</code> maintainer and the system is upgraded, a {{Code2|dpkg interactive conflict resolution dialog}} will appear like below
+
+{{Anchor|dpkg interactive conflict resolution dialog}}
+<pre>
+Configuration file `/etc/hdparm.conf'
+ ==> Modified (by you or by a script) since installation.
+ ==> Package distributor has shipped an updated version.
+   What would you like to do about it ?  Your options are:
+    Y or I  : install the package maintainer's version
+    N or O  : keep your currently-installed version
+      D     : show the differences between the versions
+      Z     : background this process to examine the situation
+ The default action is to keep your current version.
+*** interfaces (Y/I/N/O/D/Z) [default=N] ? N
+</pre>
+
+In all cases, check the version differences (<code>D</code>), then make a decision. If purposeful changes were made to that file, then you most likely want to keep them by selecting <code>N</code>. If unsure, after the upgrade has finished, check the configuration file again and re-apply settings if necessary.
+
+= /usr/local/etc =
+
+Some configuration files also reside in the <code>/usr/local/etc</code> folder.
+
+Placing configuration files in <code>/usr/local</code> is a relatively new development and few applications will search for configuration files in this location, although some applications developed by Qubes developers may be an exception. Most configurable applications developed by {{project_name_long}} support configuration files in the <code>/usr/local/application-name'''.d'''</code> folder. Other applications using configuration files in the <code>/usr/local</code> folder are unknown.
+
+Support for configuration files in this folder was adopted in light of [[Qubes]], which is explained in the [[#Qubes Persistence|Qubes Persistence]] section.
+
+Configuration of Tor is a special case; see [[Tor#Configuration|Tor configuration]] for further information.
+
+= Reset Configuration Files to Vendor Default =
+
+It is possible to reset configuration files to vendor defaults. This is useful if a user changes their mind or selected the wrong action <ref>For example, not installed instead of installed.</ref> in response to a [[Operating_System_Software_and_Updates#Changed_Configuration_Files|Changed Configuration File]].
+
+{{Box|text=
+'''1.''' Check using <code>debsums</code>.
+
+Run [https://manpages.debian.org <code>debsums</code>] to show a list of changed and missing configuration files.
+
+{{CodeSelect|code=
+sudo debsums -ce
+}}
+
+A sample output might look like this.
+
+<pre>
+sdwdate: /etc/sdwdate.d/30_default.conf
+</pre>
+
+This means:
+
+<pre>
+package-name: changed-configuration-file
+</pre>
+
+'''2.''' Reinstall the package.
+
+In the command below, replace <code>package-name</code> with the actual name of the package such as <code>sdwdate</code>. <ref>
+[https://github.com/{{project_name_short}}/usability-misc/-/blob/master/usr/bin/apt-get-reset <code>apt-get-reset</code>] is a {{project_name_long}}-specific feature. It performs an action like this:
+
+{{CodeSelect|code=
+sudo apt -o Dpkg::Options::=--force-confnew,confmiss install --reinstall package-name
+}}
+</ref>
+
+{{CodeSelect|code=
+sudo apt-get-reset package-name
+}}
+
+The output will be similar to below.
+
+<pre>
+Setting up sdwdate (3:14.7-1) ...
+Configuration file '/etc/sdwdate.d/30_default.conf', does not exist on system.
+Installing new config file as you requested.
+</pre>
+
+'''3.''' Re-check using <code>debsums</code>.
+
+Re-run <code>sudo debsums -ce</code> to confirm the correct configuration files were changed as intended.
+}}
+
+= Qubes Persistence =
+
+In the Qubes Template model, <ref>
+[https://www.qubes-os.org/doc/getting-started/ App Qubes and Templates].</ref> any changes made to a [https://github.com/QubesOS/qubes-issues/issues/2489 root filesystem of an App Qube] are lost upon reboot. This is advantageous for several reasons: it saves time and disk space, and allows faster, centralized updates for applications that are usually found inside the root filesystem. However, certain directories are designed to persist between reboots in order to store files and settings. These directories are stored in <code>/rw</code>, including <code>/home/user</code> and <code>/usr/local</code> as well as additional directories defined by "bind directory" settings. <ref>[https://www.qubes-os.org/doc/bind-dirs/ How to make any file in an App Qube persistent using bind-dirs].
+</ref>
+
+{{Qubes_persistence}}
+
+Refer to the following advice when editing configuration files in {{q_project_name}}.
+
+* <u>App Qube configuration changes</u>: Changes in <code>/etc</code> are lost after reboot.
+** For persistent configuration changes the <code>/usr/local/etc</code> folder can be used in an App Qube. Applications that support this arrangement will document it, but changes will only apply to that specific App Qube.
+** Otherwise settings can be changed persistently in the Template <code>/etc</code> folder, but this change will affect all App Qubes based on that Template.
+* <u>Template</u>: <code>/etc</code> persists.
+* <u>Standalone</u>: <code>/etc</code> persists.
+
+For various subjects, user [[documentation]] provides advice on which VM configuration files can be edited.
+
+= See Also=
+* [https://www.freedesktop.org/software/systemd/man/modules-load.d.html Configuration Directories and Precedence] explanation
+* [[grub|Grub]] configuration changes
+* [[Operating_System_Software_and_Updates#Changed_Configuration_Files|Changed Configuration Files]] during [[Operating System Software and Updates|Upgrades]]
+* [[Debian Packages|{{project_name_long}} Debian Packages]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

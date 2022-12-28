@@ -1,0 +1,95 @@
+{{header}}
+{{stub}}
+== /etc/tor/torrc ==
+<pre>
+HiddenServiceDir /var/lib/tor-instances/onionv3/onionv3/
+HiddenServiceVersion 3
+
+## web
+HiddenServicePort 80 127.0.0.1:70
+</pre>
+
+== /etc/nginx/conf.d/hsts ==
+<pre>
+## HSTS settings
+</pre>
+
+== /etc/nginx/sites-available/00100.conf ==
+
+<pre>
+## default_server, apex domain (non-subdomain) or invalid subdomain catch-all
+
+## redirect plaintext clearnet non-subdomain to TLS non-subdomain
+server {
+   listen 80 default_server;
+   listen [::]:80 default_server;
+   return 301 https://kicksecure.com$request_uri;
+}
+
+## redirect TLS clearnet non-subdomain to TLS www subdomain
+server {
+   listen 443 ssl http2 default_server;
+   listen [::]:443 ssl http2 default_server;
+
+   ssl_certificate /etc/letsencrypt/live/kicksecure.com/fullchain.pem;
+   ssl_certificate_key /etc/letsencrypt/live/kicksecure.com/privkey.pem;
+   ssl_trusted_certificate /etc/letsencrypt/live/kicksecure.com/fullchain.pem;
+   include /etc/nginx/conf.d/hsts;
+
+   return 301 https://www.kicksecure.com$request_uri;
+}
+
+## redirect onion non-subdomain to www subdomain
+server {
+   listen 127.0.0.1:70;
+   server_name w5j6stm77zs6652pgsij4awcjeel3eco7kvipheu6mtr623eyyehj4yd.onion;
+
+   return 301 http://www.w5j6stm77zs6652pgsij4awcjeel3eco7kvipheu6mtr623eyyehj4yd.onion$request_uri;
+}
+</pre>
+
+== /etc/nginx/sites-available/www.conf ==
+
+<pre>
+## http clearnet port 80 unencrypted listener
+server {
+   listen 80;
+   listen [::]:80;
+   server_name www.kicksecure.com;
+   return 301 https://www.kicksecure.com$request_uri;
+}
+
+## clearnet www
+server {
+   listen 443 ssl http2;
+   listen [::]:443 ssl http2;
+   server_name www.kicksecure.com;
+
+   ssl_certificate /etc/letsencrypt/live/kicksecure.com/fullchain.pem;
+   ssl_certificate_key /etc/letsencrypt/live/kicksecure.com/privkey.pem;
+   ssl_trusted_certificate /etc/letsencrypt/live/kicksecure.com/fullchain.pem;
+   include /etc/nginx/conf.d/hsts;
+
+   more_set_headers "Onion-Location: http://www.w5j6stm77zs6652pgsij4awcjeel3eco7kvipheu6mtr623eyyehj4yd.onion$request_uri";
+
+   include /etc/nginx/conf.d/www;
+}
+
+## onion www
+server {
+   listen 127.0.0.1:70;
+   server_name www.w5j6stm77zs6652pgsij4awcjeel3eco7kvipheu6mtr623eyyehj4yd.onion;
+
+   more_set_headers "X-Robots-Tag: noindex, nofollow";
+
+   include /etc/nginx/conf.d/www;
+}
+</pre>
+
+== /etc/nginx/conf.d/www ==
+<pre>
+## actual nginx config shared among TLS and onion goes here
+</pre>
+
+{{footer}}
+[[Category:Documentation]]

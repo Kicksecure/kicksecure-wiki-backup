@@ -1,0 +1,356 @@
+{{Header}}
+{{#seo:
+|description=Development Notes about git and ways to stay up to date of source code changes
+}}
+{{forkme}}
+= Branches =
+
+== Introduction ==
+
+While the project is small adrelanos thinks it is best not to make a too difficult policy.
+
+== Compare ==
+Upstream git issue. Currently not easy to compare tags in a superproject while showing what changed in the submodules.
+
+{{CodeSelect|code=
+git log -p --submodule=log 15.0.0.3.3-stable..15.0.0.3.7-developers-only
+}}
+
+== master ==
+
+* <s>Adrelanos's progress of work.</s>
+* Not calling it unstable, because the changes will most likely never make it unstable but it is just not tested if it still builds.
+* Branching model, project readme, information, gpg...
+
+== signed git tags ==
+
+Releases will be tagged and gpg signed.
+
+== Link to Source Code ==
+
+https://github.com/{{project_name_short}}/derivative-maker
+
+-----
+
+= subscribe to code changes =
+== git ==
+Git clone [https://github.com/{{project_name_short}}/derivative-maker github].
+
+A git specific work flow could be:
+
+<pre>git fetch</pre>
+
+every (few) day(s) and then git diff(tool), merge, etc.
+
+== rss feed notification ==
+https://github.com/{{project_name_short}}/derivative-maker/commits/master.atom
+
+== manually in your browser ==
+Check every now and then https://github.com/{{project_name_short}}/derivative-maker/commits/master.
+
+-----
+
+{{Anchor|grep {{project_name_short}} source code}}
+
+{{Anchor|grep}}
+{{Anchor|grep {{project_name_long}} source code}}
+
+= Search the Source Code =
+== Introduction ==
+<code>grep</code>ing (search for keywords inside files) or <code>find</code>ing files the {{project_name_long}} source code can be useful when looking for certain keywords or files. However, a common <code>grep -r</code> or <code>find .</code> will show lots of irrelevant search results due to changelog files, license files and git history. The following is a suggestions on how to securely acquire {{project_name_long}} source code as well as on <code>grep</code>ing or <code>find</code>ing the {{project_name_long}} with relevant only relevant search results.
+
+== Get the Source Code ==
+=== Get the Signing Key ===
+{{Get_Signing_Key}}
+
+=== Get the Source Code ===
+{{Build_Documentation_Get_Source}}
+
+=== OpenPGP Verify the Source Code ===
+{{OpenPGP Verify the Source Code}}
+
+=== Choose Version ===
+{{
+Build Documentation Choose Version
+|version={{VersionNew}}-stable
+|extra=--recurse-submodules
+}}
+
+=== Check Git ===
+{{Build Documentation Check Git
+|version={{VersionNew}}-stable
+}}
+
+== Find Keywords ==
+'''1.''' Create folder <code>~/bin</code>.
+
+{{CodeSelect|code=
+mkdir -p ~/bin
+}}
+
+'''2.''' Create a file <code>~/bin/mygrep</code>.
+
+'''3.''' Paste the following content.
+
+{{CodeSelect|code=
+#!/bin/bash
+set -x
+grep \
+--exclude=README.md \
+--exclude=GPLv2 \
+--exclude=GPLv3 \
+--exclude=COPYING \
+--exclude=changelog.upstream-old1 \
+--exclude-dir=mnt \
+--exclude-dir=qubes-src/linux-template-builder/mnt \
+--exclude=changelog.upstream \
+--exclude-dir=".git" \
+--exclude-dir=chroot-debian \
+--exclude-dir=chroot-buster "$@"
+}}
+
+'''4.''' Save.
+
+'''5.''' Make executable.
+
+{{CodeSelect|code=
+chmod +x ~/bin/mygrep
+}}
+
+'''6.''' Reboot required.
+
+'''7.''' You need to be inside the source code folder. If not already, change directory.
+
+{{CodeSelect|code=
+cd derivative-maker
+}}
+
+'''8.''' Search for a textual string (keyword).
+
+For example <code>grub-pc</code>. Replace <code>grub-pc</code> with the actual keyword.
+
+{{CodeSelect|code=
+mygrep -r -i grub-pc
+}}
+
+== Find Files ==
+'''1.''' Create folder <code>~/bin</code>.
+
+{{CodeSelect|code=
+mkdir -p ~/bin
+}}
+
+'''2.''' Create a file <code>~/bin/myfind</code>.
+
+'''3.''' Paste the following.
+
+{{CodeSelect|code=
+#!/bin/bash
+set -x
+find \
+"$@" \
+-type f \
+-not -iwholename '*.git*'
+}}
+
+'''4.''' Save.
+
+'''5.''' Make executable.
+
+{{CodeSelect|code=
+chmod +x ~/bin/myfind
+}}
+
+'''6.''' You need to be inside the source code folder. If not already, change directory.
+
+{{CodeSelect|code=
+cd derivative-maker
+}}
+
+'''7.''' Search for a file name.
+
+For example <code>/etc/apparmor.d</code>.
+
+{{CodeSelect|code=
+myfind . {{!}} grep --color -i /etc/apparmor.d
+}}
+
+-----
+
+= Compiled Code =
+{{CodeSelect|code=
+find . -name '*.c' -not -iwholename '*.git*'
+}}
+
+<pre>
+./sdwdate/usr/lib/sdwdate/sclockadj.c
+./bindp/usr/lib/bindp.c
+./kloak/src/main.c
+./kloak/src/keycodes.c
+./kloak/src/eventcap.c
+</pre>
+
+= Put folder under Git Version Control =
+[[Operating System Software and Updates]]
+
+{{CodeSelect|code=
+sudo apt update
+}}
+
+Install <code>git</code>.
+
+{{CodeSelect|code=
+sudo apt install --no-install-recommends git
+}}
+
+Unless you want to use git for pushing changes to remotes which you probably won't in a testing VM you can use the following git config without using any real names or pseudonyms. (These are the git suggested defaults. <ref>
+<pre>
+git commit -a -m .
+
+*** Please tell me who you are.
+
+Run
+
+  git config --global user.email "you@example.com"
+  git config --global user.name "Your Name"
+
+to set your account's default identity.
+Omit --global to set the identity only in this repository.
+
+fatal: empty ident name (for <(null)>) not allowed
+</pre>
+</ref>)
+
+{{CodeSelect|code=
+git config --global user.email "you@example.com"
+}}
+
+{{CodeSelect|code=
+git config --global user.name "Your Name"
+}}
+
+Desalinize git in current folder or <code>cd</code> to any folder you want to put under git version control. Can even be done for <code>/home/user</code> folder which is very useful.
+
+{{CodeSelect|code=
+git init
+}}
+
+Add all files to be added for next commit.
+
+{{CodeSelect|code=
+git add -A
+}}
+
+Actually commit to git.
+
+{{CodeSelect|code=
+git commit -a -m .
+}}
+
+Check git status of that folder.
+
+{{CodeSelect|code=
+git status
+}}
+
+No changes registered yet to the folder since just now committed all to git.
+
+<pre>
+On branch master
+nothing to commit, working tree clean
+</pre>
+
+Create a test file or do some activity such as starting a browser or e-mail client.
+
+{{CodeSelect|code=
+touch test-file
+}}
+
+Check again git status of that folder.
+
+{{CodeSelect|code=
+git status
+}}
+
+Now git will show what changed.
+
+<pre>
+On branch master
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+	test-file
+
+nothing added to commit but untracked files present (use "git add" to track)
+</pre>
+
+= Goodies =
+
+Optional. Just sharing. Like it or not.
+
+* Bash completion can complete git commands and branch names.
+* [http://www.opinionatedprogrammer.com/2011/01/colorful-bash-prompt-reflecting-git-status/ Colorful git prompt.]
+
+[http://www.opinionatedprogrammer.com/post-img/git-prompt-screenshot.png screenshot]
+
+= apt source =
+You need to enable <code>deb-src</code> in <code>/etc/apt/sources.list.d/derivative.list</code>!
+
+<pre>
+sudo apt update
+</pre>
+<pre>
+Hit:1 tor+http://deb.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion buster InRelease
+Hit:2 https://deb.qubes-os.org/r4.1/vm bullseye InRelease
+Ign:3 tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian buster InRelease
+Hit:4 tor+http://5ajw6aqf3ep7sijnscdzw77t7xq4xjpsy335yb2wiwgouo7yfxtjlmid.onion buster/updates InRelease
+Hit:5 tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian buster Release
+Ign:7 https://deb.debian.org/debian buster InRelease
+Hit:8 https://security.debian.org buster/updates InRelease
+Hit:9 https://deb.debian.org/debian buster Release
+Hit:11 https://deb.debian.org buster InRelease
+Reading package lists... Done
+E: Failed to fetch tor+http://deb.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion/dists/{{Stable project version based on Debian codename}}/InRelease  Unable to find expected entry 'contrib/source/Sources' in Release file (Wrong sources.list entry or malformed file)
+E: Failed to fetch https://deb.debian.org/dists/stable/InRelease  Unable to find expected entry 'non-free/source/Sources' in Release file (Wrong sources.list entry or malformed file)
+E: Some index files failed to download. They have been ignored, or old ones used instead.
+</pre>
+
+The following messages can be ignored:
+
+* "Unable to find expected entry 'contrib/source/Sources'" and
+* "Unable to find expected entry 'non-free/source/Sources'"
+
+There is nothing in these repositories and it does not limit functionality in any way. This is an inconvenient message but it will not be fixed since it was only raised once in that last five years.
+
+apt source is fully functional.
+
+<pre>
+apt source sandbox-app-launcher
+</pre>
+
+<pre>
+Reading package lists... Done
+Picking 'kicksecure-meta-packages' as source package instead of 'sandbox-app-launcher'
+NOTICE: 'kicksecure-meta-packages' packaging is maintained in the 'Git' version control system at:
+https://github.com/{{project_name_short}}/sandbox-app-launcher.git
+Please use:
+git clone https://github.com/{{project_name_short}}/sandbox-app-launcher.git
+to retrieve the latest (possibly unreleased) updates to the package.
+Need to get 48.9 kB of source archives.
+Get:1 tor+http://deb.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion buster/main sandbox-app-launcher 3:7.9-1 (dsc) [5,513 B]
+Get:2 tor+http://deb.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion buster/main sandbox-app-launcher 3:7.9-1 (tar) [37.8 kB]
+Get:3 tor+http://deb.dds6qkxpwdeubwucdiaord2xgbbeyds25rbsgr73tbfpqpt4a6vjwsyd.onion buster/main sandbox-app-launcher 3:7.9-1 (diff) [5,588 B]
+Fetched 48.9 kB in 2s (19.4 kB/s)
+dpkg-source: info: extracting sandbox-app-launcher in sandbox-app-launcher-7.9
+dpkg-source: info: unpacking sandbox-app-launcher_7.9.orig.tar.xz
+dpkg-source: info: unpacking sandbox-app-launcher_7.9-1.debian.tar.xz
+</pre>
+
+-----
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Development]] [[Category:Design]]

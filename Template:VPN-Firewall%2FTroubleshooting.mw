@@ -1,0 +1,105 @@
+You can skip this troubleshooting chapter unless any difficulties are encountered.
+
+====== ip_unpriv vs  ip-unpriv ======
+There are two similar, yet distinct projects: standalone VPN-FIREWALL and Whonix TUNNEL_FIREWALL. Although both are alike, there is one difference that might be encountered. For instance, in chapter [[#VPN Configuration File]]:
+
+* Whonix TUNNEL_FIREWALL uses {{Code2|ip'''_'''unpriv}} (underscore)
+* Standalone VPN-FIREWALL uses {{Code2|ip'''-'''unpriv}} (hyphen)
+
+
+Be sure to use the right version of ip unpriv according to whether the VPN-FIREWALL or Whonix TUNNEL_FIREWALL project is being used.
+
+====== 50_openvpn_unpriv.conf vs 50_openvpn-unpriv.conf ======
+Like the example above:
+
+* Whonix TUNNEL_FIREWALL uses /usr/lib/tmpfiles.d/50_openvpn_unpriv.conf {{Code2|ip'''_'''unpriv}} (underscore)
+* Standalone VPN-FIREWALL uses  /usr/lib/tmpfiles.d/50_openvpn-unpriv.conf {{Code2|ip'''-'''unpriv}} (hyphen)
+
+====== Cannot ioctl TUNSETIFF ======
+
+  <i>ERROR: Cannot ioctl TUNSETIFF tun: Operation not permitted (errno=1)</i>
+
+In openvpn.conf do not use.
+
+<pre>
+dev tun
+</pre>
+
+Use.
+
+<pre>
+dev tun0
+</pre>
+
+====== Dev tun Mismatch ======
+In openvpn.conf do not use.
+
+<pre>
+dev tun
+</pre>
+
+Use.
+
+<pre>
+dev tun0
+</pre>
+
+====== /run/openvpn/openvpn.status Permission denied ======
+
+  <i>Options error: --status fails with '/run/openvpn/openvpn.status': Permission denied</i>
+
+Do not start OpenVPN as root. Do not use <i>sudo openvpn</i>, because this will lead to permission issues. Files in the <i>/run/openvpn</i> folder are owned by root, so they cannot be overwritten by the user tunnel.
+
+====== debug start ======
+To start debug, run the following commands concurrently.
+
+{{CodeSelect|code=
+sudo /usr/sbin/openvpn --rmtun --dev tun0
+}}
+{{CodeSelect|code=
+sudo /usr/sbin/openvpn --mktun --dev tun0 --dev-type tun --user tunnel --group tunnel
+}}
+{{CodeSelect|code=
+cd /etc/openvpn/
+}}
+{{CodeSelect|code=
+sudo -u tunnel openvpn /etc/openvpn/openvpn.conf
+}}
+
+====== Linux ip link set failed ======
+
+  <i>Linux ip link set failed: external program exited with error status: 2</i>
+
+Use ip_unpriv as documented above.
+
+====== DNS Configuration ======
+This only applies if resolvconf is used.
+
+Permissions on two directories may need to be manually changed if they are not automatically applied. Check if changes are necessary via the following command.
+
+{{CodeSelect|code=
+ls -la /run/resolvconf
+}}
+
+If the output lists tunnel as having read / write / execute permissions for both ''/run/resolvconf'' and ''/run/resolvconf/interface'', then nothing needs modification. If tunnel is not listed as a group for one or both of these directories, then permissions need to be changed. In that case, run.
+
+{{CodeSelect|code=
+sudo chown --recursive root:tunnel /run/resolvconf
+}}
+
+Then set the necessary permissions.
+
+{{CodeSelect|code=
+sudo chmod --recursive 775 /run/resolvconf
+}}
+
+In ''/run/resolvconf'', resolv.conf may or may not be owned by tunnel, depending on whether the systemd service has already started. There is no need to modify permissions on this file, as the permissions will change when the service starts.
+
+====== Terminology for Support Requests ======
+Phrases such as "over Tor" are ambiguous. Please do not coin idiosyncratic words or phrases, otherwise this leads to confusion. Please use the same terms that are consistently referenced in documentation, such as:
+
+* Connect to a VPN Before Tor (User &rarr; VPN &rarr; Tor &rarr; Internet).
+* Connect to Tor Before a VPN (User &rarr; Tor &rarr; VPN &rarr; Internet).
+* And so on.
+
+Always refer to the connection scheme when requesting support: {{Code2|User &rarr; VPN &rarr; Tor &rarr; Internet}} or {{Code2|User &rarr; Tor &rarr; VPN &rarr; Internet}} and so on.

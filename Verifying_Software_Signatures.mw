@@ -1,0 +1,246 @@
+{{Header}}
+{{#seo:
+|description=Digital signatures can increase security but this requires knowledge. Learn more about Verifying Software Signatures, What Digital Signatures (Not) Prove, Verification Security Levels, Conceptual Challenges, Attacks in the Wild.
+|image=https://www.{{project_clearnet}}/w/images/b/bb/Verifyingsignature1231233.png
+}}
+[[image:Verifyingsignature1231233.png|200px|thumb]]
+= Introduction =
+
+For greater system security the installation of unsigned software should be avoided at all costs. Instead it is recommended to:
+
+* Only install verifiable software that allows for [[Warning#Always_Verify_Signatures|confirmation of signing keys and signatures]]; and/or
+* Use mechanisms that heavily simplify and automate this process, like [[Operating_System_Software_and_Updates#Updates|apt]] upgrades.
+
+= Verification Procedure =
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = Do not continue if verification fails! This risks using infected or erroneous files! The whole point of verification is to confirm file integrity.
+}}
+
+{{gpg_signature_timestamp}}
+
+{{GnuPG_file_names}}
+
+== Checking Digital Fingerprints of Signing Keys ==
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = '''Warning:''' Software should only be installed <u>after</u> a key's fingerprint has been verified and good signatures are produced for files/repositories.
+}}
+
+A critical first step in verifying software is legitimate is confirmation that the signing key is authentic -- this requires inspection of the key fingerprint. <ref>For example, <u>anybody could generate an OpenPGP key pair and pretend to be the "{{project_name_long}} Project"</u>, but only [[Signing Key|Patrick Schleizer's key pair]] is legitimate.</ref> Always perform this operation before keys are imported or trust is placed in OpenPGP output when verifying files or repositories.
+
+The standard {{project_name_long}} wiki advice is to carefully obtain copies of the [[Trust#OpenPGP|OpenPGP fingerprint]] from multiple secure websites and to use [[OpenPGP#The_OpenPGP_Web_of_Trust|other authentication systems]] to check they match. <ref>Website checks are only as secure as the imperfect TLS system, which is itself based on certificate authorities that have been frequently compromised in recent years.</ref> In this instance, "other authentication systems" refers to: <ref>https://www.qubes-os.org/security/verifying-signatures/</ref>
+
+* Use the [[OpenPGP#The_OpenPGP_Web_of_Trust|The OpenPGP Web of Trust]].
+* Check the key against different keyservers.
+* Use different search engines to search for the fingerprint.
+* Use various VPNs and proxy servers.
+* Use different Wi-Fi networks (work, school, internet cafe, etc.).
+* Ask people to post the fingerprint in various forums and chat rooms.
+* Check against PDFs and photographs in which the fingerprint appears (e.g., slides from a talk or on a T-shirt).
+* Repeat all of the above from different computers and devices.
+* See also [[OpenPGP#Bootstrapping_OpenPGP_keys_from_the_web|Bootstrapping OpenPGP keys from the web]].
+
+== Checking Digital Fingerprints of Signed Software ==
+
+Before file signatures can be safely verified with the signing key, several prerequisites must be met:
+# The correct signing key pair was downloaded.
+# The signing key's fingerprints were checked against multiple sources.
+# The key pair was imported e.g:
+
+<pre>
+user@host:~/Downloads$ gpg --import KEY
+gpg: key 61B7B526D98F0353: 24 signatures not checked due to missing keys
+gpg: key 61B7B526D98F0353: public key "Mozilla Software Releases <release@mozilla.com>" imported
+gpg: Total number processed: 1
+gpg:               imported: 1
+gpg: no ultimately trusted keys found
+</pre>
+
+# The software package intended for installation was downloaded.
+# The accompanying signature file for the software package (.asc files are GPG signatures) was downloaded.
+
+The following example shows how the file signature is checked for Firefox v97.0.1, directly downloaded from The Mozilla Firefox website.
+
+In a terminal run.
+
+{{CodeSelect|code=
+gpg --verify firefox-97.0.1.tar.bz2.asc firefox-97.0.1.tar.bz2
+}}
+
+The OpenPGP output should show a "good signature", with the primary key fingerprint matching the one verified by the user earlier on. In this example.
+
+<pre>
+gpg: Signature made Wed 16 Feb 2022 06:52:12 PM GMT
+gpg:                using RSA key 4360FE2109C49763186F8E21EBE41E90F6F12F6D
+gpg: Good signature from "Mozilla Software Releases <release@mozilla.com>" [unknown]
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+Primary key fingerprint: 14F2 6682 D091 6CDD 81E3  7B6D 61B7 B526 D98F 0353
+     Subkey fingerprint: 4360 FE21 09C4 9763 186F  8E21 EBE4 1E90 F6F1 2F6D
+</pre>
+
+The software can now be safely installed. If the output states "bad signature", then the files and digital signatures should be removed and downloaded again.
+
+= Common Misconceptions =
+
+== What Digital Signatures Prove ==
+
+Bear in mind that using digital signatures to verify the trustworthiness of software is not an infallible process. Digital signatures increase the certainty that no backdoor was introduced by a third party during transit, but this does not mean the software is absolutely "backdoor-free". The following is a summary of what digital signatures prove and do not prove.
+
+'''Table:''' ''Digital Signatures Properties''
+
+<div class="scroll-table">
+{| class="wikitable"
+|-
+
+! scope="col"| '''Property'''
+! scope="col"| '''Description'''
+|-
+
+! scope="row"| Digital Signatures Prove
+|
+* Someone with access to the private key has made a signature.
+* The file contents have not been tampered with (preserving integrity).
+* <i>May</i> indicate the given file is authentic.
+|-
+
+! scope="row"| Digital Signatures do not Prove
+|
+* Any other property, for example, that the file is not malicious. Nothing stops a person from signing a malicious program. Digital signature or not, for example in the case of
+** the intentional breakage, supply chain attacks: [https://www.bleepingcomputer.com/news/security/dev-corrupts-npm-libs-colors-and-faker-breaking-thousands-of-apps/ Dev corrupts NPM libs 'colors' and 'faker' breaking thousands of apps]
+** [[Malware_and_Firmware_Trojans#Backdoors|backdoors]]: [https://www.synopsys.com/blogs/software-security/malicious-dependency-supply-chain/ bitcoin copay wallet “direct” backdoor]  "{{Code2|If more than 100 BTC, steal it. Otherwise, don’t bother.}}" <ref>
+* https://github.com/dominictarr/event-stream/issues/116
+* https://github.com/dominictarr/event-stream/issues/116#issuecomment-441759047
+</ref>
+** a digital signature would <u>not</u> have helped.
+* That persons signing the file are inherently trustworthy, for example: Debian, {{project_name_long}} developers and so on -- but trust must be eventually placed in someone. <ref>
+Digital signatures are still useful in this case, because it is possible to limit trust to a few select people/organizations such as {{project_name_long}} developers.
+</ref>
+|-
+
+|}
+</div>
+
+If all files downloaded from trusted vendors are verified, then this removes the threat of server compromises, dishonest staff at hosting companies or ISPs, Wi-Fi attacks and so on. The reason is files that have been tampered with will produce bad digital signatures, <u>so long as the public keys used for signature verification are the authentic, original ones (see below).</u>
+
+== System Security Level ==
+
+System security level can be placed into one of three categories. From strongest to weakest these are:
+
+* <code>Always use software signatures verification</code>: software signatures are always verified with [[OpenPGP]], [[PQCrypto#Codecrypt|codecrypt]], [[Install_Software|APT]] or similar mechanisms.
+* <code>Always use TLS</code>: files are always [[Secure_Downloads|securely downloaded]] over [[SSL|TLS]].
+* <code>Plaintext</code>.
+
+If software was ever installed or started that did not previously successfully verify software signatures, then the system security level is reduced from the OpenPGP standard to either TLS or even the plaintext standard.
+
+Unless a [[Disaster Recovery|Disaster Recovery Procedure]] is utilized, it is impossible to increase the security level of a machine or VM (for example, from TLS to the OpenPGP standard).
+
+If the reader shares the {{project_name_long}} opinion that [[SSL|Transport Layer Security (TLS)]] provides a weak safeguard, then software signatures must be consistently verified and without exception.
+
+== Conceptual Challenges in Digital Signatures Verification ==
+
+Many educational shortcomings exist with respect to verification of software digital signatures. In the relevant literature, a number of implicit assumptions are made which are seldom spelled out. Unless users are properly educated beforehand, it is unrealistic to expect the majority can successfully verify software signatures and simultaneously notice attacks by advanced adversaries.
+
+When digitally signed software is made available, most often the relevant website will simply state the signing key should be downloaded in order to verify software signature(s). This approach has limited usefulness and {{project_clearnet}} is not alone in this regard -- the same is true for any software that provides software signatures.
+
+Due diligence in verification of software signatures falls wholly upon users, and cannot be offered by vendors who make software and associated signatures available for download. The reason is the threat model of software signature verification is intimately linked with the [[#System Security Level|system security level]]; this section attempts to make this explicit.
+
+=== Threat Model Assumptions ===
+
+In this threat model, signing keys and software signatures are considered to provide a higher security level. On the other hand, everything the user can see on a website (including instructions) is on a lower security level because [[Dev/OpenPGP Signed Website|(OpenPGP) signed websites]] do not exist yet. Further, [[SSL|TLS]] provides a lower security level than verification of digital software signatures.
+
+Consider an example of signed software that is available on a random website that is secured by TLS (in this very example TLS vs non-TLS does not even matter). In this hypothetical case, due to the software's file size and economic shortcomings it is impossible to host the software downloads on the same server. Instead, downloads are offered on a mirror network operated by third parties. In such an example it could be argued that mirrors are less trusted than the main project website. In the event the main website offered a signing key, but a malicious file was shipped by a third party mirror, then it could be detected if software signature verification was utilized by the user.
+
+In other cases the software downloads, signing key and software signatures are all provided by the same server over [[SSL|TLS]]; this is the situation for {{project_name_long}} and other projects. <ref>{{project_name_long}} also offers all three components over [[Forcing .onion on Project|.onion]]; see also [[Download Security]].</ref> While this may appear more secure than the first example, no project can guarantee that its server will never be compromised; see [[Trust#Distrusting_Infrastructure|Distrusting Infrastructure]] for further details.
+
+The preceding discussion makes it clear that is unwise to blindly trust whatever a project website says about software signature verification. Relevant threat model questions include:
+* What if the website I am currently viewing is already compromised?
+* What if a malicious third party has already modified instructions concerning how to verify signatures or which signing key should be used?
+Also, after compromising a project web server, advanced adversaries are capable of showing fake website contents to specifically targeted users.
+
+=== Potential Adversary Attacks ===
+
+Competent adversaries are capable of various attacks, including malicious modifications of a project website. Consider the following vectors:
+* Removal of any mention of software signature verification and replacement of software downloads with malicious counterparts.
+** Users who have never heard about software verification would fail to notice this, leading to compromise.
+** Users who already understood the threat model of digital software verification and wanted to enforce the security level "always use software signatures verification" would ask for software signatures and remain safe.
+* Insertion of false information such as "From now on, software signatures are no longer required. This process is now automated, because ...".
+** Gullible users would believe this statement and be compromised.
+** Diligent users would search for a digitally signed message by the vendor confirming this change. If it was not found, they would report the issue and remain safe.
+* Replacing the genuine signing key and software signatures with a signing key and software signatures created by the adversary.
+** Users who did not previously receive the signing key and who did not do further research the plausibility of having received the correct signing key would fail to not notice this and be compromised.
+** Diligent users would follow the recommendations in earlier chapters on this page and therefore stay safe.
+
+To counter these threats, user intelligence and due diligence is necessary as a sanity check.
+
+Due to the complexity of this issue and very low user awareness, it is unlikely the majority of users are enforcing the "always use software signatures verification" security level. To date, the author of this section has not seen the security level concept explicitly described elsewhere, probably because the relevant  information is not widely known. Unfortunately, the existing tools used for manual verification of software signatures have poor usability and [[Software_Signature_Verification_Usability_Issues_and_Proposed_Solutions|better technical solutions]] that are required do not exist.
+
+== Information Security Level ==
+Information security level (similar to [[#System Security Level|system security level]]) can be placed into one of three categories. From strongest to weakest these are:
+
+* <code>signatures verification</code>: signatures are verified with [[OpenPGP]], [[PQCrypto#Codecrypt|codecrypt]], or similar mechanisms.
+* <code>TLS</code>: information was received over [[SSL|TLS]].
+* <code>Plaintext</code>.
+
+Other properties and categories are conceivable as well. Such as for example:
+
+* Third party server not involved or cannot due to security by design tamper with information.
+* Offline signing key.
+
+= Attacks in the Wild =
+
+== Cryptocurrency Theft via Compromised Binaries ==
+
+In late 2019, malware was in operation that led to the theft of funds from Monero users:
+
+* [https://www.reddit.com/r/Monero/comments/dyfozs/security_warning_cli_binaries_available_on/ Security Warning: CLI binaries available on getmonero.org may have been compromised at some point during the last 24h.]
+* [https://web.archive.org/web/20220511004124/https://lists.getmonero.org/hyperkitty/list/monero-announce@lists.getmonero.org/thread/DXJ223SBTCWKP7EDHVS7X73VP6WWX4S4/ Warning: The binaries of the CLI wallet were compromised for a short time]
+* [https://github.com/monero-project/monero/issues/6151#issuecomment-555694443 Wrong hashes (from getmonero.org)]
+* [https://bartblaze.blogspot.com/2019/11/monero-project-compromised.html Monero download site and binaries compromised]
+
+== Fake Tor Browser ==
+
+To illustrate the risk of installing unsigned software, consider the following attack which recently used a [https://en.wikipedia.org/wiki/Trojan_horse_(computing) "trojanized" Tor Browser] to spy on users and to steal Bitcoin. This attack had several elements: <ref>https://www.eff.org/deeplinks/2019/10/phony-https-everywhere-extension-used-fake-tor-browser</ref> <ref>https://www.eset.com/us/about/newsroom/press-releases/eset-discovers-a-campaign-stealing-bitcoins-from-darknet-users/</ref>
+
+* Advertisements for the fake Tor Browser were used in Russian forums focused on privacy, censorship circumvention, darknet markets and cryptocurrencies.
+** Messaging included promises to circumvent Russian censorship bodies and to bypass CAPTCHAs.
+** Links were provided to fake domains for downloading Tor Browser (<code>tor-browser.org</code> and <code>torproect.org</code>), instead of the genuine website: <code>torproject.org</code>
+* After visiting the fake websites, users received warnings their Tor Browser was outdated (regardless of the reality). Users who believed this message were redirected to another website with an installer.
+* The malicious Tor Browser version downloaded was older (version 7.5) than the current release (9.0 at the time of writing), and had disabled the digital signature check for installed Tor Browser add-ons (<code>xpinstall.signatures.required</code> was set to false). It had also renamed the updater tool to prevent victims updating to a legitimate version of Tor Browser.
+* The Tor proxy was used in the browser, anonymizing the user's IP address. However, users could be spied upon because a custom user-agent (text-based identifer) was set that allowed the software and operating system to be visible -- a unique browser fingerprint made tracking by network observers possible.
+* Attackers had bundled HTTPS Everywhere with a modified <code>manifest.json</code> file. This permitted the web extension to have broader permissions and to add content scripts that were loaded into various web pages. As a consequence, a [https://www.trendmicro.com/vinfo/us/security/definition/command-and-control-server Command and Control server] could load further scripts when users browsed on certain Darknet markets and a commonly used Russian money transfer service (QIWI) -- changing cryptocurrency wallet addresses to match an addressed controlled by criminals in order to steal money.
+* It is also assumed the NoScript extension settings were modified so JavaScript was active when browsing.
+
+This highlights the possible dangers of installing unsigned software -- loss of anonymity and financial loss in this case. If the victims had instead only installed signed Tor Browser software from trusted and known sources <u>after</u>: verifying they had the correct key pair, confirming the key's fingerprints, and checking the signature file for the software package matched, then they could have bypassed this scam entirely.
+
+== hacked github.com ==
+* '''1.)''' ''2012'' <u>Unauthorized github repository write access:</u> https://github.blog/2012-03-04-public-key-security-vulnerability-and-mitigation/ <ref>
+* https://homakov.blogspot.com/2012/03/how-to.html
+* https://www.extremetech.com/computing/120981-github-hacked-millions-of-projects-at-risk-of-being-modified-or-deleted
+* https://github.com/rails/rails/commit/b83965785db1eec019edf1fc272b1aa393e6dc57
+</ref>
+* '''2.''' ''2014'' https://homakov.blogspot.com/2014/02/how-i-hacked-github-again.html <ref>
+https://www.reddit.com/r/netsec/comments/1xa5xh/comment/cf9qjcl/</ref>
+* '''3.)''' ''2022'' <u>Hacked logins and private github repository data leak:</u>  Mike Hanley, Chief Security Officer at GitHub, wrote in a [https://github.blog/2022-04-15-security-alert-stolen-oauth-user-tokens/ blog post]: <blockquote>We have high confidence that compromised OAuth user tokens from Heroku and Travis-CI-maintained OAuth applications were stolen and abused to download private repositories belonging to dozens of victim organizations that were using these apps. Our analysis of other behavior by the threat actor suggests that the actors may be mining the downloaded private repository contents, to which the stolen OAuth token had access, for secrets that could be used to pivot into other infrastructure.</blockquote> <ref>
+https://www.developer-tech.com/news/2022/apr/19/github-notifies-victims-of-oauth-token-theft/
+</ref>
+
+= See Also =
+* [[Trust|Placing Trust in {{project_name_long}}]]
+* [[OpenPGP]]
+* [[Verify the virtual machine images]]
+* [[Signing Key|{{project name long}} Signing Key]]
+* [[Software Signature Verification Usability Issues and Proposed Solutions]]
+
+= Attribution =
+Gratitude is expressed to [https://www.qubes-os.org Qubes OS] ([https://groups.google.com/g/qubes-devel/c/zALZnu9pTuU Permission]). The [[#What Digital Signatures Prove|What Digital Signatures Prove]] chapter contains content from the [https://www.qubes-os.org/security/verifying-signatures/#what-digital-signatures-can-and-cannot-prove Qubes OS: What do the Digital Signatures Prove and What They DO NOT Prove] page.
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]
