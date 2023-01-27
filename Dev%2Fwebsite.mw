@@ -7,8 +7,19 @@ ToDo for {{project_name_long}} Wiki Devs
 }}
 {{devwiki}}
 = TODO: ADMIN - SOON =
-== go back to quadratic logo for mediawiki default skin ==
-todo
+== Logos SVG ==
+TODO: logo consistent naming
+
+Requirements:
+
+* The usual.
+* Not a shared file with multiple images.
+
+Needed:
+
+* Whonix-logo-rectangle.svg
+
+Please send to Patrick.
 
 = TODO: ADMIN - DELAYED =
 == misc ==
@@ -20,15 +31,6 @@ todo
 * https://imagecompressor.com/
 * https://github.com/fogleman/primitive
 * https://github.com/kizule/mediawiki-extensions-Kicksecure
-
-== jQuery cookie not available everywhere ==
-
-* Testable on [[MediaWiki:Build.json]]
-* Error in console: "mw-combined-wikijs.js:1746 Uncaught TypeError: $.cookie is not a function"
-* After full rendering this functions is also not defined
-* jQuery cookie is integrated manually by the admin and is not always available
-* It's currently not a big deal because it's only on pages which the normal user doesn't see
-* replace jQuery cookie later with an own cookie library or make it available everywhere
 
 == MultiWiki: Think about PHP files ==
 
@@ -80,60 +82,42 @@ todo
 == FlaggedRevisions CacheClear Workaround ==
 TODO
 
-= TODO DISCUSS =
-== sitenotice banner ==
-
-check all pages listed in documentation for sitenotice for changes in history
-
-=== Dismissible Sitenotice disabled in wikiconfig ===
-Needs to be re-enabled.
-
-=== banner causing issues on some special pages ===
-example: https://www.kicksecure.com/w/index.php?title=MediaWiki:LocalSkin.css&action=history
-
-Needs to be hidden on special pages.
-
-=== end of year sitenotice auto disabling feature broken ===
-On January 1st where the end of year sitenotice was, then was only white space. The end of year sitenotice was not releasing space even if the end of year sitenotice expired. Is this fixable?
-
-Therefore, Patrick disabled the end of year sitenotice:
-https://www.kicksecure.com/w/index.php?title=MediaWiki:Build.json&curid=3473&diff=66540&oldid=66519
-
-=== banner refactoring ===
-Would it be a good idea to merge the normal and end of year banner to simplify code and usage?
-
 = TODO DEV =
-== cleanup - combine hide banner css and hide fly in notice css files ==
-Since these files are tiny and always used together.
+== headscript fail open ==
+Currently if files in /mw-autogen/ are missing, headscript fails and causes a lot of wiki issues on the local stage server if the wiki database has not been imported or better said if mw-autogen has not been run.
 
-Done:
+Could we fail better in these cases?
 
-* The 2 previous files hide_flyin...css and hide_siteno...css were deleted. Instead the css file [[Mediawiki:Hide_all_banners.css]] was created. This css contains all css and is used in [[Template:Hide_all_banners]]
+mw-autogen/mw-combined-wikicss.min.css
 
 TODO:
 
-1. multi wiki deploy
+* Add some sanity tests. If important files are missing, skip rest of the headscript.
+* Patrick already added a basic version.
 
-2. Delete?
+code question:
 
-* https://www.whonix.org/wiki/MediaWiki:Hide_flyInNotification.css
-* https://www.whonix.org/wiki/MediaWiki:Hide_siteNotice.css
+Since the head script config file is imported using <code>require_once "$file";</code>, can we have an early <code>if</code> and then <code>return 0</code> or would this stop the whole processing of other config files? Ideally, we could avoid opening another <code>if</code>. As a good style, open an <code>if</code> and close it as early as possible. Avoid unnecessary long nested <code>if</code>s.
 
-== Whonix homepage broken in TBB with maximum security slider setting on small display size ==
-* As reported.
+file: private/mw-headscript-content.php
 
-== mediawiki-extension-Cookies ==
-TODO
+== push to the mediawiki-extensions-CookieToBodyClass git repository ==
+https://github.com/Kicksecure/mediawiki-extensions-CookieToBodyClass
 
-== Hero Images to SVG ==
-Find an artist that can convert our hero images to SVG.
+* 1) Check name. (Typos)
+* 2) Accept invite.
+* 3) Git push.
 
-Reason:
+== sitenotice banner ==
 
-* LCP
-* smaller file sizes
-* easier image syntax
-* easier preload syntax
+* Review all pages listed in [[Dev/mediawiki]] for sitenotice for changes in history done by Patrick. This is just to avoid wondering what has changed.
+** example: https://www.kicksecure.com/w/index.php?title=MediaWiki:Build.json&curid=3473&diff=66540&oldid=66519
+* note: Dismissible Sitenotice extension has been disabled in wikiconfig. Needs to be re-enabled in wikiconfig extension settings.
+* end of year sitenotice auto disabling feature broken: On January 1st where the end of year sitenotice was, then was only white space. The end of year sitenotice was not releasing space even if the end of year sitenotice expired. Is this fixable? Alternatively, we stop using the auto disabling feature. Not important. Probably best to not have that feature.
+* banner refactoring: Would it be a good idea to merge the normal and end of year banner to simplify code and usage?
+* checks when done:
+** Special Page: https://www.kicksecure.com/w/index.php?title=MediaWiki:LocalSkin.css&action=history - banner should either not appear there or not break something
+* use CookieToBodyClass
 
 == Our Donors wiki page ==
 TODO research:
@@ -180,21 +164,6 @@ def quick_sort(arr):
 		pass
 </syntaxhighlight>
 
-== Defer Upstream MediaWiki JavaScript ==
-now:
-
-<pre>
-<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
-</pre>
-
-Patrick could server side easily rewrite that to:
-
-<pre>
-<script defer src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
-</pre>
-
-(Nobody uses <code>script async=""</code> (not a syntax error - asked upstream). This is easily string replaced to <code>script async</code> using nginx.)
-
 == Whonix Linux Installer Wiki Page Improvements ==
 https://www.whonix.org/wiki/Linux
 
@@ -239,6 +208,17 @@ documentation here as base to develop a video script: https://www.kicksecure.com
 
 1. create a script and add to [[Dev/videos]] (similar to https://www.whonix.org/wiki/Dev/videos)
 
+== Pagespeed Optimizations #2 ==
+https://pagespeed.web.dev/ shows some suggestions:
+
+* Heading elements are not in a sequentially-descending order
+** Heading elements in order is a very impractical metric which probably very few websites adhere to. Headline levels are very rarely used structurally (exception example MediaWiki and similar), but often rather as style choices. Especially smaller headlines which are very rarely used anyways h4-h6 are often used exclusively as style elements. For our project that would be possible especially if it's limited to few sites. But it would mean changing HTML as well as CSS
+** TODO: discuss
+* Form elements do not have associated labels
+** Patrick fixed a similar warning here: https://www.kicksecure.com/w/index.php?title=Widget%3ADonation_Panel&type=revision&diff=66939&oldid=58997
+** Form elements: This makes sense, but is there a ways to find out on which pages this should be applied? - are should I search all pages for form elements?
+*** TODO: discuss: Only fix for our custom HTML/CSS. We didn't invent many forms anyhow? homepage, about, donate
+
 == homepage html optimizations ==
 For Kicksecure and Whonix homepage. To reduce DOM size.
 
@@ -268,9 +248,6 @@ It would be better to use this other one;
 </ul>
 </pre>
 
-== fetchpriority ==
-https://web.dev/priority-hints/
-
 == Banners ==
 === Whonix Banners ===
 ==== 11 years celebration banner ====
@@ -287,6 +264,21 @@ TODO:
 
 === Kicksecure Banner ===
 Please archive/replace the current Kicksecure banner. Suggestions for new campaign? Otherwise something like "Looking for contributors. Are you a developer? Please help making Kicksecure ISO a reality."
+
+== Defer Upstream MediaWiki JavaScript ==
+now:
+
+<pre>
+<script async="" src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+</pre>
+
+Patrick could server side easily rewrite that to:
+
+<pre>
+<script defer src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+</pre>
+
+(Nobody uses <code>script async=""</code> (not a syntax error - asked upstream). This is easily string replaced to <code>script async</code> using nginx.)
 
 == MediaWiki Extension PageExtracts Fix ==
 https://www.mediawiki.org/wiki/Extension:TextExtracts
@@ -387,42 +379,39 @@ Implementation probably needs discussion.
 
 = WAITING ON =
 
-== Whonix homepage hero image too big on some screen resolutions ==
-See screenshot (sent already).
+== Hero Images to SVG ==
+Find an artist that can convert our hero images to SVG.
 
-'''DEV'''
-* Dev and Admin could not reproduce this error
-* Admin asked bug reporter for ways to produce
-* Pending answer from bug reporter
+Reason:
+
+* LCP
+* smaller file sizes
+* easier image syntax
+* easier preload syntax
+
+Status:
+
+* Waiting for artist to complete the Whonix hero image.
+
+Todo:
+
+* Check quality, file size for Whonix hero image svg. Only if good and usable, todo discuss:
+** Ask designer to create Kicksecure box design svg (separate?) and Kicksecure box design background.
 
 = REVIEW PLEASE =
 
-== $.cookie error on special pages - info to console and ignore via if ==
+== mediawiki-extensions-CookieToBodyClass ==
 
 '''DEV'''
 * Done
-* But solved differently: It is checked whether #custom-header is available. If not then execution of this script is not needed
-
-== Pagespeed Optimizations ==
-https://pagespeed.web.dev/ shows some suggestions:
-
-* Background and foreground colors do not have a sufficient contrast ratio.
-* Heading elements are not in a sequentially-descending order
-* Links are not crawlable
-* Form elements do not have associated labels
-** Patrick fixed yesterday a similar warning here: https://www.kicksecure.com/w/index.php?title=Widget%3ADonation_Panel&type=revision&diff=66939&oldid=58997
-
-Please fix for Kicksecure and Whonix homepage if these are sensible suggestions.
-
-'''DEV'''
-* All suggestions were thoroughly checked
-* background / foreground: Could not be confirmed. Especially the examples given by lighthouse (also tested locally) are not at all lacking in contrast. Dev thinks that this is a faulty or vague algorithm / metric by lighthouse
-* Heading elements in order is a very impractical metric which probably very few websites adhere to. Headline levels are very rarely used structurally (exception example MediaWiki and similar), but often rather as style choices. Especially smaller headlines which are very rarely used anyways h4-h6 are often used exclusively as style elements. For our project that would be possible especially if it's limited to few sites. But it would mean changing HTML as well as CSS
-* Links: The links that are not crawlable are Expands where those links are a without href which are auto-generated by mediawiki and therefore not under our control
-* Form elements: This makes sense, but is there a ways to find out on which pages this should be applied? - are should I search all pages for form elements?
-
+* See documentation: https://www.kicksecure.com/wiki/Dev/mediawiki#Extension_CookieToBodyClass
 
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-01-26
+** Tor Browser noscript optical bug fix + documentation
+** Hide banners cleanup
+** New Mediawiki Extension CookieToBodyClass + documentation
 
 * 2023-01-25
 ** Header Donate designfix
