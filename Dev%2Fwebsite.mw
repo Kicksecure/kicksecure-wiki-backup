@@ -7,6 +7,36 @@ ToDo for {{project_name_long}} Wiki Devs
 }}
 {{devwiki}}
 = TODO: ADMIN - SOON =
+== Upgrade mw-multi-wiki - delete deleted files ==
+
+'''DEV'''
+
+* I suggest upgrading mw-multi-wiki
+* Currently it is the case that files which are deleted are not updated during mw-multi-wiki deploy
+* This means that a dev would have to delete the other files manually and keep track somewhere which files to delete later
+* This is a problem because sometimes files should not be deleted before everything is finished and admin has approved development. And it also cannot be deleted before because then the wiki which is not updated yet would not function anymore
+* So I suggest admin upgrades the mw-multi-wiki script and checks for formerly Category:MultiWiki files that are now deleted and delete them too
+* Or maybe find another solution
+
+Patrick:
+
+* How mw-multi-wiki could detect deleted files from Category:MwDeleteMe?
+** Currently mw-multi-wiki uses MediaWiki API to look at https://www.kicksecure.com/wiki/Category:MultiWiki
+** Once a page is deleted, it vanishes from the Category:MultiWiki page. Therefore mw-multi-wiki "forgets" about its existence.
+* '''A)''' mw-multi-wiki could be stateful and "remember" which pages were ever in mw-multi-wiki but that's ugly because then an idempotent, clean script would be dependent on remembering the state in some state file. The state would be difficult to share among developers.
+* '''B)''' A Category:MwDeleteMe could be invented. Delete all contents from the page and add that Category. Then mw-multi-wiki could remove it first from slave and eventually form the master wiki. Also non-ideal because not an intuitive process as it requires the developer to remember this because it's not a simple as using as using the wiki's internal deletion feature.
+* '''C)''' Deletion log https://www.kicksecure.com/wiki/Special:Log/delete doesn't contain categories.
+** Parsing the deleted revision for Category:MultiWiki might be error prone (if a wiki page was MultiWiki in the past but then it was only a comment).
+
+status:
+
+Patrick asked on the MediaWiki mailing list. https://lists.wikimedia.org/hyperkitty/list/mediawiki-l@lists.wikimedia.org/thread/DIREH7YFVQPYHIJFFUXNBE6PVJ6OSMUX/
+
+new idea: diff the categories in the different wikis
+
+== extend syntax highlight ==
+https://www.kicksecure.com/wiki/MediaWiki:CodeSelectHighlightList.js
+
 == Logos SVG ==
 SVG Requirements:
 
@@ -43,6 +73,7 @@ TODO:
 * https://imagecompressor.com/
 * https://github.com/fogleman/primitive
 * https://github.com/kizule/mediawiki-extensions-Kicksecure
+* https://textoptimizer.com/
 
 == MultiWiki: Think about PHP files ==
 
@@ -95,55 +126,79 @@ TODO:
 TODO
 
 = TODO DEV =
-== Hero Images to SVG #2 ==
-Find an artist that can convert our hero images to SVG.
+== FYI Category:MultiWikiFile #2 ==
+TODO: discuss (low priority, Tuesday or later or if needed earlier)
 
-Reason:
-
-* LCP
-* smaller file sizes
-* easier image syntax
-* easier preload syntax
-
-Todo:
-
-* Check quality, file size for Whonix hero image svg. Only if good and usable, todo discuss:
-** Ask designer to create Kicksecure box design svg (separate?) and Kicksecure box design background.
-
-== sitenotice banner ==
-
-* Review all pages listed in [[Dev/mediawiki]] for sitenotice for changes in history done by Patrick. This is just to avoid wondering what has changed.
-** example: https://www.kicksecure.com/w/index.php?title=MediaWiki:Build.json&curid=3473&diff=66540&oldid=66519
-* note: Dismissible Sitenotice extension has been disabled in wikiconfig. Needs to be re-enabled in wikiconfig extension settings.
-* end of year sitenotice auto disabling feature broken: On January 1st where the end of year sitenotice was, then was only white space. The end of year sitenotice was not releasing space even if the end of year sitenotice expired. Is this fixable? Alternatively, we stop using the auto disabling feature. Not important. Probably best to not have that feature.
-* banner refactoring: Would it be a good idea to merge the normal and end of year banner to simplify code and usage?
-* checks when done:
-** Special Page: https://www.kicksecure.com/w/index.php?title=MediaWiki:LocalSkin.css&action=history - banner should either not appear there or not break something
-* use CookieToBodyClass
-
-== port to CookieToBodyClass ==
-Anything else which should be ported to CookieToBodyClass?
-
-== MediaWiki:Fonts.css still required? ==
-Are...
-
-* https://www.kicksecure.com/wiki/MediaWiki:Fonts.css
-* https://www.whonix.org/wiki/MediaWiki:Fonts.css
-
-still required? Because fonts are loaded using headscript.
-
-[[MediaWiki:Build.json]] lists them under
+We have now:
 
 <pre>
-"// --- LocalWiki elements ---"
-"MediaWiki:Fonts.css"
+[[Category:MultiWikiFile]]
 </pre>
 
-But these don't seem to have per-wiki differences? Seem to be the same files?
+Discuss:
+
+* How do you currently run mw-multi-wiki? Might be better to run using local stage server.
+* mediawiki-shell needs git pull or apt-get dist-upgrade
+
+== Minify HTML for wiki.min.js ==
+TODO: discuss
+
+* see https://www.kicksecure.com/mw-autogen/mw-combined-wikijs.min.js
+* As you can see where there is HTML the file is not minified. This means some bloated file size
+* This happens, because strings cannot be minified, because they would change
+* Suggestion: Find or write a function for minifying HTML using Regexp
+
+Patrick:
+
+* Even the main wiki document (kicksecure.com, Main_Page, About, FAQ, all pages) has non-minified HTML.
+* Improvement is possible in theory (nginx module pagespeed but currently doesn't seem under active maintenance).
+* JS loads slow, with fetchpriority=low anyhow and is deferred. Therefore file sizes and CPU speed should be neglible.
+* Speed test websites do not suggest to minify HTML.
+* MediaWiki performance team doesn't think it helps: https://phabricator.wikimedia.org/T110612
+
+== CSS JS wiki improvements ==
+=== homepage feature boxes - support more easily copy text from boxes ===
+
+* bug: It is difficult to copy text from boxes (such as Elite Spy Defense).
+
+=== homepage feature boxes - Clickable Anchors ===
+* feature request: add clickable anchors to link to specific feature boxes.
+** And perhaps highlight these if following a direct link to these?
+** Expand these boxes when JS is enabled and a direct link to these is clicked?
+* Whonix and Kicksecure homepage.
+
+=== modals - close modal using browser back button ===
+Is it possible to close a modal with the browser's back button?
+
+The reason is, on mobile, once a modal has been opened opened, it's easy to make a mistake and believe that the modal is a different page. Then by pressing the back button the modal doesn't close as expected but a different website opens.
+
+This might only be possible when JavaScript is enabled? That is OK as long as the current noJS version doesn't get worse which it will probably not get.
+
+=== Whonix homepage media selection white space fix ===
+* bug: Whonix homepage media section too much white space on mobile
+
+=== Kicksecure homepage ISO download symbol ===
+* bug: box too small (smaller than all other boxes)
+
+=== Whonix homepage ISO download symbol ===
+* bug: the ISO download symbol on the Whonix homepage is in a different row (it was recently added by Patrick)
+
+== Banners ==
+=== Whonix Banners ===
+==== Whonix 11 years celebration banner ====
+Please invent the 11 years celebration banner that looks a bit different in preparation for this year.
+
+==== new Whonix banner ====
+New campaign.
 
 TODO:
 
-* Either delete these files if no longer required or please update documentation on [[Dev/mediawiki]].
+* Other suggestions for banners we can use in near/mid future?
+* An illustrative image / banner to explain the availability of [[VM Live Mode]] vs Persistent Mode.
+* "Did you know...?" Promote the revamped Tips_on_Remaining_Anonymous wiki page.
+
+=== Kicksecure Banner ===
+Please archive/replace the current Kicksecure banner. Suggestions for new campaign? Otherwise something like "Looking for contributors. Are you a developer? Please help making Kicksecure ISO a reality."
 
 == Our Donors wiki page ==
 TODO research:
@@ -172,23 +227,6 @@ TODO:
 
 * Kicksecure
 * Whonix
-
-== CodeSelect security ==
-todo discuss 
-
-== CodeSelect syntax highlight ==
-todo discuss
-
-<syntaxhighlight lang="python" line>
-def quick_sort(arr):
-	less = []
-	pivot_list = []
-	more = []
-	if len(arr) <= 1:
-		return arr
-	else:
-		pass
-</syntaxhighlight>
 
 == Whonix Linux Installer Wiki Page Improvements ==
 https://www.whonix.org/wiki/Linux
@@ -273,23 +311,6 @@ It would be better to use this other one;
 
 </ul>
 </pre>
-
-== Banners ==
-=== Whonix Banners ===
-==== 11 years celebration banner ====
-Please invent the 11 years celebration banner that looks a bit different in preparation for next year. Add the link to the to the wiki comments so it can be easily found next year.
-
-==== new Whonix banner ====
-New campaign.
-
-TODO:
-
-* Other suggestions for banners we can use in near/mid future?
-* An illustrative image / banner to explain the availability of [[VM Live Mode]] vs Persistent Mode.
-* "Did you know...?" Promote the revamped Tips_on_Remaining_Anonymous wiki page.
-
-=== Kicksecure Banner ===
-Please archive/replace the current Kicksecure banner. Suggestions for new campaign? Otherwise something like "Looking for contributors. Are you a developer? Please help making Kicksecure ISO a reality."
 
 == Defer Upstream MediaWiki JavaScript ==
 now:
@@ -408,6 +429,49 @@ Implementation probably needs discussion.
 = REVIEW PLEASE =
 
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-02-06
+** Discussion ToDo
+** CodeSelect highlight language extension variable externalization
+** Minify JS-HTML suggestion
+** mw-combine sanity test and conditional folder creation for src-copy + documentation
+** forums year end banner repair
+** Page editing via header super menu oldid fix
+** Removed nojs.css mentions and updated documentation
+** fonts.css relevance checked and deleted on all wikis
+** multi-wiki-deploy, tests and small bugfixes
+
+* 2023-02-04
+** CodeSelect Highlight upgrades: less code, better usage, bugfix + documentation
+** Optimization mw-combine: better naming, spacing, formatting, usage
+
+* 2023-02-03
+** Discussion Todo highlight / prism, discussion strategy
+** Replaced highlight-js with prism-js for CodeSelect + new tests on Testpage + feature target highlight + prevent highlight for CodeSelect icon form for speed optimization
+** Nojs.css deleted and purged from build.json + styles moved to other style files (closer to nojs styles
+** mw-combine improved: folder sanity check, array check for build.json categories
+
+* 2023-02-02
+** Discussion Todo
+** Research highlight js libs, removed Highligh extension, installation of highlight.js
+** CodeSelect integration of deferred highlight.js + new Feature "lang" to control highlight language or set to auto / none
+** CodeSelect examples were created [[Testpage1]]
+** CodeSelect documentation was updated [[Dev/mediawiki#CodeSelect]]
+
+<div class="info-box mw-collapsible mw-collapsed">
+Archive
+<div class="mw-collapsible-content">
+
+* 2023-01-31
+** Code review for link-to-archive
+** CodeSelect review research + rewrites + new feature "target" + nojs adjustments + template lang research + documentation
+
+* 2023-01-30
+** discuss codeselect / JavaScript security
+** TOCLevelSwitcher upgrade no content shift + documentation
+** Sitenotice new functionality was added (data-banner-expires)
+** Sitenotice end of year now uses the normal functionality
+** Sitenotice thorough documentation [[Dev/mediawiki#SiteNotice_End_Of_Year_Banner]] and [[Dev/mediawiki#SiteNotice_Info_and_Donation_Banners]]
 
 * 2023-01-27
 ** push to the mediawiki-extensions-CookieToBodyClass git repository
@@ -681,10 +745,6 @@ Implementation probably needs discussion.
 ** mw-combine improvements
 ** Newsletter research
 ** Whonix outreach voice actor research
-
-<div class="info-box mw-collapsible mw-collapsed">
-Archive
-<div class="mw-collapsible-content">
 
 * 2022-10-31
 ** Whonix FAQ improvements, analysis of texts and rewrites

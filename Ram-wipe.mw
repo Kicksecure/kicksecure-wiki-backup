@@ -1,0 +1,207 @@
+{{Header}}
+{{Title|
+title=ram-wipe - Wipe RAM on shutdown and reboot
+}}
+{{#seo:
+|description=Preventing Cold Boot Attacks. Wipe RAM at shutdown to prevent information extraction from memory.
+}}
+{{fde-mininav}}
+{{intro|
+Preventing Cold Boot Attacks. Wipe RAM at shutdown to prevent information extraction from memory.
+}}
+= Introduction =
+Cold boot attacks are a known attack vector since at least 2008. <ref>
+https://en.wikipedia.org/w/index.php?title=Cold_boot_attack&oldid=249088610
+</ref> Finally in 2023, 15 years later, a mitigation for cold boot attacks, the ram-wipe package has been made available.
+
+At least since 2011, Tails included wiping the ram at shutdown <ref>
+https://web.archive.org/web/20110423165633/https://tails.boum.org/contribute/design/memory_erasure/
+</ref> but its [https://tails.boum.org/contribute/design/memory_erasure/ memory erasure design documentation] mentions several limitations. While Tails' implementation could in theory be ported to other Linux distributions such as Debian, Fedora and others, this at time of writing has never been done.
+
+With ram-wipe there is now a standalone [https://github.com/Kicksecure/ram-wipe wipe RAM at shutdown software solution], with very few dependencies. In principle, it can run on Debian and derivatives of Debian such as Ubuntu. It might be relatively easy for other Linux distributions to package ram-wipe because it is implemented as a dracut module and dracut is already available (or even the default) for many Linux distributions.
+
+As for initramfs-tools, see [[Dev/RAM_Wipe#Status_of_initramfs-tools_Support|Status of initramfs-tools Support]].
+
+See also [[Dev/RAM_Wipe#Differences_of_security-misc_Wipe_RAM_versus_Tails_Memory_Erasure|Differences of security-misc Wipe RAM versus Tails Memory Erasure]].
+
+= Installation of ram-wipe =
+{{Testers-only}}
+
+<!--
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    =
+This chapter is only required for users which aren't users of {{project_name_long}}. That is because ram-wipe is installed by default in {{project_name_long}}.
+}}
+-->
+'''1.''' Migrate to dracut. <ref>
+Since ram-wipe is unavailable for initramfs the user needs to change dracut, the only supported initrd creator by ram-wipe.
+</ref>
+
+It's required to migrate to dracut if not already done. There's a small chance of the system getting unbootable because this changes the initrd creation tool. This might only happen on systems with unusual configurations. The author is not aware of any actual issues but it is prudent to always have a backup and be careful. If there are any issues with dracut, please do not report such issues here since these are totally [[unspecific|unspecific to {{project name long}}]]. 
+
+{{Install Package|package=
+dracut
+}}
+
+'''2.''' Reboot.
+
+This is to test if dracut is functional.
+
+'''3.''' Add {{project name long}} APT repository.
+
+NOTE: Users of {{project name long}} can skip this step.
+
+{{Box|text=
+{{Project-APT-Repository-Add Easy}}
+}}
+
+'''4.''' Install <code>ram-wipe</code>.
+
+{{Install Package|package=
+ram-wipe
+}}
+
+'''5.''' Done.
+
+The process of installing ram-wipe has been completed.
+
+= Sample Printout =
+== Boot Printout ==
+
+<pre>
+Loading Linux 5.10.0-21-amd64 ...
+Loading initial ramdisk ...
+[    1.901368] dracut-pre-udev[164]: INFO: wipe-ram-exit.sh: Skip, because wiperamexit kernel parameter is unset, OK.
+[    1.937683] dracut-pre-trigger[186]: INFO: wipe-ram-exit-needshutdown.sh: normal boot...
+[    3.899932] dracut-pre-pivot[355]: INFO: wipe-ram-needshutdown.sh: wiperam=force kernel parameter detected, OK.
+[    3.901024] dracut-pre-pivot[355]: INFO: wipe-ram-needshutdown.sh: Calling dracut function need_shutdown to drop back into initramfs at shutdown, OK.
+[    5.633977] cold-boot-attack-defense-status[600]: /usr/libexec/ram-wipe/cold-boot-attack-defense-status: INFO: Will run at shutdown, ok.
+</pre>
+
+= Shutdown Printout =
+
+<pre>
+cold-boot-attack-defense-kexec-prepare[1384]: INFO: wiperamaction: poweroff
+[   42.122900] cold-boot-attack-defense-kexec-prepare[1384]: kexec --load /boot//vmlinuz-5.10.0-21-amd64 --initrd=/boot//initrd.img-5.10.0-21-amd64 --reuse-cmdline --append=wiperamexit=yes wiperamaction=poweroff
+[   42.628331] cold-boot-attack-defense-kexec-prepare[1384]: OK.
+[   43.252013] dracut Warning: Killing all remaining processes
+dracut Warning: Killing all remaining processes
+[   43.343133] dracut Warning: Unmounted /oldroot.
+[   43.356100] dracut INFO: wipe-ram.sh: wiperam=force detected, OK.
+dracut INFO: wipe-ram.sh: wiperam=force detected, OK.
+[   43.359471] dracut INFO: wipe-ram.sh: Cold boot attack defense... Starting first RAM wipe pass on shutdown... (1/2)
+dracut INFO: wipe-ram.sh: Cold boot attack defense... Starting first RAM wipe pass on shutdown... (1/2)
+Starting Wiping the memory, press Control-C to abort earlier. Help: "sdmem -h"
+Wipe mode is insecure (one pass with 0x00)
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+*********************************************************************************************************************
+[   45.821857] sdmem invoked oom-killer: gfp_mask=0x100dca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), order=0, oom_score_adj=0
+[   45.823166] CPU: 2 PID: 1555 Comm: sdmem Tainted: G           OE     5.10.0-21-amd64 #1 Debian 5.10.162-1
+[   45.832277] Hardware name: innotek GmbH VirtualBox/VirtualBox, BIOS VirtualBox 12/01/2006
+[   45.833921] Call Trace:
+[   45.834447]  dump_stack+0x6b/0x83
+[   45.834947]  dump_header+0x4a/0x1f4
+[   45.835366]  oom_kill_process.cold+0xb/0x10
+[   45.836044]  out_of_memory+0x1bd/0x4e0
+[   45.836555]  __alloc_pages_slowpath.constprop.0+0xbcc/0xc90
+[   45.837541]  ? _raw_spin_unlock_irqrestore+0x11/0x20
+[   45.838426]  __alloc_pages_nodemask+0x2de/0x310
+[   45.839773]  alloc_pages_vma+0x80/0x270
+[   45.840287]  handle_mm_fault+0xead/0x1c00
+[   45.840895]  do_user_addr_fault+0x1b8/0x400
+[   45.841461]  exc_page_fault+0x78/0x160
+[   45.841958]  ? asm_exc_page_fault+0x8/0x30
+[   45.842353]  asm_exc_page_fault+0x1e/0x30
+[   45.842726] RIP: 0033:0x7283823800b3
+[   45.843114] Code: 47 10 f3 0f 7f 44 17 e0 f3 0f 7f 47 20 f3 0f 7f 44 17 d0 f3 0f 7f 47 30 f3 0f 7f 44 17 c0 48 01 fa 48 83 e2 c0 48 39 d1 74 c0 <66> 0f 7f 01 66 0f 7f 41 10 66 0f 7f 41 20 66 0f 7f 41 30 48 83 c1
+[   45.845266] RSP: 002b:00007ffee2e30728 EFLAGS: 00010206
+[   45.845898] RAX: 000057d0fb8c74e0 RBX: 000057cfb761d280 RCX: 000057d0fb8d5000
+[   45.846797] RDX: 000057d0fb8d74c0 RSI: 0000000000000000 RDI: 000057d0fb8c74e0
+[   45.847665] RBP: 00007ffee2fe0938 R08: 000057d0fb8c74e0 R09: 00007283824aabe0
+[   45.848535] R10: 000000000000007e R11: 0000000000000000 R12: 000057d0fb8b74d0
+[   45.855760] R13: 0000000000000000 R14: 0000000000000008 R15: 0000000000000000
+[   45.856702] Mem-Info:
+[   45.857046] active_anon:721 inactive_anon:946309 isolated_anon:0
+[   45.857046]  active_file:0 inactive_file:0 isolated_file:0
+[   45.857046]  unevictable:0 dirty:0 writeback:0
+[   45.857046]  slab_reclaimable:3024 slab_unreclaimable:6463
+[   45.857046]  mapped:722 shmem:10150 pagetables:2600 bounce:0
+[   45.857046]  free:21817 free_pcp:907 free_cma:0
+[   45.860910] Node 0 active_anon:2884kB inactive_anon:3785236kB active_file:0kB inactive_file:0kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:2888kB dirty:0kB writeback:0kB shmem:40600kB shmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 0kB writeback_tmp:0kB kernel_stack:1440kB all_unreclaimable? yes
+[   45.864676] Node 0 DMA free:15396kB min:268kB low:332kB high:396kB reserved_highatomic:0KB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+[   45.867903] lowmem_reserve[]: 0 3454 3894 3894 3894
+[   45.868595] Node 0 DMA32 free:61244kB min:59696kB low:74620kB high:89544kB reserved_highatomic:0KB active_anon:160kB inactive_anon:3428080kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:3653568kB managed:3558516kB mlocked:0kB pagetables:0kB bounce:0kB free_pcp:3212kB local_pcp:328kB free_cma:0kB
+[   45.871791] lowmem_reserve[]: 0 0 440 440 440
+[   45.873020] Node 0 Normal free:10628kB min:11708kB low:13608kB high:15508kB reserved_highatomic:0KB active_anon:2724kB inactive_anon:356824kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:524288kB managed:451212kB mlocked:0kB pagetables:10400kB bounce:0kB free_pcp:416kB local_pcp:220kB free_cma:0kB
+[   45.878204] lowmem_reserve[]: 0 0 0 0 0
+[   45.879309] Node 0 DMA: 1*4kB (U) 0*8kB 0*16kB 1*32kB (U) 2*64kB (U) 1*128kB (U) 1*256kB (U) 1*512kB (U) 0*1024kB 1*2048kB (M) 3*4096kB (M) = 15396kB
+[   45.882343] Node 0 DMA32: 359*4kB (UE) 329*8kB (UME) 206*16kB (UME) 83*32kB (UE) 35*64kB (UE) 5*128kB (UE) 5*256kB (UME) 4*512kB (E) 2*1024kB (UE) 1*2048kB (U) 10*4096kB (M) = 61284kB
+[   45.885362] Node 0 Normal: 56*4kB (UME) 101*8kB (UME) 212*16kB (UME) 120*32kB (UME) 43*64kB (UME) 2*128kB (E) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 11272kB
+[   45.898876] 10150 total pagecache pages
+[   45.900518] 0 pages in swap cache
+[   45.901931] Swap cache stats: add 0, delete 0, find 0/0
+[   45.903342] Free swap  = 0kB
+[   45.904461] Total swap = 0kB
+[   45.905653] 1048462 pages RAM
+[   45.906944] 0 pages HighMem/MovableOnly
+[   45.908826] 42053 pages reserved
+[   45.909921] 0 pages hwpoisoned
+[   45.911114] Out of memory: Killed process 1555 (sdmem) total-vm:5283280kB, anon-rss:3745880kB, file-rss:4kB, shmem-rss:1232kB, UID:0 pgtables:10376kB oom_score_adj:0
+/usr/sbin/wipe-ram-shutdown-helper: line 23:  1555 Killed                  sdmem -l -l -v
+[   46.386353] dracut INFO: wipe-ram.sh: First RAM wipe pass completed, OK. (1/2)
+dracut INFO: wipe-ram.sh: First RAM wipe pass completed, OK. (1/2)
+[   46.393183] dracut INFO: wipe-ram.sh: Checking if there are still mounted encrypted disks...
+dracut INFO: wipe-ram.sh: Checking if there are still mounted encrypted disks...
+[   46.399212] dracut INFO: wipe-ram.sh: Success, there are no more mounted encrypted disks, OK.
+dracut INFO: wipe-ram.sh: Success, there are no more mounted encrypted disks, OK.
+[   46.402562] dracut INFO: wipe-ram.sh: Now running 'kexec --exec'...
+dracut INFO: wipe-ram.sh: Now running 'kexec --exec'...
+[    1.666717] dracut-pre-udev[162]: INFO: wipe-ram-exit.sh: wiperamexit=yes kernel parameter detected, OK.
+[    1.667591] dracut-pre-udev[162]: INFO: wipe-ram-exit.sh: Cold boot attack defense... Starting second RAM wipe pass on shutdown... (2/2)
+[FAILED] Failed to start dracut pre-udev hook.
+[    3.902631] dracut-pre-trigger[176]: INFO: wipe-ram-exit-needshutdown.sh: poweroff...
+[    3.905037] dracut-pre-trigger[179]: Powering off.
+[    3.906967] reboot: Power down
+</pre>
+
+= ram-wipe Known Issues =
+* <code>Wipe mode is insecure (one pass with 0x00)</code>: This might be a textual output bug in <code>sdmem</code>. It might be inspired by the [https://en.wikipedia.org/wiki/Gutmann_method Gutmann method], which is an algorithm for securely erasing the contents of computer hard disk drives. Gutmann, the inventor, said quote wikipedia:
+** <blockquote>He said "In the time since this paper was published, some people have treated the 35-pass overwrite technique described in it more as a kind of voodoo incantation to banish evil spirits than the result of a technical analysis of drive encoding techniques"</blockquote>
+** No research papers that found that RAM has to be overwritten with more than one pass exist to the knowledge of the author.
+** Several passes of RAM wipe would increase the reboot/shutdown time, have no documented benefit, increase the reboot time even more and therefore make this solution unusable.
+** [https://github.com/cryptisk-grs/thc-secure-delete/issues/3#issuecomment-520754476 sdmem is unmaintained upstream?] <blockquote>Hi, this isn't a project that I'm actually maintaining, I put it up here for archiving purposes. Its old code and likely needs a lot of work. When I get around to doing some stuff on it, I'll work support for that in, but I can't say when that will be, sorry. Will keep the issue open though since its a good suggestion.</blockquote>
+** Use memtest86+ instead for wiping the RAM? TODO: please feature request at https://github.com/memtest86plus/memtest86plus/issues
+* <code>[FAILED] Failed to start dracut pre-udev hook.</code>: This is happening because <code>sdmem</code> during the dracut pre-udev hook gets killed by Linux's out of memory (OOM) killer because it is using the maximum of available RAM.
+* <code>sdmem invoked oom-killer</code>: similar to above.
+* The output by <code>sdmem</code>, its progress meter and the OOM killing looks unnecessarily scary and is user unfriendly.
+* In VirtualBox, newly kexec'd kernel that runs a second RAM wipe pass (2/2) does not show any output. This is non-ideal but only a small issue since ram-wipe does not need to be used inside VMs anyhow except for testing. The RAM wipe functionality during shutdown and after kexec can be confirmed using a [[Recovery#Serial_Console|serial console]]. On real hardware, this issue did not occur yet.
+* Wiping the video RAM (the RAM of the graphics card) has not been implemented anywhere to the knowledge of the author. <ref>
+[https://gitlab.tails.boum.org/tails/tails/-/issues/5356 Erase video memory on shutdown]
+</ref>
+* ram-wipe security testing has yet to be done, see [[Dev/RAM_Wipe#Development_TODO|ram-wipe development TODO]]. Check back later.
+
+= Development =
+
+* [[Dev/RAM_Wipe|Cold Boot Attack Defense - RAM Wipe Design Documentation]]
+* [https://forums.whonix.org/t/is-ram-wipe-possible-inside-whonix-cold-boot-attack-defense/5596 Is RAM Wipe possible? Cold Boot Attack Defense]
+
+= Footnotes =
+
+{{reflist|close=1}}
+
+[[Category:Documentation]]
+
+{{Footer}}
