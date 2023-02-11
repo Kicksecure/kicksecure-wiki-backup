@@ -79,7 +79,7 @@ Loading initial ramdisk ...
 [    5.633977] cold-boot-attack-defense-status[600]: /usr/libexec/ram-wipe/cold-boot-attack-defense-status: INFO: Will run at shutdown, ok.
 </pre>
 
-= Shutdown Printout =
+== Shutdown Printout ==
 
 <pre>
 cold-boot-attack-defense-kexec-prepare[1384]: INFO: wiperamaction: poweroff
@@ -183,7 +183,7 @@ dracut INFO: wipe-ram.sh: Now running 'kexec --exec'...
 ** No research papers that found that RAM has to be overwritten with more than one pass exist to the knowledge of the author.
 ** Several passes of RAM wipe would increase the reboot/shutdown time, have no documented benefit, increase the reboot time even more and therefore make this solution unusable.
 ** [https://github.com/cryptisk-grs/thc-secure-delete/issues/3#issuecomment-520754476 sdmem is unmaintained upstream?] <blockquote>Hi, this isn't a project that I'm actually maintaining, I put it up here for archiving purposes. Its old code and likely needs a lot of work. When I get around to doing some stuff on it, I'll work support for that in, but I can't say when that will be, sorry. Will keep the issue open though since its a good suggestion.</blockquote>
-** Use memtest86+ instead for wiping the RAM? TODO: please feature request at https://github.com/memtest86plus/memtest86plus/issues
+** If [https://memtest.org/ <code>memtest86+</code>] feature request [https://github.com/memtest86plus/memtest86plus/issues/261 kexec into memtest86+ for RAM Wipe and reboot/poweroff - Cold Boot Attack Defense] would get implemented, this would provide a much better tool for wiping the RAM than <code>sdmem</code>.
 * <code>[FAILED] Failed to start dracut pre-udev hook.</code>: This is happening because <code>sdmem</code> during the dracut pre-udev hook gets killed by Linux's out of memory (OOM) killer because it is using the maximum of available RAM.
 * <code>sdmem invoked oom-killer</code>: similar to above.
 * The output by <code>sdmem</code>, its progress meter and the OOM killing looks unnecessarily scary and is user unfriendly.
@@ -192,6 +192,14 @@ dracut INFO: wipe-ram.sh: Now running 'kexec --exec'...
 [https://gitlab.tails.boum.org/tails/tails/-/issues/5356 Erase video memory on shutdown]
 </ref>
 * ram-wipe security testing has yet to be done, see [[Dev/RAM_Wipe#Development_TODO|ram-wipe development TODO]]. Check back later.
+* While dracut bug [https://github.com/dracutdevs/dracut/issues/1888 dracut should unmount the root encrypted disk <code>cryptsetup luksClose</code> during shutdown] is independent from ram wipe, might affect negatively the RAM wiping process.
+** Unmounting the root encrypted disk is important for RAM wipe at shutdown to make sure (or at least increase chances) of Linux releasing the LUKS disk encryption key from RAM.
+** ram-wipe comes with [https://github.com/Kicksecure/ram-wipe/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram.sh#L52-L68 code] to notify the user of this situation should it apply to the user's system.
+** The user would be able to read <code>wipe-ram.sh: There are still mounted encrypted disks! RAM wipe incomplete!</code>.
+** In result this means that the first RAM wipe pass (1/2) during poweroff/reboot might not wipe the root disk's full disk encryption key from RAM. Hopefully it would be wiped from RAM after kexec into a new kernel and the second RAM wipe pass (2/2).
+** Obviously it would be much better if dracut would cleanly unmount the root encrypted disk. If you are a developer, please consider contributing a bugfix directly to dracut upstream.
+
+Contributor help is needed and [[Reporting_Bugs#Contributions|welcome]] to fix these issues.
 
 = Development =
 
