@@ -118,34 +118,77 @@ TODO:
 TODO
 
 = TODO DEV =
+== new banners size CSS and installation ==
+New banners have been created for Kicksecure, Whonix and already uploaded.
 
-== document MediaWiki:CodeSelectHighlightList.js ==
-todo
+Big size banners are nice to share on social media but for the wiki, these need to be small.
 
-== image related tasks ==
-=== fix Kicksecure Badge SVG ===
-source: [[Dev#Badge|Kicksecure ™ Unified Design - Logos & Guidelines chapter Badge]]
+note:
 
-bug: the PNG looks good but the SVG text isn't bold.
+* Thank you for prefixing all banners with <code>banner-</code>. That made it easier to work with.
+* Was disabled by Patrick to avoid loading ~ 200 kb file for a file that won't be shown.
+* https://www.kicksecure.com/w/index.php?title=Widget%3ASitenotice&type=revision&diff=68149&oldid=68142
+* https://www.whonix.org/w/index.php?title=Widget%3ASitenotice&type=revision&diff=92689&oldid=92688
+* and some more out commenting changes
+* through automatic image optimizations on the server (technically same as [[Dev/mediawiki#Image_Optimizations|Documentation for Kicksecure ™ Wiki Devs chapter Image Optimizations]]) and conversion to webp, the file size of the banners could already be redudced to ~ 20 kb.
+** To see for yourself, go to https://www.whonix.org/wiki/Art_Gallery#Banner_Collection and reload with developer console, network and cache disabled.
+** Search in developer console for <code>banner</code>.
+** Or for example go to https://www.whonix.org/w/images/5/5c/Banner-11-years.jpg directly.
+* Manual creation of webp instead of jpeg might be possible but it's probably not really needed. Nowadays all browsers should support webp anyhow.
 
-=== Create new Kicksecure Banner ===
-* ideas to mention:
-** developers wanted
-** ISO symbol
-** grub
-** build script
-** bash
+todo discuss:
 
-=== Upload the new banners ===
-* banners from Wednesday and today
-* clean metadata
-* optimize - https://www.kicksecure.com/wiki/Dev/mediawiki#Image_Optimizations
-* upload to either Kicksecure or Whonix (depending on use case)
+* Does Widget:Sitenotice support no content at all? In other words, is it OK to clear all its contents? Tested?
+* Better to HTML comment out inactive banners to avoid browsers needlessly downloading these?
+** Is banner class <code>active</code> even useful when commenting out currently inactive banners with HTML comments anyhow?
+* smaller CSS size in wiki (should ideally not become the LCP (largest contentful paint) image)
+* smaller image file sizes
+** also try:
+** https://squoosh.app/
+** https://imagecompressor.com/
+* use /thumb/ link format? maybe not needed if we upload only the format which will be used anyhow?
+* <code>decoding="async" loading="lazy"</code>?
+* maybe newer image campaigns (after the requirements are more clearly defined now) should be simpler and SVG based instead?
 
-== Install New Banners ==
-* Kicksecure: install the developers wanted banner
-* Whonix: install the 11 years celebration
-* Whonix: prepare future banners (to easily comment in/out later)
+== share widget bug - share in mediawiki format ==
+This is about https://www.kicksecure.com/wiki/Dev/mediawiki#Share_Tooltip
+
+The link share widget has a bug. When sharing in mediawiki format (which Patrick added) it works on "normal" pages. But when a page contains a <code>/</code>, then it copies the wrong link. (The part after the <code>/</code> in the link is missing.)
+
+Needs to be fixed in https://www.kicksecure.com/wiki/MediaWiki:ShareTooltip.js
+
+The issue is probably in this line:
+
+<pre>
+data['page'] = ( window.location.href.match(/(?<=\/wiki\/)[^\/#?]+/g) || [''] )[0];
+</pre>
+
+Share button for WhatsApp, mastodon are also affected since these also use variable <code>[data-page]</code>.
+
+But these are affected to a lesser degree since the link is correct but the <code>text=</code> is only for example <code>text=Dev</code> but not  <code>text=Dev/mediawiki</code>.
+
+Try fixing using ChatGPT?
+
+== MediaWiki Extension PageExtracts Fix ==
+https://www.mediawiki.org/wiki/Extension:TextExtracts
+
+Already installed. Not yet enabled. Comment already prepared to enable it. Easy to comment in by editing the usual extensions config file.
+
+* broken: https://www.kicksecure.com/w/api.php?action=query&prop=extracts&exchars=175&titles=About
+* compare with:
+** https://www.kicksecure.com/w/api.php?action=query&prop=extracts&exchars=175&titles=Testpage12
+** https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exchars=100&explaintext&titles=Earth
+
+Potential solution: 
+
+* Can we wrap all our custom HTML into a class <code>.noexcerpt</code>?
+** As per: https://www.mediawiki.org/wiki/Extension:TextExtracts#How_can_I_remove_content_from_a_page_preview/extract?
+** What about our custom JavaScript?
+** What about any inline CSS?
+
+Why?
+
+* Fixing this is required for https://www.mediawiki.org/wiki/Extension:Popups which otherwise always show a failed preview.
 
 == Our Donors wiki page ==
 TODO research:
@@ -292,25 +335,6 @@ Patrick could server side easily rewrite that to:
 
 (Nobody uses <code>script async=""</code> (not a syntax error - asked upstream). This is easily string replaced to <code>script async</code> using nginx.)
 
-== MediaWiki Extension PageExtracts Fix ==
-https://www.mediawiki.org/wiki/Extension:TextExtracts
-
-Not yet enabled. But will be enabled after the MediaWiki 1.39.0 update.
-
-* broken: https://www.kicksecure.com/w/api.php?action=query&prop=extracts&exchars=175&titles=About
-* compare with:
-** https://www.kicksecure.com/w/api.php?action=query&prop=extracts&exchars=175&titles=Testpage12
-** https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exchars=100&explaintext&titles=Earth
-
-Potential solution: 
-
-* Can we wrap all our custom HTML into a class <code>.noexcerpt</code>?
-** As per: https://www.mediawiki.org/wiki/Extension:TextExtracts#How_can_I_remove_content_from_a_page_preview/extract?
-
-Why?
-
-* Fixing this is required for https://www.mediawiki.org/wiki/Extension:Popups which otherwise always show a failed preview.
-
 == Wiki Content ==
 === Whonix-Host ===
 
@@ -394,6 +418,14 @@ Implementation probably needs discussion.
 = REVIEW PLEASE =
 
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-02-22
+** Bugfix for mobile back button broken
+** Bugfix fors Anchors missing
+** Discussion Todo
+** Fixed Kicksecure Badge svg file
+** Banner dev wanted for Kicksecure was created
+** New banners were uploaded and installed
 
 * 2023-02-15
 ** Creation of 5 banners
