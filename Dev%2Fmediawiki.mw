@@ -699,37 +699,67 @@ git diff -C adre/all-css
 }}
 
 == Image Optimizations ==
-
-''' mat2 - strip of metadata '''
-
-To strip files of meta data use mat2 on linux.
-
-Installation.
-
+=== Image Optimizations Installation ===
 {{CodeSelect|code=
 sudo apt update
-sudo apt install mat2 optipng jpegoptim
+sudo apt install mat2 optipng jpegoptim webp
 }}
 
-Strip images of metadata in place - in the directory where you're in. '''Caution: SVGs might not work properly'''
+=== mat2 - strip of metadata ===
+To strip files of meta data use mat2 on linux.
+
+Strip images of metadata in place - in the directory where you're in. '''Caution: Might reduce quality or totally break images in case of SVGs!'''
 
 {{CodeSelect|code=
-mat2 --inplace image-file-name
+mat2 image-file-name
 }}
 
-Specifically for PNG
+If that fails, try:
+
+* {{CodeSelect|code=
+mat2 --lightweight image-file-name
+}}
+** Minor space saving effect on images that have been created using <code>gimp</code>.
+** Removes metadata.
+
+Check:
+
+* {{CodeSelect|code=
+mat2 --show original-file-name
+}}
+* {{CodeSelect|code=
+mat2 --show cleaned-file-name
+}}
+
+=== PNG Optimizations ===
+Specifically for PNG.
 
 {{CodeSelect|code=
 optipng -quiet -o7 -zm9 -zc9 -zm9 -zs3 -f5 --strip all -preserve image-file-name
 }}
 
-Specifically for JPG and JPEG
+=== JPG and JPEG Optimizations ===
+Specifically for JPG and JPEG.
 
 {{CodeSelect|code=
 jpegoptim --quiet -o --strip-all image-file-name
 }}
 
-Specifically for SVG
+=== Convert to WEBP ===
+Convert to WEBP.
+
+{{CodeSelect|code=
+cwebp -mt -lossless -z 9 input-file-name -o output-file-name.webp
+}}
+
+=== SVG Optimizations ===
+Specifically for SVG.
+
+'''WARNING: SVG is particularity vulerable to metadata!'''
+
+'''WARNING: <code>scour</code> can break the SVG!'''
+
+Saving the SVG as "optimized" might be more reliable.
 
 {{CodeSelect|code=
 scour --enable-viewboxing --enable-id-stripping --enable-comment-stripping --shorten-ids --indent=none -i input-file-name -o output-file-name
@@ -1236,12 +1266,13 @@ has the same result as
  {{!}}code=your code whatever you want except pipe-Symbol
  {{!}}inline=if true then displaying will be in line
  {{!}}buttonImage=specify the url of an image for icon mode
+ {{!}}buttonImageEager=makes the image load eagerly instead of lazily (standard)
  {{!}}target=selector of an element for CodeSelect to be added to
 }}
 }}
 ### Example class-call {{CodeSelect|lang=html|code=
 <span
-  class="code-select inline-style insert-mode-html"
+  class="code-select inline-style insert-mode-html image-eager"
   data-button-image-src="specify the url of an image for icon mode"
   data-language="bash"
   data-target="id of an element for CodeSelect to be added to">
@@ -1259,11 +1290,14 @@ has the same result as
 #### Example. <code><nowiki><span class="code-select">More <b>Info</b> here</span></nowiki></code> <span class="code-select">More <b>Info</b> here</span> vs <code><nowiki><span class="code-select insert-mode-html">More <b>Info</b> here</span></nowiki></code> <span class="code-select insert-mode-html">More <b>Info</b> here</span>
 ### '''buttonImage''': We introduced a mode to now make CodeSelect a simple button to copy code or text to the clipboard.
 #### Note: The image gets an automatic hover effect (= -3% brightness), but all is controllable via CSS
+#### Note: buttonImage is usually loaded lazily, meaning the image has the attributes <code>decoding="async" loading="lazy"</code>. If you want to prevent this use the parameter buttonImageEager
 #### Template-call: Add the buttonImage-parameter specifying the image source url. Don't use the <code><nowiki>[[File:...]]</nowiki></code> call, just a url, for example a relative url like <code>/w/images/a/bc/def.jpg</code>
 #### Class-call: Simply add the attribute "data-button-image-src" to wrapper element (HTML implementation) with the image url
 #### Example. Template-call <code><nowiki>{{CodeSelect|code=echo "Hello World"|buttonImage=/w/images/8/8c/Supermenu3.png}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|buttonImage=/w/images/8/8c/Supermenu3.png}} and class-call <code><nowiki><span class="code-select" data-button-image-src="/w/images/8/8c/Supermenu3.png">echo "Hello World"</span></nowiki></code> renders to <span class="code-select" data-button-image-src="/w/images/8/8c/Supermenu3.png">echo "Hello World"</span>
 #### buttonImage can also be used with an empty String or just as an empty attribute. In this case the usual copy icon will be shown.
 ##### Example. Template-call <code><nowiki>{{CodeSelect|code=echo "Hello World"|buttonImage=}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|buttonImage=}} and class-call <code><nowiki><span class="code-select" data-button-image-src="">echo "Hello World"</span></nowiki></code> renders to <span class="code-select" data-button-image-src="">echo "Hello World"</span>
+### '''buttonImageEager''': Normally buttonImages are loaded lazily. Use this parameter to force eager loading (this omits the attributes <code>decoding="async" loading="lazy"</code>
+#### Example. Template-call <code><nowiki>{{CodeSelect|code=echo "Hello World"|buttonImage=/w/images/8/8c/Supermenu3.png|buttonImageEager=1}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|buttonImage=/w/images/8/8c/Supermenu3.png|buttonImageEager=1}} and class-call <code><nowiki><span class="code-select image-eager" data-button-image-src="/w/images/8/8c/Supermenu3.png">echo "Hello World"</span></nowiki></code> renders to <span class="code-select image-eager" data-button-image-src="/w/images/8/8c/Supermenu3.png">echo "Hello World"</span>
 ### '''target''': This parameter takes a selector of an element in the DOM (id, class, complex selector). If the element is found then CodeSelect will become a button to copy this elements content to clipboard. '''NOTE''': Always be sure to select a specific target where the selector only finds 1 element. Otherwise the first element which is found will be chosen by the algorithm.
 #### Detailed functionality
 ##### CodeSelect will be MOVED from its current location in the DOM BELOW the target and inside a helper DIV.
