@@ -93,6 +93,164 @@ Ring Signatures combined with Stealth Addressing prevent many attack vectors, bu
 
 Further attack vectors including cross-referencing an address posted in multiple places and IP leaks when connecting to the network are further developments sought out by the Monero community. These potential issues are addressed with Subaddresses and Kovri respectively.
 
+== monero-gui package audit ==
+This wiki chapter is for advanced users that wish to audit the [https://gitlab.com/kicksecure/monero-gui <code>monero-gui</code> package].
+
+It is commendable when auditors are taking to to audit software for security issues, malware and/or backdoors. In some cases, there is a conceptual issue if the vendor of the monero-gui (Kicksecure / Whonix) is providing instructions how to audit its own software, see [[Verifying_Software_Signatures#Conceptual_Challenges_in_Digital_Signatures_Verification|Verifying Software Signatures - Kicksecure chapter Conceptual Challenges in Digital Signatures Verification]].
+
+Prerequisite knowledge: {{kicksecure_wiki
+|wikipage=Shell#Hidden_Text_Attacks
+|text=Hidden Text Attacks chapter Hidden Text Attacks
+}}
+
+related:
+
+* [https://www.reddit.com/r/Monero/comments/hvynq2/what_the_monero_community_could_do_to_improve_the/ What the Monero Community could do to improve the security of the monero-gui Debian Package]
+* [[Trust]]
+* forum discussion: [https://forums.whonix.org/t/how-to-verify-the-monero-binaries-that-are-shipped-with-whonix/16439 How to verify the Monero binaries that are shipped with Whonix?]
+
+To confirm that the binaries are included in the monero-gui package are exactly the same as the binaries provided by original upstream [https://github.com/monero-project/monero-gui/releases monero-gui] project, apply the following steps.
+
+Note: This process is [[unspecific|unspecific to Kicksecure, Whonix, monero-gui]]. Just a normal audit procedure. No special instructions should be provided. This is only documented as an example for educational purposes.
+
+'''1.''' Clone the monero-gui git repository provided by Kicksecure / Whonix.
+
+'''2.''' Change directory into the monero-gui folder.
+
+Checkout the version number that should be verified.
+
+'''3.''' Digital software signature verification of the git repository.
+
+Optional. The latest git commits as well as all git tags are signed. This is just to verify that the git repository provider (github) did not not modify 
+
+'''4.''' Version number detection, choice.
+
+Some possibilities:
+
+* A) Figure out the version number claimed by the monero-gui (by Kicksecure / Whonix) package. This could be done by looking at <code>hashes.txt</code> in the root of the folder.
+* B) {{CodeSelect|code=
+git log
+}}
+* C) {{CodeSelect|code=
+git log --show-signature
+}}
+* D) git checkout an earlier version and optional git digital signature verification.
+
+'''5.''' Get a list of all files and folders.
+
+It is usually useful to exclude the <code>.git</code> folder.
+
+{{CodeSelect|code=
+find . -not -iwholename '*.git*'
+}}
+
+'''6.''' Verification strategy for the monero-gui git repository by Kicksecure / Whonix.
+
+In theory, that means that each file needs to be either confirmed to to have the very same contents as a different trusted entity or be manually audited. In practice, this realistically means:
+
+1) Binaries in the monero-gui git repository provided by Kicksecure / Whonix should be compared to have the same cryptographic hash as files provided by upstream mondero-gui.
+
+{{CodeSelect|code=
+sha512sum ./usr/bin/*
+}}
+{{CodeSelect|code=
+sha512sum ./usr/share/doc/monero-gui/*
+}}
+
+These hashsums should match the the hashsums provided by binaries in the upstream mondero-gui download.
+
+Make sure that no additional binaries have been added. Missing binaries might be an issue for other software but in case of optional functionality such as monero-gui, missing binaries might be a usability issue but not a security issue.
+
+2) All files not included in 1) need to be manually audited by viewing these files in a text editor.
+
+'''7.''' Verification strategy for the monero-gui Debian package by Kicksecure / Whonix.
+
+Similar to above. Either, and/or:
+
+* A) Rebuild the monero-gui Debian package.
+
+Download the monero-gui Debian package by Kicksecure / Whonix. Extract its contents. Create hashsums to audit files where are also provided by upstream. For other files such as files in the <code>debian</code> folder, these need to be manually audited.
+
+* B) Hashsum compare the monero-gui Debian package.
+
+Build the monero-gui Debian package from the monero-gui git repository by Kicksecure / Whonix. When creating a hashsum of the created <code>.deb</code> should ideally match the hashsum of the of the <code>.deb</code> package available from the Kicksecure / Whonix repository. If it does not, which might happened because Debian's reproducible builds project is still a work in progress. Additoinally, reproducible packages by Kicksecure / Whonix (which depends on Debian's reproducible builds project) is also still a work in progress. In that case, the differences should be audited using [https://packages.debian.org/diffoscop <code>diffoscope</code>]. The differences however should only be minor things such as timestamps. The binaries should match.
+
+'''8.''' Verification strategy an already installed monero-gui Debian package by Kicksecure / Whonix.
+
+Optional.
+
+The monero-gui Debian package by Kicksecure / Whonix has been manually installed or came installed by default with Kicksecure / Whonix? In that case, this optional point applies.
+
+Notes:
+
+* It is required for security that a software repository and/or software package is audited before installing it.
+** Adding a third party repository and/or installing third-party software allows the vendor to replace any software on your system. Including but not limited to the installation of [[Malware|malware]], deleting files and data harvesting. See also  [[Install_Software#Foreign_Sources|Foreign Sources]] for further information.
+** Once a repository has been added or a package without auditing it beforehand, the running system is to be considered as no longer trustworthy and potentially lying to the user. For example, when using the already running system to create a hashsum for an installed file such as <code>/usr/bin/monero-wallet-gui</code>, a [https://en.wikipedia.org/wiki/Rootkit rootkit] could show a different hashsum than the actual hashsum. The file being verified could also be legit while at the same time [[malware]] in form of a [https://en.wikipedia.org/wiki/Trojan_horse_(computing) trojan horse] stole user secrets such as the wallet's cryptographic keys.
+** This is because if a software repository is added, it can replace any package on the system and it is therefore trivial to install malware.
+** Even when only installing a package outside of the repository, not only files are installed. It is common practice that package installers can run scripts which could apply any malicious modification to the system whatsoever.
+* When auditing for example a VM image or ISO, it is required for security to not execute any of the contents of that image because the code to be audited has be be considered as untrustworthy until the audit has been completed. In that case, the contents of the image need to be extracted or mounted. Note, that while helpful to audit small parts of an image, for best security all contents of the image need to be audited.
+
+Steps:
+
+Similar to above points 6 and 7.
+
+1) Version number detection.
+
+Find out the version number of the installed monero-gui Debian package by Kicksecure / Whonix.
+
+{{CodeSelect|code=
+dpkg -l {{!}} grep monero-gui     
+}}
+
+For example at time of writing that showed the following output.
+
+<pre>
+ii  monero-gui                                    0.18.1.2-1
+</pre>
+
+monero-gui Debian package by Kicksecure / Whonix version
+
+'''Table:''' ''version comparision example: monero-gui Debian package by Kicksecure / Whonix versus monero-gui by upstream''
+
+<div class="scroll-table">
+{| class="wikitable"
+! '''monero-gui Debian package by Kicksecure / Whonix version''' !! '''monero-gui upstream version''' !! '''part of version to ignore'''
+|-
+
+| <code>0.18.1.2-1</code>
+| <code>0.18.1.2</code>
+| <code>-1</code>
+|-
+
+|}
+</div>
+
+2) Download, verify, extract the corresponding monero-gui version by upstream.
+
+3) Change directory into the extrated monero-gui folder.
+
+4) Create hashsums of monero-gui by upstream.
+
+5) Create hashsums of the installed monero-gui Debian package by Kicksecure / Whonix.
+
+{{CodeSelect|code=
+sha512sums /usr/bin/monero*
+}}
+
+6) Compare the hashsums.
+
+* If these match, all is good.
+* If not, that's bad. Double check if the correct version has been compared.
+
+7) Done.
+
+'''9.''' Automation.
+
+Optional. Consider automating this process and setting up a server/process that regularity repeats this process.
+
+'''10.''' Done.
+*
+
 = Footnotes =
 The former [[Monero/Manual Instructions|Manual Monero Instructions]] have been archived for historic reasons.
 
