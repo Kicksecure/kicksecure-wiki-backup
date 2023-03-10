@@ -10,6 +10,30 @@ ToDo for {{project_name_long}} Wiki Devs
 Website Enhancements Planning
 }}
 = TODO: ADMIN - SOON =
+
+== add querystring to Headscript ==
+purpose: invalidate browser cache on css changes
+
+* append querystring to our custom css/js
+* append to fontawesome etc too?
+* read version number from a local file in /srv/shared/cssversion/version-file
+* sanity tests
+** check it is a real number
+** check string length maximum
+* fall back to querystring=error if local file is missing or has invalid contents
+
+how do we update the version number? options:
+
+* hardcoded in headscript
+* manually on file
+* manually in MediaWiki:cssversion
+* mw-combine can bump the version number but that might run too frequently (by the server, for testing, could be changed but non-ideal)
+* by Patrick writing a script that checks if contents of mw-autogen folder changed (counting all file names and hashing all files)
+
+'''DEV'''
+* The topic was discussed
+* Admin had the idea to use "if modified since" and "use stale" on nginx
+
 == Upgrade mw-multi-wiki - delete deleted files ==
 
 '''DEV'''
@@ -124,48 +148,12 @@ TODO:
 TODO
 
 = TODO DEV =
-https://instant.page/intensity
-
-https://timkadlec.com/remembers/2020-06-17-prefetching-at-this-age/
-
-<script src="instantpage-5.1.1.js" type="module" defer></script>
-
-== paypal widget broken on whonix.org ==
-even after multiwiki
-
-== intro template versus thunbnail on mobile ==
-See [[Trust]] page on mobile
-
-see screenshot
-
-== whonix homepage explain image distorted on mobile ==
-
-https://www.whonix.org/#explain
-
-see screenshot
-
-== Kicksecure and Whonix more vertical spacing on mobile ==
-see screenshots
-
-== add querystring to Headscript ==
-purpose: invalidate browser cache on css changes
-
-read version number from local file
-
-check it is a real number
-
-fall back to querystring=error if local file is missing
-
-append querystring to our custom css/js
-
-append to fontawesome etc too?
-
-mw-combine can bump the version number
 
 == instant.page ==
 info:
 
 * https://instant.page/
+* https://instant.page/intensity
 * https://github.com/instantpage/instant.page
 
 todo:
@@ -180,6 +168,12 @@ todo:
 * Do some testing afterwards.
 ** Because in theory it might actually make the website slower.
 
+to add to headscript:
+
+<pre>
+<script src="instantpage-5.1.1.js" type="module" defer></script>
+</pre>
+
 Done:
 
 * Patrick added to git already under libs. -> https://www.kicksecure.com/libs/instant.page/
@@ -190,6 +184,44 @@ Done:
 ** https://chrome.google.com/webstore/detail/fasterweb/nmgpnfccjfjhdenioncabecepjcmdnjg
 ** No need to install that extension.
 ** Just evidence pointing into the direction that this JS is worth trying out and might result in a serious speedup.
+
+== mediawiki-extension-css usage refactoring ==
+todo: discuss
+
+syntax to avoid:
+
+<pre>
+{{#css:Mediawiki:Page_Homepage.css}}
+{{#css:MediaWiki:Hide_all_banners.css}}
+{{#css:Mediawiki:Donation_Panel.css}}
+</pre>
+
+Why? Dynamically created PHP resources which lacks etag and proper cache-control headers as well as lacks minification.
+
+Instead we could maintain the CSS files in git repository <code>mediawiki-customized-dist</code> in subfolder <code>/libs/wikicss</code>, which on internet would be available as <code>kicksecure.com/libs/wikicss/</code> (using relative links of course).
+
+But how would these per-wiki-page CSS files be referenced (called, included) from specific wiki sites only? Would syntax (documented by the extension), quote:
+
+<pre>
+{{#css:/skins/MyStyles.css}}
+</pre>
+
+<pre>
+{{#css:/libs/wikicss/Page_Homepage.css}}
+</pre>
+
+Work?
+
+Will this result in the proper cache headers?
+
+In <code>40-extensions.php</code> we are currently setting: <code>$wgCSSPath = '/mw-autogen/';</code>.
+
+* Please check code if <code>wgCSSPath</code> is important.
+* Otherwise Patrick can make folder <code>wikicss</code> available under <code>/mw-autogen/</code> maybe using a symlink or for sure using nginx config.
+
+How would we solve minification? Ignore minification for now?
+
+We might be able to drop our mediawiki-extension-css patches?
 
 == Donors thunbnail ==
 [[Donors]] needs a thunbnail.
@@ -253,11 +285,12 @@ documentation here as base to develop a video script: https://www.kicksecure.com
 1. create a script and add to [[Dev/videos]] (similar to https://www.whonix.org/wiki/Dev/videos)
 
 == donateV2 ==
-#donateV2
+<code>#donateV2</code>
 
 todo discuss
 
-interactive checkmark
+* interactive checkmark when switching from one time, monthly, annual
+* error reporting if missing field
 
 == Pagespeed Optimizations #2 ==
 https://pagespeed.web.dev/ shows some suggestions:
@@ -424,153 +457,39 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
-== reference tooltips for logged in users are broken ==
-status:
-
-* functional: reference tooltips are functional for non-account (not logged in or "anonymous") users
-* bug: reference tooltips are not shown for existing users
-* unknown: do reference tooltips work for newly registered users?
-
-possibilities:
-
-* Could be a bug in the popups extension. It has quite a complex logic to enable it or not for existing users. Lots of legacy migration cruft.
-* Might be as simple as finding the setting in https://www.kicksecure.com/wiki/Special:Preferences
-* Less likely: browser or server cache issue
-
-config:
-
-In wikiconfig <code>40-extensions.php</code> at the very bottom currently:
-
-<pre>
-## Dependency of Popups.
-wfLoadExtension( 'TextExtracts' );
-
-## Dependency of Popups.
-wfLoadExtension( 'PageImages' );
-#wgPageImagesOpenGraph = false;
-
-## test
-wfLoadExtension( 'Popups' );
-## new
-$wgPopupsHideOptInOnPreferencesPage = false;
-$wgPopupsOptInDefaultState = "1";
-$wgPopupsOptInStateForNewAccounts = "1";
-$wgPopupsReferencePreviews	= true;
-$wgPopupsReferencePreviewsBetaFeature = true;
-</pre>
-
-Patrick tried to be as explicit with the wgPopups settings to opt in this setting as possible. Earlier these settings were not set but that also did not fix the bug. Feel free to out-comment these settings.
-
-https://www.mediawiki.org/wiki/Extension:Popups#Configuration_options mentions that the <code>= "1";"</code> for some settings and not <code>= true;</code> is legacy.
+== add source map for our custom JS ==
+https://firefox-source-docs.mozilla.org/devtools-user/debugger/how_to/use_a_source_map/index.html
 
 '''DEV'''
-* Dev researched extension page, discussion and Github page
-* This seems to be the most promising https://github.com/wikimedia/mediawiki-extensions-Popups/blob/3a00223a3637d51427ed019492e58c512651f41d/src/isReferencePreviewsEnabled.js
-** Curious statement <code>// Registered users never can enable popup types at run-time.</code>
-** <code>!config.get( 'wgPopupsReferencePreviews' )</code> seems to be countered by "$wgPopupsReferencePreviews	= true;" from admin BUT dev requested this setting via Javascript mw.config.get( 'wgPopupsReferencePreviews' ) getting ''false''. For users who are logged out this is ''true''
-* So as suspected this seems to be either a wrong setting for logged in users or the setting of "$wgPopupsReferencePreviews	= true;" not taking effect. Was this new version pulled into the live wikis?
-* On the other hand as this setting is true for not logged in users this could also indicate that "$wgPopupsReferencePreviews	= true;" DOES take effect. This might be checked by admin by (1) setting <code>"$wgPopupsReferencePreviews	= false;"</code> and (2) calling <code>mw.config.get( 'wgPopupsReferencePreviews' )</code> in the browser dev tools console for a NOT logged in user. If he gets "false" then this setting IS WORKING and the problem really happens maybe by some unseen user preference
-** Because this setting seems to be not visible to the user in preferences. There's only the option to allow or disallow page previews altogether
-* So this might need further investigation. But the first step might be for admin to ensure this settings is really set to true
+* Generating source maps is not as easy at it seems
+* Basically some program has to tell the browser (1) where are the sources (2) how is every line in the output linked to line(s) in the source(s)
+* This can sometimes be difficult or outright impossible
+* In our case however - as there is just one transformation involed - we could use "uglify" instead of "minify" because uglify has the option to directly create a source map while minifying. The source map - according to the researched article - is embedded in the source map itself by uglify
+* Article: https://devm.io/javascript/javascript-source-maps-170126
+* Dev however would not need this feature, because for debugging purposes Dev calles a URL with the "?debug=true" query parameters. This way NOT the minified files but the original (combined) files are loaded and are easily debuggable
 
-== reduce Whonix homepage header to headline whitespace ==
-see screenshots
-'''DEV''' Done
+== intro template versus thunbnail on mobile ==
+See [[Trust]] page on mobile. Also happening on other pages. The new intro template gets overlap by thunbnails. This did not happen with the old intro template. Fixable?
 
-== copyright - add media source ==
-copyright related
-edit https://www.kicksecure.com/wiki/File:Banner-dev-wanted-slim.jpg and add a link where components of this image have been sourced from.
-'''DEV''' Done
-
-== page preview image fix ==
-[[Download]] when hovering over (mediawiki extension popups) currently shows the Windows logo. This is confusing as it implies "windows only".
-
-Any way to add another image or no preview image?
-
-Adding
-
-<pre>
-[[File:Download-1019956-640.jpg|thumb|link=|class=hide-enlarge]]
-</pre>
-
-would work but the extra thumbnail might be superfluous, distracting and confusing.
-
-Patrick already added
-
-<pre>
-<div class="notpageimage noexcerpt">
-</pre>
-
-but that also did not help.
-
-Also [[Donate/PayPal]] needs a thumbnail. File:Full_Online_Tray_RGB.png already exists and is good enough. The image itself it not the issue. However, for the purpose of extension popups there needs to be a thubnail. Can we add a thumbnail without actually showing a thunbnail?
-
-How difficult would it be for Template:Intro to support hiding an image?
-
-<pre>
-{{intro|hidden=true|
-text here
-
-[[File:Full_Online_Tray_RGB.png|thumb]]
-}}
-</pre>
+see screenshot
 
 '''DEV'''
-* The intro template was changed to have the option for thumbnails, see [[Dev/mediawiki#Intro_paragraph]]
-* Download was given a new thumbnail using the new technique, also Donate/PayPal
-* class=notpageimage seems to work but only if it's directly a class OF THE IMAGE and NOT of the wrapper. For example <pre>[[File:|Donor-example-1.png|class=notpageimage]]</pre> does work while <pre><div class="notpageimage">[[File:|Donor-example-1.png]]</div></pre> does not work.
-* class=noexcerpt does also work, but it only affects TextExtracts and not the image
-* All this is unnecessary however due to the new intro template
+* Fixed on [[Trust]]
+* This problem was caused because the author put the thumbnail in wikitext over template intro. This is NOT recommended, because intro paragraphs do not react to thumbnails
+* If admin wants however there is a possibility to make the intro paragraph be able to be side by side with a thumbnail and the at a certain screen site switch to exclusive 100% width, so they are below each other. However this would mean that the thumbnail would be optically ABOVE the intro text and not below, because thumbnails work with CSS "flow:right" which only works in this case if it's above in the wikitext
 
-== Our Donors wiki page ==
-[[Donors]]
-
-TODO: discuss
-
-* thunbnail / preview image needed
-* add different profile images to [[Testpage_Donors]]
-* logo, link acceptance threshold?
-** https://www.openbsdfoundation.org/contributors.html
-** <blockquote>On request we will provide a link to your website for donations of $5000 or more, and display your logo for donations of $10,000 or more.</blockquote>
-* [[Testpage_Donors]]: sorting, more examples (user in mind for the preview)
-* make smaller on mobile, see screenshots, add a bit spacing
-* unlisted amount of donation: makes no sense
-* pseudonym vs real name vs company (legal entity) name - meaning, no anonymous
-* range "anon" - Could be a huge donation but anon.
-** Maybe anon makes little sense anyhow and would rather be pseudonymous?
-** Dev thought that it makes sense to write the donation amount 500+ to deter small $1 donors to request a recognition in the anon card, because there would be nothing written there. 500+ shows the threshold nothing more
-*** Patrick: If there's no anon card, donors won't request recognition in the anon card?
-** Dev: The "anon card" was also designed to symbolize to other readers of the page that the name is or might be made up. Like "Barack O. Bama" would be more easily be recognized as a pseudonym if there is "Anonymous Donor" written above. To make it more anonymous the editor can make the name "[Anonymous]". 
-*** Patrick: made up pseudonym vs real name is a good point
-** Dev: But Dev thought this might make no sense because if there is totally nothing that even the donor cannot recognize themselves why would they want to be recognized at all.
-*** Patrick: Yes. Anonymous entry makes no sense. But pseudonymous.
-** Dev: There might be 10 "anonymous donors" without a pseudonym and none of them would even know which of the card recognizes him - except maybe from the date
-*** Patrick: Yes. Without a pseudonym: Not adding. Patrick cannot foresee someone wanting to be added as "anonymous". Anyone can invent a pseudonym. And if not, best not get added. I don't think anonymous (not pseudonymous) donor recognition is supported anyhwere.
-** Dev: Suggestion: Only on the anon-card the donor name could be automatically wrapped in quotes "", so it's even more clear the name is a pseudonym
-*** Patrick: todo discuss
-* higher cards: visual improvements. Shadows? 3D taller effects? Holy? Medal? Rome? image boundary?
-** https://www.kicksecure.com/w/images/thumb/6/62/Linux-based-kicksecure-promo.jpg/300px-Linux-based-kicksecure-promo.jpg
-* recheck all changed text by Patrick
-* gray out feature: Only discuss. Probably not worth to implement at this point.
-** do not gray out
-* drop years for now? But mention in policy? Higher cards are worthwhile to stay up for a long time. Probably low competition for the high cards.
-
-'''DEV'''
-* Topics were discussed in length
-* Donor cards were upgraded with new symbols and better design and margins (for single row)
-* Category anon was dropped
-* [[Testpage_Donors]] was improved with several unique fake examples
-* On [[Donors]] link threshold text was added
-* Reminder for admin: terms of service for donation recognition: Neither image nor name nor link target should reflect negatively on Whonix or Kicksecure in a way that would jeopardize these projects
-
-== Images not suitable for thumbnails ==
-
-'''DEV'''
-* When working on this task [[#page_preview_image_fix]] Dev realized that some images are mysteriously not used by Extension:Popups. Dev checked extension files on Github and realized that the problem is not in the extension but in mediawiki not registering certain images as thumbnails for the page
-* The extension uses a query like this {{CodeSelect|code=https://www.kicksecure.com/w/api.php?action=query&format=json&prop=info%7Cextracts%7Cpageimages%7Crevisions%7Cinfo&formatversion=2&redirects=true&exintro=true&exchars=525&explaintext=true&exsectionformat=plain&piprop=thumbnail&pithumbsize=1000&pilicense=any&rvprop=timestamp&inprop=url&titles=Testpage3&smaxage=300&maxage=300&uselang=content}} to load the page preview in realtime via Javascript. Somehow this image {{CodeSelect|code=Full_Online_Tray_RGB.png}} does not register as a thumbnail while other images used with the exact same syntax will be registered
-* Admin is requested to decide if this phenomenon should be investigated further. Or just upload the image again - maybe processed with a different photo editing software?
+'''DEV2'''
+* The thumbnails were now updated to be responsive by nature and a class was added to prevent this behavior
+* See here [[Dev/mediawiki#Non-Responsive_Thumbnails_classes]] and [[#Responsive_Thumbnails]] for more information
 
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-03-10
+** Design fixed KS Trust page + Whonix HP
+** Discussion ToDo
+** BackToTopButton mobile fadeout
+** Responsive Thumbnails + docu
+** Source map research
 
 * 2023-03-08
 ** Discussion Todo, DonorCard etc
