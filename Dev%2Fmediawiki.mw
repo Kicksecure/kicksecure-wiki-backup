@@ -23,9 +23,9 @@ Layout, Skin, CSS, JavaScript, Links, Header, Footer, CodeSelect, Mobile Fronten
 * The extension and the fork in general have 3 options: One to write page specific inline CSS in the MediaWiki page itself. The second option allows to link locally hosted CSS files. The third option allows to link internal CSS pages raw as files
 ** '''Caution''': The first option of this ORIGINAL extension (not our fork) for a page specific CSS seems experimental to us, because the CSS text is encoded as a base64 string and imported link so <code><nowiki><link rel="stylesheet" href="data:text/css;charset=UTF-8;base64,I3Np...Q7Cn0="></nowiki></code>. This is not widely supported in all browsers so this options does not seem reliable and therefore is not recommended for production use!
 * Our fork
-** Usage option 1 - inline: You can write inline code, e.g. <code><nowiki>{{#css: body { background-color: green; } }}</nowiki></code> . Our fork implements this as a style-Tag (instead of a link tag with base64 like the original extension, see above)
-** Usage option 2 - locally hosted: You can reference locally hosted files, e. g. <code><nowiki>{{#css:/my-style.css }}</nowiki></code> . For this the file has to be hosted in the locally allowed folder. In our case this is set to "/mw-autogen" in localSettings.php via the variable $wgCSSPath which belongs to the Extension:CSS
-** Uage option 3 - from the DB: You can reference files hosted in the DB, e.g. <code><nowiki>{{#css:MediaWiki:Header.css}}</nowiki></code> . This calls the file from the wiki. In our fork we allow the admin to set allowed namespaces, so CSS files in these namespaces are not "sanitized" by Mediawiki which sometimes leads to unexpected problems. In our case we set the namespace "MediaWiki:" to be not sanitized
+** '''Usage option 1 - inline''': You can write inline code, e.g. <code><nowiki>{{#css: body { background-color: green; } }}</nowiki></code> . Our fork implements this as a style-tag (instead of a link tag with base64 like the original extension, see above)
+** '''Usage option 2 - locally hosted''': You can reference locally hosted files, e. g. <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css}}</nowiki></code> . '''NOTE''': For this the file has to be hosted in the locally allowed folder. In our case this is set to <code>/mw-autogen</code> in localSettings.php via the variable $wgCSSPath which belongs to the Extension:CSS . This means our example <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css}}</nowiki></code> actually (relatively) references the local file <code>/mw-autogen/src-copy/Page_Homepage.min.css</code>
+** '''Usage option 3 - from the DB''': You can reference files hosted in the DB, e.g. <code><nowiki>{{#css:MediaWiki:Header.css}}</nowiki></code> . This calls the file from the wiki. In our fork we allow the admin to set allowed namespaces, so CSS files in these namespaces are not "sanitized" by Mediawiki which sometimes leads to unexpected problems. In our case we set the namespace "MediaWiki:" to be not sanitized
 * MediaWiki upstream: [https://phabricator.wikimedia.org/tag/mediawiki-extensions-css/ mediawiki-extension-css] feature requests and patches:
 ** feature request: [https://phabricator.wikimedia.org/T300704 Enable unsanitized CSS namespaces]
 ** patch / pull request: [https://phabricator.wikimedia.org/T37820 Some CSS stripped by MediaWiki parser CSS sanitizer]
@@ -98,11 +98,11 @@ End Extension:HeadScript -->
 # We use [[#Extension HeadScript]] to include our own auto-generated files in the wiki page
 # These files are generated from wiki files, through a specific process using our own scripts
 ## We created file [[MediaWiki:Build.json]]. In this file we describe a build order for all JavaScript files. And also all CSS files.
-##* '''Note''' that this file has to have a specific structure. Top level are the keywords "wikijs" (JS applied to the whole wiki), "wikicss" (CSS applied to the whole wiki) and skincss" (CSS only if the custom header is present). Also there can be the keyword "__comments" at the top which will be ignored by the parse.
+##* '''Note''' that this file has to have a specific structure. Top level are the keywords "wikijs" (JS applied to the whole wiki), "wikicss" (CSS applied to the whole wiki), "skincss" (CSS only if the custom header is present) and "justcopy" (files that will just by copied, not combined). Also there can be the keyword "__comments" at the top which will be ignored by the parse.
 ##* Every of those keywords has an array of strings below them. These string should all be callable wiki file pages like "MediaWiki:Header.css" etc. '''Exception''': You can use comments if a string STARTS with "//"
 ## Then we created a php build script which has to be executed and combines all files which are mentioned in Build.json and which are then loaded from the wiki files pages. After that the build script combines all files and saves them to the folder '''/mw-autogen''' as a - what we call - "mw-combined"-file and minifies it and saves it to a second file "mw-combined.min" etc.
 ## These files are then called via [[#Extension_HeadScript]] and can also be called in their human readable form if the URL has the parameter ?debug=true
-## The source files are also copied (not minified) to a subfolder '''/mw-autogen/src-copy/''' for optional use by other software (e. g. forums) on the same web domain
+## The source files are also copied to a subfolder '''/mw-autogen/src-copy/''' for optional use by other software (e. g. forums) on the same web domain. And for each file a minified version is also created in the same folder [filename.ext] + [filename.min.ext]
 # specific locations
 #* Kicksecure autogen folder : https://www.kicksecure.com/mw-autogen
 #* Whonix autogen folder : https://www.whonix.org/mw-autogen
@@ -110,6 +110,7 @@ End Extension:HeadScript -->
 #* Whonix combine script : {{CodeSelect|inline=true|code=https://admin.whonix.org/mw-combine.php}} (Admin access needed)
 # By these measures we drastically improved the load time of the wiki, made it really stable and functional again and circumvented the use of Common.js as also suggested by Wikipedia
 # '''NOTE:''' By using this solution the source files (css js etc) are not directly called when the page is loaded. They are merely the source which the combined, minified files are rendered from. So every time there is a change in the source files it first has to be rendered to the output files.
+#* One exception is the use of Extension:CSS where we want to use scripts only on specific pages like so <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css}}</nowiki></code>. In this case the source copy folder is very useful
 
 === Javascript specific ===
 
@@ -240,14 +241,15 @@ If it is a <b>CSS page</b> or <b>JavaScript page</b>, add:
 ## '''MultiWiki''' means: for all wikis, but as general as "LocalWiki".
 # Entry points
 ## The relevant files are all found in [[MediaWiki:Build.json]]. This file has multiple sections. These sections are divided by MultiWiki and LocalWiki files and their dependencies are noted here. So this file is a great way to see the application structure. Sections:
-### wikijs : These files will be combined into one file whose methods will be available on the whole wiki even without the skin applied
-### wikicss : These files will be combined into one file whose styles will be available on the whole wiki even without the skin applied
-### skincss : These files will be combined into one file whose styles will only be available of the <nowiki>{{Header}}</nowiki> template is included in a page
+### '''wikijs''' : These files will be combined into one file whose methods will be available on the whole wiki even without the skin applied
+### '''wikicss''' : These files will be combined into one file whose styles will be available on the whole wiki even without the skin applied
+### '''skincss''' : These files will be combined into one file whose styles will only be available of the <nowiki>{{Header}}</nowiki> template is included in a page
+### '''NOTE''': All of the files in these categories are also copied into a separate source file folder and also a minified version of them. Read more here [[#File_auto-generation.2C_Combine.2C_Minify.2C_Host_Locally.2C_mw-autogen.2C_src-copy]]
+### '''justcopy''' : These files will NOT be combined in any way. They will just be copied as described above. Note that these files can be mixed and don't need to be exclusively Javascript or CSS
 ## [[#Extension_HeadScript]] - '''Import combined files''' which are rendered from Build.json
 ## [[Template:Header]] / LocalSkin - '''Import CSS files for local skin pages'''. This file has a double function. It introduces the "local skin augmentation" as well as its header. Files are loaded using [[#Extension CSS Fork]]
 # '''Important CSS files'''
 ## [[MediaWiki:Common.css]] / MultiWiki - not in use, but MultiWiki, because it's an important system file
-## [[MediaWiki:Fonts.css]] / LocalSkin - integration of all the sitespecific fonts
 ## [[MediaWiki:Utility.css]] / MultiWiki - '''Define styles which can be used like tools on the site'''. This file has styles which can be used for all of our wikis. It's general styles which can be used like tools and boilerplate setup styles for things in all wikis which we need to fix
 ## [[MediaWiki:Boilerplate.css]] / MultiWiki - '''Define styles which make up our "basic" style on all our wikis'''. This file has styles which can be used for all of our wikis. Boilerplate.css is what all our local wikis skins have in common. It is like LocalSkin.css but for all our wikis. It's also only available if the Header (and therefore LocalSkin) is active
 ### [[MediaWiki:LocalSkin.css]] / LocalSkin - '''Define styles for local skin'''. This file has styles which will only be active on local skin pages

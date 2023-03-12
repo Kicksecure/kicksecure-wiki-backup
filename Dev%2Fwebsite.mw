@@ -148,102 +148,6 @@ TODO:
 TODO
 
 = TODO DEV =
-== instant.page ==
-info:
-
-* https://instant.page/
-* https://instant.page/intensity
-* https://github.com/instantpage/instant.page
-
-todo:
-
-* Read the project page.
-* Use relative links like always. (For onion support.)
-* Do some testing beforehand.
-** Manual testing in a common browser, using pagespeed insights, gtmetrix, with Tor Browser.
-* Load the script with <code>fetchpriority="low"</code> and <code>defer</code>.
-** project page suggests doing so at the very end in "body" but seems should also be fine if at the end of the "head"?
-** Cannot load third-party resources as always. Therefore cannot use exactly same instructions as provided by upstream. Need to use locally installed version.
-* Do some testing afterwards.
-** Because in theory it might actually make the website slower.
-
-to add to headscript:
-
-non-minified version even needed?
-
-<pre>
-<script src="/libs/instant.page/instantpage.js" type="module" defer></script>
-</pre>
-
-minified version:
-
-<pre>
-<script src="/libs/instant.page/instantpage.min.js" type="module" defer></script>
-</pre>
-
-Done:
-
-* Patrick added to git already under libs. -> https://www.kicksecure.com/libs/instant.page/
-* https://www.kicksecure.com/libs/instant.page/instantpage.js is available (non-minfied), original
-* manually minified already by Patrick (<code>minify instantpage.js > instantpage.min.js</code>: https://www.kicksecure.com/libs/instant.page/instantpage.min.js
-* Patrick tested a chrome extension which uses the same (?) code.
-** That worked well. Wiki got faster.
-** https://chrome.google.com/webstore/detail/fasterweb/nmgpnfccjfjhdenioncabecepjcmdnjg
-** No need to install that extension.
-** Just evidence pointing into the direction that this JS is worth trying out and might result in a serious speedup.
-
-== mediawiki-extension-css usage refactoring ==
-todo: discuss
-
-syntax to avoid:
-
-<pre>
-{{#css:Mediawiki:Page_Homepage.css}}
-{{#css:MediaWiki:Hide_all_banners.css}}
-{{#css:Mediawiki:Donation_Panel.css}}
-</pre>
-
-Why? Dynamically created PHP resources which lacks ETag (If-None-Match) and proper cache-control headers as well as lacks minification.
-
-Instead we could maintain the CSS files in git repository <code>mediawiki-customized-dist</code> in subfolder <code>/libs/wikicss</code>, which on internet would be available as <code>kicksecure.com/libs/wikicss/</code> (using relative links of course).
-
-But how would these per-wiki-page CSS files be referenced (called, included) from specific wiki sites only? Would syntax (documented by the extension), quote example:
-
-<pre>
-{{#css:/skins/MyStyles.css}}
-</pre>
-
-Tried actually:
-
-<pre>
-{{#css:/src-copy/Archive_link.css}}
-</pre>
-
-Work? Yes. Patrick added to [[Dev/wikitest]]:
-
-This results in:
-
-<pre>
-<!-- Begin Extension:CSS --><link rel="stylesheet" href="/mw-autogen//src-copy/Archive_link.css?css-extension=1"/><!-- End Extension:CSS -->
-</pre>
-
-Will this result in the proper cache headers? Yes. <code>curl --head "https://www.kicksecure.com/mw-autogen//src-copy/Archive_link.css?css-extension=1"</code> shows the correct cache headers since it is now from perspective of nginx a static file and not php generated.
-
-In <code>40-extensions.php</code> we are currently setting: <code>$wgCSSPath = '/mw-autogen/';</code>.
-
-* Please check mediawiki-extension-css code if <code>wgCSSPath</code> is important.
-* We probably cannot have multiple <code>wgCSSPath</code> folders?
-* If needed, Patrick can make folder <code>mediawiki-customized-dist</code> <code>wikicss</code> available under <code>/mw-autogen/</code> maybe using a symlink or for sure using nginx config.
-* Or could we reasonably use https://www.kicksecure.com/mw-autogen/src-copy/ folder?
-
-How would we solve minification? Ignore minification for now?
-
-We might be able to drop our mediawiki-extension-css patches?
-
-== Download page symbols distorted ==
-[[Download]]: symbols are distorted
-
-This happened after thumbnail 100% change.
 
 == Donors thunbnail ==
 [[Donors]] needs a thunbnail.
@@ -397,6 +301,21 @@ Patrick could server side easily rewrite that to:
 
 (Nobody uses <code>script async=""</code> (not a syntax error - asked upstream). This is easily string replaced to <code>script async</code> using nginx.)
 
+== add source map for our custom JS ==
+https://firefox-source-docs.mozilla.org/devtools-user/debugger/how_to/use_a_source_map/index.html
+
+'''DEV'''
+* Generating source maps is not as easy at it seems
+* Basically some program has to tell the browser (1) where are the sources (2) how is every line in the output linked to line(s) in the source(s)
+* This can sometimes be difficult or outright impossible
+* In our case however - as there is just one transformation involed - we could use "uglify" instead of "minify" because uglify has the option to directly create a source map while minifying. The source map - according to the researched article - is embedded in the source map itself by uglify
+* Article: https://devm.io/javascript/javascript-source-maps-170126
+* Dev however would not need this feature, because for debugging purposes Dev calles a URL with the "?debug=true" query parameters. This way NOT the minified files but the original (combined) files are loaded and are easily debuggable
+
+Patrick:
+
+* uglifyjs has been installed which supports source map creation.
+
 == Wiki Content ==
 === Whonix-Host ===
 
@@ -479,32 +398,98 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
-== add source map for our custom JS ==
-https://firefox-source-docs.mozilla.org/devtools-user/debugger/how_to/use_a_source_map/index.html
+== Download page symbols distorted ==
+[[Download]]: symbols are distorted
+
+This happened after thumbnail 100% change.
 
 '''DEV'''
-* Generating source maps is not as easy at it seems
-* Basically some program has to tell the browser (1) where are the sources (2) how is every line in the output linked to line(s) in the source(s)
-* This can sometimes be difficult or outright impossible
-* In our case however - as there is just one transformation involed - we could use "uglify" instead of "minify" because uglify has the option to directly create a source map while minifying. The source map - according to the researched article - is embedded in the source map itself by uglify
-* Article: https://devm.io/javascript/javascript-source-maps-170126
-* Dev however would not need this feature, because for debugging purposes Dev calles a URL with the "?debug=true" query parameters. This way NOT the minified files but the original (combined) files are loaded and are easily debuggable
+* Done
+* thumbs were rewritten so that they don't affect thumbs in galleries
 
-== intro template versus thunbnail on mobile ==
-See [[Trust]] page on mobile. Also happening on other pages. The new intro template gets overlap by thunbnails. This did not happen with the old intro template. Fixable?
+== port form old to new style css extension usage ==
+Might be already done?
 
-see screenshot
+port from old style:
+
+<pre>
+{{#css:Mediawiki:Page_Homepage.css}}
+</pre>
+
+to new style:
+
+<pre>
+{{#css:/src-copy/Page_Homepage.min.css}}
+</pre>
+
+use [[Special:ReplaceText]] to search for :<code><nowiki>{{#css:</nowiki></code>
+
+* Kicksecure
+* Whonix
 
 '''DEV'''
-* Fixed on [[Trust]]
-* This problem was caused because the author put the thumbnail in wikitext over template intro. This is NOT recommended, because intro paragraphs do not react to thumbnails
-* If admin wants however there is a possibility to make the intro paragraph be able to be side by side with a thumbnail and the at a certain screen site switch to exclusive 100% width, so they are below each other. However this would mean that the thumbnail would be optically ABOVE the intro text and not below, because thumbnails work with CSS "flow:right" which only works in this case if it's above in the wikitext
+* Was already done, yes
 
-'''DEV2'''
-* The thumbnails were now updated to be responsive by nature and a class was added to prevent this behavior
-* See here [[Dev/mediawiki#Non-Responsive_Thumbnails_classes]] and [[#Responsive_Thumbnails]] for more information
+== instant.page ==
+info:
+
+* https://instant.page/
+* https://instant.page/intensity
+* https://github.com/instantpage/instant.page
+
+todo:
+
+* Read the project page.
+* Use relative links like always. (For onion support.)
+* Do some testing beforehand.
+** Manual testing in a common browser, using pagespeed insights, gtmetrix, with Tor Browser.
+* Load the script with <code>fetchpriority="low"</code> and <code>defer</code>.
+** project page suggests doing so at the very end in "body" but seems should also be fine if at the end of the "head"?
+** Cannot load third-party resources as always. Therefore cannot use exactly same instructions as provided by upstream. Need to use locally installed version.
+* Do some testing afterwards.
+** Because in theory it might actually make the website slower.
+
+to add to headscript:
+
+non-minified version even needed?
+
+<pre>
+<script src="/libs/instant.page/instantpage.js" type="module" defer></script>
+</pre>
+
+minified version:
+
+<pre>
+<script src="/libs/instant.page/instantpage.min.js" type="module" defer></script>
+</pre>
+
+Done:
+
+* Patrick added to git already under libs. -> https://www.kicksecure.com/libs/instant.page/
+* https://www.kicksecure.com/libs/instant.page/instantpage.js is available (non-minfied), original
+* manually minified already by Patrick (<code>minify instantpage.js > instantpage.min.js</code>: https://www.kicksecure.com/libs/instant.page/instantpage.min.js
+* Patrick tested a chrome extension which uses the same (?) code.
+** That worked well. Wiki got faster.
+** https://chrome.google.com/webstore/detail/fasterweb/nmgpnfccjfjhdenioncabecepjcmdnjg
+** No need to install that extension.
+** Just evidence pointing into the direction that this JS is worth trying out and might result in a serious speedup.
+
+'''DEV'''
+* Done
+* Project was studied. Seems well liked, stable and rather simple
+* library was implemented, worked instantly
+* Many tests, always worked flawlessly.
+* Only works on local links however but this design decision seems sensible too
 
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-03-11
+** Discussion Todo
+** mw-combine upgrade feature justcopy + refactoring + documentation
+** DonorCard.css upgrade + DonorTestpage link threshold correction (only s and higher examples)
+** Integration and testing instantpage.js
+** Headscript refactoring
+** Thumbs design fix for gallery thumbs
 
 * 2023-03-10
 ** Design fixed KS Trust page + Whonix HP
