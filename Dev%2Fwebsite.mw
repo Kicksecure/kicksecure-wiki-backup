@@ -30,9 +30,9 @@ how do we update the version number? options:
 * mw-combine can bump the version number but that might run too frequently (by the server, for testing, could be changed but non-ideal)
 * by Patrick writing a script that checks if contents of mw-autogen folder changed (counting all file names and hashing all files)
 
-'''DEV'''
-* The topic was discussed
-* Admin had the idea to use "if modified since" and "use stale" on nginx
+Alternative considered <code>Cache-Control</code> HTTP header <code>stale-while-revalidate</code>:
+
+* Would result in lots of <code>If-None-Match</code> requets and <code>304</code> responses.
 
 == Upgrade mw-multi-wiki - delete deleted files ==
 
@@ -84,7 +84,6 @@ TODO:
 = TODO: ADMIN - DELAYED =
 == misc ==
 * https://www.speedcurve.com/
-* https://web.dev/codelab-extract-and-inline-critical-css/
 * https://developer.chrome.com/docs/devtools/application/back-forward-cache/
 * https://www.mediawiki.org/wiki/Snippets/Load_an_additional_JavaScript_or_stylesheet_file_on_all_pages
 * https://marketingpipeline.github.io/CSS-Image-Loader/index.html
@@ -96,6 +95,7 @@ TODO:
 * https://github.com/fogleman/primitive
 * https://github.com/kizule/mediawiki-extensions-Kicksecure
 * https://textoptimizer.com/
+* https://github.com/vozlt/nginx-module-vts
 
 == MultiWiki: Think about PHP files ==
 
@@ -148,6 +148,70 @@ TODO:
 TODO
 
 = TODO DEV =
+== document instant.page ==
+* https://instant.page/
+* https://instant.page/intensity
+* https://github.com/instantpage/instant.page
+* https://github.com/instantpage/instant.page/issues/118
+
+== mediawiki-extensions-Purge ==
+todo: discuss
+
+What does https://github.com/AlPha5130/mediawiki-extensions-Purge/blob/master/resources/ext.purge.js (15 lines only) do?
+
+Probably would have little effect for our wiki because of our custom skin? Does this functionality seem useful?
+
+== image size optimizations ==
+=== SVG - try svgo ===
+'''info:'''
+
+SVG Optimizer is a (Node.js-based) tool for optimizing SVG vector graphics files.
+
+https://github.com/svg/svgo
+
+'''install:'''
+
+{{Flatpak Install|package=
+re.sonny.OhMySVG
+}}
+
+'''run:'''
+
+{{CodeSelect|code=
+flatpak run re.sonny.OhMySVG
+}}
+
+'''usage:'''
+
+https://github.com/svg/svgo#cli-usage
+
+'''images:'''
+
+* Kicksecure logo
+* Whonix logo
+
+'''goal:'''
+
+* Same image quality, format (svg) but smaller image size.
+
+=== other images - try squoosh ===
+https://squoosh.app/
+
+'''goal type 1:'''
+
+* Same image quality, format (svg) but smaller image size.
+* Kicksecure logo (if squoosh supports SVG)
+* Whonix logo (if squoosh supports SVG)
+
+'''goal type 2:'''
+
+* Slight, reasonable reduction in quality is acceptable if the file size can be lowered considerable.
+* Other image formats (jpeg, png, svg, webp, ...) are acceptable.
+* Kicksecure hero image
+* Whonix hero image
+
+=== misc ===
+Document findings how if these tools can help us or not.
 
 == Donors thunbnail ==
 [[Donors]] needs a thunbnail.
@@ -217,6 +281,7 @@ todo discuss
 
 * interactive checkmark when switching from one time, monthly, annual
 * error reporting if missing field
+* flying emoticons animation for different donation amount choices
 
 == Pagespeed Optimizations #2 ==
 https://pagespeed.web.dev/ shows some suggestions:
@@ -225,12 +290,6 @@ https://pagespeed.web.dev/ shows some suggestions:
 * Heading elements are not in a sequentially-descending order
 ** Heading elements in order is a very impractical metric which probably very few websites adhere to. Headline levels are very rarely used structurally (exception example MediaWiki and similar), but often rather as style choices. Especially smaller headlines which are very rarely used anyways h4-h6 are often used exclusively as style elements. For our project that would be possible especially if it's limited to few sites. But it would mean changing HTML as well as CSS
 ** TODO: discuss
-
-=== Form elements do not have associated labels ===
-* Form elements do not have associated labels
-** Patrick fixed a similar warning here: https://www.kicksecure.com/w/index.php?title=Widget%3ADonation_Panel&type=revision&diff=66939&oldid=58997
-** Form elements: This makes sense, but is there a ways to find out on which pages this should be applied? - are should I search all pages for form elements?
-*** TODO: discuss: Only fix for our custom HTML/CSS. We didn't invent many forms anyhow? homepage, about, donate
 
 === Kicksecure homepage - pagespeed insights - Links do not have a discernible name ===
 Links do not have a discernible name
@@ -256,6 +315,11 @@ Failing Elements
 div.section-banner > div.inner-wrapper > div.overview-image-and-video-player > input#hide-overview-image
 <input type="checkbox" id="hide-overview-image">
 </pre>
+
+* Patrick fixed a similar warning here: https://www.kicksecure.com/w/index.php?title=Widget%3ADonation_Panel&type=revision&diff=66939&oldid=58997
+* TODO: Only fix for our custom HTML/CSS/JS. We didn't invent many forms anyhow? [[homepage]], [[about]], [[donate]]
+** Kicksecure
+** Whonix
 
 == homepage html optimizations ==
 For Kicksecure and Whonix homepage. To reduce DOM size.
@@ -315,6 +379,63 @@ https://firefox-source-docs.mozilla.org/devtools-user/debugger/how_to/use_a_sour
 Patrick:
 
 * uglifyjs has been installed which supports source map creation.
+
+== Progressive Web App PWA ==
+resources:
+
+* https://www.mediawiki.org/wiki/Extension:PWA
+* https://github.com/Wikimedica/mediawiki-extensions-PWA
+* https://phabricator.wikimedia.org/T282500
+
+You can find the site.webmanifest here:
+
+* <code>mediawiki-customized-dist</code>: <code>public/favicons-kicksecure/site.webmanifest</code>
+* <code>mediawiki-customized-dist</code>: <code>public/favicons-whonix/site.webmanifest</code>
+
+todo:
+
+* do we need the extension or do we create our own 
+* read https://web.dev/progressive-web-apps/
+* use Lighthouse (integrated in chromium developer console)
+** <blockquote>Content is not sized correctly for the viewport
+
+The viewport size of 396px does not match the window size of 360px.
+
+If the width of your app's content doesn't match the width of the viewport, your app might not be optimized for mobile screens. Learn more. https://web.dev/content-width/</blockquote>
+* <blockquote>Manifest doesn't have a maskable icon
+
+A maskable icon ensures that the image fills the entire shape without being letterboxed when installing the app on a device. Learn more. https://developer.chrome.com/docs/lighthouse/pwa/maskable-icon-audit/</blockquote>
+
+== critical css test ==
+
+info:
+
+* https://web.dev/codelab-extract-and-inline-critical-css/
+
+goals:
+
+* A simplified test if critical CSS inclusion into the head results in faster website speed at all.
+
+non-goals:
+
+* Making mediawiki use critical CSS. How to integrate this with mediawiki will be considered at a later time in a separate task.
+
+tools:
+
+* https://www.sitelocity.com/critical-path-css-generator
+* https://jonassebastianohlsson.com/criticalpathcssgenerator/
+* https://www.corewebvitals.io/tools/critical-css-generator
+* https://web.dev/codelab-extract-and-inline-critical-css/
+
+todo:
+
+* 1) Use a browser where you are logged out and have no cookies. This is because cookies and being logged in has an influence on the HTML provided by mediawiki.
+* 2) on /test/ add Kicksecure homepage with the normal HTML document that we have now: <code>kicksecure-hp-normal-not-critical-css.html</code>. This will be needed for speed comparison.
+* 3) create a copy <code>kicksecure-hp-critical-css.html</code>
+* 4) use some tool to extract the critical css. add the critical css to the head. (https://web-dev.imgix.net/image/admin/RVU3OphqtjlkrlAtKLEn.png)
+* 5) out-comment all other CSS for a simple test. Search the HTML document for <code>stylesheet</code>. (CSS load with <code>media="print" onload="this.media='all'"</code> can and probably should be ignored and left enabled as it already loads async.)
+* 6) load all other CSS async
+* 7) compare speed of the two different HTML documents
 
 == Wiki Content ==
 === Whonix-Host ===
@@ -429,57 +550,6 @@ use [[Special:ReplaceText]] to search for :<code><nowiki>{{#css:</nowiki></code>
 
 '''DEV'''
 * Was already done, yes
-
-== instant.page ==
-info:
-
-* https://instant.page/
-* https://instant.page/intensity
-* https://github.com/instantpage/instant.page
-
-todo:
-
-* Read the project page.
-* Use relative links like always. (For onion support.)
-* Do some testing beforehand.
-** Manual testing in a common browser, using pagespeed insights, gtmetrix, with Tor Browser.
-* Load the script with <code>fetchpriority="low"</code> and <code>defer</code>.
-** project page suggests doing so at the very end in "body" but seems should also be fine if at the end of the "head"?
-** Cannot load third-party resources as always. Therefore cannot use exactly same instructions as provided by upstream. Need to use locally installed version.
-* Do some testing afterwards.
-** Because in theory it might actually make the website slower.
-
-to add to headscript:
-
-non-minified version even needed?
-
-<pre>
-<script src="/libs/instant.page/instantpage.js" type="module" defer></script>
-</pre>
-
-minified version:
-
-<pre>
-<script src="/libs/instant.page/instantpage.min.js" type="module" defer></script>
-</pre>
-
-Done:
-
-* Patrick added to git already under libs. -> https://www.kicksecure.com/libs/instant.page/
-* https://www.kicksecure.com/libs/instant.page/instantpage.js is available (non-minfied), original
-* manually minified already by Patrick (<code>minify instantpage.js > instantpage.min.js</code>: https://www.kicksecure.com/libs/instant.page/instantpage.min.js
-* Patrick tested a chrome extension which uses the same (?) code.
-** That worked well. Wiki got faster.
-** https://chrome.google.com/webstore/detail/fasterweb/nmgpnfccjfjhdenioncabecepjcmdnjg
-** No need to install that extension.
-** Just evidence pointing into the direction that this JS is worth trying out and might result in a serious speedup.
-
-'''DEV'''
-* Done
-* Project was studied. Seems well liked, stable and rather simple
-* library was implemented, worked instantly
-* Many tests, always worked flawlessly.
-* Only works on local links however but this design decision seems sensible too
 
 = DONE / Log of DevSprint since 2021-12 =
 
