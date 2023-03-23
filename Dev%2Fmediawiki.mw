@@ -131,6 +131,28 @@ End Extension:HeadScript -->
 * The wrapper also introduces the property mwDev globally into the window object. This is basically a variable for us to share data between scripts and other dev strategies. The data is shared in the sub property mwDev.info
 * Also we use this wrapper for the dontload functionality which you can learn more about in our convenience tool [[Dev/mediawiki#Debug-via-url-modal]] for this purpose
 
+=== Javascript source mapping ===
+
+* In order to be very transparent and debug more easily we decided to use a source map for our combined wiki js file
+** Here is the documentation for source maps https://firefox-source-docs.mozilla.org/devtools-user/debugger/how_to/use_a_source_map/index.html
+** Our wiki-JS is combined and rendered into {{SERVER}}/mw-autogen/mw-combined-wikijs.js and minified to {{SERVER}}/mw-autogen/mw-combined-wikijs.min.js
+** For all other purposes we use <code>minify</code>, but for Javascript we use <code>uglifyjs</code> for its source map capabilities
+** In addition to the minified JS file uglify creates a source map {{SERVER}}/mw-autogen/mw-combined-wikijs.min.js.map that references the combined source file (from which the minified file is created)
+** Also the comment <code>//# sourceMappingURL=/mw-autogen/mw-combined-wikijs.js</code> is automatically added to the minified file
+* This way developers can find problems and study the source code even though the minified JS file is loaded for normal users
+* '''Some information on uglify'''
+** This is the official documentation https://www.npmjs.com/package/uglify-js . But it might be a bit confusing
+** This is the command we're using (only [file-dir] is a placeholder) <code>uglifyjs '/[file-dir]/mw-autogen/mw-combined-wikijs.js' --output '/[file-dir]/mw-autogen/mw-combined-wikijs.min.js' --source-map "base='/[file-dir]/mw-autogen',root='/mw-autogen',url='/mw-autogen/mw-combined-wikijs.min.js.map'"</code>
+*** The first parameter is the source file
+*** --output or -o specifies the target file
+*** [DEPRECATED-BY-US] --compress removes unnecessary the code. We don't use this anymore because this led to errors of variables being removed that we actually needed. See https://stackoverflow.com/questions/54119790/prevent-gulp-uglify-from-stripping-out-es6
+*** [DEPRECATED-BY-US] --mangle "minifies" the names in the code (renames to shorter names if possible and if not accessible to external functions). We don't use this anymore because it's error prone linke --compress
+*** --source-map creates the source map
+**** All it's sub parameters have to be wrapped in one big quote.
+**** '''base''' - this sub parameter specifies the base path in the file system. This path will be OMITTED in the source map "sources" property. Example: If a file has <code>/[file-dir]/file1.js</code> and <code>base='/[file-dir]'</code> then in sources it will be listed as <code>"sources":["file1.js"]</code> else it would have its full path
+**** '''root''' - this sub parameter specifies the url route (path) that the browser needs to find the file. This will be added to sourcesRoot in the source map. Example: If a file has <code>/[file-dir]/file1.js</code> and <code>base='/[file-dir]/'</code> (see description above for this part) and <code>root='/public'</code> then in source map it will be listed as <code>"sourceRoot":"/public","sources":["file1.js"]</code> and the browser would find the source file under <code>/public/file1.js</code>
+**** '''url''' - the url sub parameter is the browser route (path) to the source map. It tells the browser where the source map is located in case the user (most likely developer) requests the source code
+
 === Exceptions ===
 
 * '''Header CSS files''' : This is also done for general CSS files. The header CSS files however are not included via [[#Extension_HeadScript]] but in the [[Template:Header]] via our [[#Extension_CSS_Fork]]

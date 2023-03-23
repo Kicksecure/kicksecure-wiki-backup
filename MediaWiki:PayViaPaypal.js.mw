@@ -9,7 +9,12 @@ deferrable:YES -- This script needs a little bit to load anyways
 	// 0. Data
 
 	let standards = {
-		minimumDollars: 1, // in full dollars
+		minimumDollars: 5, // in full dollars
+		presetDollars: {
+			once: [20,50,200,500,1000],
+			monthly: [10,20,50,100,200],
+			yearly: [20,50,100,200,500],
+		}
 	};
 
 	let intervalModes = {
@@ -19,34 +24,37 @@ deferrable:YES -- This script needs a little bit to load anyways
 
 	// 1. Elements
 
-	let template = $(''
-		+ '<div class="amount">'
-		+  '<span>5</span>'
-		+  '<span>20</span>'
-		+  '<span>50</span>'
-		+  '<span>200</span>'
-		+  '<span>1000</span>'
-		+  '<span class="manual">'
-		+   '<input id="input-amount" type="text" autocomplete="off" />'
-		+  '</span>'
-		+  '<div class="error">Please select an amount of min $1</div>'
-		+ '</div>'
-
-		+ '<div class="interval">'
-		+  '<span class="once">once</span>'
-		+  '<span class="monthly">monthly</span>'
-		+  '<span class="yearly">yearly</span>'
-		+  '<div class="error">Please select an interval</div>'
-		+ '</div>'
-
-		+ '<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">'
-		+  '<input type="hidden" name="business" value="patrick_schleizer@web.de">'
-		+  '<input type="hidden" name="currency_code" value="USD">'
-		+  '<input type="hidden" name="item_name" value="Plus Support">'
-		+  '<input type="hidden" name="cmd">'
-		+  '<input type="submit" class="submit" name="submit" value="DONATE">'
-		+ '</form>'
-	);
+	let template = $(`
+		<div class="interval">
+			<span class="once">Once</span>
+			<span class="monthly">Monthly</span>
+			<span class="yearly">Yearly</span>
+			<div class="error">Please select an interval</div>
+		</div>
+		
+		<div class="amount">
+			<span></span>
+			<span></span>
+			<span></span>
+			<span></span>
+			<span></span>
+			<span class="manual">
+				<input id="input-amount" type="text" autocomplete="off" />
+			</span>
+			<div class="error">
+				Please select an amount of min
+				$<span class="min"></span>
+			</div>
+		</div>
+		
+		<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
+			<input type="hidden" name="business" value="patrick_schleizer@web.de">
+			<input type="hidden" name="currency_code" value="USD">
+			<input type="hidden" name="item_name" value="Plus Support">
+			<input type="hidden" name="cmd">
+			<input type="submit" class="submit" name="submit" value="DONATE">
+		</form>
+	`);
 
 	let elementTemplates = {
 		// Time parameters. Syntax: p3 times t3, e.g. p3=6&t3=M -> 6 months, p3=1&t3=Y -> 1 year
@@ -65,6 +73,12 @@ deferrable:YES -- This script needs a little bit to load anyways
 	function isCurrentAmountValid( amount ) {
 		let parsedAmount = Number.parseFloat( amount );
 		return typeof parsedAmount == 'number' && Number.isNaN(parsedAmount) == false && parsedAmount >= standards.minimumDollars;
+	}
+	
+	function fillAmountsByInterval( root, interval ) {
+		root.find('.amount span').each( (index, spanAmount ) => {
+			$(spanAmount).text( standards.presetDollars[ interval ][ index ] );
+		});
 	}
 
 	// 3. jQuery Extension
@@ -94,11 +108,17 @@ deferrable:YES -- This script needs a little bit to load anyways
 			// 4. Events
 	
 			root.find('.amount span').on('click', function() {
+				if( ! inputCmd.val() ) {
+					root.addClass('paypal-interval-error');
+					return;
+				}
+				
 				$(this).siblings().removeClass('active');
 				$(this).addClass('active');
 	
 				if( $(this).hasClass('manual') ) {
 					amount = $(this).children('input').val();
+					$(this).children('input')[0].focus();
 				} else {
 					amount = $(this).text();
 				}
@@ -113,10 +133,15 @@ deferrable:YES -- This script needs a little bit to load anyways
 			});
 	
 			root.find('.interval span').on('click', function() {
+				root.addClass('interval-selected');
+				
+				let t = $(this).text();
+				
+				fillAmountsByInterval( root, t.toLowerCase() );
+				
 				$(this).siblings().removeClass('active');
 				$(this).addClass('active');
 	
-				let t = $(this).text();
 				if( t == 'once' ) {
 					elements.interval.monthly.remove();
 					elements.interval.yearly.remove();
@@ -139,13 +164,13 @@ deferrable:YES -- This script needs a little bit to load anyways
 			});
 	
 			form.on( 'submit', function(event) {
-				if( isCurrentAmountValid(amount) == false ) {
-					root.addClass('paypal-amount-error');
+				if( ! inputCmd.val() ) {
+					root.addClass('paypal-interval-error');
 					return false;
 				}
 	
-				if( ! inputCmd.val() ) {
-					root.addClass('paypal-interval-error');
+				if( isCurrentAmountValid(amount) == false ) {
+					root.addClass('paypal-amount-error');
 					return false;
 				}
 	
@@ -155,6 +180,9 @@ deferrable:YES -- This script needs a little bit to load anyways
 			});
 	
 			// 6. Finalize Setup
+			
+			fillAmountsByInterval( root, 'once' );
+			root.find('.amount .error .min').text( standards.minimumDollars );
 	
 			root.addClass('js-fully-loaded');
 	
