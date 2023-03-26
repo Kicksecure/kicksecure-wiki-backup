@@ -108,9 +108,15 @@ deferrable:YES -- This script needs a little bit to load anyways
 	
 			$(this).html( template.clone() );
 	
-			let elements = {
-				interval: { monthly: elementTemplates.interval.monthly.clone(), yearly: elementTemplates.interval.yearly.clone() },
-				amount: { once: elementTemplates.amount.once.clone(), subscription: elementTemplates.amount.subscription.clone() },
+			let formElements = {
+				interval: {
+					monthly: elementTemplates.interval.monthly.clone(),
+					yearly: elementTemplates.interval.yearly.clone()
+				},
+				amount: {
+					once: elementTemplates.amount.once.clone(),
+					subscription: elementTemplates.amount.subscription.clone()
+				},
 			};
 	
 			let root = $(this);
@@ -145,30 +151,41 @@ deferrable:YES -- This script needs a little bit to load anyways
 			});
 	
 			root.find('.interval span').on('click', function() {
-				root.addClass('interval-selected');
+				if( ! root.hasClass('interval-selected') ) {
+					root.addClass('interval-selected');
+					let h = root.find('.amount').outerHeight();
+					root.find('.amount').css( 'height', 0 ).animate( { height: h + 'px' }, 200, function() { $(this).css( 'height', '' ) } );
+				}
 				
 				let t = $(this).text();
 				
 				fillAmountsByInterval( root, t.toLowerCase() );
 				
+				// Remove selected amount if NOT manual
+				if( ! root.find('.amount span.active').hasClass('manual') ) {
+					root.find('.amount span').removeClass('active');
+					root.find('.amount span.manual input').val('');
+					amount = undefined;
+				}
+				
 				$(this).siblings().removeClass('active');
 				$(this).addClass('active');
 	
 				if( t == 'once' ) {
-					elements.interval.monthly.remove();
-					elements.interval.yearly.remove();
-					elements.amount.subscription.remove();
-					form.prepend( elements.amount.once );
+					formElements.interval.monthly.remove();
+					formElements.interval.yearly.remove();
+					formElements.amount.subscription.remove();
+					form.prepend( formElements.amount.once );
 					inputCmd.val(intervalModes.once);
 				} else {
-					elements.amount.once.remove();
-					form.prepend( elements.amount.subscription );
+					formElements.amount.once.remove();
+					form.prepend( formElements.amount.subscription );
 					if( t == 'montly' ) {
-						elements.interval.yearly.remove();
-						form.prepend( elements.interval.monthly );
+						formElements.interval.yearly.remove();
+						form.prepend( formElements.interval.monthly );
 					} else {
-						elements.interval.monthly.remove();
-						form.prepend( elements.interval.yearly );
+						formElements.interval.monthly.remove();
+						form.prepend( formElements.interval.yearly );
 					}
 					inputCmd.val(intervalModes.subscription);
 				}
