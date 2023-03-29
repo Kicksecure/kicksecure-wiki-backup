@@ -149,6 +149,7 @@ TODO:
 ** rename File, [[Special:ReplaceText]] to update old references
 
 == misc ==
+* https://phabricator.wikimedia.org/T333357
 * https://www.speedcurve.com/
 * https://developer.chrome.com/docs/devtools/application/back-forward-cache/
 * https://www.mediawiki.org/wiki/Snippets/Load_an_additional_JavaScript_or_stylesheet_file_on_all_pages
@@ -211,55 +212,15 @@ TODO:
 TODO
 
 = TODO DEV =
-== Total Blocking Time ==
-Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
-
-'''DEV'''
-* Research was conducted on possible issues
-* Source maps could not be found in research to cause performance issues
-* Then it was tried to change the use of source map via customized wiki. But "run-git-pull" failed with: Exit code: 128 output: ""
-* Admin please fix wiki pull
-
-Patrick:
-
-* fixed (github changed SSH fingerprint)
-
-== Pagespeed Optimizations #2 ==
-https://pagespeed.web.dev/ shows some suggestions:
-
-=== Heading elements are not in a sequentially-descending order ===
-* Heading elements are not in a sequentially-descending order
-** Heading elements in order is a very impractical metric which probably very few websites adhere to. Headline levels are very rarely used structurally (exception example MediaWiki and similar), but often rather as style choices. Especially smaller headlines which are very rarely used anyways h4-h6 are often used exclusively as style elements. For our project that would be possible especially if it's limited to few sites. But it would mean changing HTML as well as CSS
-** TODO: discuss
-
-'''DEV'''
-* I would say this is very difficult because headlines are not only used by us but by mediawiki itself or extension in the "wrong order"
-
-TODO:
-
-* write bug report draft for phabricator.wikimedia.org if issue can be reproduced on mediawiki.org (or wikipedia.org)
-* document this was discussed on dev/mediawiki
-
-=== Discuss: Links cannot be crawled ===
-
-'''DEV'''
-* At the bottom there is a warning "links cannot be crawled" (or similar, I just translated)
-* This regards the 2 "Expand" buttons with "a.mw-collapsible-text"
-* But we can probably not fix this because this is not even server rendered but auto-generated via Javascript
-
-Patrick:
-
-* write bug report draft for phabricator.wikimedia.org if issue can be reproduced on mediawiki.org (or wikipedia.org)
 
 == video production - Hidden Text Attacks ==
 [[Dev/videos]]
 
 todo produce
 
-== Pagespeed Optimizations #2 ==
+== Whonix homepage - Form elements do not have associated labels ==
 https://pagespeed.web.dev/ shows some suggestions:
 
-=== Whonix homepage - Form elements do not have associated labels ===
 Form elements do not have associated label
 
 Labels ensure that form controls are announced properly by assistive technologies, like screen readers. Learn more. https://dequeuniversity.com/rules/axe/4.4/label
@@ -456,7 +417,96 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
+== Heading elements are not in a sequentially-descending order ==
+* Heading elements are not in a sequentially-descending order
+** Heading elements in order is a very impractical metric which probably very few websites adhere to. Headline levels are very rarely used structurally (exception example MediaWiki and similar), but often rather as style choices. Especially smaller headlines which are very rarely used anyways h4-h6 are often used exclusively as style elements. For our project that would be possible especially if it's limited to few sites. But it would mean changing HTML as well as CSS
+** TODO: discuss
+
+'''DEV'''
+* I would say this is very difficult because headlines are not only used by us but by mediawiki itself or extension in the "wrong order"
+
+TODO:
+
+* write bug report draft for phabricator.wikimedia.org if issue can be reproduced on mediawiki.org (or wikipedia.org)
+* document this was discussed on dev/mediawiki
+
+'''DEV'''
+* This "bug" is not due to mediawiki
+* As documented here this CAN be solved on our part https://vaihe.com/quick-seo-tips/tip-for-fixing-heading-elements-order/
+* However this might be time consuming to find ALL pages where the headlines are not in correct order
+* Maybe admin can create a list of pages that he really wants to be fixed in this regard (important pages). Then dev can fix those pages in a reasonable time frame.
+
+Patrick:
+
+* no local fixes
+* important thing is only that upstream bug report exists or is going to be created
+
+'''DEV'''
+* I mean that this might be "our fault"
+* So mediawiki might not have "bugs" in this regard, but it was just our practice before to use these headlines in the wrong context
+* So this is not a workaround, but just fixing our own code
+* So a bug report would not be justified
+
+Patrick:
+
+* upstream https://m.mediawiki.org/wiki/MediaWiki has the same bug
+
+== Total Blocking Time ==
+Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
+
+'''DEV'''
+* Research was conducted on possible issues
+* Source maps could not be found in research to cause performance issues
+* Then it was tried to change the use of source map via customized wiki. But "run-git-pull" failed with: Exit code: 128 output: ""
+* Admin please fix wiki pull
+
+Patrick:
+* fixed (github changed SSH fingerprint)
+* use kicksecure.com/test for testing this?
+
+'''DEV'''
+* Really hard to find out, because it seems kind of a black box
+* However: page map was not the problem. It was activated and deactivated without much difference
+* 4 testing pages were compared and tested twice
+** OLD: https://www.kicksecure.com/test/font-awesome-test-01-normal.html
+** NEW: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage.html
+** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
+** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
+{| class="wikitable"
+! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
+|-
+| First Contentful Paint || 1.6s / 1.7s || 1.1s / 1.2s || 1.1s / 1.2s || 1.1s / 1.1s
+|-
+| Total Blocking Time || 50ms / 70ms || 370ms / 580ms || 110ms / 220ms || 370ms / 210ms
+|-
+| Speed Index || 1.8s / 1.9s || 1.9s / 1.9s || 1.6s / 1.4s || 1.7s / 1.5s
+|-
+| Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
+|}
+** Analysis
+*** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
+*** It seems also obvious that the new scripts - prism and instant page - have a significant impact on TBT, but are NOT the only reason because without scripts (meaning also without combined.min.js) it's still not as fast as before
+*** Dev did a diff of OLD and NEW and saw some differences and found that in flyinnotification the image should be decoding="async" loading="lazy" which was already fixed too but didn't change much for pagespeed
+*** Dev also thinks it's possible that deferring Javascript leads to a worse TBT, because [Total blocking time] = [Time to interactive] minus [First contentful paint] → so the longer JS is deferred the longer it might take to reach time to interact. That is however just a speculation. This page here is a great overview over the topic https://www.fasterize.com/en/blog/understand-and-improve-the-time-to-interactive/ - not that this page states '''"It is important to specify that Time To Interactive is not a standardized indicator. It may therefore evolve. Note also that, although Google has included this metric in the calculation of the Lighthouse and PageSpeed Insights score, its weight has decreased during recent changes in the calculation of the score, to the point that it seems to be bound to disappear eventually."'''
+*** Here is some more explanation for total blocking time and suggestions to improve and possible reasons why it might have increased in our development https://calibreapp.com/blog/total-blocking-time
+** How to proceed
+*** Dev suggests admin to define a course: Invest more time into improving this metric or waiting for this metric to phase out?
+*** Because - this was not mentioned before - there were also tests done with gtmetrics which gave very good results and slightly worse results when the "connection" was heavily throttled, indicating that maybe only server speed or dome size could be improved
+
+Patrick:
+
+* check with chromium 112 with built in lighthouse in chromium developer toolbar
+* Lighthouse 10 will be available in Chrome 112, currently scheduled for release on March 29, 2023.
+* also happens with mediawiki therefore probably a pagespeed bug or less likely a mediawiki issue
+
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-03-28
+** Whonix wiki/Linux content fix
+** Pagespeed improvements
+*** Headline research
+*** Research “Links are not crawlable”
+*** Total blocking time research and testing
 
 * 2023-03-25
 ** Donate pages improvements text image design
