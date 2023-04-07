@@ -213,28 +213,59 @@ TODO
 
 = TODO DEV =
 
-== merge VirtualBox XFCE with VirtualBox CLI ==
+== thubnails spacing ==
+add some spacing after thubnails so they're not "glued" to one another?
 
-* multiwiki
-* templates
+example:
+https://www.kicksecure.com/wiki/Grub-live
 
-https://www.kicksecure.com/wiki/VirtualBox/XFCE
+== Total Blocking Time ==
+Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
 
-and
+'''DEV'''
 
-https://www.kicksecure.com/wiki/VirtualBox/CLI
+* Research was conducted on possible issues
+* Source maps could not be found in research to cause performance issues
+* Really hard to find out, because it seems kind of a black box
+* However: page map was not the problem. It was activated and deactivated without much difference
+* 4 testing pages were compared and tested twice
+** OLD: https://www.kicksecure.com/test/font-awesome-test-01-normal.html
+** NEW: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage.html
+** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
+** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
 
-should become 1 page only under /wiki/VirtualBox.
+<div class="scroll-table">
+{| class="wikitable"
+! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
+|-
+| First Contentful Paint || 1.6s / 1.7s || 1.1s / 1.2s || 1.1s / 1.2s || 1.1s / 1.1s
+|-
+| Total Blocking Time || 50ms / 70ms || 370ms / 580ms || 110ms / 220ms || 370ms / 210ms
+|-
+| Speed Index || 1.8s / 1.9s || 1.9s / 1.9s || 1.6s / 1.4s || 1.7s / 1.5s
+|-
+| Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
+|}
+</div>
 
-By using tab controller for:
-* Xfce
-* CLI
+** Analysis
+*** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
+*** It seems also obvious that the new scripts - prism and instant page - have a significant impact on TBT, but are NOT the only reason because without scripts (meaning also without combined.min.js) it's still not as fast as before
+*** Dev did a diff of OLD and NEW and saw some differences and found that in flyinnotification the image should be decoding="async" loading="lazy" which was already fixed too but didn't change much for pagespeed
+*** Dev also thinks it's possible that deferring Javascript leads to a worse TBT, because [Total blocking time] = [Time to interactive] minus [First contentful paint] → so the longer JS is deferred the longer it might take to reach time to interact. That is however just a speculation. This page here is a great overview over the topic https://www.fasterize.com/en/blog/understand-and-improve-the-time-to-interactive/ - not that this page states '''"It is important to specify that Time To Interactive is not a standardized indicator. It may therefore evolve. Note also that, although Google has included this metric in the calculation of the Lighthouse and PageSpeed Insights score, its weight has decreased during recent changes in the calculation of the score, to the point that it seems to be bound to disappear eventually."'''
+*** Here is some more explanation for total blocking time and suggestions to improve and possible reasons why it might have increased in our development https://calibreapp.com/blog/total-blocking-time
+** How to proceed
+*** Dev suggests admin to define a course: Invest more time into improving this metric or waiting for this metric to phase out?
+*** Because - this was not mentioned before - there were also tests done with gtmetrics which gave very good results and slightly worse results when the "connection" was heavily throttled, indicating that maybe only server speed or dome size could be improved
 
-Similar to Whonix wiki/Linux.
+Patrick:
 
-Repeat the same for Whonix VirtualBox XFCE and CLI
-
-MultiWiki parts of it if sensible.
+* also happens with mediawiki therefore probably a pagespeed bug or less likely a mediawiki issue
+* compare with a few other popular websites if they also have this issue now (which might be just a pagespeed bug)
+** therefore not much time need to be used to analyze if we're causing the issue ourselves
+* check with chromium 112 with built in lighthouse in chromium developer toolbar
+** Lighthouse 10 will be available in Chrome 112, currently scheduled for release on March 29, 2023.
+* please write a bug report draft for mediawiki upstream (even if we don't know what is causing this then it's just a simple bug report without analysis)
 
 == Kicksecure for VirtualBox Linux Installer==
 
@@ -245,13 +276,6 @@ please also for:
 https://www.kicksecure.com/wiki/Linux
 
 should become MultiWiki.
-
-== Template:Flatpak_Install ==
-Please port to using tab controller.
-
-https://www.kicksecure.com/wiki/Template:Flatpak_Install
-
-The A, B, C would be nicer if using tab controller.
 
 == discuss Browser ddos vulnerabilities ==
 
@@ -340,6 +364,43 @@ It would be better to use this other one;
 
 </ul>
 </pre>
+
+== free support principle and unspecific (information booster) ==
+
+* wiki pages: kicksecure / wiki / support ++ wiki page: unspecific ++ Reporting_Bugs (Generic bug reproduction) : free support principle
+* Many user don't understand
+* Also Whonix forum: free support principle
+* Is explanation sensible?
+
+'''DEV'''
+* The pages were read and understood
+* Some research was done on other websites
+* Dev recommends the following
+** Re-structure some pages and outsource certain content to their own pages
+*** This is general advice und might even be better for search engines
+*** But specifically the "Free support principle" should be its own page with all its variations
+** Dev understands it this way: Do your own research first, help yourself first. Only then ask for help
+*** This should reflect on the way this principle is presented
+*** There should be a clear concise language around it, "better a slightly uncomfortable No than a false Yes"
+*** This could also translate into naming it differently "Help yourself first support policy" or "Self-support first policy"
+**** Patrick: Self-support first policy yes
+** The presentation should also be thought about in terms of "Game theory" and therefore come with some rules
+*** Users should somehow be encouraged to look for themselves first, for example by showing that it takes way less time to find out yourself. This could be enforced, for example, by setting a 48h+ rule, meaning that real support by the core team WILL NOT be granted BEFORE 48 hours after the question was asked which means there would be plenty of time to research themselves
+*** Users should also be discourages from asking directly, maybe by setting forum rules or setting prices more clearly on support
+*** This is all not meant to be rude or leave users hanging but rather manage the limited time of the core team to keep improving the product and not become a free support center only losing time, development progress and money in the processis
+**** Patrick: enforcement and strict rules no, but there should be a popup or something for first time users (or the first few posts) explaining this or something
+
+Patrick:
+
+* wiki improvements sound good, are actionable
+* multi wiki please
+* possibilities for questions in the forums:
+** specific to Kicksecure or Whonix: then it's the appropriate place
+*** if dev knows and explainable in reasonable time: answer will be written
+*** if dev knows but too much to explain: generic bug reproduction required
+*** dev doesn't know, require lots of research: generic bug reproduction required
+** unspecific to Kicksecure or Whonix: self-support policy
+* how much effort for forum changes? 50%, 90% estimate?
 
 == Defer Upstream MediaWiki JavaScript ==
 now:
@@ -492,28 +553,79 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
-== free support principle and unspecific (information booster) ==
+== Template:Flatpak_Install ==
+Please port to using tab controller.
 
-* wiki pages: kicksecure / wiki / support ++ wiki page: unspecific ++ Reporting_Bugs (Generic bug reproduction) : free support principle
-* Many user don't understand
-* Also Whonix forum: free support principle
-* Is explanation sensible?
+https://www.kicksecure.com/wiki/Template:Flatpak_Install
+
+The A, B, C would be nicer if using tab controller.
 
 '''DEV'''
-* The pages were read and understood
-* Some research was done on other websites
-* Dev recommends the following
-** Re-structure some pages and outsource certain content to their own pages
-*** This is general advice und might even be better for search engines
-*** But specifically the "Free support principle" should be its own page with all its variations
-** Dev understands it this way: Do your own research first, help yourself first. Only then ask for help
-*** This should reflect on the way this principle is presented
-*** There should be a clear concise language around it, "better a slightly uncomfortable No than a false Yes"
-*** This could also translate into naming it differently "Help yourself first support policy" or "Self-support first policy"
-** The presentation should also be thought about in terms of "Game theory" and therefore come with some rules
-*** Users should somehow be encouraged to look for themselves first, for example by showing that it takes way less time to find out yourself. This could be enforced, for example, by setting a 48h+ rule, meaning that real support by the core team WILL NOT be granted BEFORE 48 hours after the question was asked which means there would be plenty of time to research themselves
-*** Users should also be discourages from asking directly, maybe by setting forum rules or setting prices more clearly on support
-*** This is all not meant to be rude or leave users hanging but rather manage the limited time of the core team to keep improving the product and not become a free support center only losing time and money in the process
+* Done
+* See new version in action here: [[Chromium]]
+
+== merge VirtualBox XFCE with VirtualBox CLI ==
+
+* multiwiki
+* templates
+
+https://www.kicksecure.com/wiki/VirtualBox/XFCE
+
+and
+
+https://www.kicksecure.com/wiki/VirtualBox/CLI
+
+should become 1 page only under /wiki/VirtualBox.
+
+By using tab controller for:
+* Xfce
+* CLI
+
+Similar to Whonix wiki/Linux.
+
+Repeat the same for Whonix VirtualBox XFCE and CLI
+
+MultiWiki parts of it if sensible.
+
+Also potentially merge / deprecate VirtualBox Testers Only Version
+
+* [[VirtualBox Testers Only Version/CLI]]
+* [[VirtualBox Testers Only Version/XFCE]]
+
+'''DEV'''
+* About 50% done
+* Dev is unclear if he followed instructions correctly
+* Please confirm that changes are satisfactory here: [[VirtualBox ]], then Dev will proceed
+
+== video link wiki template ==
+[https://www.youtube.com/watch?v=6nHufztdkUI OOPS! They tricked me to install MALWARE! Clipboard Hidden Text Attacks explained] [https://yewtu.be/watch?v=6nHufztdkUI invidious]
+
+* simple wiki template
+* video link is a variable such as watch?v=6nHufztdkUI
+* description is a variable
+* "https://yewtu.be" is a variable (conceivable going down in the future and replaced by an alternative
+* add small icons for youtube, invidious and web archive
+* upgrade video link here https://www.kicksecure.com/wiki/Unicode
+
+'''DEV'''
+* Template was created
+* Documentation: [[Dev/mediawiki#VideoLink_.28Template.29]]
+* Dev however recommends moving it to a widget
+* Because it does not work in lists, example {{VideoLink|videoid=6nHufztdkUI|text=Test video}}
+* Dev considers this a bug / feature of Mediawiki. It seems that if mediawiki evaluates HTML constructions it forcefully moves "wrong" constructions out of their context. This does not happen with widgets. Below you see how it should look like
+{{VideoLink|videoid=6nHufztdkUI|text=Test video}}
+
+== fly in banner bug ==
+on mobile
+
+as reported
+
+best to keep the fly in banner simple without animations that can lead to bugs
+'''DEV'''
+* Browser cache issue at admin. Now fixed
+* Dev improved the animation a little bit too (more pleasing)
+* Headline is also now clickable
+* And headline is not h4 anymore (for Google Pagespeed / Lighthouse)
 
 == Suggestion: Free Tools Marketing strategy ==
 
@@ -528,23 +640,6 @@ Implementation probably needs discussion.
 ** Dev would suggest using a subdomain like kicksecure.com/apps and group apps there
 ** Maybe even allow embedding on other websites?
 ** Always with a short promotion for Whonix and Kicksecure of course
-
-== Pull request ==
-
-* make pull request for new version of scan-text-file to be included in "helper scripts repository"
-'''DEV'''
-* Repo was forked
-* Changes were made locally and then committed to fork
-* Pull request was sent
-
-== thumb improvement ==
-
-* Thumbs were improved by Dev, see [[Testpage1]]
-* Proceed to apply to whole wiki
-'''DEV'''
-* Done
-* Also added a little shadow
-* For example see [[FAQ]]
 
 == video idea: discuss don't trust screenshots of videos ==
 
@@ -568,90 +663,21 @@ https://www.kicksecure.com/wiki/Social_Engineering#IDN_Homograph_Attacks
 * research and script done
 * see https://www.kicksecure.com/wiki/Dev/videos
 
-== video production - Hidden Text Attacks ==
-[[Dev/videos]]
-
-* todo produce
-* improve
-** Guy with hoodie instead of kid in the beginning
-** shameless plug for Kicksecure
-** video description needed, also link to Kicksecure
-** Zero font demonstration move letters close together
-** remove xbuntu reference, use vm
-** grep-unicode-wrapper -> scan-text-file without "./" part (automatically in VM)
-
-'''DEV'''
-* Video was finalized
-
-== Thumbnails improvement ==
-
-* Admin didn't like thumbnails "double border"
-* Maybe more slick design?
-
-'''DEV'''
-* Minimal design was tried here: [[Testpage1]]
-* Maybe already a good solution?
-
 == check ticket ==
 * [https://phabricator.wikimedia.org/T333357 Please add role=button in Collapsible Elements to a.mw-collapsible-text] - anything we should answer there?
 
-'''DEV'''
-* Dev read the claims, did research and tested the suggestions
-* Below is the text Dev would suggest replying to the current threat (two answers currently). Copy from source code
-<blockquote>
-In response to matmarex' reply we would agree that this is not technically a bug with Collapsible Elements regarding HTML validity. Also we support the <code>role="none"</code> solution. We tested this already and it worked.
-
-We also agree with Izno that <code><button class="mw-collapsible-text">Expand</button></code> might be the better solution altogether. And CSS is already used to add the brackets before and after. So it would just be changing the CSS and not introducing more complexity by adding CSS where there was none before.
-
-An [a] typically represents a link, a download or a jump label (with the name attribute before this solution was generally replaced by ids as jump labels). [a] is not designed to be used as an interactive element. So while syntactically correct and valid the use of [a] could be considered wrong here regarding context and use case.
-</blockquote>
-
-== Total Blocking Time ==
-Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
-
-'''DEV'''
-
-* Research was conducted on possible issues
-* Source maps could not be found in research to cause performance issues
-* Really hard to find out, because it seems kind of a black box
-* However: page map was not the problem. It was activated and deactivated without much difference
-* 4 testing pages were compared and tested twice
-** OLD: https://www.kicksecure.com/test/font-awesome-test-01-normal.html
-** NEW: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage.html
-** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
-** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
-
-<div class="scroll-table">
-{| class="wikitable"
-! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
-|-
-| First Contentful Paint || 1.6s / 1.7s || 1.1s / 1.2s || 1.1s / 1.2s || 1.1s / 1.1s
-|-
-| Total Blocking Time || 50ms / 70ms || 370ms / 580ms || 110ms / 220ms || 370ms / 210ms
-|-
-| Speed Index || 1.8s / 1.9s || 1.9s / 1.9s || 1.6s / 1.4s || 1.7s / 1.5s
-|-
-| Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
-|}
-</div>
-
-** Analysis
-*** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
-*** It seems also obvious that the new scripts - prism and instant page - have a significant impact on TBT, but are NOT the only reason because without scripts (meaning also without combined.min.js) it's still not as fast as before
-*** Dev did a diff of OLD and NEW and saw some differences and found that in flyinnotification the image should be decoding="async" loading="lazy" which was already fixed too but didn't change much for pagespeed
-*** Dev also thinks it's possible that deferring Javascript leads to a worse TBT, because [Total blocking time] = [Time to interactive] minus [First contentful paint] → so the longer JS is deferred the longer it might take to reach time to interact. That is however just a speculation. This page here is a great overview over the topic https://www.fasterize.com/en/blog/understand-and-improve-the-time-to-interactive/ - not that this page states '''"It is important to specify that Time To Interactive is not a standardized indicator. It may therefore evolve. Note also that, although Google has included this metric in the calculation of the Lighthouse and PageSpeed Insights score, its weight has decreased during recent changes in the calculation of the score, to the point that it seems to be bound to disappear eventually."'''
-*** Here is some more explanation for total blocking time and suggestions to improve and possible reasons why it might have increased in our development https://calibreapp.com/blog/total-blocking-time
-** How to proceed
-*** Dev suggests admin to define a course: Invest more time into improving this metric or waiting for this metric to phase out?
-*** Because - this was not mentioned before - there were also tests done with gtmetrics which gave very good results and slightly worse results when the "connection" was heavily throttled, indicating that maybe only server speed or dome size could be improved
-
-Patrick:
-
-* check with chromium 112 with built in lighthouse in chromium developer toolbar
-* Lighthouse 10 will be available in Chrome 112, currently scheduled for release on March 29, 2023.
-* also happens with mediawiki therefore probably a pagespeed bug or less likely a mediawiki issue
-
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-04-06
+** Marketing strategy suggestions
+** flyinnotification bug review + little design improvement + headline link
+** Video link template
+** Virtualbox CLI and XFCE unification
+** Flatpak install unification
+
+* 2023-04-05
+** Free Support Principle suggestions
+** Donation strategy analysis
 
 * 2023-04-04
 ** Discussion ToDo
