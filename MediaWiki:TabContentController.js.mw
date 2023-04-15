@@ -31,26 +31,34 @@ deferrable:YES -- This is a standalone gadget / augmentation
 			
 			let tablist = tc.find('.mininav > ul');
 			
-			function chooseTab( tab, content ) {
+			if( tc.hasClass('tcc-dark') ) tc.children('.mininav').addClass('mn-dark');
+			
+			function chooseTab( tab ) {
 				tablist.find('li > *').removeClass('active');
 				tab.children().addClass('active');
 				tc.children('.content').children().removeClass('active');
-				content.addClass('active');
+				tc.children('.content').children(`[data-tcc-contentId="${tab.attr('data-tcc-contentId')}"]`).addClass('active')
+				console.log( tab );
 			}
-			
-			// If no element is active make the first one active
-			if( ! tc.children('.content').children().hasClass('active') ) chooseTab( tablist.find('li > *').eq(0), tc.children('.content').children().eq(0) );
 			
 			tc.children('.content').children().each( function() {
 				let content = $(this);
-				let tab = $('<li><span></span></li>');
+				let tab = $( '<li><span></span></li>' );
+				if( content.attr('data-tcc-url') ) tab = $( `<li class="is-link"><a href="${content.attr('data-tcc-url')}"></a></li>` );
+				let contentId = 'id-' + Math.random().toString().substr(2);
+				tab.attr( 'data-tcc-contentId', contentId );
+				content.attr( 'data-tcc-contentId', contentId );
 				tablist.append( tab );
 				tab.children().eq(0).text( content.attr('data-tcc-title') );
 				if( content.hasClass('active') ) tab.children().addClass('active');
 				if( content.attr('data-tcc-image') ) tab.children().prepend( '<img class="pos-1px-up" src="' + content.attr('data-tcc-image') + '">');
 				
-				tab.click( function() { chooseTab( $(this), content ); });
+				// Event : Click
+				if( ! content.attr('data-tcc-url') ) tab.on( 'click', () => chooseTab( tab ) );
 			});
+			
+			// If no element is active make the first one active that is not a link
+			if( ! tc.children('.content').children().hasClass('active') ) chooseTab( tablist.find('li:not(.is-link)').eq(0) );
 			
 			tc.addClass('js-fully-loaded');
 		});

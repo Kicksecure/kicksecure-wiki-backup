@@ -90,12 +90,12 @@ Gnome Disks Utility creates LUKS partitions with AES-128 by default which is ins
 
 First enumerate the device. They will usually be called 'sdb1', as sdaX is reserved for the system on default installs. To avoid confusion, only connect one removable device at a time.
 {{CodeSelect|code=
-# ls /dev/
+sudo ls /dev/
 }}
 
 Create a LUKS container and change the device name as needed, then follow the prompts.
 {{CodeSelect|code=
-# cryptsetup -v --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random luksFormat <device>
+sudo cryptsetup -v --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random luksFormat <device>
 }}
 
 == Legacy Device Encryption Upgrade ==
@@ -107,7 +107,7 @@ It is safer to re-encrypt the device with a stronger key rather than performing 
 They will usually be called 'sdb1', as sdaX is reserved for the system on default installs. To avoid confusion, only connect one removable device at a time.
 
 {{CodeSelect|code=
-# ls /dev/
+sudo ls /dev/
 }}
 
 '''2.''' View the LUKS header data in order to make necessary adjustments.
@@ -115,7 +115,7 @@ They will usually be called 'sdb1', as sdaX is reserved for the system on defaul
 Run.
 
 {{CodeSelect|code=
-# cryptsetup luksDump --debug <device>
+sudo cryptsetup luksDump --debug <device>
 }}
 
 LUKS header data legend:
@@ -129,7 +129,7 @@ LUKS header data legend:
 Fortunately, header resizing is usually unnecessary (otherwise it will abort the process).
 
 {{CodeSelect|code=
-# cryptsetup-reencrypt <device> -c aes-xts-plain64 -s 512 --use-directio
+sudo cryptsetup-reencrypt <device> -c aes-xts-plain64 -s 512 --use-directio
 }}
 
 Abruptly disconnecting power can cause data loss. To safely pause the process (in case of system sleep/shutdown), cryptsetup can be suspended (e.g. by <code>Ctrl+C</code>) and it will automatically restart from where it left off if temporary header files are present in the home directory. <ref>https://asalor.blogspot.com/2012/08/re-encryption-of-luks-device-cryptsetup.html</ref>
@@ -259,7 +259,7 @@ Encryption software uses Password-Based Key Derivation Functions (PBKDF) to slow
 * LUKS version 1 uses PBKDF2<ref>See RFC 2898</ref> and allows the option --iter-time (or -i) for the LuksFormat, LuksAddKey, and LuksChangeKey commands. Iter-time is measured in milliseconds, so ten seconds would look like:
 
 {{CodeSelect|code=
-$ sudo cryptsetup luksChangeKey --iter-time 10000 <device>
+sudo cryptsetup luksChangeKey --iter-time 10000 <device>
 }}
 
 * LUKS 2 (available with Debian Buster) added support for [https://www.cryptolux.org/index.php/Argon2 Argon2i/Argon2id]. In addition to processor time, Argon2 iterations use RAM and can be multi-threaded, making it difficult for hash bruteforcing using graphics cards. <ref>Argon2 on LUKS can use up to four threads, but will lower the number and/or memory if the computer being used can't meet requirements.</ref>
@@ -267,7 +267,7 @@ $ sudo cryptsetup luksChangeKey --iter-time 10000 <device>
 Argon2 iterations will vary depending on environment.
 
 {{CodeSelect|code=
-$ sudo cryptsetup benchmark
+sudo cryptsetup benchmark
 }}
 
 will show you how many iterations could be made in a requested 2000 ms. To customize wait times, specify (with values) --pbkdf --pbkdf-force-iterations --pbkdf-memory<ref>The pbkdf-memory option is limited to 4194304 kilobytes. Memory is freed after the unlock operation.</ref> --pbkdf-parallel (number of threads) when using the LuksFormat command. Be aware that incorrect values can make wait times extremely long.
