@@ -212,10 +212,119 @@ TODO:
 TODO
 
 = TODO DEV =
-== code ==
-=== tab controller ===
+== video script: IDN Homograph Attacks  ==
 
-==== Template:Open_with_root_rights new content ====
+* as YouTube "Long" (not "Short")
+* based on https://www.kicksecure.com/wiki/Social_Engineering#IDN_Homograph_Attacks
+* https://www.kicksecure.com/wiki/Dev/videos#IDN_Homograph_Attacks
+
+Dev:
+
+* The copy-paste method was preferred, because it is more convenient and practical
+
+Patrick:
+
+* quote from video script: <blockquote>If you come across a suspicious URL in an email, chat, or website, don't click on it. Instead, copy and paste it manually into the browser's address bar. You will see the punycode version and know it's a fake.</blockquote>
+** "copy and paste it manually into the browser's address bar" is most likely wrong, insecure. By copying and pasting from lets say Firefox or Thunderbird which is vulnerable to punycode by default, these characters might stay invisible and get copied.
+** test 1 for copy: аррӏе.com
+*** (The wiki renders it in weird ways (italic) but that's besides the point and can probably be "fixed" with CSS.)
+** test 2 for copy: {{CodeSelect|code=
+аррӏе.com
+}}
+** conclusion: The ӏ is not a real l. Almost cannot be seen. After copying and pasting it into the browser URL bar, it can most likely not detected to be a scam. After pressing enter in Firefox, the punycode version flashes for a second, then shows "apple.com". Too hard to catch. Easily missed. The "flashing" is probably just a Firefox bug.
+* please revise script
+* test
+* then re-add to review
+
+'''DEV'''
+* Script was rewritten, please check
+* fake apple.com was tested multiple times. In Waterfox and Firefox the punycode flashed for a second, in Chrome there was even a warning, Edgy Browser punycode is shown by default. In Vivaldi punycode is shown by default AND a warning is shown
+* Dev still thinks, the marketing idea with "our own webtools" would be a good idea but only maybe for a future scenario if admin wants regular videos and tools to catch new eyes for Kicksecure / Whonix. then videos might gather many views over the years (if the channel is constantly active) and then of course marketing via tools might make sense
+
+Patrick:
+
+* We cannot rely on users to notice the flashing. It's too quickly gone. Easily missed.
+* We cannot rely on browsers to show the flashing because that is most likely a bug.
+
+== code ==
+=== cookie error / tab controller - browser console error ===
+todo: discuss
+
+https://www.kicksecure.com/wiki/Template:Linux_Installer_Download
+
+<pre>
+caught TypeError: $.cookie is not a function
+    at mw-combined-wikijs.js:735:8
+    at triggerWhenReady (mw-combined-wikijs.js:720:1)
+    at HTMLDocument.<anonymous> (<anonymous>:1:37)
+    at mightThrow (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:49:881)
+    at process (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:50:544)
+</pre>
+
+Probably happening because tab controller ids are set using a fallback variable. This was previously functional. Also the template itself was previously functional (showed content even on the template page).
+
+It is still functional in the Whonix wiki: https://www.whonix.org/wiki/Template:Linux_Installer_Download - but there is a different message in the browser console:
+
+<pre>
+jQuery.fn.init [li, prevObject: jQuery.fn.init(2)]
+0
+: 
+li
+length
+: 
+1
+prevObject
+: 
+jQuery.fn.init(2) [li, li, prevObject: jQuery.fn.init(1)]
+[[Prototype]]
+: 
+Object(0)
+</pre>
+
+'''DEV'''
+* Reseach was done regarding $.cookie
+* Seems like $.cookie was already (2021) or will be deprecated. Use of mw.cookie is recommended https://phabricator.wikimedia.org/T271995
+* mw.cookie was researched https://doc.wikimedia.org/mediawiki-core/master/js/#!/api/mw.cookie - slightly different syntax and functionality
+* About 10 instances in our custom Javascript in different files such as Sitenotice.js, TocLevelSwitcher.js etc were changed to mw.cookie and its slightly different syntax
+* Solutions were also ported to Whonix
+* Unfortunately this did NOT solve the problem. And upon further research it seems that this problem occurs from time to time and might be a ResourceLoader issue that the Devs do not seem to like to address https://phabricator.wikimedia.org/T276368
+* Dev strongly suggests implementing an external cookie library like this one https://github.com/js-cookie/js-cookie - it's the evolution of jQuery.cookie which MediaWiki is still using. It's small, heavily tested, has many years of success, many users trust it
+* There's no need to rely on MediaWiki's cookie system. Cookies can be handled completely independent and don't interfere with other MediaWiki systems
+
+Patrick:
+
+* port to mw.cookie was good. Might help with cookie SameSite and other cookie settings yet to be invented to be consistent with other cookies set by mediawiki.
+* jQuery.fn.init [li, prevObject: jQuery.fn.init(2)]
+** Similar issue?
+* Issues for now?
+** 1 Template does not show up on the Template page? Not great but also not that important since the template works when it is being used.
+** Issue also happening on special pages? There it's not that important.
+** Otherwise cookies are generally functional?
+* https://phabricator.wikimedia.org/T296620 indicates if cookie issue is worked around, other parts of JS might still be broken.
+* Conclusion: Lots of effort to fix for small issue. Just documenting it and keeping it as is.
+
+=== CodeSelect Broken by tab controller ===
+https://www.whonix.org/w/index.php?title=Stream_Isolation&oldid=91670&diff=cur
+
+Related to cookie bug?
+
+Or more likely caused by tab controller.
+
+<pre>
+caught Error: Syntax error, unrecognized expression: [data-tcc-id=open-in-editor-with-root-rights-/etc/uwt.d/50_user.conf]:not(.tab-content-controller
+    at Sizzle.error (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:21:731)
+    at Sizzle.tokenize (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:31:651)
+    at Sizzle.select (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:38:145)
+    at Function.Sizzle [as find] (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:12:118)
+    at jQuery.fn.init.find (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:42:84)
+    at new jQuery.fn.init (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:43:384)
+    at jQuery (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:2:684)
+    at HTMLDivElement.<anonymous> (mw-combined-wikijs.js:929:15)
+    at Function.each (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:5:285)
+    at jQuery.fn.init.each (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:3:93)
+</pre>
+
+=== Template:Open_with_root_rights new content ===
 * please replace all the content inside [[Template:Open_with_root_rights]] with the following content
 
 <pre>
@@ -316,6 +425,12 @@ bug: The following looks weird.
 In case of 1), there is too much white space between the bullet point and the line to mark the quote. In case of 2), not as much of an issue. But no need to have two different cases. Can be a one fix for both cases?
 
 ==== combined code tag with link ====
+example:
+
+<pre>
+[https://packages.debian.org/bullseye/devscripts <code>debsign</code>]
+</pre>
+
 * example:
 ** [https://packages.debian.org/bullseye/devscripts <code>debsign</code>]
 * bug: It is not clear that the word inside the code tag is also a link.
@@ -349,7 +464,13 @@ Which is confusing.
 * feature request: use these templates in other places where currently google on/off functionality is used, if sensible.
 
 === cookies - set SameSite attribute for our cookies ===
-todo: please set th SameSite attribute for our cookies, if sensible.
+todo:
+
+* please set the <code>SameSite</code> attribute for our cookies, if sensible.
+* keep using the mediawiki API (mw.cookie)
+** https://doc.wikimedia.org/mediawiki-core/master/js/#!/api/mw.cookie
+* limit this ticket to SameSite setting
+** Careful with other cookie settings such as <code>secure</code>. These need further discussion and consideration, follow-up tickets. For example, <code>secure</code> would break the Kicksecure.com onion version since it is non-TLS (non-https, http-only).
 
 <blockquote>
 Cookie “flyInBannerIdDismissed” does not have a proper “SameSite” attribute value. Soon, cookies without the “SameSite” attribute or with an invalid value will be treated as “Lax”. This means that the cookie will no longer be sent in third-party contexts. If your application depends on this cookie being available in such contexts, please add the “SameSite=None“ attribute to it. To know more about the “SameSite“ attribute, read https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie/SameSite Language line 10 > injectedScript:44:111
@@ -695,26 +816,6 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
-== tab controller - when switching one then switch for all mentions on the page ==
-* This task has above task as a prerequisite.
-* example for [[Template:Open_with_root_rights]]
-
-'''1.''' {{Open with root rights|
-filename=/etc/testfile1
-}}
-
-'''2.''' {{Open with root rights|
-filename=/etc/testfile1
-}}
-
-* feature request: when clicking "Kicksecure for Qubes" switch all of the wikipage to "Kicksecure for Qubes"
-* how difficult would it be to implement this feature? please estimate and notify Patrick in private message
-'''DEV'''
-* New feature implemented
-* Documentation here [[Dev/mediawiki#Tab_Content_Controller]], especially subpoint "Linked Controllers" and "If JS is active then all the elements..."
-* There also an example demonstration here: [[Testpage1]]
-* For the above example the Template maybe needs to be changed so the ID is either not dependent on the filename. Or if so the filename needs to be the same like it is now. Before the filenames were different and due to the structure of the template this meant that the "data-tcc-id" was different. But for the new feature to work it needs to be the same. See documenation and Testpage1 demonstration for further understanding
-
 == Linux installer not visible ==
 
 * Check kicksecure and Whonix version
@@ -724,80 +825,6 @@ https://www.whonix.org/wiki/Template:Linux_Installer_Download
 '''DEV'''
 * It seems this problem is directly caused by the cookie problem (see below)
 * So if the cookie problem is solved this problem is solved as well
-
-== cookie error / tab controller - browser console error ==
-https://phabricator.wikimedia.org/T296620
-
-https://www.kicksecure.com/wiki/Template:Linux_Installer_Download
-
-<pre>
-caught TypeError: $.cookie is not a function
-    at mw-combined-wikijs.js:735:8
-    at triggerWhenReady (mw-combined-wikijs.js:720:1)
-    at HTMLDocument.<anonymous> (<anonymous>:1:37)
-    at mightThrow (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:49:881)
-    at process (load.php?lang=en&modules=jquery&skin=vector&version=3ozn9:50:544)
-</pre>
-
-Probably happening because tab controller ids are set using a fallback variable. This was previously functional. Also the template itself was previously functional (showed content even on the template page).
-
-It is still functional in the Whonix wiki: https://www.whonix.org/wiki/Template:Linux_Installer_Download - but there is a different message in the browser console:
-
-<pre>
-jQuery.fn.init [li, prevObject: jQuery.fn.init(2)]
-0
-: 
-li
-length
-: 
-1
-prevObject
-: 
-jQuery.fn.init(2) [li, li, prevObject: jQuery.fn.init(1)]
-[[Prototype]]
-: 
-Object(0)
-</pre>
-
-'''DEV'''
-* Reseach was done regarding $.cookie
-* Seems like $.cookie was already (2021) or will be deprecated. Use of mw.cookie is recommended https://phabricator.wikimedia.org/T271995
-* mw.cookie was researched https://doc.wikimedia.org/mediawiki-core/master/js/#!/api/mw.cookie - slightly different syntax and functionality
-* About 10 instances in our custom Javascript in different files such as Sitenotice.js, TocLevelSwitcher.js etc were changed to mw.cookie and its slightly different syntax
-* Solutions were also ported to Whonix
-* Unfortunately this did NOT solve the problem. And upon further research it seems that this problem occurs from time to time and might be a ResourceLoader issue that the Devs do not seem to like to address https://phabricator.wikimedia.org/T276368
-* Dev strongly suggests implementing an external cookie library like this one https://github.com/js-cookie/js-cookie - it's the evolution of jQuery.cookie which MediaWiki is still using. It's small, heavily tested, has many years of success, many users trust it
-* There's no need to rely on MediaWiki's cookie system. Cookies can be handled completely independent and don't interfere with other MediaWiki systems
-
-== video ==
-=== video script: IDN Homograph Attacks  ===
-
-* as YouTube "Long" (not "Short")
-* based on https://www.kicksecure.com/wiki/Social_Engineering#IDN_Homograph_Attacks
-* https://www.kicksecure.com/wiki/Dev/videos#IDN_Homograph_Attacks
-
-Dev:
-
-* The copy-paste method was preferred, because it is more convenient and practical
-
-Patrick:
-
-* quote from video script: <blockquote>If you come across a suspicious URL in an email, chat, or website, don't click on it. Instead, copy and paste it manually into the browser's address bar. You will see the punycode version and know it's a fake.</blockquote>
-** "copy and paste it manually into the browser's address bar" is most likely wrong, insecure. By copying and pasting from lets say Firefox or Thunderbird which is vulnerable to punycode by default, these characters might stay invisible and get copied.
-** test 1 for copy: аррӏе.com
-*** (The wiki renders it in weird ways (italic) but that's besides the point and can probably be "fixed" with CSS.)
-** test 2 for copy: {{CodeSelect|code=
-аррӏе.com
-}}
-** conclusion: The ӏ is not a real l. Almost cannot be seen. After copying and pasting it into the browser URL bar, it can most likely not detected to be a scam. After pressing enter in Firefox, the punycode version flashes for a second, then shows "apple.com". Too hard to catch. Easily missed. The "flashing" is probably just a Firefox bug.
-* please revise script
-* test
-* then re-add to review
-
-'''DEV'''
-* Script was rewritten, please check
-* fake apple.com was tested multiple times. In Waterfox and Firefox the punycode flashed for a second, in Chrome there was even a warning, Edgy Browser punycode is shown by default. In Vivaldi punycode is shown by default AND a warning is shown
-* Dev still thinks, the marketing idea with "our own webtools" would be a good idea but only maybe for a future scenario if admin wants regular videos and tools to catch new eyes for Kicksecure / Whonix. then videos might gather many views over the years (if the channel is constantly active) and then of course marketing via tools might make sense
 
 = DONE / Log of DevSprint since 2021-12 =
 
