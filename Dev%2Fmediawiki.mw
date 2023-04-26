@@ -170,7 +170,7 @@ End Extension:HeadScript -->
 ** When the dev has chosen a value that is not CSS friendly, for example "my/testValue", the body class will be a CSS compatible error for the dev. For example <code><body class="ctbc_myTestCookie_ctbc-error_cookie-value-not-css-compatible ...</code>
 ** This error is a compromise so the user does not see any error on the site, but also so the dev has a change to identify and / or catch errors
 * Other use cases
-** This is also an excellent tool for testing: The dev can create a cookie just in his own browser like "ctbc_mycookie" and set it to whatever he likes e. g. "2". Not he can write CSS and JS cases to just react conditionally on this cookie existing. CSS <code>body.ctbc_mycookie_2 .my-class{...}</code>. JS <code>if( $.cookie('ctbc_mycookie') == '2' ) {...}</code>
+** This is also an excellent tool for testing: The dev can create a cookie just in his own browser like "ctbc_mycookie" and set it to whatever he likes e. g. "2". Not he can write CSS and JS cases to just react conditionally on this cookie existing. CSS <code>body.ctbc_mycookie_2 .my-class{...}</code>. JS <code>if( Cookies.get('ctbc_mycookie') == '2' ) {...}</code>
 
 == Extension BodyScript2 - not in use ==
 
@@ -622,6 +622,14 @@ For demonstrative purposes only: https://web.archive.org/web/20220204103725/http
 ** Elements can be shown as soon as they're visible - good for smartphones - by using <code>data-instant-intensity="viewport"</code> to the BODY tag (the value can also be "viewport-all" which is even more liberal)
 * The official repository is https://github.com/instantpage/instant.page and there are some forks.
 * Whonix admin suggested setting link rel attribute to "prerender" instead of "prefetch" (like it is currently in the library). This would result in an even faster page load experience, since not only are the elements already fetch ("prefetch") they are also readily rendered ("prerender") and will seemlessly replace the page once the link is clicked possibly result in an "instant navigation experience" https://github.com/instantpage/instant.page/issues/118
+
+== Cookie Handling via JS Cookies ==
+
+* We are using js-cookie for Cookie Handling https://github.com/js-cookie/js-cookie
+** We have been using $.cookie and mw.cookie for cookie handling. Both of which are Mediawiki handlers, mw.cookie is the wrapper for the jQuery plugin. However both of them in some cases are not reliably loaded in time. This leads to this error message "$.cookie is not a function" in the browser console or another message that mw.cookie.get / set is undefined.
+** There is a discussion about this issues here https://phabricator.wikimedia.org/T276368 but there seems to be no willingness to further investigate by the mediawiki team.
+** That's why we settled for using js-cookie which is small, fast, very well tested and stable
+* In short there are (1) The main object Cookies (2) The method Cookies.get (3) The method Cookies.set (4) The method Cookies.remove → further documentation here https://github.com/js-cookie/js-cookie
 
 == Exclusion of text parts from search engine indexing ==
 
@@ -1970,60 +1978,62 @@ Result
 ## result | string, standard: "link" - determines what the widget returns. Options (A) link - then an a-hyperlink will be created (B) url - then only the final url will be created (C) parts - then a string will be created. First part protocol "http", the comma, then "doamin", example: "https,{{project_clearnet}}"
 ## testingcontext | string, default: "" - give an alternative testing context url to test this template. Parameter remains in production version of this template because there are sophisticated RegExp terms used and for later development and demonstration purposes this is highly useful
 
-== Tab Content Controller ==
-
-* Introduces a tab controller to conveniently show content as tabbed content areas
-* Uses [[#Mini_Navigation]] as an auto-generated navbar
-* For nojs visitors the content is plainly and fully shown without any navigation
-* Relevant files
-** [[MediaWiki:TabContentController.js]]
-** [[MediaWiki:TabContentController.css]]
-** [[MediaWiki:Mininav.css]]
-* '''USAGE'''
-** create a div with the class "tab-content-controller" and the attribute "data-tcc-id"
-** create as many content divs (or other elements) with the attributes:
-*** '''<code>data-tcc-id="group-id"</code>''' : This is mandatory and will be the internal ID to link tab and content
-*** '''<code>data-tcc-title="Individual tab title"</code>''' : This is optional but highly recommended. It is the text title for the tab to represent the content
-*** '''<code>data-tcc-image="Individual tab image"</code>''' : This is optional but recommended. It is an image that will be shown in the tab before the title
-*** '''<code>data-tcc-url="link-url"</code>''' : This is optional and changes the character of the tab controller. This specific tab will not be a controller for content but will become a link to another (local or external) website where the url will become the href attribute. '''NOTE''': No [CONTENT] is needed here, because all content is ignored
-*** '''[CONTENT]''' : This is not an attribute but the content of the div (text and HTML). This is where you put all the real content that is shown when tab is active but hidden when inactive
-** if JS is active then all the elements '''(1) with the same "data-tcc-id" as the controller (2) that come after the controller in the DOM (depth arbitrary)''' will be fetched to the controller and a navigation (Mininav) will be automatically generated with the titles given in "data-tcc-title" and the images given in "data-tcc-image"
-** '''NOTE''' Normally images given in "data-tcc-image" will displayed with a height of 25px (if you don't style otherwise). Keep that in mind to load small images to save bandwidth
-** If a content element shall be pre-selected give that element the class "active". If this is not done then the first element will be selected
-** '''NOTE''' If you don't have an element pre-selected then a content shift will appear because all elements will be hidden for the users until the JS is loaded. If an element has the class "active" however then it will be always be shown and content shift will not appear
-** '''.tcc-indent CSS class''' : Special CSS class that needs to be added to parent element tab-content-controller to take effect. Every tab content controller with this class will have a white border on the left to indent the content. This is especially useful if tab-content-controllers are nested inside each other and the user still needs to realise the different levels
-** '''.tcc-dark CSS class''': Special CSS class that needs to be added to parent element tab-content-controller to take effect. The mininav sub element will automatically get the class "mn-dark" as described here: [[#Mini_Navigation]]. The mininav will also get gray borders instead of white ones when using the .tcc-indent class
-** '''Linked Controllers''' : By using the same '''data-tcc-id''' for the multiple controllers it is possible to link those controllers. If one tab on one controller is clicked the same tab on the other controller is also activated. This is especially useful when controlling a page with different sections where some sections are static and others are context dependent. So basically multiple pages which have a lot in common can be displayed on the same page. And the differing parts can be switch using linked controllers
-*** '''Children only until next controller''' : If two controllers with the same id are on the same page, the children must be accurately distributed. This is solved this way: Every controller gets the children with the same id that '''follow''' this very controller (on any depth in the DOM) but '''precede''' the very next controller with the same id (or the end of the page). Meaning in this scenario '''controller#id1 content#id1.1 content#id1.2 controller#id1 content#id1.1 content#id1.2''' - that the first two content areas belong to the first controller and the third and forth content areas belong to the second controller
-*** '''Same title necessary''' : Note also that the titles of the tabs need to be the same for them to be activated. If the first tab of the first controller and the first tab of the second controller have the same '''data-tcc-title''' they will be activated together. If there is a tab which has no other tab with the same title this still works but not other tab is activated. This can be useful sometimes if some sections of the page have no content for a certain context but has content for another context.
-* Example (class info-box is just used for styling candy)
-{{CodeSelect|code=
-<div class="tab-content-controller" data-tcc-id="my-test-1"></div>
-<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 1">1 Content division number 1</div>
-<div class="info-box active" data-tcc-id="my-test-1" data-tcc-title="Number 2">22 Content division number 2</div>
-<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 3" data-tcc-image="/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png">333 Content division number 3</div>
-}}
-<div class="tab-content-controller" data-tcc-id="my-test-1"></div>
-<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 1">1 Content division number 1</div>
-<div class="info-box active" data-tcc-id="my-test-1" data-tcc-title="Number 2">22 Content division number 2</div>
-<div class="info-box" data-tcc-id="my-test-1" data-tcc-title="Number 3" data-tcc-image="/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png">333 Content division number 3</div>
-* Dark and indent example with external link
-{{CodeSelect|code=
-<div class="tab-content-controller tcc-indent tcc-dark" data-tcc-id="my-test-2"></div>
-<div class="info-box active" data-tcc-id="my-test-2" data-tcc-title="Number 1">44 Dark indent Content division number 1</div>
-<div class="info-box" data-tcc-id="my-test-2" data-tcc-title="Number 2">55 Dark indent Content division number 2</div>
-<div class="info-box" data-tcc-id="my-test-2" data-tcc-title="External link" data-tcc-image="/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png" data-tcc-url="/Donate"></div>
-}}
-<div class="tab-content-controller tcc-indent tcc-dark" data-tcc-id="my-test-2"></div>
-<div class="info-box active" data-tcc-id="my-test-2" data-tcc-title="Number 1">44 Dark indent Content division number 1</div>
-<div class="info-box" data-tcc-id="my-test-2" data-tcc-title="Number 2">55 Dark indent Content division number 2</div>
-<div class="info-box" data-tcc-id="my-test-2" data-tcc-title="External link" data-tcc-image="/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png" data-tcc-url="/wiki/Donate"></div>
-
 == Tables with oversize, ScrollableIndicator ==
 
 * Tables with oversize: Tables are sometimes too long for viewing on mobile devices. This makes the whole content scrollable to the right. To prevent this editors can wrap the whole table in <code>&lt;div class="scroll-table"&gt;&lt;table&gt;...&lt;/table&gt;&lt;/div&gt;</code> . This makes only the table scrollable, but not the whole document.
 * ScrollableIndicator: This tool is realized by [[Mediawiki:ScrollableIndicator.js]]. For mobile devices it is sometimes not clear if a table is too long to short and therefore scrollable. If ScrollableIndicator is active (JavaScript needs to be active) then the tables gets a special class "scroll-overflow-indicator" which gives it a style so mobile users know they can scroll. Caution: This only works on div-elements with the class "scroll-table", but there automatically
 * ScrollableIndicator will not be shown on desktop devices, only those with a mobile userAgent
+
+== Tab Template / Tab Content Controller ==
+
+* A tab controller to conveniently show content as tabbed content areas
+* Uses [[#Mini_Navigation]] as an auto-generated navbar
+* For nojs visitors the content is plainly and fully shown without any navigation
+* Relevant files
+** [[Template:Tab]]
+** [[MediaWiki:TabContentController.js]]
+** [[MediaWiki:TabContentController.css]]
+** [[MediaWiki:Mininav.css]]
+* '''USAGE'''
+** There are two template components which are needed: the '''controller''' and the '''tab'''. Both are created by using [[Template:Tab]]. The controller functions as the parent / anchor point where the navigation is generated and the tabs are moved to. The tabs are content areas which are navigated via the auto-generated navigation
+** There are 5 parameters
+*** '''type (optional, default: empty)''' : This can be '''controller''' or nothing. If controller is chosen a controller-component is created. Side note: <code>type=controller</code> is rather long for a switch. But it was done this way so every new editor clearly sees if this is a controller
+*** '''id (mandatory)''' : This is the group-id. This is needed because on a page there can be multiple controllers and tabs. To clearly connect which tab belongs to which controller this id is given.
+*** '''addToClass''' : The content of this parameter will be added to the class attribute of the controller or the tab that is created
+*** '''title (mandatory, only tab)''' : This is the title of a tab which will be shown in the navigation bar.
+*** '''image (optional, only tab)''' : Here an image url is given to have an image which will be shown on the left before the tab title in the navbar.
+*** '''content (optional, only tab)''' : This parameter is where you put all the real wikitext content that is shown when tab is active but hidden when inactive
+*** '''url (optional, only tab)''' : This is an alternative to having content in a tab. If a url is given then the nav point in the navbar will become an external / internal link instead of (standard:) a button to show the content. The parameter content will be ignored
+** create the tab controller / tab navbar by using Tab template with type controller and the group-id {{CodeSelect|code=
+{{Tab{{!}}type=controller{{!}}id=group-id1}}
+}}
+** create as many tab / content divs as you like {{CodeSelect|code=
+{{Tab{{!}}addToClass=info-box{{!}}id=group-id1{{!}}title=Title 1{{!}}content=1 Content division number 1}}
+{{Tab{{!}}id=group-id1{{!}}title=Title 2{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}url=/wiki/Donate}}
+}}
+** Rendering Notes
+*** if JS is active then all the tabs '''(1) with the same id as the controller (2) that come after the controller in the DOM (depth arbitrary)''' will be fetched to the controller and a navigation (Mininav) will be automatically generated with the titles given in title parameters and the images given in image parameters
+*** '''NOTE''' Normally images given in the image parameter will displayed with a height of 25px (if you don't style otherwise). Keep that in mind to load small images to save bandwidth
+*** If a content element shall be '''pre-selected''' give that element the class "active" via the addToClass parameter. If this is not done then the first tab will be auto-selected
+**** '''NOTE''' Pre-selection is advised. If you don't have an element pre-selected then a content shift will appear because all elements will be hidden for the users until the JS is loaded. If an element has the class "active" however then it will be always be shown and content shift will not appear
+** Further features
+*** '''.tcc-indent CSS class''' : Special CSS class that needs to be added to a controller to take effect. Every tab content controller with this class will have a white border on the left to indent the content. This is especially useful if tab-content-controllers are nested inside each other and the user still needs to realise the different levels
+*** '''.tcc-dark CSS class''': Special CSS class that needs to be added to a controller to take effect. The mininav sub element will automatically get the class "mn-dark" as described here: [[#Mini_Navigation]]. The mininav will also get gray borders instead of white ones when using the .tcc-indent class
+*** '''Linked Controllers''' : By using the same '''id parameter''' for the multiple controllers it is possible to link those controllers. If one tab on one controller is clicked the same tab on the other controller is also activated. This is especially useful when controlling a page with different sections where some sections are static and others are context dependent. So basically multiple pages which have a lot in common can be displayed on the same page. And the differing parts can be switch using linked controllers
+**** '''Children only until next controller''' : If two controllers with the same id are on the same page, the children must be accurately distributed. This is solved this way: Every controller gets the children with the same id that '''follow''' this very controller (on any depth in the DOM) but '''precede''' the very next controller with the same id (or the end of the page). Meaning in this scenario '''controller#id1 content#id1.1 content#id1.2 controller#id1 content#id1.1 content#id1.2''' - that the first two content areas belong to the first controller and the third and forth content areas belong to the second controller
+**** '''Same title necessary''' : Note also that the titles of the tabs need to be the same for them to be activated. If the first tab of the first controller and the first tab of the second controller have the same '''data-tcc-title''' they will be activated together. If there is a tab which has no other tab with the same title this still works but not other tab is activated. This can be useful sometimes if some sections of the page have no content for a certain context but has content for another context.
+* Example {{CodeSelect|code=
+{{Tab{{!}}type=controller{{!}}id=my-test-1}}
+{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=Number 1{{!}}content=1 Content division number 1}}
+{{Tab{{!}}addToClass=info-box active{{!}}id=my-test-1{{!}}title=Number 2{{!}}content=22 Content division number 2}}
+{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=Number 3{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}content=333 Content division number 3}}
+{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=A link{{!}}url=/wiki/Donate}}
+}}
+{{Tab|type=controller|id=my-test-1}}
+{{Tab|addToClass=info-box|id=my-test-1|title=Number 1|content=1 Content division number 1}}
+{{Tab|addToClass=info-box active|id=my-test-1|title=Number 2|content=22 Content division number 2}}
+{{Tab|addToClass=info-box|id=my-test-1|title=Number 3|image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png|content=333 Content division number 3}}
+{{Tab|addToClass=info-box|id=my-test-1|title=A link|url=/wiki/Donate}}
 
 == TOC Level Switcher ==
 [[File:TOCswitcher2.png|90px|border|thumb|Table of Contents Level Switcher wiki button]]
