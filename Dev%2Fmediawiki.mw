@@ -2442,6 +2442,68 @@ resources:
 Would it make sense to add a video gallery / switcher using arrows so users can watch the other two Whonix explainer videos too?
 
 = Archive =
+== Total Blocking Time ==
+Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
+
+'''DEV'''
+
+* Research was conducted on possible issues
+* Source maps could not be found in research to cause performance issues
+* Really hard to find out, because it seems kind of a black box
+* However: page map was not the problem. It was activated and deactivated without much difference
+* 4 testing pages were compared and tested twice
+** OLD: https://www.kicksecure.com/test/font-awesome-test-01-normal.html
+** NEW: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage.html
+** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
+** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
+
+<div class="scroll-table">
+{| class="wikitable"
+! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
+|-
+| First Contentful Paint || 1.6s / 1.7s || 1.1s / 1.2s || 1.1s / 1.2s || 1.1s / 1.1s
+|-
+| Total Blocking Time || 50ms / 70ms || 370ms / 580ms || 110ms / 220ms || 370ms / 210ms
+|-
+| Speed Index || 1.8s / 1.9s || 1.9s / 1.9s || 1.6s / 1.4s || 1.7s / 1.5s
+|-
+| Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
+|}
+</div>
+
+** Analysis
+*** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
+*** It seems also obvious that the new scripts - prism and instant page - have a significant impact on TBT, but are NOT the only reason because without scripts (meaning also without combined.min.js) it's still not as fast as before
+*** Dev did a diff of OLD and NEW and saw some differences and found that in flyinnotification the image should be decoding="async" loading="lazy" which was already fixed too but didn't change much for pagespeed
+*** Dev also thinks it's possible that deferring Javascript leads to a worse TBT, because [Total blocking time] = [Time to interactive] minus [First contentful paint] → so the longer JS is deferred the longer it might take to reach time to interact. That is however just a speculation. This page here is a great overview over the topic https://www.fasterize.com/en/blog/understand-and-improve-the-time-to-interactive/ - not that this page states '''"It is important to specify that Time To Interactive is not a standardized indicator. It may therefore evolve. Note also that, although Google has included this metric in the calculation of the Lighthouse and PageSpeed Insights score, its weight has decreased during recent changes in the calculation of the score, to the point that it seems to be bound to disappear eventually."'''
+*** Here is some more explanation for total blocking time and suggestions to improve and possible reasons why it might have increased in our development https://calibreapp.com/blog/total-blocking-time
+** How to proceed
+*** Dev suggests admin to define a course: Invest more time into improving this metric or waiting for this metric to phase out?
+*** Because - this was not mentioned before - there were also tests done with gtmetrics which gave very good results and slightly worse results when the "connection" was heavily throttled, indicating that maybe only server speed or dome size could be improved
+
+Patrick:
+
+* also happens with mediawiki therefore probably a pagespeed bug or less likely a mediawiki issue
+* compare with a few other popular websites if they also have this issue now (which might be just a pagespeed bug)
+** therefore not much time need to be used to analyze if we're causing the issue ourselves
+* check with chromium 112 with built in lighthouse in chromium developer toolbar
+** Lighthouse 10 will be available in Chrome 112, currently scheduled for release on March 29, 2023.
+* [https://phabricator.wikimedia.org/T336059 Pagespeed performance dropped significantly due to total blocking time issue]
+
+== Layout was forced console warning ==
+On kicksecure.com with Firefox (new browser profile).
+<pre>
+Layout was forced before the page was fully loaded. If stylesheets are not yet loaded this may cause a flash of unstyled content.
+</pre>
+'''DEV'''
+* Subject was researched. Found relevant sources
+** https://forum.alphasoftware.com/forum/alpha-anywhere-version-12/mobile-browser-applications/925829-javascript-warning-layout-was-forced-before-the-page-was-fully-loaded
+** https://github.com/vercel/next.js/issues/22465
+* It seems this might be a debugger / dev tool issue. Meaning the dev tools reload the content (sometimes) and therefore trigger this error message
+** The worst thing that could happend however - even if this issue occurs in productions (not just for someone who opened dev tools) - is that the page looks strange because it's unstyled for some milliseconds
+* Recommendation: ignore
+* Alternative: We could try to improve load order. But if it's really just an issue with dev tools this won't fix it, because Dev tools may ignore even an improved load order
+
 == MediaWiki Logo HTTP2 Server Push Preload ==
 MediaWiki by upstream default sends a response header which does a HTTP/2 Server Push. Example:
 

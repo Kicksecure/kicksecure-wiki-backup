@@ -213,152 +213,6 @@ TODO:
 TODO
 
 = TODO DEV =
-== Download choice improvement #3 ==
-
-https://www.kicksecure.com/
-
-* on mobile, please sort these options
-** most important on the top: hardware
-** less important: VM
-** least important: special
-* hardware options should be next to each other. Perhaps boxed in some way?
-* Imagine being a first time visitor.
-** Are the download options clear?
-** The Debian logo might be confusing.
-*** on wiki/Download Patrick changed from "Linux" to "Kicksecure ™ for VirtualBox Linux installer".
-*** on wiki/Download Patrick changed from "Debian" to "Install Kicksecure on Debian (transform Debian into Kicksecure)"
-
-'''DEV'''
-* Done
-* Options were grouped by class (Hardware, VM, special)
-* On Desktop VM is first, on mobile Hardware is first
-** Patrick: This was a misunderstanding.
-* Debian was renamed Debian+, which may be enough of a hint already
-
-Patrick:
-
-* Hardware is generally more important and should always be on top for both, desktop and mobile.
-== mediawiki bug reports ==
-=== bug report for mediawiki bullet point HTML generation ===
-'''DEV'''
-
-* Documentation: [[Dev/mediawiki#VideoLink_.28Template.29]]
-* Dev however recommends moving it to a widget
-* Because it does not work in lists, example {{VideoLink
-|videoid=6nHufztdkUI
-|text=OOPS! They tricked me to install MALWARE! Clipboard Hidden Text Attacks explained
-}}
-* Dev considers this a bug / feature of Mediawiki. It seems that if mediawiki evaluates HTML constructions it forcefully moves "wrong" constructions out of their context. This does not happen with widgets. Below you see how it should look like
-{{VideoLink
-|videoid=6nHufztdkUI
-|text=OOPS! They tricked me to install MALWARE! Clipboard Hidden Text Attacks explained
-}}
-
-Patrick:
-
-* Please write a bug report draft for mediawiki upstream.
-** nice title
-
-Patrick:
-
-* Seems that was already fixed meanwhile?
-
-=== Heading elements are not in a sequentially-descending order ===
-* Heading elements are not in a sequentially-descending order
-** Heading elements in order is a very impractical metric which probably very few websites adhere to. Headline levels are very rarely used structurally (exception example MediaWiki and similar), but often rather as style choices. Especially smaller headlines which are very rarely used anyways h4-h6 are often used exclusively as style elements. For our project that would be possible especially if it's limited to few sites. But it would mean changing HTML as well as CSS
-** TODO: discuss
-
-'''DEV'''
-* I would say this is very difficult because headlines are not only used by us but by mediawiki itself or extension in the "wrong order"
-
-TODO:
-
-* write bug report draft for phabricator.wikimedia.org if issue can be reproduced on mediawiki.org (or wikipedia.org)
-* document this was discussed on dev/mediawiki
-
-'''DEV'''
-* This "bug" is not due to mediawiki
-* As documented here this CAN be solved on our part https://vaihe.com/quick-seo-tips/tip-for-fixing-heading-elements-order/
-* However this might be time consuming to find ALL pages where the headlines are not in correct order
-* Maybe admin can create a list of pages that he really wants to be fixed in this regard (important pages). Then dev can fix those pages in a reasonable time frame.
-
-Patrick:
-
-* no local fixes
-* important thing is only that upstream bug report exists or is going to be created
-
-'''DEV'''
-* I mean that this might be "our fault"
-* So mediawiki might not have "bugs" in this regard, but it was just our practice before to use these headlines in the wrong context
-* So this is not a workaround, but just fixing our own code
-* So a bug report would not be justified
-
-Patrick:
-
-* upstream https://m.mediawiki.org/wiki/MediaWiki has the same bug when testing with pagespeed insights
-* therefore it can be reported against upstream mediawwiki
-
-=== Total Blocking Time ===
-Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
-
-'''DEV'''
-
-* Research was conducted on possible issues
-* Source maps could not be found in research to cause performance issues
-* Really hard to find out, because it seems kind of a black box
-* However: page map was not the problem. It was activated and deactivated without much difference
-* 4 testing pages were compared and tested twice
-** OLD: https://www.kicksecure.com/test/font-awesome-test-01-normal.html
-** NEW: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage.html
-** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
-** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
-
-<div class="scroll-table">
-{| class="wikitable"
-! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
-|-
-| First Contentful Paint || 1.6s / 1.7s || 1.1s / 1.2s || 1.1s / 1.2s || 1.1s / 1.1s
-|-
-| Total Blocking Time || 50ms / 70ms || 370ms / 580ms || 110ms / 220ms || 370ms / 210ms
-|-
-| Speed Index || 1.8s / 1.9s || 1.9s / 1.9s || 1.6s / 1.4s || 1.7s / 1.5s
-|-
-| Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
-|}
-</div>
-
-** Analysis
-*** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
-*** It seems also obvious that the new scripts - prism and instant page - have a significant impact on TBT, but are NOT the only reason because without scripts (meaning also without combined.min.js) it's still not as fast as before
-*** Dev did a diff of OLD and NEW and saw some differences and found that in flyinnotification the image should be decoding="async" loading="lazy" which was already fixed too but didn't change much for pagespeed
-*** Dev also thinks it's possible that deferring Javascript leads to a worse TBT, because [Total blocking time] = [Time to interactive] minus [First contentful paint] → so the longer JS is deferred the longer it might take to reach time to interact. That is however just a speculation. This page here is a great overview over the topic https://www.fasterize.com/en/blog/understand-and-improve-the-time-to-interactive/ - not that this page states '''"It is important to specify that Time To Interactive is not a standardized indicator. It may therefore evolve. Note also that, although Google has included this metric in the calculation of the Lighthouse and PageSpeed Insights score, its weight has decreased during recent changes in the calculation of the score, to the point that it seems to be bound to disappear eventually."'''
-*** Here is some more explanation for total blocking time and suggestions to improve and possible reasons why it might have increased in our development https://calibreapp.com/blog/total-blocking-time
-** How to proceed
-*** Dev suggests admin to define a course: Invest more time into improving this metric or waiting for this metric to phase out?
-*** Because - this was not mentioned before - there were also tests done with gtmetrics which gave very good results and slightly worse results when the "connection" was heavily throttled, indicating that maybe only server speed or dome size could be improved
-
-Patrick:
-
-* also happens with mediawiki therefore probably a pagespeed bug or less likely a mediawiki issue
-* compare with a few other popular websites if they also have this issue now (which might be just a pagespeed bug)
-** therefore not much time need to be used to analyze if we're causing the issue ourselves
-* check with chromium 112 with built in lighthouse in chromium developer toolbar
-** Lighthouse 10 will be available in Chrome 112, currently scheduled for release on March 29, 2023.
-* please write a bug report draft for mediawiki upstream (even if we don't know what is causing this then it's just a simple bug report without analysis)
-
-== discuss Browser ddos vulnerabilities ==
-
-* Can browser be frozen by heavy Javascript as an attack?
-* Other vulnerabilities?
-* What happens if Javascript is constantly fetched or if the dom is 1 GB++ large?
-
-== video production - IDN Homograph Attacks  ==
-
-* as YouTube "Long" (not "Short")
-* based on https://www.kicksecure.com/wiki/Social_Engineering#IDN_Homograph_Attacks
-* https://www.kicksecure.com/wiki/Dev/videos#IDN_Homograph_Attacks
-* script ready for production
-
 == code ==
 === Whonix homepage - Form elements do not have associated labels ===
 https://pagespeed.web.dev/ shows some suggestions:
@@ -378,6 +232,29 @@ div.section-banner > div.inner-wrapper > div.overview-image-and-video-player > i
 * TODO: Only fix for our custom HTML/CSS/JS. We didn't invent many forms anyhow? [[homepage]], [[about]], [[donate]]
 ** Kicksecure
 ** Whonix
+
+=== mininav images underline missing #2 ===
+example on https://www.kicksecure.com/wiki/Dev/videos
+
+<pre>
+<div class="mininav">
+* [[Image:Kicksecure-text-logo.svg|100px|link=https://www.kicksecure.com/wiki/Dev/videos|Kicksecure Video Drafts]]
+* [[Image:Whonix-logo-text.svg|100px|link=Dev/videos|Whonix Video Drafts]]
+</div>
+</pre>
+
+bug: the underline for Kicksecure /Dev/videos isn't shown.
+
+Please fix, if easy to fix.
+
+'''DEV'''
+* The problem is that the "underline" / active style is determined by Mediawiki recognizing that the link is the very same page we are on. For example {{CodeSelect|inline=1|code=[[Dev/videos]]}} creates [[Dev/videos]] this is an a-element <code><nowiki><a class="mw-selflink selflink">Dev/videos</a></nowiki></code>. The "selflink" class changes the styling
+* For whatever reason {{CodeSelect|inline=1|code=[[Image:...|link=Dev/videos|Kicksecure Video Drafts]]}} does NOT create the "selflink" class. It also does not create any other indicator that we are linking to the very page we are on
+* Dev could create an image-and-text-link-widget which can be used as a mininav nav item
+
+Patrick:
+
+* Please an upstream bug report against mediawiki.
 
 === homepage html optimizations ===
 For Kicksecure and Whonix homepage. To reduce DOM size.
@@ -453,6 +330,13 @@ todo:
 * 5) out-comment all other CSS for a simple test. Search the HTML document for <code>stylesheet</code>. (CSS load with <code>media="print" onload="this.media='all'"</code> can and probably should be ignored and left enabled as it already loads async.)
 * 6) load all other CSS async
 * 7) compare speed of the two different HTML documents
+
+== video production - IDN Homograph Attacks  ==
+
+* as YouTube "Long" (not "Short")
+* based on https://www.kicksecure.com/wiki/Social_Engineering#IDN_Homograph_Attacks
+* https://www.kicksecure.com/wiki/Dev/videos#IDN_Homograph_Attacks
+* script ready for production
 
 == Wiki Content ==
 === Whonix-Host ===
@@ -533,21 +417,31 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
-== Layout was forced console warning ==
-On kicksecure.com with Firefox (new browser profile).
-<pre>
-Layout was forced before the page was fully loaded. If stylesheets are not yet loaded this may cause a flash of unstyled content.
-</pre>
+== Header super menu mobile position ==
+* Header super menu too far right on mobile. "Create account" not readable
 '''DEV'''
-* Subject was researched. Found relevant sources
-** https://forum.alphasoftware.com/forum/alpha-anywhere-version-12/mobile-browser-applications/925829-javascript-warning-layout-was-forced-before-the-page-was-fully-loaded
-** https://github.com/vercel/next.js/issues/22465
-* It seems this might be a debugger / dev tool issue. Meaning the dev tools reload the content (sometimes) and therefore trigger this error message
-** The worst thing that could happend however - even if this issue occurs in productions (not just for someone who opened dev tools) - is that the page looks strange because it's unstyled for some milliseconds
-* Recommendation: ignore
-* Alternative: We could try to improve load order. But if it's really just an issue with dev tools this won't fix it, because Dev tools may ignore even an improved load order
+* Fixed
+
+== Heading elements are not in a sequentially-descending order ==
+
+{| class="wikitable"
+| Title || Pagespeed Error: Heading elements are not in a sequentially-descending order
+|-
+| Description || On the wiki we use multiple levels of headlines to structure our content. Sometimes for styling reasons we don't use the exact next headline level, but the hierarchy stays intact and it's 100% clear for the reader which headline belongs the which parent headline. However Google Pagespeed and lighthouse reports "Heading elements are not in a sequentially-descending order". Can Mediawiki fix this problem on the wiki level?
+|}
 
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-05-05
+** Download Choice on homepage improvements
+** Mediawiki bugs reviews and reports written
+** Todo Discussion
+** Browser ddos vulnerabilities report written
+** mininav image link problem research / analysis
+** Header super menu mobile position bugfix
+
+* 2023-05-02
+** "Layout was forced ..." error message research
 
 * 2023-04-29
 ** Outreach texts written + planning + scheduling
