@@ -2354,6 +2354,132 @@ example external redirect:
 ** the tabs can be on one line or multiple lines and are therefore responsive
 ** the design is subtle and nice and integrates with the rest of the visual language (gray background for code, but white for functional elements of the website)
 
+== rework Collapsible Elements ==
+summary, update: This will likely fix itself in a future upgrade of mediawiki.
+
+* pagespeed shows for https://www.kicksecure.com/wiki/Documentation that links the <code>Expand</code> links are not crawlable
+* mediawiki upstream: https://www.mediawiki.org/wiki/Manual:Collapsible_elements does not have this issue.
+** https://www.mediawiki.org/wiki/Manual:Collapsible_elements/Demo/Advanced does not have this issue either.
+
+https://www.mediawiki.org/wiki/Manual:Collapsible_elements uses a different API.
+
+We are using in the mediawiki markup:
+
+<pre>
+<div class="toccolours mw-collapsible mw-collapsed" style="max-width:100%;">
+</pre>
+
+pagespeed shows for Kicksecure:
+
+<pre>
+Links are not crawlable
+
+Search engines may use href attributes on links to crawl websites. Ensure that the href attribute of anchor elements links to an appropriate destination, so more pages of the site can be discovered.
+
+Learn how to make links crawlable -> https://support.google.com/webmasters/answer/9112205
+
+Uncrawlable Link
+
+body.mediawiki > div#content > a#top
+
+<a id="top">
+</pre>
+
+Can we use a better API from mediawiki upstream documentation (linked above)?
+
+Or alternatively, could we simply add an <code>id=</code> to our <code>div</code>?
+
+'''DEV'''
+
+* First the mediawiki links were researched.
+** They are actually using the same syntax just on wikitables, but later down they are using the same syntax.
+** It seems they may have a newer mediawiki version - one where they fixed the "bug" that we reported a couple of weeks ago. Because for example in this old verison http://web.archive.org/web/20221008164934/https://www.mediawiki.org/wiki/Manual:Collapsible_elements they still have the [a] element like we still have now, so they are probably just a couple of versions ahead 
+* About the "body.mediawiki > div#content > a#top" - this is an element that seems Mediawiki auto-generates. It is above the content area which the wiki editor can influence. The very first thing right above the sitenotice. Wikipedia actually also has this very element at the top of every article
+
+== homepage html optimizations ==
+For Kicksecure and Whonix homepage. To reduce DOM size.
+
+Something doable, useful here?
+
+Instead of using this code;
+
+<pre>
+<div id = ”navigation-main”>
+
+    <ul>
+
+            etc ..
+
+    </ul>
+
+</div>
+</pre>
+
+It would be better to use this other one;
+
+<pre>
+<ul id = ”navigation-main”>
+
+    etc ..
+
+</ul>
+</pre>
+
+'''DEV'''
+
+* That would be a small optimization, but nothing substantial for the DOM
+* And it would require a lot of work because styles have to be rewritten, sometimes even JS scripts (at least the references)
+* I advice against it
+
+== critical css test ==
+
+info:
+
+* https://web.dev/codelab-extract-and-inline-critical-css/
+
+goals:
+
+* A simplified test if critical CSS inclusion into the head results in faster website speed at all.
+
+non-goals:
+
+* Making mediawiki use critical CSS. How to integrate this with mediawiki will be considered at a later time in a separate task.
+
+tools:
+
+* https://www.sitelocity.com/critical-path-css-generator
+* https://jonassebastianohlsson.com/criticalpathcssgenerator/
+* https://www.corewebvitals.io/tools/critical-css-generator
+* https://web.dev/codelab-extract-and-inline-critical-css/
+
+todo:
+
+* 1) Use a browser where you are logged out and have no cookies. This is because cookies and being logged in has an influence on the HTML provided by mediawiki.
+* 2) on /test/ add Kicksecure homepage with the normal HTML document that we have now: <code>kicksecure-hp-normal-not-critical-css.html</code>. This will be needed for speed comparison.
+* 3) create a copy <code>kicksecure-hp-critical-css.html</code>
+* 4) use some tool to extract the critical css. add the critical css to the head. (https://web-dev.imgix.net/image/admin/RVU3OphqtjlkrlAtKLEn.png)
+* 5) out-comment all other CSS for a simple test. Search the HTML document for <code>stylesheet</code>. (CSS load with <code>media="print" onload="this.media='all'"</code> can and probably should be ignored and left enabled as it already loads async.)
+* 6) load all other CSS async
+* 7) compare speed of the two different HTML documents
+
+'''DEV'''
+* Tests were created https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_css-normal.html and https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_css-critical-sitelocity.html and https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_css-critical-corewebvitals.html - the other tools were not very well suited or suited at all for the task
+* Results
+{| class="wikitable"
+! version !! FCP !! LCP !! TBTime !! CLShift !! Speed I
+|-
+! normal || 1.1s || 3.4s || 330ms || 0 || 2.2s
+|-
+! coreweb || 2.0s || 3.8s || 360ms || 0 || 2.9s
+|-
+! sitelocity || 1.4s || 2.3s || 360ms || 0.186 || 2.1s
+|}
+* Conclusion: It seems that
+** Critical CSS works. But it's not speeding up the page
+** This might be because critical CSS is already very large in both versions
+** sitelocity seems to be better with LCP, but has a content layout shift which is not good
+* Dev cannot clearly say what happened here. Instructions were followed as described on the pages
+
 = Maybe Future TODO =
 == MediaWiki:Page_Homepage.css Question ==
 Only a question.
