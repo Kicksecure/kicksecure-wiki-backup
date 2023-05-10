@@ -678,6 +678,7 @@ Every developer please follow these rules and consult with the admin. A wiki is 
 ** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/871225
 * [https://phabricator.wikimedia.org/T336059 Pagespeed performance dropped significantly due to total blocking time issue.]
 * [https://phabricator.wikimedia.org/T336098 TOC toctogglecheckbox breaks form label rule by not being labelled]
+* [https://phabricator.wikimedia.org/T336256 Inconsistent behavior regarding plain links and links in images]
 
 == Widgets ==
 
@@ -2003,12 +2004,6 @@ Result
 ## result | string, standard: "link" - determines what the widget returns. Options (A) link - then an a-hyperlink will be created (B) url - then only the final url will be created (C) parts - then a string will be created. First part protocol "http", the comma, then "doamin", example: "https,{{project_clearnet}}"
 ## testingcontext | string, default: "" - give an alternative testing context url to test this template. Parameter remains in production version of this template because there are sophisticated RegExp terms used and for later development and demonstration purposes this is highly useful
 
-== Tables with oversize, ScrollableIndicator ==
-
-* Tables with oversize: Tables are sometimes too long for viewing on mobile devices. This makes the whole content scrollable to the right. To prevent this editors can wrap the whole table in <code>&lt;div class="scroll-table"&gt;&lt;table&gt;...&lt;/table&gt;&lt;/div&gt;</code> . This makes only the table scrollable, but not the whole document.
-* ScrollableIndicator: This tool is realized by [[Mediawiki:ScrollableIndicator.js]]. For mobile devices it is sometimes not clear if a table is too long to short and therefore scrollable. If ScrollableIndicator is active (JavaScript needs to be active) then the tables gets a special class "scroll-overflow-indicator" which gives it a style so mobile users know they can scroll. Caution: This only works on div-elements with the class "scroll-table", but there automatically
-* ScrollableIndicator will not be shown on desktop devices, only those with a mobile userAgent
-
 == Tab Template / Tab Content Controller ==
 
 * A tab controller to conveniently show content as tabbed content areas
@@ -2089,6 +2084,23 @@ Result
 ** '''videoid''': The videoid parameter is valid for all YouTube-link platforms. For each platform there is an icon generated as a link where the videoid is part of the url.
 ** '''text''': This is the text that will be shown to the user. The text will be also rendered as a link with YouTube as its target
 * For Devs: To introduce new platforms simply copy a link code line in [[Template:VideoLink]] and modify the image, the alt description and url
+
+== WikitableAutoWrapper and ScrollableIndicator ==
+
+* Motivation
+** Tables have a flexible width auto-adjusting to their content - this means it can have over 100% of the given width.
+** To give the user a smooth experience tables should not surpass 100% width
+** To solve this we created an auto-wrapper for all tables with the "wikitable" class (which is our standard class for styled tables).
+* Functionality
+** This wrapper is applied via Javascript and therefore does not work for nojs users
+** The wrapper always stays 100% width. And if the table is too wide there will be an overflow bar
+** The wrapper also introduces helper elements to indicate if the overflow
+*** For desktop users there is a "scroll" indicator above the table. Below the table there is always a visible scroll bar
+*** For mobile users there is a "swipe" indicator above and below the table, because many smartphones do not show a scroll bar unless the user is already scrolling
+* Relevant files
+** [[MediaWiki:WikitableAutoWrapper.js]]
+** [[MediaWiki:Utility.css]]
+* '''NOTE''' : This solution replaces the previous solutions "scroll-table" and "scroll-overflow-indicator"
 
 = USAGE : CSS Design Documentation (Alphabetical order) =
 
@@ -2586,7 +2598,6 @@ Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything 
 ** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
 ** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
 
-<div class="scroll-table">
 {| class="wikitable"
 ! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
 |-
@@ -2598,7 +2609,6 @@ Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything 
 |-
 | Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
 |}
-</div>
 
 ** Analysis
 *** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
