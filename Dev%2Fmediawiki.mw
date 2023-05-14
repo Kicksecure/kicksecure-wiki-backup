@@ -678,6 +678,7 @@ Every developer please follow these rules and consult with the admin. A wiki is 
 * [https://phabricator.wikimedia.org/T336059 Pagespeed performance dropped significantly due to total blocking time issue.]
 * [https://phabricator.wikimedia.org/T336098 TOC toctogglecheckbox breaks form label rule by not being labelled]
 * [https://phabricator.wikimedia.org/T336256 Inconsistent behavior regarding plain links and links in images]
+* [https://phabricator.wikimedia.org/T336620 Heading elements are not in a sequentially-descending order]
 
 archived:
 
@@ -1159,6 +1160,69 @@ curl --head https://www.{{project_clearnet}}/wiki/FAQ
 * It is  strongly suggested to to test all new Javascript scripts and modifications with Tor browser or a browser that has NoScript installed but with lowest / off settings
 * NoScript sometimes influences the execution of scripts even if it's set to "not interfere". This can maybe be considered a NoScript Bug. But it is essential to test for NoScript bugs and optimize our scripts to that effect anyways because NoScript is standard on Tor browser and Tor users are a large target community using Whonix and Kicksecure
 * So every time a new script is written or a script is modified check with Tor browser Standard security setting if everything is still working
+
+== Using JSHint and other Javascript analysis tools ==
+
+* Our custom Javascript may need to be analysed from time to time
+* Tools that can be used for this purpose. Recommendation: use in the listed order
+*# https://jshint.com/
+*# https://beautifytools.com/javascript-validator.php
+* To start analysing
+*# open this url https://www.kicksecure.com/mw-autogen/mw-combined-wikijs.js
+*# copy all content
+*# paste into into the respective javascript validator
+* Some tools may find too many duplicates (which might be invalid). To reduce the amount of "noise"
+*# output / copy the content of the javascript validator into a text file
+*# use the bash script below to exclude contents
+
+<div class="mw-collapsible mw-collapsed toccolours">
+Bash script to remove duplicates
+<div class="mw-collapsible-content">
+<pre>
+#!/bin/bash
+
+#set -x
+set -e
+
+test -r js.txt
+
+skip_values=(
+   "Prism"
+   "Cookies"
+   "debugjsDom"
+   "Prism"
+   '$'
+   "mwDev"
+   "ace"
+   "mw"
+   "'let' is available in ES6 (use 'esversion: 6') or Mozilla JS extensions (use moz)."
+)
+
+trim_all() {
+    # Usage: trim_all "   example   string    "
+    set -f
+    set -- $*
+    printf '%s\n' "$*"
+    set +f
+}
+
+while read -r line ; do
+  trimmed_line=$(trim_all "$line")
+  first_word="${trimmed_line%% *}"
+  rest_of_line=$(echo "$trimmed_line" | cut -d' ' -f2-)
+
+  break_now=false
+  for val in "${skip_values[@]}"; do
+    if [ "$rest_of_line" = "$val" ]; then
+      continue 2
+    fi
+  done
+
+  echo "'$rest_of_line'"
+done < js.txt
+</pre>
+</div>
+</div>
 
 = EXPORT to new wiki =
 
@@ -2600,6 +2664,52 @@ resources:
 Would it make sense to add a video gallery / switcher using arrows so users can watch the other two Whonix explainer videos too?
 
 = Archive =
+== Defer Upstream MediaWiki JavaScript ==
+now:
+
+<pre>
+<script defer src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+</pre>
+
+Patrick could server side easily rewrite that to:
+
+<pre>
+<script defer src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+</pre>
+
+(Nobody uses <code>script defer</code> but upstream said that is not a syntax error.)
+
+please compare the speed and functionality on on kicksecure.com/test/ (already existing, caching disabled there)
+
+'''DEV'''
+* defer and async were introduced due to admin research
+* Upon Dev research it seems that using defer and async together is redundant and not advised
+** async fetches the scripts asynchronously and executes them as soon as they are ready
+** defer does the same but waits for the whole HTML document to be ready and only then executes the script
+* If both are present
+** New browsers will prioritise async and ignore defer
+** Older browser don't know async and will prioritize defer
+* Two tests were written
+** https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_all-async.html and
+** https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_all-defer.html where all the scripts in headcontent and also the loaded mediawiki script are either called via defer or defer.
+* Here are the results as averages after 3 tests each with pagespeed
+{| class="wikitable
+! metric !! async !! defer
+|-
+| FCP || 1.2s || 1.1s
+|-
+| LCP || 3.5s || 3.4s
+|-
+| Total Block T || 440ms || 443ms
+|-
+| Speed Index || 2.1s || 1.9s
+|}
+* Dev also tested the functionality and in both cases the pages seemed to perform normal and fast enough for the users
+* Dev recommends using only defer
+** It seems to perform slightly better
+** Most of our customs scripts are designed to perform only after the document is loaded anyways
+** Async would only be sensible where there needs to be a fast loading page (so the document does not have to wait for the scripts), but where there are "non-document asap calculation steps" done in Javascript
+
 == Total Blocking Time ==
 Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
 
