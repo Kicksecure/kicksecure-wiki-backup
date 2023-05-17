@@ -14,34 +14,37 @@ deferrable:YES -- The user will not need (or see) this info immediately anyways
 		
 		let originalTableHeight = table.height();
 		
-		// In cases where the table is hidden, for example in mw-collapsible
-		/*
-		if( originalTableHeight == 0 ) {
-			let placeholder = $('<div></div>');
-			let container = $('<div></div>').css( {
-				width: table.parents().filter( function() { if( $(this).has(class) ) return true; } ).eq(0).innerWidth(),
-				opacity: 0,
-			} );
-			console.log( table.parent(), table.parent().width() ); 
-			placeholder.insertBefore( table );
-			container.append( table );
-			$('body').append( container );
-			originalTableHeight = table.height();
-			table.insertBefore( placeholder );
-			placeholder.remove();
-			container.remove();
+		function enrich() {
+			wrapper.css( 'height', originalTableHeight );
+			
+			let tableContentDiv = wrapper.find('.table-content');
+			wrapper.insertBefore( table );
+			tableContentDiv.append( table );
+			
+			if( isMobile && tableContentDiv.width() < tableContentDiv.prop('scrollWidth') ) {
+				wrapper.addClass('scroll-overflow-mobile');
+				wrapper.css( 'top', - wrapper.children('.before').height() );
+			}
 		}
-		*/
 		
-		wrapper.css( 'height', originalTableHeight );
-		
-		let tableContentDiv = wrapper.find('.table-content');
-		wrapper.insertBefore( table );
-		tableContentDiv.append( table );
-		
-		if( isMobile && tableContentDiv.width() < tableContentDiv.prop('scrollWidth') ) {
-			wrapper.addClass('scroll-overflow-mobile');
-			wrapper.css( 'top', - wrapper.children('.before').height() );
+		// Normal case
+		if( originalTableHeight > 0 ) {
+			enrich();
+		}
+		// In cases where the table is hidden, for example in mw-collapsible
+		else {
+			if( IntersectionObserver ) {
+				new IntersectionObserver((entries, observer) => {
+					entries.forEach(entry => {
+						if(entry.intersectionRatio > 0) {
+							originalTableHeight = table.height();
+							enrich();
+							// So it just happens once
+							observer.disconnect();
+						}
+					});
+				}).observe(table[0]);
+			}
 		}
 	});
 
