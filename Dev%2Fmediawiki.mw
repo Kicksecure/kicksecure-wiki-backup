@@ -700,6 +700,28 @@ Wiki convention regarding Widgets:
 ** Templates support [[Special:WhatLinksHere]], widgets do not. So we can see where a module is used which makes testing and debugging easier
 * '''Exception:''': In some Widgets we use arrays over which we can loop. This works with Widgets but does not work with Templates. This is also how the Extension:Widgets suggests using arrays. See https://www.mediawiki.org/wiki/Extension:Widgets . Moreover the Extension:Widgets does not allow the modifier "explode" which would usually be used to convert a string to an array in the Smarty template engine. That is why we sometimes use widgets instead of templates. To bypass the "findability" problem of widgets you can search <code>#widget:widget_name</code> to find all Widget instances
 
+== Developing templates ==
+
+When developing templates there are a couple of rules and best practices to go by
+
+# Templates with HTML : In MediaWiki it can happen that a template which uses the limited allowed HTML in wikitext works fine on a plain level. But once the template is deployed in special circumstances, for example as a list item, it not only not works but is "ripped apart", meaning the inner elements are rendered not inside but AFTER their parents. This happens due to mediawikis template parser and might even be considered a bug.
+#* Example Code {{CodeSelect|code=# TemplateTest1
+
+<span class="parent">
+<span class="child">
+Text
+</span>
+</span>
+
+# Page
+
+* Bullet Point 1
+* ((TemplateTest1)) (but with real syntax)
+* Bullet Point 3
+}}
+#* This results in span.child being rendered after span.parent. But this only happens in special contexts like as a list item. In normal wikitext this works
+#* Solution for the time being: Spare all line breaks and unnecessary spaces. The latter because sometimes a space is interpreted as an indentation and leads to rendering as a pre element. Solution example: {{CodeSelect|code=<span class="parent"><span class="child">Text</span></span>}}
+
 == Testing ==
 
 * You can use Testpages in the following style
@@ -1937,6 +1959,30 @@ and
 
 <code>&lt;pre&gt;</code> and <code>&lt;div class="pre"&gt;</code> are two ways to show preformatted code. Both look very similar. The difference is: In pre tags mediawiki does not parse newlines, variables etc, in div.pre it does. So according to usage scenario either pre or div.pre are preferrable
 
+== Quotation (Template) ==
+
+* For Quotes without any context normal blockquote can be used
+** Example Code {{CodeSelect|inline=1|code=<blockquote>An important quote from a developer</blockquote>}}
+** Example <blockquote>An important quote from a developer</blockquote>
+* But if the editor wants to add an image, the author or other context, they would need to use [[Template:Quotation]]
+* '''USAGE'''
+** Use template Quotation with the following parameters
+*** quote (wikitext, required) : the quote content
+*** image (optional) : The name of the file as it would be on the file page without file: or image: prefix
+*** context (wikitext, optional) : the author and other context, including links, right to the (optional) image
+** Example Code {{CodeSelect|code={{Quotation
+{{!}}quote=An important quote from a developer
+{{!}}image=Donor-example-6.png
+{{!}}context=Henry Ford Jr, Gettysburg, 1973, https://www.whonix.org
+}}}}
+** Example {{Quotation|quote=An important quote from a developer
+|image=Donor-example-6.png
+|context=Henry Ford Jr, Gettysburg, 1973, https://www.whonix.org
+}}
+* Relevant Files
+** [[MediaWiki:Boilerplate.css]]
+** [[Template:Quotation]]
+
 == sd-start (currently retired) ==
 
 * https://www.{{project_clearnet}}/wiki/Widget:Sd-start-short
@@ -2181,6 +2227,7 @@ Result
 ** '''Hidden Tables''' : Sometimes tables are hidden (for example when wrapped in mw-collapsible) and therefore have no dimension. In this case the normal method does not work and would produce wrappers with a height of 0 and result in a faulty layout
 *** To fix this we use IntersectionObserver to check if and when a table becomes visible. Only then will the usual Javascript be executed. And the IntersectionObserver will be disconnected to save computing power
 *** We also check if IntersectionObserver is available (it's not in old browser) and for those rare cases where it's not we do not apply the Javascript with the WikitableAutoWrapper at all to have at least a readable fallback
+** '''Special margins''' : Sometimes a table has special margins. The wrapper has to have those margins because the table gets 0 on all margins to preserve "margin joining" with surrounding elements which otherwise would lead to content shift. Therefore the wrapper automatically gets the computed styles from the table while the tables gets 0 for all margins
 * Relevant files
 ** [[MediaWiki:WikitableAutoWrapper.js]]
 ** [[MediaWiki:Utility.css]]
