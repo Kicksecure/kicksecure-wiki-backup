@@ -678,11 +678,12 @@ Every developer please follow these rules and consult with the admin. A wiki is 
 * [https://phabricator.wikimedia.org/T336059 Pagespeed performance dropped significantly due to total blocking time issue.]
 * [https://phabricator.wikimedia.org/T336098 TOC toctogglecheckbox breaks form label rule by not being labelled]
 * [https://phabricator.wikimedia.org/T336256 Inconsistent behavior regarding plain links and links in images]
-* [https://phabricator.wikimedia.org/T336620 Heading elements are not in a sequentially-descending order]
+* [https://phabricator.wikimedia.org/T337091 Wikitext Parser Bug when using template inside list]
 
 archived:
 
 * [https://www.mediawiki.org/wiki/Manual:Grabbers grabbers]: [https://phabricator.wikimedia.org/T313404 grabFiles.php broken in MediaWiki 1.38 due to MediaWiki API changes]
+* [https://phabricator.wikimedia.org/T336620 Heading elements are not in a sequentially-descending order] (wontfix)
 
 == Widgets ==
 
@@ -700,11 +701,18 @@ Wiki convention regarding Widgets:
 ** Templates support [[Special:WhatLinksHere]], widgets do not. So we can see where a module is used which makes testing and debugging easier
 * '''Exception:''': In some Widgets we use arrays over which we can loop. This works with Widgets but does not work with Templates. This is also how the Extension:Widgets suggests using arrays. See https://www.mediawiki.org/wiki/Extension:Widgets . Moreover the Extension:Widgets does not allow the modifier "explode" which would usually be used to convert a string to an array in the Smarty template engine. That is why we sometimes use widgets instead of templates. To bypass the "findability" problem of widgets you can search <code>#widget:widget_name</code> to find all Widget instances
 
-== Developing templates ==
+== Templates - in MediaWiki in General ==
+
+{{mbox
+| icon = fas fa-info cs-red-light
+| text = '''NOTE''' : Most templates - especially those with multiple newlines and (allowed) HTML elements - '''may not be used in lists (numbered / bullet points) at the moment'''. They do not work there as expected. This is caused by a bug in the MediaWiki parser that has been reported
+}}
+
+=== Developing templates ===
 
 When developing templates there are a couple of rules and best practices to go by
 
-# Templates with HTML : In MediaWiki it can happen that a template which uses the limited allowed HTML in wikitext works fine on a plain level. But once the template is deployed in special circumstances, for example as a list item, it not only not works but is "ripped apart", meaning the inner elements are rendered not inside but AFTER their parents. This happens due to mediawikis template parser and might even be considered a bug.
+# Templates with HTML : In MediaWiki it can happen that a template which uses the limited allowed HTML in wikitext works fine on a plain level. But once the template is deployed in special circumstances, for example as a list item, it not only not works but is "ripped apart", meaning the inner elements are rendered not inside but AFTER their parents. This happens due to mediawikis template parser and might even be considered a bug. -> [https://phabricator.wikimedia.org/T337091 Wikitext Parser Bug when using template inside list]
 #* Example Code {{CodeSelect|code=# TemplateTest1
 
 <span class="parent">
@@ -1547,6 +1555,19 @@ $ sudo apt "example2"
 ### The standard bash language definition by Prism was modified by us using the extension syntax <code>Prism.languages['bash'] = Prism.languages.extend('bash', { ... } );</code>. The ".extend" function creates a deep copy of the grammar and assigning it to "Prism.languages['your-language']" creates a new grammar, that will be used. We copied the grammar pattern for the "function" construct from the prism.js file and extended it by some other keywords, see [[MediaWiki:CodeSelect.js]] for our application and https://prismjs.com/docs/Prism.languages.html#.extend for more information. If you just want to add more keywords go to [[MediaWiki:CodeSelect.js]] to the line <code>var highlightBashAdditionalFunctionNames = [...]</code> at the top and add more function names to the array. '''NOTE''': Be sure to NOT set the async (second) parameter to true when using the "highlightElement" function as it may cause errors due to a likely bug in the Prism software
 ### For a download of newer version in the future go to https://prismjs.com/download.html and choose the languages we support (see above). Ask admin how to implement those files.
 
+== ContentImage (Template) - image wrapper ==
+
+* Content images is a term for images used in the content produced. These images usually occur between text, paragraphs, headlines. Sometimes these images can become too large for small display sizes
+* For images which are expected to be too large for some displays, this wrapper template is ideal. Images inside this wrapper will have max-width:100% and height:auto;
+* '''USAGE'''
+** Simply wrap any image that you suspect could be oversize in this wrapper
+** Example with wrapper Code {{CodeSelect|code={{ContentImage{{!}}[[File:Image-too-wide-demonstration.jpg]]}}}}
+** Example without wrapper [[File:Image-too-wide-demonstration.jpg]]
+** Example with wrapper {{ContentImage|[[File:Image-too-wide-demonstration.jpg]]}}
+* Relevant files
+** [[Template:ContentImage]]
+** [[MediaWiki:Utility.css]]
+
 == Debug-via-url-modal ==
 
 * This modal is a tool to conveniently generate URLs to debug the page for developers and also to be transparent about script use for page visitors
@@ -1961,6 +1982,11 @@ and
 
 == Quotation (Template) ==
 
+{{mbox
+| icon = fas fa-info cs-red-light
+| text = '''NOTE''' : This template '''may not be used in lists (numbered / bullet points) at the moment'''. It does not work there as expected. This is caused by a bug in the MediaWiki parser that has been reported
+}}
+
 * For Quotes without any context normal blockquote can be used
 ** Example Code {{CodeSelect|inline=1|code=<blockquote>An important quote from a developer</blockquote>}}
 ** Example <blockquote>An important quote from a developer</blockquote>
@@ -1972,12 +1998,12 @@ and
 *** context (wikitext, optional) : the author and other context, including links, right to the (optional) image
 ** Example Code {{CodeSelect|code={{Quotation
 {{!}}quote=An important quote from a developer
-{{!}}image=Donor-example-6.png
-{{!}}context=Henry Ford Jr, Gettysburg, 1973, https://www.whonix.org
+{{!}}image=Deep-web-1106648640.jpg
+{{!}}context=Name, Position, Link
 }}}}
 ** Example {{Quotation|quote=An important quote from a developer
-|image=Donor-example-6.png
-|context=Henry Ford Jr, Gettysburg, 1973, https://www.whonix.org
+|image=Deep-web-1106648640.jpg
+|context=Name, Position, Link
 }}
 * Relevant Files
 ** [[MediaWiki:Boilerplate.css]]
