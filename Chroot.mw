@@ -34,7 +34,7 @@ E: The method driver /usr/lib/apt/methods/tor+https could not be found.
 E: The method driver /usr/lib/apt/methods/tor+https could not be found.
 E: Failed to fetch tor+https://deb.debian.org/debian-security/dists/buster/updates/InRelease
 E: Failed to fetch tor+https://deb.debian.org/debian/dists/buster/InRelease
-E: Failed to fetch tor+https://deb.whonix.org/dists/buster-developers/InRelease
+E: Failed to fetch tor+https://deb.kicksecure.com/dists/buster-developers/InRelease
 E: Some index files failed to download. They have been ignored, or old ones used instead.
 E: apt --option Dir::Etc::SourceList=/dev/null update -oAPT::Status-Fd=<$fd> -oDpkg::Use-Pty=false failed
 </pre>
@@ -45,12 +45,12 @@ Err:1 tor+https://deb.debian.org/debian-security buster/updates InRelease
   Could not connect to 127.0.0.1:9050 (127.0.0.1). - connect (111: Connection refused)
 Err:2 tor+https://deb.debian.org/debian buster InRelease
   Unable to connect to 127.0.0.1:9050:
-Err:3 tor+https://deb.whonix.org buster-developers InRelease
+Err:3 tor+https://deb.kicksecure.com buster-developers InRelease
   Could not connect to 127.0.0.1:9050 (127.0.0.1). - connect (111: Connection refused)
 Reading package lists...
 W: Failed to fetch tor+https://deb.debian.org/debian-security/dists/buster/updates/InRelease  Could not connect to 127.0.0.1:9050 (127.0.0.1). - connect (111: Connection refused)
 W: Failed to fetch tor+https://deb.debian.org/debian/dists/buster/InRelease  Unable to connect to 127.0.0.1:9050:
-W: Failed to fetch tor+https://deb.whonix.org/dists/buster-developers/InRelease  Could not connect to 127.0.0.1:9050 (127.0.0.1). - connect (111: Connection refused)
+W: Failed to fetch tor+https://deb.kicksecure.com/dists/buster-developers/InRelease  Could not connect to 127.0.0.1:9050 (127.0.0.1). - connect (111: Connection refused)
 W: Some index files failed to download. They have been ignored, or old ones used instead.
 </pre>
 * Actually package <code>apt-transport-tor</code> recommends package <code>tor</code> but listing it here anyhow for those using APT with parameter <code>--no-install-recommends</code>.
@@ -100,7 +100,7 @@ Create temporary APT sources list for <code>mmdebstrap</code>.
 
 {{CodeSelect|code=
 echo "
-deb https://deb.debian.org/debian-security/ {{Stable project version based on Debian codename}}/updates main contrib non-free
+deb https://deb.debian.org/debian-security {{Stable project version based on Debian codename}}-security main contrib non-free
 deb https://deb.debian.org/debian {{Stable project version based on Debian codename}} main contrib non-free
 deb [signed-by=/usr/share/keyrings/derivative.asc] https://deb.{{project_clearnet}} $repo main contrib non-free
 " > "$path_to_temp_sources_list"
@@ -119,20 +119,16 @@ This shouldn't be done unless you are behind a firewall since apt-cacher-ng will
 Set <code>apt_cacher_ng_maybe</code> variable.
 
 {{CodeSelect|code=
-apt_cacher_ng_maybe="\
---aptopt='Acquire::http { Proxy \"http://127.0.0.1:3142\"; }' \
---aptopt='Acquire::https { Proxy \"http://127.0.0.1:3142\"; }' \
---aptopt='Acquire::tor { Proxy \"http://127.0.0.1:3142\"; }' \
-"
+apt_cacher_ng_maybe="--aptopt='Acquire::http { Proxy \"http://127.0.0.1:3142\"; }' --aptopt='Acquire::https { Proxy \"http://127.0.0.1:3142\"; }' --aptopt='Acquire::tor { Proxy \"http://127.0.0.1:3142\"; }'"
 }}
 
 Create apt-cacher-ng https compatible sources.list file.
 
 {{CodeSelect|code=
 echo "
-deb http://HTTPS///deb.debian.org/debian-security/ buster/updates main contrib non-free
-deb http://HTTPS///deb.debian.org/debian buster main contrib non-free
-deb http://HTTPS///deb.whonix.org $repo main contrib non-free
+deb http://HTTPS///deb.debian.org/debian-security/ {{Stable project version based on Debian codename}}-security main contrib non-free
+deb http://HTTPS///deb.debian.org/debian {{Stable project version based on Debian codename}} main contrib non-free
+deb [signed-by=/usr/share/keyrings/derivative.asc] http://HTTPS///deb.kicksecure.com $repo main contrib non-free
 " > "$path_to_temp_sources_list"
 }}
 </div>
@@ -140,14 +136,15 @@ deb http://HTTPS///deb.whonix.org $repo main contrib non-free
 
 == Run mmdebstrap ==
 Run <code>mmdebstrap</code>. <ref>
-<code>debootstrap</code> cannot be used since it is a single-mirror Debian chroot creation tool. I.e. it cannot use multiple APT repositories at the same time. And {{project_name_long}} APT repository does not ships no packages available from packages.debian.org. Therefore using <code>mmdebstrap</code> which is a multi-mirror Debian chroot creation. If you cannot use <code>mmdebstrap</code> either (cross platform builds?), you could first create a Debian chroot using <code>debootstrap</code> (or anything) and then install a {{project_name_long}} meta package manually inside the chroot.
+* <code>debootstrap</code> cannot be used since it is a single-mirror Debian chroot creation tool. I.e. it cannot use multiple APT repositories at the same time. And {{project_name_long}} APT repository does not ships no packages available from packages.debian.org. Therefore using <code>mmdebstrap</code> which is a multi-mirror Debian chroot creation.
+** If you cannot use <code>mmdebstrap</code> either (cross platform builds?), you could first create a Debian chroot using <code>debootstrap</code> (or anything) and then install a {{project_name_long}} meta package manually inside the chroot.
+* Whonix: add <code>anon_shared_inst_tb=open</code>
 </ref>
 
 {{CodeSelect|code=
 sudo \
    SECURITY_MISC_INSTALL=force \
    DERIVATIVE_APT_REPOSITORY_OPTS=stable \
-   anon_shared_inst_tb=open \
    mmdebstrap \
       --verbose \
       --variant=required \
@@ -171,11 +168,21 @@ sudo rm "$path_to_chroot/etc/apt/sources.list"
 }}
 
 == Host Cleanup ==
-Optional: You can delete the signing key from the host.
+
+<div class="toccolours mw-collapsible mw-collapsed">
+<u>Optional.</u> You can delete the signing key from the host.
+
+If you are interested, please press Expand on the right side.
+<div class="mw-collapsible-content">
+This is only useful for users not using {{project name long}} as their host operating system.
+
+Users of {{project name long}} must skip this.
 
 {{CodeSelect|code=
 sudo rm /etc/apt/trusted.gpg.d/derivative.gpg
 }}
+</div>
+</div>
 
 = Usage =
 === Simple Classic Chroot Method ===
@@ -222,7 +229,5 @@ Despite these limitations, <code>systemd-nspawn</code> should probably preferred
 
 = Footnotes =
 {{reflist|close=1}}
-
 {{Footer}}
-
 [[Category:Documentation]]

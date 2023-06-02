@@ -1763,6 +1763,20 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 ** {{CodeSelect|code={{GoogleOff{{!}}nosnippet=1{{!}}content=Wiki text content you want to be found but not used as snippets}}}}
 ** '''NOTE''': The data-nosnippet attribute that prevents search engines from generating a snippet from the GoogleOff area is active for the wrapper element in all cases. But when using the nosnippet=1 parameter this is the only preventive measure and the area can still be crawled, yet not be used as a snippet.
 
+== Headline (Widget) ==
+
+* There is no way in MediaWiki to create dynamic headlines via a Template. This however is needed sometimes. Usually headlines are written using wikitext and the "=" notation. But sometimes the content of the headline might be given to a template via a parameter, separate from the level of the headline for programming and usability reasons. This is the case in [[Template:Tab]]. And for these kind of cases we have the [[Widget:Headline]]
+* '''USAGE'''
+** Call the widget with 3 parameters: content, level and addToClass
+** '''content (mandatory, html)''' : The HTML content of the headline, simple text or more complex (full) HTML (not only wikitext html)
+** '''level (optional, [1-6], default: 1)''' : The level of the headline as known from html. Only the numbers 1-6 are allowed
+** '''addToClass (optional)''' : Additions to the (optinal) class attribute for the headline
+* Example
+** Code <code><nowiki>{{#widget:Headline||level=2||content=Test Headline}}</nowiki></code>
+** Render {{#widget:Headline|level=2|content=Test Headline}}
+* Relevant files
+** [[Widget:Headline]]
+
 == HtmlComment Widget ==
 
 * In MediaWiki templates it is basically impossible to use Html comments and have them rendered on the final page. This is intentional by Mediawiki to reduce unnecessary output. Sometimes however comments are needed
@@ -2154,28 +2168,25 @@ Result
 
 * A tab controller to conveniently show content as tabbed content areas
 * Uses [[#Mini_Navigation]] as an auto-generated navbar
-* For nojs visitors the content is plainly and fully shown without any navigation
-* Relevant files
-** [[Template:Tab]]
-** [[MediaWiki:TabContentController.js]]
-** [[MediaWiki:TabContentController.css]]
-** [[MediaWiki:Mininav.css]]
+* '''For nojs visitors''' the content is plainly and fully shown without any navigation, but with headlines that have the tab titles as content. Also link-tabs are rendered as headlines with a single link under them
+* '''Url Hash Feature''' : For Js users if the URL has the ID of a specific tab then this tab will be opened upon calling. This includes the tabs which are above it (if you have nested tab controllers). The ID is rendered into the headline. So for nojs users this headline
 * '''USAGE'''
 ** There are two template components which are needed: the '''controller''' and the '''tab'''. Both are created by using [[Template:Tab]]. The controller functions as the parent / anchor point where the navigation is generated and the tabs are moved to. The tabs are content areas which are navigated via the auto-generated navigation
-** There are 5 parameters
-*** '''type (optional, default: empty)''' : This can be '''controller''' or nothing. If controller is chosen a controller-component is created. Side note: <code>type=controller</code> is rather long for a switch. But it was done this way so every new editor clearly sees if this is a controller
-*** '''id (mandatory)''' : This is the group-id. This is needed because on a page there can be multiple controllers and tabs. To clearly connect which tab belongs to which controller this id is given.
-*** '''addToClass''' : The content of this parameter will be added to the class attribute of the controller or the tab that is created
-*** '''title (mandatory, only tab)''' : This is the title of a tab which will be shown in the navigation bar.
-*** '''image (optional, only tab)''' : Here an image url is given to have an image which will be shown on the left before the tab title in the navbar.
-*** '''content (optional, only tab)''' : This parameter is where you put all the real wikitext content that is shown when tab is active but hidden when inactive
-*** '''url (optional, only tab)''' : This is an alternative to having content in a tab. If a url is given then the nav point in the navbar will become an external / internal link instead of (standard:) a button to show the content. The parameter content will be ignored
+** There are 7 parameters
+**# '''type (optional, default: empty)''' : This can be '''controller''' or nothing. If controller is chosen a controller-component is created. Side note: <code>type=controller</code> is rather long for a switch. But it was done this way so every new editor clearly sees if this is a controller
+**# '''id (mandatory)''' : This is the group-id. This is needed because on a page there can be multiple controllers and tabs. To clearly connect which tab belongs to which controller this id is given.
+**# '''addToClass''' : The content of this parameter will be added to the class attribute of the controller or the tab that is created
+**# '''title (mandatory, only tab)''' : This is the title of a tab which will be shown in the navigation bar.
+**# '''image (optional, only tab)''' : Here an image url is given to have an image which will be shown on the left before the tab title in the navbar.
+**# '''h (optional, [1-6], default: default of level of Template:Headline)''' : This is the level of the headline of the tab which is only visible for nojs users and search engines. You can only choose a number between 1 and 6 (h1 to h6). The headline level should be selected so it fits correctly into the headline hierarchy of the page for nojs users.
+**# '''content (optional, only tab)''' : This parameter is where you put all the real wikitext content that is shown when tab is active but hidden when inactive
+**#* '''link-tabs''' : There is an alternative to having content in a tab. If a single link is given as content (as external link, complex external link <nowiki>[https://mediawiki.org MediaWiki]</nowiki> or internal link <nowiki>[[Wikipage]]</nowiki>) then the nav point in the navbar will become an external / internal link instead of (standard:) a button to show the content. '''NOTE''' : For no-js users the content will be rendered as headline + the link as given.
 ** create the tab controller / tab navbar by using Tab template with type controller and the group-id {{CodeSelect|code=
 {{Tab{{!}}type=controller{{!}}id=group-id1}}
 }}
 ** create as many tab / content divs as you like {{CodeSelect|code=
 {{Tab{{!}}addToClass=info-box{{!}}id=group-id1{{!}}title=Title 1{{!}}content=1 Content division number 1}}
-{{Tab{{!}}id=group-id1{{!}}title=Title 2{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}url=/wiki/Donate}}
+{{Tab{{!}}id=group-id1{{!}}title=Title 2{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}content=[[Donate]]}}
 }}
 ** Rendering Notes
 *** if JS is active then all the tabs '''(1) with the same id as the controller (2) that come after the controller in the DOM (depth arbitrary)''' will be fetched to the controller and a navigation (Mininav) will be automatically generated with the titles given in title parameters and the images given in image parameters
@@ -2188,18 +2199,24 @@ Result
 *** '''Linked Controllers''' : By using the same '''id parameter''' for the multiple controllers it is possible to link those controllers. If one tab on one controller is clicked the same tab on the other controller is also activated. This is especially useful when controlling a page with different sections where some sections are static and others are context dependent. So basically multiple pages which have a lot in common can be displayed on the same page. And the differing parts can be switch using linked controllers
 **** '''Children only until next controller''' : If two controllers with the same id are on the same page, the children must be accurately distributed. This is solved this way: Every controller gets the children with the same id that '''follow''' this very controller (on any depth in the DOM) but '''precede''' the very next controller with the same id (or the end of the page). Meaning in this scenario '''controller#id1 content#id1.1 content#id1.2 controller#id1 content#id1.1 content#id1.2''' - that the first two content areas belong to the first controller and the third and forth content areas belong to the second controller
 **** '''Same title necessary''' : Note also that the titles of the tabs need to be the same for them to be activated. If the first tab of the first controller and the first tab of the second controller have the same '''data-tcc-title''' they will be activated together. If there is a tab which has no other tab with the same title this still works but not other tab is activated. This can be useful sometimes if some sections of the page have no content for a certain context but has content for another context.
+* Relevant files
+** [[Template:Tab]]
+** [[MediaWiki:TabContentController.js]]
+** [[MediaWiki:TabContentController.css]]
+** [[MediaWiki:Mininav.css]]
+** [[Widget:Headline]]
 * Example {{CodeSelect|code=
 {{Tab{{!}}type=controller{{!}}id=my-test-1}}
 {{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=Number 1{{!}}content=1 Content division number 1}}
 {{Tab{{!}}addToClass=info-box active{{!}}id=my-test-1{{!}}title=Number 2{{!}}content=22 Content division number 2}}
 {{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=Number 3{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}content=333 Content division number 3}}
-{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=A link{{!}}url=/wiki/Donate}}
+{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=A link{{!}}content=[[Donate]]}}
 }}
 {{Tab|type=controller|id=my-test-1}}
 {{Tab|addToClass=info-box|id=my-test-1|title=Number 1|content=1 Content division number 1}}
 {{Tab|addToClass=info-box active|id=my-test-1|title=Number 2|content=22 Content division number 2}}
 {{Tab|addToClass=info-box|id=my-test-1|title=Number 3|image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png|content=333 Content division number 3}}
-{{Tab|addToClass=info-box|id=my-test-1|title=A link|url=/wiki/Donate}}
+{{Tab|addToClass=info-box|id=my-test-1|title=A link|content=[[Donate]]}}
 
 == ThumbGallery ==
 
