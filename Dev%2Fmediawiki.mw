@@ -2168,55 +2168,95 @@ Result
 
 * A tab controller to conveniently show content as tabbed content areas
 * Uses [[#Mini_Navigation]] as an auto-generated navbar
-* '''For nojs visitors''' the content is plainly and fully shown without any navigation, but with headlines that have the tab titles as content. Also link-tabs are rendered as headlines with a single link under them
-* '''Url Hash Feature''' : For Js users if the URL has the ID of a specific tab then this tab will be opened upon calling. This includes the tabs which are above it (if you have nested tab controllers). The ID is rendered into the headline. So for nojs users this headline
+* '''Features'''
+** '''For nojs visitors''' the content is plainly and fully shown without any navigation
+** '''Url Hash Feature''' : For Js users all tabs are rendered as links, so if you right-click a tab it will give you the option to "copy link url". This URL has a hash and if this URL is called then this tab will be opened upon calling. This includes the tabs which are above it (if you have nested tab controllers). So for nojs users this link will jump straight to the headline
+** '''Linked controllers''' : Link multiple controllers so they switch in unison
+* '''Definitions'''
+** Tab : A button in a same-page navigation where only a part of the page is changed
+** Section : The content which is shown when a tab is clicked
+** Controller : The controller functions as the container / parent / anchor point for the sections and also a parent for the navigation which is generated
 * '''USAGE'''
-** There are two template components which are needed: the '''controller''' and the '''tab'''. Both are created by using [[Template:Tab]]. The controller functions as the parent / anchor point where the navigation is generated and the tabs are moved to. The tabs are content areas which are navigated via the auto-generated navigation
-** There are 7 parameters
-**# '''type (optional, default: empty)''' : This can be '''controller''' or nothing. If controller is chosen a controller-component is created. Side note: <code>type=controller</code> is rather long for a switch. But it was done this way so every new editor clearly sees if this is a controller
-**# '''id (mandatory)''' : This is the group-id. This is needed because on a page there can be multiple controllers and tabs. To clearly connect which tab belongs to which controller this id is given.
-**# '''addToClass''' : The content of this parameter will be added to the class attribute of the controller or the tab that is created
-**# '''title (mandatory, only tab)''' : This is the title of a tab which will be shown in the navigation bar.
-**# '''image (optional, only tab)''' : Here an image url is given to have an image which will be shown on the left before the tab title in the navbar.
-**# '''h (optional, [1-6], default: default of level of Template:Headline)''' : This is the level of the headline of the tab which is only visible for nojs users and search engines. You can only choose a number between 1 and 6 (h1 to h6). The headline level should be selected so it fits correctly into the headline hierarchy of the page for nojs users.
-**# '''content (optional, only tab)''' : This parameter is where you put all the real wikitext content that is shown when tab is active but hidden when inactive
-**#* '''link-tabs''' : There is an alternative to having content in a tab. If a single link is given as content (as external link, complex external link <nowiki>[https://mediawiki.org MediaWiki]</nowiki> or internal link <nowiki>[[Wikipage]]</nowiki>) then the nav point in the navbar will become an external / internal link instead of (standard:) a button to show the content. '''NOTE''' : For no-js users the content will be rendered as headline + the link as given.
-** create the tab controller / tab navbar by using Tab template with type controller and the group-id {{CodeSelect|code=
-{{Tab{{!}}type=controller{{!}}id=group-id1}}
+** There are two template components which are needed: the '''controller''' and the '''section'''. Both are created by using the same '''multi-purpose template''' [[Template:Tab]]
+** Parameters are different for controller and section
+** '''Parameters for Controller and Section'''
+**# '''type (mandatory, for "controller")''' : This can be '''"controller"''', '''"section"''' or nothing. If controller is chosen a controller-component is created. Side note: <code>|type=controller</code> is rather long for a switch. But it was done this way so every new editor clearly sees if this is a controller. If '''section''' or nothing is chosen then a section-component is created.
+**# '''addToClass (optional)''' : The content of this parameter will be added to the class attribute of the controller or the tab that is created
+** '''Parameters for Section'''
+**# '''title (mandatory)''' : This title needs to be gives as a wikitext headline. This headline should integrate in the normal flow and hierarchy of the whole page because for nojs users this is all that they will see.
+**# '''content (mandatory)''' : This parameter is where you put all the real wikitext content that is shown when tab is active but hidden when inactive. And always shown for nojs users
+**#* '''link-tabs''' : This is an alternative to having content in a tab. If a single link is given as content (as external link, complex external link <nowiki>[https://mediawiki.org MediaWiki]</nowiki> or internal link <nowiki>[[Wikipage]]</nowiki>) then the nav point in the navbar will become an external / internal link instead of (standard:) a button to show the content. '''NOTE''' : For no-js users the content will be rendered as headline + the link as given.
+**# '''active (optional, recommended, only "true")''' : active can only be set to true. This means that the corresponding tab to the section with <code>|active=true</code> will be pre-selected. This prevents content shift and is therefore HIGHLY RECOMMENDED.
+**# '''image (optional)''' : Here an image url is given to have an image which will be shown on the left before the tab title in the navbar. We don't use wikitext because the image needs to be loaded eagerly (which the wiki currently does not do for good pagespeed score). '''NOTE''' : Be sure to use a small image of max. 60 x 60 pixel.
+** '''Parameters for Controller'''
+**# '''content (mandatory)''' : For the controller content is different from section. The controller may ONLY have multiple sections - meaning instances of Template:Tab in the section variant - as children
+**# '''linkId (optional)''' : This is an internal id to link multiple controllers. This is needed if multiple controllers need to switch in unison. If two or more controllers have this parameter with the same content they will be linked, meaning: All tabs being clicked in one of the navigations will switch the tabs in the other navigations as well. This is synchronized by the number of the tab. Example: You click tab 1 in controller 1 then section 1 in controller 1 is shown AND then tab 1 in controller 2 is also shown as well as section 1 in controller 2.
+**#* '''NOTE - different numbers''': If there is not the same number of sections in both controllers they will only be synchronized as far as numbers are equal. If you click tab 6 and the other controller only has 3 tabs then the controller with 3 tabs remains unchanged
+**#* '''NOTE - link-tabs''': If a tab is a link tab then clicking it will not change the other controller
+** Code Examples
+**# '''create the controller''' using Tab template with type controller and content {{CodeSelect|code=
+{{Tab{{!}}type=controller{{!}}content=...}}
 }}
-** create as many tab / content divs as you like {{CodeSelect|code=
-{{Tab{{!}}addToClass=info-box{{!}}id=group-id1{{!}}title=Title 1{{!}}content=1 Content division number 1}}
-{{Tab{{!}}id=group-id1{{!}}title=Title 2{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}content=[[Donate]]}}
+**# '''Create a sections''' by using Tab template with title and content {{CodeSelect|code=
+{{Tab{{!}}title= ==section1=={{!}}content=Section 1 content}}
 }}
-** Rendering Notes
-*** if JS is active then all the tabs '''(1) with the same id as the controller (2) that come after the controller in the DOM (depth arbitrary)''' will be fetched to the controller and a navigation (Mininav) will be automatically generated with the titles given in title parameters and the images given in image parameters
-*** '''NOTE''' Normally images given in the image parameter will displayed with a height of 25px (if you don't style otherwise). Keep that in mind to load small images to save bandwidth
-*** If a content element shall be '''pre-selected''' give that element the class "active" via the addToClass parameter. If this is not done then the first tab will be auto-selected
-**** '''NOTE''' Pre-selection is advised. If you don't have an element pre-selected then a content shift will appear because all elements will be hidden for the users until the JS is loaded. If an element has the class "active" however then it will be always be shown and content shift will not appear
 ** Further features
-*** '''.tcc-indent CSS class''' : Special CSS class that needs to be added to a controller to take effect. Every tab content controller with this class will have a white border on the left to indent the content. This is especially useful if tab-content-controllers are nested inside each other and the user still needs to realise the different levels
-*** '''.tcc-dark CSS class''': Special CSS class that needs to be added to a controller to take effect. The mininav sub element will automatically get the class "mn-dark" as described here: [[#Mini_Navigation]]. The mininav will also get gray borders instead of white ones when using the .tcc-indent class
-*** '''Linked Controllers''' : By using the same '''id parameter''' for the multiple controllers it is possible to link those controllers. If one tab on one controller is clicked the same tab on the other controller is also activated. This is especially useful when controlling a page with different sections where some sections are static and others are context dependent. So basically multiple pages which have a lot in common can be displayed on the same page. And the differing parts can be switch using linked controllers
-**** '''Children only until next controller''' : If two controllers with the same id are on the same page, the children must be accurately distributed. This is solved this way: Every controller gets the children with the same id that '''follow''' this very controller (on any depth in the DOM) but '''precede''' the very next controller with the same id (or the end of the page). Meaning in this scenario '''controller#id1 content#id1.1 content#id1.2 controller#id1 content#id1.1 content#id1.2''' - that the first two content areas belong to the first controller and the third and forth content areas belong to the second controller
-**** '''Same title necessary''' : Note also that the titles of the tabs need to be the same for them to be activated. If the first tab of the first controller and the first tab of the second controller have the same '''data-tcc-title''' they will be activated together. If there is a tab which has no other tab with the same title this still works but not other tab is activated. This can be useful sometimes if some sections of the page have no content for a certain context but has content for another context.
+*** '''.tcc-indent CSS class''' : Special CSS class that needs to be added to a controller via <code>"|addToClass=tcc-indent"</code> to take effect. Every tab content controller with this class will have a white border on the left to indent the content. This is especially useful if tab-content-controllers are nested inside each other and the user still needs to realise the different levels
+*** '''.tcc-dark CSS class''': Special CSS class that needs to be added to a controller via <code>"|addToClass=tcc-dark"</code> to take effect. The mininav sub element will automatically get the class "mn-dark" as described here: [[#Mini_Navigation]]. The mininav will also get gray borders instead of white ones when using the .tcc-indent class
 * Relevant files
 ** [[Template:Tab]]
 ** [[MediaWiki:TabContentController.js]]
 ** [[MediaWiki:TabContentController.css]]
 ** [[MediaWiki:Mininav.css]]
 ** [[Widget:Headline]]
-* Example {{CodeSelect|code=
-{{Tab{{!}}type=controller{{!}}id=my-test-1}}
-{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=Number 1{{!}}content=1 Content division number 1}}
-{{Tab{{!}}addToClass=info-box active{{!}}id=my-test-1{{!}}title=Number 2{{!}}content=22 Content division number 2}}
-{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=Number 3{{!}}image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png{{!}}content=333 Content division number 3}}
-{{Tab{{!}}addToClass=info-box{{!}}id=my-test-1{{!}}title=A link{{!}}content=[[Donate]]}}
+* '''Full example
+<pre id="tab-controller-full-example">
+{{Tab|type=controller|content=
+{{Tab|title= ===section1===|content=Section 1 content}}
+{{Tab|title= ===section2===|content=Section 2 content}}
+</pre>
+{{CodeSelect|target=#tab-controller-full-example}}
+* '''Full Feature Example'''
+<pre id="tab-controller-full-feature-example">
+{{Tab
+|type=controller
+|addToClass=tcc-indent tcc-dark
+|linkId=link1
+|content=
+{{Tab
+|title= ==Section 1==
+|type=section
+|image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png
+|addToClass=special-look
+|active=true
+|content=Section 1 content
 }}
-{{Tab|type=controller|id=my-test-1}}
-{{Tab|addToClass=info-box|id=my-test-1|title=Number 1|content=1 Content division number 1}}
-{{Tab|addToClass=info-box active|id=my-test-1|title=Number 2|content=22 Content division number 2}}
-{{Tab|addToClass=info-box|id=my-test-1|title=Number 3|image=/w/images/thumb/0/0f/Logo-linux-500x500.png/25px-Logo-linux-500x500.png|content=333 Content division number 3}}
-{{Tab|addToClass=info-box|id=my-test-1|title=A link|content=[[Donate]]}}
+{{Tab
+|title= ==Section 2==
+|content=Section 2 content
+}}
+}} <!-- end of tab controller 1 -->
+
+{{Tab
+|type=controller
+|linkId=link1
+|content=
+{{Tab
+|title= ==Section 3==
+|active=true
+|content=Section 3 content
+}}
+{{Tab
+|title= ==Section 4==
+|content=Section 4 content
+}}
+{{Tab
+|title= ==Section 5 Link==
+|content=[[Donate]]
+}}
+}} <!-- end of tab controller 2 -->
+</pre>
+{{CodeSelect|target=#tab-controller-full-feature-example}}
 
 == ThumbGallery ==
 
@@ -2414,6 +2454,68 @@ sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.wh
 
 The following tasks have been considered for realization but have been rejected due to the contra arguments.
 
+== check integrity of user downloaded files ==
+does htmk a href support integrity= for user file downloads?
+
+is there any Javascript that i can install on my website that causes on click a file to be downloaded to user's computer and integrity checked?
+
+<pre>
+<a
+href="example-file.zip" 
+download="example-file.zip" 
+integrity="sha384-B2v2d...">Download Example File
+</a>
+</pre>
+
+<pre>
+function downloadAndVerify(url, expectedHash) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = url.split('/').pop();
+  link.integrity = expectedHash;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Example usage:
+const url = 'https://example.com/file.zip';
+const expectedHash = 'sha384-B2v2d...';
+downloadAndVerify(url, expectedHash);
+</pre>
+
+https://stackoverflow.com/a/49478626
+
+https://www.dunebook.com/javascript-file-downloader/
+
+https://github.com/openpgpjs/openpgpjs
+
+https://tails.boum.org/contribute/design/download_verification/
+
+https://tails.boum.org/install/inc/js/download.js
+
+'''DEV'''
+* Unfortunately this does seem possible
+* In this post https://stackoverflow.com/questions/9840923/get-browser-download-path-with-javascript there is stated <blockquote>Pure browser-JavaScript is not be able to get information about the user's filesystem. The default download path might also contain sensible information, which is risky:
+
+Imagine that one stores his downloads at C:\CompanyName\RealName\PhoneNumber\Adress\</blockquote>
+** This is due to security risks being exploited in the early days of Javascript, so now Javascript is in a Sandbox
+** In the case of Tails it is possible because the user explicitly selects a filepath in an input:file field and therefore tells the browser. But it's different from a download prompt which is not accessible via Javascript
+** This post https://stackoverflow.com/questions/41334881/detect-when-user-accepts-to-download-a-file has an excellent summary of our problem <blockquote>As i've found from years of maintaining download.js, there simply is no way to tell from JS (or likely in general, see below) what a user chooses to do with the download Open/Save dialog. It's a common feature request, and i've looked into it repeatedly over the years. I can say with confidence that it's impossible; I'll joyfully pay 10 times this bounty if someone an demo a mechanical way to determine the post-prompt user action on any file!</blockquote>
+* There might be clever workarounds to seem when the download has started and ended however https://stackoverflow.com/questions/1106377/detect-when-a-browser-receives-a-file-download, because this is also not directly possible
+* But it seems very much so that the complicated way tails is doing it is the only way at the moment.
+
+Patrick:
+
+* download.js feature request: [https://github.com/rndme/download/issues/120 check integrity of downloaded files #120]
+
+== Sufficient Color Contrast ==
+Warning about insufficient contest might be true. As per:
+
+* Elements Must Have Sufficient Color Contrast
+* https://github.com/GoogleChrome/lighthouse/issues/5559
+* https://www.plothost.com/kb/lighthouse-report-contrast/
+
 == reload content shift ==
 
 * Write a bug report for chrome content shift
@@ -2468,7 +2570,6 @@ We could say it's not important enough to investigate this bug because it happen
 * Dev can also reproduce here, but only on specific position, but there regularely: https://www.kicksecure.com/wiki/Mobile_Phone_Security#Registration_Locks
 * Dev can also reproduce on https://de.wikipedia.org/wiki/Abraham_Lincoln but also only on specific positions
 * So how should be proceed?
-
 
 == Minify HTML for wiki.min.js (2023-02-13) ==
 TODO: discuss
