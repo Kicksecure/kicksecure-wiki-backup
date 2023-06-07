@@ -10,133 +10,121 @@ deferrable:YES -- This is a standalone gadget / augmentation
 Important definitions for Devs
 ------------------------------
 controller = container where the navigation and the content-container
-navigaton = container for the mininav list
+navigaton = the mininav container for the tab item list
 tabContainer = the li element housing the tab
-tab = the span element to navigate to the corresponding content item
-contentList = the collection of the actual content for each tab
-content = the actual content for an individual tab
+tab = the link element to navigate to the corresponding content item
+sectionList = the collection of the actual content (section) for each tab
+section = the actual content for an individual tab
+content = meta concept meaning both section and the corresponding tab
 */
 
 (function() {
 	
-	// as jQuery extension
+	// ---------------------------------------
+	// jQuery extension : tabContentController
 	
 	$.fn.tabContentController = function(action) {
 		
 		// Only allow 'init' at the moment (extendable later)
 		if( action != 'init' ) return;
 		
-		// Going through the collection and finding all images and preloading them
+		// Traversing over the given collection
 		
-		function preloadImage(url) {
-			return new Promise((resolve, reject) => {
-				const img = new Image();
-				img.src = url;
-				img.onload = () => resolve(img);
-				img.onerror = reject;
-			});
-		}
+		let collection = $(this).filter('.tab-content-controller');
 		
-		let allImagePreloadPromises = [];
-		
-		$(this).each( function() {
-			let tcGroupId = $(this).attr( 'data-tcc-id' );
-			$(`[data-tcc-id="${ tcGroupId }"]`).each( function() {
-				if( $(this).attr('data-tcc-image') ) allImagePreloadPromises.push( preloadImage( $(this).attr('data-tcc-image') ) );
-			});
-		});
-		
-		// Making collection available after images are loaded
-		let collection = $(this);
-		
-		(async function() {
-			await Promise.all( allImagePreloadPromises );
-		
-			// Traversing over the given collection
+		collection.each( function() {
 			
-			collection.each( function() {
+			// Prevent double initialization
+			if( $(this).hasClass('js-fully-loaded') ) return;
+			
+			// Setup
+			
+			// For linked Controllers : ID of the tab controller group
+			let tcLinkedGroupId = $(this).attr( 'data-tcc-linkid' );
+			// If no link id then "group" is just this controller
+			let tcLinkedGroup = tcLinkedGroupId ? collection.filter( (index,element) => $(element).attr( 'data-tcc-linkid' ) == tcLinkedGroupId ) : $(this);
+			
+			tcLinkedGroup.each( function() {
 				
-				// Prevent double initialization
-				if( $(this).hasClass('js-fully-loaded') ) return;
+				// Apply dark feature via tcc-dark class
+				if( $(this).hasClass('tcc-dark') ) $(this).find('> .mininav').addClass('mn-dark');
 				
-				// Only elements with this attribute and class are accepted, but not the controller wrapper itself
-				if( ! $(this).attr('data-tcc-id') || ! $(this).hasClass('tab-content-controller') ) return;
+				$(this).find('> .mininav').append('<ul></ul>')
+				let tabList = $(this).find('.mininav > ul');
 				
-				// Setup
-	
-				// ID of the tab controller group (group and tabs)
-				let tcGroupId = $(this).attr( 'data-tcc-id' );
+				console.log( $(this), $(this).find('> .tcc-content > .tcc-section').length );
 				
-				// Traversing possibly multiple linked controllers with the same ID and their content with the same ID
-				
-				// Collection of ALL controllers and tabs with the same group ID
-				let tcGroup = $();
-				
-				$(`[data-tcc-id="${tcGroupId}"]`).each( function() {
-					// If a controller is found then the navigation is added
-					if( $(this).hasClass('tab-content-controller') ) {
-						$(this).append( '<div class="mininav"><ul></ul></div><div class="content"></div>' );
-						tcGroup = tcGroup.add( $(this) );
-					}
-					// If content is found then add this content to the latest found controller
-					else if( tcGroup.length > 0 ) {
-						tcGroup.last().children('.content').append( $(this) );
-					}
-				});
-				
-				// Traversing possibly multiple linked controllers individually
-				
-				$(`.tab-content-controller[data-tcc-id="${tcGroupId}"]`).each( function() {
-					if( $(this).hasClass('tcc-dark') ) $(this).children('.mininav').addClass('mn-dark');
+				$(this).find('> .tcc-content > .tcc-section').each( function( index, element ) {
 					
-					let tabList = $(this).find('.mininav > ul');
+					let section = $(this);
 					
-					$(this).children('.content').children().each( function() {
-						let content = $(this);
-						let contentTitle = content.attr('data-tcc-title');
-						let tabContainer = $( '<li><span></span></li>' );
-						if( content.children().length == 2 && content.find('> p > a').length == 1 ) tabContainer = $( `<li class="is-link"><a href="${content.find('> p > a').attr('href')}"></a></li>` );
-						let tab = tabContainer.children().first();
-	
-						let contentId = 'id-' + Math.random().toString().substr(2);
-						let existingContent = $(`[data-tcc-id="${tcGroupId}"][data-tcc-title="${contentTitle}"][data-tcc-contentId]`);
-						if( existingContent.length > 0 ) contentId = existingContent.eq(0).attr('data-tcc-contentId');
-						tab.attr( 'data-tcc-contentId', contentId );
-						content.attr( 'data-tcc-contentId', contentId );
-						
-						tab.text( contentTitle );
-						if( content.attr('data-tcc-image') ) tab.prepend( '<img class="pos-1px-up" src="' + content.attr('data-tcc-image') + '">' );
-						if( content.hasClass('active') ) tab.addClass('active');
-						
-						tabList.append( tabContainer );
-						
-						// Event : Click
-						if( ! tabContainer.hasClass('is-link') ) tabContainer.on( 'click', () => chooseTab( tab.attr('data-tcc-contentId') ) );
+					// Create tab. All are links but disabled. If only link given in section then create direct link-tab (with .is-link class)
+					let tabContainer = $( `<li><a href="${ window.location.href.split('#')[0] + '#' + section.find('.tcc-title .mw-headline').attr('id') }"></a></li>` );
+					// If the section's content has exactly 1 child, that is a p, and that p has 1 child (and no text nodes) that is an a. Whitespaces are trimmed for caparison
+					if( section.find('> .tcc-content > p > a').length == 1 && section.find('> .tcc-content > p').text().trim() == section.find('> .tcc-content > p > a').text() ) {
+						tabContainer = $( `<li><a class="is-link" href="${section.find('> .tcc-content > p > a').attr('href')}"></a></li>` );
+						section.addClass('is-link');
+					}
+					let tab = tabContainer.children().first();
+					
+					tab.text( section.find('> .tcc-title .mw-headline').text() );
+					if( section.hasClass('active') ) tab.addClass('active');
+					if( section.find('> .tcc-image > img').length > 0 ) tab.prepend( section.find('> .tcc-image > img') );
+
+					// Creating or fetching contentId (from linked Controller) and applying it to tab and section
+					let contentId = 'id-' + Math.random().toString().substr(2);
+					let existingContent = $(`[data-tcc-linkid="${tcLinkedGroupId}"].js-fully-loaded`).eq(0).find('.tcc-section').eq( index );
+					if( existingContent.length > 0 ) contentId = existingContent.eq(0).attr('data-tcc-contentId');
+					tab.attr( 'data-tcc-contentId', contentId );
+					section.attr( 'data-tcc-contentId', contentId );
+					
+					tabList.append( tabContainer );
+					
+					// Event : Click
+					if( ! tab.hasClass('is-link') ) tabContainer.on( 'click', (e) => {
+						e.preventDefault();
+						chooseTab( tab.attr('data-tcc-contentId') );
+						return false;
 					});
-						
-					// If no element is active make the first one active that is not a link
-					if( ! $(this).children('.content').children().hasClass('active') ) {
-						chooseTab( tabList.find('li:not(.is-link)').eq(0).children().attr('data-tcc-contentId') );
-					}
 					
-					$(this).addClass('js-fully-loaded');
 				});
-				
-				function chooseTab( contentId ) {
-					tcGroup.find('> .mininav > ul > li > *').removeClass('active');
-					tcGroup.children('.content').children().removeClass('active');
-					tcGroup.find(`[data-tcc-contentId="${contentId}"]`).addClass('active');
+					
+				// If no element is active make the first one active that is not a link
+				if( ! $(this).find('.tcc-section').hasClass('active') ) {
+					chooseTab( tabList.find('a:not(.is-link)').eq(0).attr('data-tcc-contentId') );
 				}
-		
+				
+				$(this).addClass('js-fully-loaded');
 			});
 			
-		})();
-		
+			function chooseTab( contentId ) {
+				tcLinkedGroup.find('> .mininav > ul > li > *').removeClass('active');
+				tcLinkedGroup.find('> .tcc-content > .tcc-section').removeClass('active');
+				tcLinkedGroup.find(`[data-tcc-contentId="${contentId}"]`).filter( (index,element) => ! $(element).hasClass('is-link') ).addClass('active');
+			}
+	
+		});
+			
 	}
 	
-	// Automatic initialization
+	// -------------------
+	// Page Initialization
 	
-	$('.tab-content-controller[data-tcc-id]').tabContentController('init');
+	// Automatic initialization for all tab controllers
+	$('.tab-content-controller').tabContentController('init');
+	
+	// Using Hash to control tabs
+	let hash = window.location.hash.substring(1);
+	let selectedHeadline = $( `.tab-content-controller .tcc-title .mw-headline[id="${hash}"]` );
+	// If section with hash as headline ID is found open this section/tab and all parent sections/tabs
+	if( selectedHeadline.length > 0 ) {
+		selectedHeadline.parents('.tcc-section').each( (index,sectionDom) => {
+			let selectedId = $(sectionDom).attr('data-tcc-contentid');
+			$(sectionDom).parents('.tab-content-controller').eq(0).find( `.mininav [data-tcc-contentid="${selectedId}"]` )[0].click();
+		});
+		// And scroll to the position of the direct content controller parent in the document
+		$('html, body').animate( { scrollTop: selectedHeadline.parents('.tab-content-controller')[0].getBoundingClientRect().top - 70  }, 500 );
+	}
 	
 })();
 
