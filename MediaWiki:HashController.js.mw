@@ -1,0 +1,44 @@
+/*
+Hash Control library - register every hash dependent function
+See detailed documentation in Dev/mediawiki
+deferrable:NO -- Because a other scripts are dependent on it
+*/
+
+(function() {
+	
+	let allHashes = {};
+	
+	let isInitialTriggerRequested = false;
+	
+	// HELPER
+	
+	let get = () => window.location.hash.substring(1);
+	
+	let triggerFn = () => allHashes[ get() ]();
+	
+	// Register with our dev tools
+	
+	mwDev.tools.hashControl = {
+		// Register a callback-function with an id/hash
+		register: function( id, callback, requestInitialTrigger ) {
+			allHashes[ id ] = callback;
+			if( requestInitialTrigger ) isInitialTriggerRequested = true;
+		},
+		// Simulate a popstate event (useful for example if initial Hash should be handled)
+		trigger : function( initial ) {
+			if( initial != 'initial' || isInitialTriggerRequested ) triggerFn();
+		},
+		// Get current Hash
+		get: get,
+		// Set the hash (affects registered function)
+		set: function( hash ) {
+			let urlObj = new URL(window.location);
+			if( hash != urlObj.hash.substring(1) ) window.history.pushState( { info: 'js pushState' }, '[Param deprecated]', mwDev.data.app.baseUrl + '?' + urlObj.searchParams.toString() + ( hash ? '#' + hash : '' ) );
+		},
+	};
+	
+	// Event : Handle Event popstate centrally
+	
+	$(window).on( 'popstate', triggerFn );
+	
+})();
