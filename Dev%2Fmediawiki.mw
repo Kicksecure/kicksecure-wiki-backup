@@ -663,31 +663,32 @@ Every developer please follow these rules and consult with the admin. A wiki is 
 
 * These are requests to MediaWiki which we sent upstream
 * Check in regularly if there was any activity.
+* https://phabricator.wikimedia.org/p/adrelanos/
 * MediaWiki upstream: [https://phabricator.wikimedia.org/tag/mediawiki-extensions-css/ mediawiki-extension-css] feature requests and patches:
 ** feature request: [https://phabricator.wikimedia.org/T300704 Enable unsanitized CSS namespaces]
 ** patch / pull request: [https://phabricator.wikimedia.org/T37820 Some CSS stripped by MediaWiki parser CSS sanitizer]
-* [https://phabricator.wikimedia.org/T270099 $wgCSPHeader CSP Content Security Policy compatibility with $wgUseFileCache file cache]
-* [https://phabricator.wikimedia.org/T270095 add Widgets extension compatibility with $wgCSPHeader CSP Content Security Policy]
-* https://phabricator.wikimedia.org/p/adrelanos/
-* Bootstrap extension: [https://github.com/ProfessionalWiki/Bootstrap/issues/62 ParserOutput::addModuleStyles with non-array argument was deprecated in MediaWiki 1.38 #62]
 * Widgets extension:
-** [https://phabricator.wikimedia.org/T313367 Allow API editing]
-*** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/815399/
+** [https://phabricator.wikimedia.org/T270095 add Widgets extension compatibility with $wgCSPHeader CSP Content Security Policy]
 ** [https://phabricator.wikimedia.org/T313363 InvalidArgumentException: NamespaceInfo::isTalk called with non-integer (string) namespace 'NS_WIDGET']
 ** [https://phabricator.wikimedia.org/T313365 $wgWidgetsUseFlaggedRevs broken]
-* [https://phabricator.wikimedia.org/T314593 extraneous newlines caused by templates]
-* [https://phabricator.wikimedia.org/T325471 mediawiki-extensions-widgets: PHP Warning: call_user_func() expects parameter 1 / class 'WidgetRenderer' does not have a method 'initRandomString']
-** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/871225
 * [https://phabricator.wikimedia.org/T336059 Pagespeed performance dropped significantly due to total blocking time issue.]
 * [https://phabricator.wikimedia.org/T336098 TOC toctogglecheckbox breaks form label rule by not being labelled]
 * [https://phabricator.wikimedia.org/T336256 Inconsistent behavior regarding plain links and links in images]
 * '''[https://phabricator.wikimedia.org/T11996 Multiline tags in lists should be output more intelligently]'''
+* [https://phabricator.wikimedia.org/T314593 extraneous newlines caused by templates]
 * [https://phabricator.wikimedia.org/T337091 Wikitext Parser Bug when using template inside list]
+* [https://phabricator.wikimedia.org/T338609 Publicly visible section edit buttons are indexable by search engines]
 
 archived:
 
 * [https://www.mediawiki.org/wiki/Manual:Grabbers grabbers]: [https://phabricator.wikimedia.org/T313404 grabFiles.php broken in MediaWiki 1.38 due to MediaWiki API changes]
 * [https://phabricator.wikimedia.org/T336620 Heading elements are not in a sequentially-descending order] (wontfix)
+** [https://phabricator.wikimedia.org/T313367 Allow API editing]
+*** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/815399/
+* [https://phabricator.wikimedia.org/T270099 $wgCSPHeader CSP Content Security Policy compatibility with $wgUseFileCache file cache]
+* [https://phabricator.wikimedia.org/T325471 mediawiki-extensions-widgets: PHP Warning: call_user_func() expects parameter 1 / class 'WidgetRenderer' does not have a method 'initRandomString']
+** https://gerrit.wikimedia.org/r/c/mediawiki/extensions/Widgets/+/871225
+* Bootstrap extension: [https://github.com/ProfessionalWiki/Bootstrap/issues/62 ParserOutput::addModuleStyles with non-array argument was deprecated in MediaWiki 1.38 #62]
 
 == Widgets ==
 
@@ -1768,7 +1769,7 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 * The Hash of the URL (e. g. in kicksecure.com#anchor1 the "anchor1" part) can be a powerful tool to control parts of the page. In its usual use case and for nojs users it makes the browser window jump to the desired location. With Javascript the hash can be used as any data point
 * The hash controller is for developers centralizes the hash behavior as sub category in [[Dev/mediawiki#DevTools]].
 * '''USAGE''' : The following functions are available
-** '''get()''' : Simply get the current hash as a string
+** '''get()''' : Simply get the current hash as a string. '''NOTE for Devs''' : You get the decoded string, meaning special chars are transformed back from their escaped url form to their special char self. Also note that this might be confusing because many browsers show these special chars in their special char form. But as only ascii is allowed in urls their are in reality escaped.
 ** '''set( hash : string )''' : Simply set the current hash with a string (without '#')
 ** '''register( id : string, callback : function, requestInitialTrigger : boolean )''' : Register a function for a specific id/hash. Meaning: If the URL has/gets this hash then this function will be executed. If requestInitialTrigger is set to true then at the load time of the page all relevant functions will be executed. This execution will '''only happen ONCE''' - even if multiple functions set requestInitialTrigger tro true.
 ** '''trigger( initial : string )''' : Trigger the checking function. The initial parameter is only needed internally for [[MediaWiki:MwCombineJsWrapper.js]]. If the initial-parameter is set to "initial" (verbose for more clarity) then this will only fire if at least one function set requestInitialTrigger to true in the register-function
@@ -1778,15 +1779,23 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 
 == Headline (Widget) ==
 
-* There is no way in MediaWiki to create dynamic headlines via a Template. This however is needed sometimes. Usually headlines are written using wikitext and the "=" notation. But sometimes the content of the headline might be given to a template via a parameter, separate from the level of the headline for programming and usability reasons. This is the case in [[Template:Tab]]. And for these kind of cases we have the [[Widget:Headline]]
+* There is no way in MediaWiki to create dynamic headlines via a Template. This however is needed sometimes. Usually headlines are written using wikitext and the "=" notation. But sometimes the content of the headline might be given to a template via a parameter, separate from the level of the headline for programming and usability reasons. This is the case in a special case of Template:Tab, see [[#Tab_Template_.2F_Tab_Content_Controller]] → "Headlines excluded from TOC" for more information
+* Features
+** Headline will not be listed in TOC
+** auto-generated or manual id
+** adding classes to class attribute
+** HTML Structure like regular MediaWiki headlines, h[1-6] > span.mw-headline#[headline-id]
 * '''USAGE'''
 ** Call the widget with 3 parameters: content, level and addToClass
 ** '''content (mandatory, html)''' : The HTML content of the headline, simple text or more complex (full) HTML (not only wikitext html)
-** '''level (optional, [1-6], default: 1)''' : The level of the headline as known from html. Only the numbers 1-6 are allowed
+** '''h (optional, [1-6], default: 1)''' : The level of the headline as known from html. Only the numbers 1-6 are allowed
+** '''id (optional, default: autogen from content) ''' : The id is rendered to the html attribute "id".
+*** '''auto-generate''' : If no id is given then id is auto-generated from content (all non-word-characters are rendered to dashes "-")
+*** '''none''' : Only if id is set to the special keyword "none" then no id attribute will be rendered
 ** '''addToClass (optional)''' : Additions to the (optinal) class attribute for the headline
-* Example
-** Code <code><nowiki>{{#widget:Headline||level=2||content=Test Headline}}</nowiki></code>
-** Render {{#widget:Headline|level=2|content=Test Headline}}
+* Examples
+** Code <code><nowiki>{{#widget:Headline|h=2|content=Test Headline}}</nowiki></code>
+*** Render {{#widget:Headline|h=2|content=Test Headline}}
 * Relevant files
 ** [[Widget:Headline]]
 
@@ -2218,6 +2227,12 @@ Result
 ** Further features
 *** '''.tcc-indent CSS class''' : Special CSS class that needs to be added to a controller via <code>"|addToClass=tcc-indent"</code> to take effect. Every tab content controller with this class will have a white border on the left to indent the content. This is especially useful if tab-content-controllers are nested inside each other and the user still needs to realise the different levels
 *** '''.tcc-dark CSS class''': Special CSS class that needs to be added to a controller via <code>"|addToClass=tcc-dark"</code> to take effect. The mininav sub element will automatically get the class "mn-dark" as described here: [[#Mini_Navigation]]. The mininav will also get gray borders instead of white ones when using the .tcc-indent class
+*** '''Linked to URL hash'''
+***# '''Setting hash via controllers''' : Tab controllers are linked to url hash. As the tabs are basically generated from headlines, clicking on them changes the URL hash like navigating to a headline via TOC would do
+***# '''Setting controllers via hash''' : The other way around is also true. If you call a page with a URL hash that matches the controller tab ID then this tab will be opened when the page is loaded. Also the page will scroll to the correct position
+***# '''NOTE : nested controllers''' : This also works recursively with nested controllers. If a nested controller is chosen via hash then all parent controllers are opened too
+*** '''Controllable via TOC''' : Clicking on the TOC changes the URL and adds a hash. If this hash corresponds to a tab controller tab then this tab will be opened and scrolled to
+*** '''Headlines excluded from TOC''' : Compatible with [[#Headline_.28Widget.29]] which means that those headlines can be used instead for the title parameter to create headlines excluded from TOC. Use <code><nowiki>|title={{#widget:Headline...}}</nowiki></code> . See [[Dev/wikitest#Nested_Tab_Test_:_No_TOC]] for examples
 * Relevant files
 ** [[Template:Tab]]
 ** [[MediaWiki:TabContentController.js]]
@@ -2467,6 +2482,35 @@ sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.wh
 = Rejected tasks =
 
 The following tasks have been considered for realization but have been rejected due to the contra arguments.
+=== Remove Edit from Search engine index #2 ===
+
+'''DEV'''
+* Research was done. This was found
+** https://www.mediawiki.org/wiki/Manual:Section_editing <blockquote>Section editing is a default feature of MediaWiki but can be disabled in a number of ways [...] #disable section edit links for anonymous viewers : $wgDefaultUserOptions ['editsection'] = false; [...] The Magic word <code><nowiki>__NOEDITSECTION__</nowiki></code> can be used to hide all section edit links on a particular page. [...] In Vector and other skins, the section link has the following CSS class: .mw-editsection</blockquote>
+** https://www.freshegg.co.uk/seo/how-does-google-treat-hidden-content/#:~:text=In%20general%2C%20Google%20will%20not,command%20within%20a%20search%20snippet. <blockquote>In general, Google will not display or highlight text that is hidden from initial view using the display</blockquote>
+* Dev suggests
+* A) Disable it altogether for anons (easy solution, but maybe not wanted)
+** Patrick: Yes. Not a good solution because Kicksecure / Whonix got a lot useful anon contributions.
+* B) NOEDITSECTION is probably not very useful
+** Patrick: True. Same as A).
+* C) CSS might help as you see with the Google quote, but that might be a more complex solution because we would have different solutions for NOJS and JS. And on NOJS it probably would have to be invisible anyways
+
+update #2:
+
+* question: Does this bug happen with MediaWiki upstream?
+** If yes: todo: Please write a mediawiki bug report draft that EDIT buttons are indexed and this should be prevented by using something similar to our [[Template:GoogleOff]] (the div tags, not the template).
+** If no: Is this caused by our [[Dev/mediawiki#EnhanceHeadlines|EnhanceHeadlines]]?
+
+'''DEV'''
+* As discussed with admin in chat this is a bug that is reproducible in mediawiki also. Google search <code>site:mediawiki.org "Enabling and disabling section links"</code>. There you will find the superfluous "edit" too in the search results
+* bug report: [https://phabricator.wikimedia.org/T338609 Publicly visible section edit buttons are indexable by search engines]
+
+== Eager image widget ==
+
+'''DEV'''
+* Dev and admin talked about a template or widget which would make it possible to load an image eagerly
+* This does not seem possible without an extension. Widget does not take a rendered template, but only wikitext as plain text. Therefore widget cannot get the dimensions and other attributes of the image. But that would be needed so the widget could replace loading="lazy" with eager
+* Dev thinks the only solution would be an Extension
 
 == check integrity of user downloaded files ==
 does htmk a href support integrity= for user file downloads?

@@ -6,22 +6,31 @@ deferrable:NO -- Because a other scripts are dependent on it
 
 (function() {
 	
-	let allHashes = {};
+	let allHashCallbacks = {};
+	let emptyHashCallbacks = [];
 	
 	let isInitialTriggerRequested = false;
 	
 	// HELPER
 	
-	let get = () => window.location.hash.substring(1);
+	// Getting the decoded hash
+	let get = () => decodeURIComponent( window.location.hash.substring(1) );
 	
-	let triggerFn = () => allHashes[ get() ]();
+	// Triggering the selected hash function
+	let triggerFn = () => {
+		let hash = get();
+		if( hash && allHashCallbacks[ hash ] ) allHashCallbacks[ hash ]();
+		else emptyHashCallbacks.forEach( element => element() );
+	};
 	
 	// Register with our dev tools
 	
 	mwDev.tools.hashControl = {
 		// Register a callback-function with an id/hash
 		register: function( id, callback, requestInitialTrigger ) {
-			allHashes[ id ] = callback;
+			if( id ) allHashCallbacks[ id ] = callback;
+			else emptyHashCallbacks.push( callback );
+			
 			if( requestInitialTrigger ) isInitialTriggerRequested = true;
 		},
 		// Simulate a popstate event (useful for example if initial Hash should be handled)
