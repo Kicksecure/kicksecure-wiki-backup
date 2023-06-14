@@ -220,15 +220,45 @@ TODO
 
 = TODO DEV =
 
+== Extension:CookieWarning feature request ==
+todo: please write a feature request draft for https://www.mediawiki.org/wiki/Extension:CookieWarning
+
+* question: Can "[[Template:GoogleOff]]" (the div tags etc.) or a different method be used to avoid search engine indexing the cookie banner?
+* non-goals: Invent our own cookie banner.
+
+preliminary research:
+
+1) It is not possible to use [[Template:GoogleOff]] on [[MediaWiki:Cookiewarning-info]].
+
+Then the cookie banner looks like this.
+
+<pre>
+<div class="robots-nocontent" data-nosnippet>￼START_WIDGET-c80e63b6b65bf292END_WIDGET￼START_WIDGET-071c617a7031df6cEND_WIDGETBy using our website, you acknowledge that you have read, understood and agreed to our Privacy Policy, Cookie Policy, Terms of Service, and E-Sign Consent.￼START_WIDGET-4de4dabaf3e2cea4END_WIDGET￼START_WIDGET-40b8ba32a7c4e25cEND_WIDGET</div>
+</pre>
+
+2) [[MediaWiki:Cookiewarning-info]] does support including content from wiki templates. So Patrick tried to use [[Template:Cookiewarning-info]] with [[Template:GoogleOff]] and then make [[MediaWiki:Cookiewarning-info]] use that template. Does not work. Same issue as above.
+
+Since [[MediaWiki:Cookiewarning-info]] is an interface it might not be possible / easy to combine it with the widgets extension.
+
+'''DEV'''
+* The issues was researched
+* The problem lies in https://github.com/wikimedia/mediawiki-extensions-CookieWarning/blob/a0dd30acebab01f1fa8524ad50953c94d77a30d9/includes/Hooks.php#L122 , there it states
+
+<pre>
+Html::element(
+	'span',
+	[],
+	$skin->msg( 'cookiewarning-info' )->text()
+)
+</pre>
+
+* Using ->text() means that no element will be parsed and therefore no functional HTML will be generated
+* Dev suggests forking the Extension and changing text() to parse(). It might also be necessary to use rawElement() instead of element(), but that would remain to be seen
+* A custom Cookiewarning solution might also be possible, but probably have a bad cost-benefit ratio
+
 == code ==
 === wikitest page ===
 Would there any more tests be useful for [[Dev/wikitest]]? If so, please add. Purpose of this page is to easily scan for regressions after CSS changes and mediawiki updates.
-
-== performance ==
-=== Unlighthouse ===
-https://unlighthouse.dev/
-
-Preliminary research. Please check if it does something other than automation which isn't needed yet.
 
 == github.io ==
 * https://github.com/Kicksecure/kicksecure.github.io
@@ -322,6 +352,22 @@ Implementation probably needs discussion.
 
 = REVIEW PLEASE =
 
+== Unlighthouse ==
+https://unlighthouse.dev/
+
+Preliminary research. Please check if it does something other than automation which isn't needed yet.
+
+'''DEV'''
+* After Research Dev would actually recommend using Unlighthouse
+* Cons
+** Yes, it mainly uses Lighthouse and analyses all pages. But it offers a great overview
+** It also does not seem very popular yet, has few reviews and is not listed on AlternativeTo. But the project is also very young (version 0.1.0 released in 2021-12)
+* Pros
+** It scans the whole website like a search engine using robots.txt and sitemaps
+** It has a very intuitive interface, which can be tested here: https://inspect.unlighthouse.dev/
+** It lays out the Lighthouse info more clearly, for example with SEO overviews for each page with a SEO score, link counts and ADDS own information like description preview, share image preview
+** For best practices it counts inspector issues, image aspect ratios etc. All Lighthouse functionality but better presented in table form
+
 == Web Vitals Extension ==
 https://web.dev/debug-cwvs-with-web-vitals-extension/
 
@@ -341,103 +387,6 @@ Preliminary research. Please check if it shows something useful we haven't addre
 ** It eats some RAM, so only activate when needed
 * Video: Overview by the creator: https://www.youtube.com/watch?v=2k1QbgLAFdI
 * Video by fireship: https://www.youtube.com/watch?v=0fONene3OIA
-
-== research download via js ==
-* https://github.com/jimmywarting/StreamSaver.js
-* https://github.com/eligrey/FileSaver.js
-* https://github.com/whatwg/fs
-* https://github.com/rndme/download/
-* https://github.com/jimmywarting/native-file-system-adapter
-
-'''DEV'''
-# Downloading via JavaScript can be done in various ways. But StreamSaver is probably the best or even the only option because the files are so large (e.g., 2.2GB for Whonix). If we download them with JavaScript, everything will be held in RAM and could potentially crash the browser. This becomes especially problematic when we also want to calculate the hash.
-# StreamSaver, on the other hand, breaks the download into small chunks that are manageable for the browser and continually frees up memory.
-# The problem is: How can we calculate the hash if we only ever get chunks and never the whole file?
-# If it's possible, and I understand it correctly, then this developer here has described a process. Although I understand that he is loading the file in chunks from the disk. But we should also be able to apply this during the download: https://medium.com/@0xVaccaro/hashing-big-file-with-filereader-js-e0a5c898fc98
-# Conclusion: I now believe 70-80% that we can achieve this. But: It can take a while. And I can't make a guaranteed statement up to the "crucial point".
-# But if admin says that theoretically, the total hash can also be calculated on the chunks, then this article I linked might be correct. And then I think it could work with StreamSaver.js.
-
-== remove cookie banner from search engine index ==
-* question: Can "[[Template:GoogleOff]]" (the div tags etc.) or a different method be used to avoid search engine indexing the cookie banner?
-* non-goals: Invent our own cookie banner.
-* todo: If not, please write a feature request draft for https://www.mediawiki.org/wiki/Extension:CookieWarning
-
-preliminary research:
-
-1) It is not possible to use [[Template:GoogleOff]] on [[MediaWiki:Cookiewarning-info]].
-
-Then the cookie banner looks like this.
-
-<pre>
-<div class="robots-nocontent" data-nosnippet>￼START_WIDGET-c80e63b6b65bf292END_WIDGET￼START_WIDGET-071c617a7031df6cEND_WIDGETBy using our website, you acknowledge that you have read, understood and agreed to our Privacy Policy, Cookie Policy, Terms of Service, and E-Sign Consent.￼START_WIDGET-4de4dabaf3e2cea4END_WIDGET￼START_WIDGET-40b8ba32a7c4e25cEND_WIDGET</div>
-</pre>
-
-2) [[MediaWiki:Cookiewarning-info]] does support including content from wiki templates. So Patrick tried to use [[Template:Cookiewarning-info]] with [[Template:GoogleOff]] and then make [[MediaWiki:Cookiewarning-info]] use that template. Does not work. Same issue as above.
-
-Since [[MediaWiki:Cookiewarning-info]] is an interface it might not be possible / easy to combine it with the widgets extension.
-
-'''DEV'''
-* The issues was researched
-* The problem lies in https://github.com/wikimedia/mediawiki-extensions-CookieWarning/blob/a0dd30acebab01f1fa8524ad50953c94d77a30d9/includes/Hooks.php#L122 , there it states <blockquote><pre>
-Html::element(
-	'span',
-	[],
-	$skin->msg( 'cookiewarning-info' )->text()
-)
-</pre></blockquote>
-* Using ->text() means that no element will be parsed and therefore no functional HTML will be generated
-* Dev suggests forking the Extension and changing text() to parse(). It might also be necessary to use rawElement() instead of element(), but that would remain to be seen
-* A custom Cookiewarning solution might also be possible, but probably have a bad cost-benefit ratio
-
-== MediaWiki extension TextExtracts upstream bug report ==
-We're using [[Template:Intro]] because https://www.mediawiki.org/wiki/Extension:TextExtracts otherwise extracts the wrong text.
-
-Template:Intro however as dev said is based on a complex CSS workaround. It leads to some minor stylistic issues on some wiki pages which cannot be enhanced.
-
-For a fix at a deeper level, is this something that TextExtracts could fix? Could this be phrased as a bug report? Or as a feature request?
-
-Currently TextExtracts is automatic. It automatically selects the text to extract. This is OK in many use cases. However, sometimes it would be desirable to manually configure the content which should be returned for TextExtracts API requests.
-
-<pre>
-{{#textextracts:
-|description=The text to extract here.
-|image=[[File:image.png]]
-}}
-</pre>
-
-'''DEV'''
-* Here is the feature request
-* Note the there is no mention of an image. This is because the images in our preview are not generated by Text Extracts but by the Extension:PageImages. Both PageImages and TextExtracts or used by Extension:Popups which creates our hover previews
-
-Title
-
-Feature Request - Explicit Definition for TextExtracts Content
-
-Description
-
-Text Extracts currently generates an extract by default from the first paragraphs of a page. An option to exclude elements from this auto-generation exists using the "noexcerpt" class, but there's no equivalent feature that allows explicit definition of the text to be used for the extract.
-
-We propose a new feature to explicitly define the content for Text Extracts on a page. If this explicit definition is present, it should be used as the sole source for generating the text extract. If not, Text Extracts would revert to its default behavior.
-
-There are two suggested methods for implementing this definition:
-
-* Using a dedicated class, e.g., "text-extracts-excerpt". The content inside an HTML element with this class would be used for the extract.
-* Introducing a new MediaWiki parser function, like <pre>```{{#textextracts:description=The text to extract here.}}```</pre>. This would allow the user to directly define the extract within the wikitext of the page.
-
-This feature would allow for more flexible and precise control over the content of the extracts, especially in cases where the initial paragraphs may not provide the best summary of the page.
-
-== Share Widget difficult to use ==
-bug: The share widget is an "arrow". When hovering over the arrow, the share widget opens. The positioning of the widget is non-ideal. While trying to move the mouse pointer into the share widget, the share widget might close because moving the mouse pointer away from the arrow but not hitting the share widget.
-
-This issue gets exacerbated when using browser zoom in or zoom out.
-
-See also video provided.
-
-The solution would be to move the share widget "1 cm" (proverbially) to the left.
-
-'''DEV'''
-* Done
-* Dev found a different solution. Now there is a "hover-connector" element. This enlarges the toolkit area exactly in a way to cover the hover button. This way there should be no gap at all anymore - not even when zoomed
 
 = DONE / Log of DevSprint since 2021-12 =
 
