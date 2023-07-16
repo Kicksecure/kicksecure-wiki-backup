@@ -1,5 +1,7 @@
-{{Title|title=Full Raw Disk Backup}}
 {{Header}}
+{{Title|title=
+Full Raw Disk Backup
+}}
 {{#seo:
 |description=1 to 1 disk backup
 |image=Backupraw123123.jpg
@@ -226,7 +228,7 @@ This will later be handy when doing a restoration test.
 After booting the operating system from USB.
 
 {{Install Package|
-package=meld lxqt-sudo gnome-disk-utility gsmartcontrol gparted pv
+package=meld lxqt-sudo gnome-disk-utility gsmartcontrol gparted pv lshw hwinfo
 }}
 
 = Backup High Level Overview =
@@ -262,6 +264,18 @@ sudo fdisk -l > old
 }}
 
 '''4.''' Information gathering with a few hard drive utilities.
+
+Using <code>lshw</code>.
+
+{{CodeSelect|code=
+sudo lshw -class disk
+}}
+
+Using <code>hwinfo</code>.
+
+{{CodeSelect|code=
+sudo hwinfo --disk
+}}
 
 See what disks are currently attached with an alternative tool such as <code>gnome-disks</code> as well.
 
@@ -380,7 +394,7 @@ For the author of this wiki page, <code>/dev/sd'''a'''</code> was the (Qubes) in
 Note that device paths are unfortunately unstable. It happened to the author of this wiki page that <code>/dev/sd'''a'''</code> and <code>/dev/sd'''b'''</code> paths were swapped. It is therefore required to re-identify device paths every time the computer is rebooted.
 
 '''13.''' Become root. <ref>
-Using sudo is unfortunately not possible. At least not without complicating the following pv command. Becoming root is required because shell redirection are a bash feature, not a sudo feature. These are set up before becoming sudo.
+Using sudo is unfortunately not possible. At least not without complicating the following <code>pv</code> command. Becoming root is required because shell redirection are a bash feature, not a sudo feature. These are set up before becoming sudo.
 
 Alternatively, it would be possible to write a small script, pasting the command there and executing that script using sudo.
 </ref>
@@ -405,14 +419,16 @@ sudo su
 * Replace <code>/dev/xxx</code> with the actual device path of the drive which should be backed up.
 * Replace <code>/dev/yyy</code> with the actual device path of the drive where the backup should be stored.
 
-<u>Example</u>:
+<u>Examples</u>:
 
 <u>Notice</u>: DATA LOSS POSSIBLE if used incorrectly! Do not use this without prior verification of the device paths!
 
-<blockquote>pv < /dev/sd<u>a</u> > /dev/sd<u>c</u></blockquote>
+* <blockquote>pv < /dev/sd<u>a</u> > /dev/sd<u>c</u></blockquote>
+* <blockquote>pv < /dev/nvme0n1 > /dev/sd<u>c</u></blockquote>
 
 <ref>
-It is unfortunately not possible to compare. Running <code>diff /dev/sda /dev/sdc</code> for backup verification is not possible because of different partition table and disk id.
+* https://unix.stackexchange.com/questions/433443/ssd-backup-image
+* It is unfortunately not possible to compare. Running <code>diff /dev/sda /dev/sdc</code> for backup verification is not possible because of different disk sizes.
 </ref>
 
 The backup might take a long time.
@@ -446,6 +462,47 @@ Backup is complete.
 Without restoration test, it's unclear if the backup could be restored in case needed.
 
 ----
+
+= Backup Verification =
+== verification without progress meter ==
+
+{{CodeSelect|code=
+size=$(sudo blockdev --getsize64 /dev/nvme0n1)
+}}
+
+{{CodeSelect|code=
+sudo cmp --bytes=$size /dev/nvme0n1 /dev/sdb
+}}
+
+== verification with progress meter ==
+Small script with progress meter. Untested.
+
+<code>original_disk</code> and <code>backup_disk</code> need to be adjusted.
+
+{{CodeSelect|code=
+#!/bin/bash
+
+set -x
+set -e
+set -o pipefail
+
+original_disk=/dev/nvme0n1
+backup_disk=/dev/sdb
+
+test -e "$original_disk"
+test -e "$backup_disk"
+
+## Get the size of the original disk in bytes.
+original_size=$(blockdev --getsize64 "$original_disk")
+
+## Using cp with --bytes="$original_size" to ensure that the comparison stops
+## at the size of the original disk, even if the backup disk is larger.
+## This way, the comparison is not confused if the backup_disk is larger.
+pv "$original_disk" {{!}} cmp --bytes="$original_size" /dev/stdin "$backup_disk"
+
+## Alternative. Untested.
+#ddrescue -v -n -s"$original_size" "$original_disk" "$backup_disk" /path/to/logfile
+}}
 
 = Restoration Test High Level Overview =
 Before a restoration test can be performed, a backup is required. Once a backup has been created, attempt the following restoration test instructions.
