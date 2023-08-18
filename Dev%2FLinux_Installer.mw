@@ -1,0 +1,215 @@
+{{Header}}
+{{title|title=
+{{project name long}} Linux Installer - Design Documentation
+}}
+{{#seo:
+|description=Information about the {{project name long}} Linux Installer for Testers and Developers.
+}}
+<div class="mininav">
+* [[Dev/Windows Installer|Windows Installer]]
+* [[Dev/Linux Installer|Linux Installer]]
+</div>
+{{intro|
+Information about the {{project name long}} Linux Installer for Testers and Developers. User documentation for the Installer can be found on the [[Linux|{{project name long}} for Linux download page]].
+}}
+
+= Development Todo =
+
+== Soon ==
+
+=== Priority ===
+
+=== Misc ===
+
+* add support for Oracle Vbox repo.
+** virtualbox package name auto detection: detect version number virtualbox-6.1 versus virtualbox-7.0 or maybe in virtualbox-7.1. Probably virtualbox-(3 characters)
+** after adding the repository and after updating the package lists (apt-get update) maybe apt-cache can be used
+*** <code>apt-cache search --names-only --quiet "^virtualbox-[[:digit:]]{,2}\.[[:digit:]]{,2}$"</code>
+
+* header package name auto detection: try linux-headers-generic first, then fall back to linux-headers-amd64, then fall back to linux-headers-$(uname -r)
+** check availability using apt-cache?
+*** {{CodeSelect|code=apt-cache search --names-only --quiet linux-headers-generic\$}}
+*** {{CodeSelect|code=apt-cache search --names-only --quiet linux-headers-amd64\$}}
+*** {{CodeSelect|code=search_string="linux-headers-$(uname -r)" ; apt-cache search --names-only --quiet "$search_string\$"}}
+
+* Ask to start VirtualBox is using <code>--virtualbox-only</code>.
+
+* Uninstall Guests, Hypervisor
+{{CodeSelect|code=
+--uninstall-vms
+--uninstall-gateway-xfce
+--uninstall-workstation-xfce
+--uninstall-virtualizer
+--uninstall-all
+}}
+
+== Future ==
+
+* signed version numbers instead of querying API
+** no need to distrust the source if we are verifying its signature.
+** the API is for HTTP (curl) not for rsync.
+* graphical installer
+** examples?
+
+= Testers Wanted =
+Here are some ideas for testing.
+
+Do not use ''--no-show-errors'' and ''--allow-errors'' when debugging, unless you explicitly want that behavior.
+
+Use ''--testers'' to download testers version and ''--dev'' to download empty Whonix-Xfce for VirtualBox.
+
+If you want to try to find bugs, mix the options, miss some, add some, check the result, try other options not mentioned here.
+
+These are raw tests and you still should read the script logs.
+
+Common options and testing if option parsing is working:
+
+{{CodeSelect|code=
+dist-installer-cli --non-interactive --no-boot --dry-run --guest kicksecure --hypervisor=kvm -i cli -u=17.0.3.4 --onion --socks-proxy 127.0.0.1:9050 -l info
+}}
+
+Check that the correct version is being printed and only it is being printed, nothing more:
+
+{{CodeSelect|code=
+dist-installer-cli --version
+}}
+
+Download Kicksecure-CLI for KVM:
+{{CodeSelect|code=
+dist-installer-cli -k -n -g kicksecure -i cli -m kvm --mirror 1
+}}
+
+Download whonix from specified mirror and do signature verification but do not import anything:
+
+{{CodeSelect|code=
+dist-installer-cli -k -n -g whonix --mirror 1 --no-import
+}}
+
+Redownload whonix and import only the gateway (check if files were redownloaded/synced and if only gateway was imported):
+
+{{CodeSelect|code=
+dist-installer-cli -k -n -g whonix --import-only gateway --redownload
+}}
+
+Reimport only the gateway (check that only the gateway was imported and it overwrote only the previous gateway):
+
+{{CodeSelect|code=
+dist-installer-cli -k -n -g whonix --import-only gateway --reimport --destroy-existing-guest
+}}
+
+Import only the workstation (check that only the workstation was imported):
+
+{{CodeSelect|code=
+dist-installer-cli -k -n -g whonix --import-only workstation
+}}
+
+= Developer Information =
+== How to add support for a different host operating system? ==
+
+This can only be done if you are a developer and is committed to test and report about the wanted operating system. This is because the {{project_name_long}} Team does not have all resources to test under all umbrellas.
+
+If you want to add support, please open an issue in the forum mentioning your interest.
+
+You will face the following challenges:
+* Add commands that your package manager uses to
+** test if packages were installed
+** install command
+** update command
+
+* Handle programs that changed the upstream name to another name, such as Debian's "signify-openbsd", should be called universally simply "signify".
+
+* Handle installing the hypervisor from the package manager itself, even if the package is not present in the main branch, but on Debian's "fasttrack" for example.
+
+= Notes =
+== Exit Codes ==
+
+Exit code 0 does not guarantee that the script did what was expected to be done, it just means it didn't find any errors along the way. Let's take import-only for example, it may not fail, but did it actually import only the specified VM? If combined with reimport, did it reimport only the specified VM?
+
+= Naming =
+== General ==
+* dist-installer-gui
+* dist-installer-cli
+
+== Kicksecure ==
+* kicksecure-xfce-installer-gui
+* kicksecure-cli-installer-gui
+* kicksecure-xfce-installer-cli
+* kicksecure-cli-installer-cli
+
+== Whonix ==
+* whonix-cli-installer-gui
+* whonix-xfce-installer-gui
+* whonix-cli-installer-cli
+* whonix-xfce-installer-cli
+
+= Graphical Installer =
+== toolkit ideas ==
+
+* makeself - in Debian
+* appiamge - build dependencies not in Debian - https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=854902
+* Nuitka - Python compiler - only in Debian unstable, will be in testing, long term candidate
+* https://packages.debian.org/bookworm/pex - Python compiler
+* https://github.com/icculus/mojosetup - not in Debian
+* freepascal
+
+== requirements ==
+* all build dependencies available from packages.debian.org (but this can be discussed if impossible to do so)
+* standalone installer, this means:
+** self-contained
+** no dependency installation such as "sudo apt install zenity" required by the user
+* compatible with the most popular stable Linux distributions such as Debian, Ubuntu and Fedora
+** no need to be compatible with oldstable, old Linux distributions
+* do not re-invent <code>dist-installer-cli</code>
+* a GUI wrapper around <code>dist-installer-cli</code> (CLI)
+
+== info ==
+* https://github.com/Kicksecure/usability-misc/blob/master/usr/bin/dist-installer-cli
+* https://github.com/Kicksecure/usability-misc/blob/master/man/dist-installer-cli.1.ronn
+
+== implementation details ==
+
+* look at param(0) to find out the script's own name
+** Script Name Verification: The installer checks for valid script names,
+*** <code>dist-installer-cli-gui</code>
+*** {{kicksecure_wiki
+|wikipage=VirtualBox/Installer
+|text=<code>virtualbox-installer</code>
+}}
+*** <code>kicksecure-cli-installer-cli</code>: --guest=kicksecure --interface=cli
+*** <code>kicksecure-xfce-installer-cli</code>: --guest=kicksecure --interface=xfce
+*** <code>whonix-cli-installer-cli</code>: --guest=kicksecure=whonix --interface=cli
+*** <code>whonix-xfce-installer-cli</code>: --guest=kicksecure=whonix --interface=xfce
+* show a logo (similar to Whonix Windows Installer)
+** Kicksecure
+** Whonix
+** VirtualBox Installer (placeholder, logo does not exist yet)
+* parse man page, if possible
+** or parse <code>--help</code>
+** in case of man page or <code>--help</code> issues: Fix or discuss the underlying issues at the root cause of the issue. Do not add workarounds to the installer GUI. Not need for workarounds as man page / <code>--help</code> can be adjusted as needed as long as that makes sense.
+** man page and/or <code>--help</code> can be modified for a machine (freepascal) readable format
+** Why? To avoid installer GUI "learning" all the same options.
+** use long option names such as <code>--log-level=info</code> instead of <code>-l</code>
+** Parse what?
+*** option name such as
+*** option type:
+**** checkbox
+***** example: <code>--onion</code>
+**** radio option
+***** example: <code>--log-level=debug</code>, <code>info</code>, <code>notice</code> (default), <code>warn</code>, <code>error</code>
+**** free text option
+***** example: <code>--socks-proxy=<proxy></code>
+*** parse help text for option
+* if dist-installer-cli-gui is given a command line option such as <code>dist-installer-cli-gui --dev</code> then preselect that option in the GUI and pass it on to <code>dist-installer-cli</code>.
+* pages:
+** page 1: welcome screen -> next button
+** page 2: select options -> next button
+*** page 2: also has a drop-down menu with advanced options
+** page 3: show the CLI output of <code>dist-installer-cli</code>
+*** show either a success icon and success message or a failure icon and failure message, depending on the exit code of installer <code>dist-installer-cli</code>
+
+= Forum Discussion =
+[https://forums.whonix.org/t/whonix-linux-installer/15917 Forum discussion]
+
+= See Also =
+{{Footer}}
+[[Category:Design]]
