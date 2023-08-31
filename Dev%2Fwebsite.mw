@@ -91,29 +91,6 @@ Patrick:
 ** JS-only solution good enough.
 * Could we make it login-only or admin only?
 
-== add querystring to Headscript ==
-purpose: invalidate browser cache on css changes
-
-* append querystring to our custom css/js
-* append to fontawesome etc too?
-* read version number from a local file in /srv/shared/cssversion/version-file
-* sanity tests
-** check it is a real number
-** check string length maximum
-* fall back to querystring=error if local file is missing or has invalid contents
-
-how do we update the version number? options:
-
-* hardcoded in headscript
-* manually on file
-* manually in MediaWiki:cssversion
-* mw-combine can bump the version number but that might run too frequently (by the server, for testing, could be changed but non-ideal)
-* by Patrick writing a script that checks if contents of mw-autogen folder changed (counting all file names and hashing all files)
-
-Alternative considered <code>Cache-Control</code> HTTP header <code>stale-while-revalidate</code>:
-
-* Would result in lots of <code>If-None-Match</code> requets and <code>304</code> responses.
-
 == Upgrade mw-multi-wiki - delete deleted files ==
 
 '''DEV'''
@@ -230,35 +207,38 @@ TODO
 * Open when hover
 * Close on x and elsewhere
 
+=== add querystring to Headscript ===
+purpose: invalidate browser cache on css changes
+
+todo Dev:
+
+* append <code>?querystring=$cacheVersion</code> to our custom css/js in Headscript
+* append to fontawesome, instantpage, etc too
+* read version number from a local file in <code>/srv/shared/cache-version/version-file</code>
+* fail gracefully (no PHP errors if $cacheVersion cannot be determined due to any error state)
+* security:
+** no code execution from <code>/srv/shared/cache-version/version-file</code>
+** consider what would happen if there are extraneous newlines
+* sanity tests
+** check string length maximum of $cacheVersion to be <code>10</code>. Otherwise refuse to use it.
+* fall back to <code>?querystring=none</code> if local file is missing or has invalid contents
+* cacheVersion example: <code>1693476848</code> (unixtime)
+* document in Dev/mediawiki
+
+todo Patrick:
+
+* Patrick will write a script that hashes all contents of mw-autogen and libs folder. If there are more, less or changed files, the hash in file <code>/srv/shared/cache-version/hashsum</code> will be updated. Based on that, a new unixtime will be written to <code>/srv/shared/cache-version/version-file</code>.
+** unixtime is used to make it easier for Dev to see that the $cacheVersion was really updated. More easy to read than <code>24d4d1a</code>.
+** This will happen when cacheclear is run.
+
+Rejected alternatives:
+
+<code>Cache-Control</code> HTTP header <code>stale-while-revalidate</code> would result in lots of <code>If-None-Match</code> requests and <code>304</code> responses.
+
 === e-mail anti spam popup #4 ===
 Please fix [[Template:Name-email2]]
 
 then copy to [[Template:Name-email]]
-
-=== header hover over effect and link ===
-todo: discuss
-
-As for Download, About, Docs, Community, Support, would it be possible to have a hover over effect for the main button?
-
-And make these links clickable?
-
-Link targets:
-
-* Download -> Download
-* About -> About
-* Docs -> Documentation
-* Community -> Forums
-* Support -> Support
-
-JS vs noJS? If not possible or reasonable with noJS, perhaps a JS-only feature?
-
-What about on mobile? The hambuger menu on mobile would would not have this feature.
-
-Confusing?
-
-Any examples of websites doing it that way?
-
-* https://www.apple.com/
 
 === refactor header ===
 * Also Dev suggests code refactor for Header again (about 1h), because some x-trigger code is duplicated with nav-menu, but this is not necessary, just a suggestion
@@ -567,6 +547,39 @@ todo: image creation, if interested
 = WAITING ON =
 
 = REVIEW PLEASE =
+
+== header hover over effect and link ==
+todo: discuss
+
+As for Download, About, Docs, Community, Support, would it be possible to have a hover over effect for the main button?
+
+And make these links clickable?
+
+Link targets:
+
+* Download -> Download
+* About -> About
+* Docs -> Documentation
+* Community -> Forums
+* Support -> Support
+
+JS vs noJS? If not possible or reasonable with noJS, perhaps a JS-only feature?
+
+What about on mobile? The hambuger menu on mobile would would not have this feature.
+
+Confusing?
+
+Any examples of websites doing it that way?
+
+* https://www.apple.com/
+
+'''DEV'''
+* Yes, this is possible
+* Might be confusing, yes. I'm personally not a fan. But maybe it's good for most people if apple does it.
+* The real problem however occurs on a touch device where click = hover. A touch device will never see the hover effect because the link will always be clicked
+** This can be maybe be negated with javascript because it can be determined if there is a touch screen and thus it is probably a touch device.
+** But admin has to decide what to do then: On touch device remove link and just use hover?
+* And NoJS touch devices will never see the hover effect
 
 = DONE / Log of DevSprint since 2021-12 =
 
