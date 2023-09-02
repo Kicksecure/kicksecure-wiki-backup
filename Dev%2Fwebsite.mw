@@ -12,6 +12,57 @@ Website Enhancements Planning
 = TODO: ADMIN - SOON =
 = TODO: ADMIN - DELAYED =
 
+== rework Collapsible Elements ==
+summary, update: This will likely fix itself in a future upgrade of mediawiki.
+
+* pagespeed shows for https://www.kicksecure.com/wiki/Documentation that links the <code>Expand</code> links are not crawlable
+* mediawiki upstream: https://www.mediawiki.org/wiki/Manual:Collapsible_elements does not have this issue.
+** https://www.mediawiki.org/wiki/Manual:Collapsible_elements/Demo/Advanced does not have this issue either.
+* upstream bug report: [https://phabricator.wikimedia.org/T333357 Please add role=button in Collapsible Elements to a.mw-collapsible-text] (<code>Links are not crawlable</code>)
+
+https://www.mediawiki.org/wiki/Manual:Collapsible_elements uses a different API.
+
+We are using in the mediawiki markup:
+
+<pre>
+<div class="toccolours mw-collapsible mw-collapsed" style="max-width:100%;">
+</pre>
+
+pagespeed shows for Kicksecure:
+
+<pre>
+Links are not crawlable
+
+Search engines may use href attributes on links to crawl websites. Ensure that the href attribute of anchor elements links to an appropriate destination, so more pages of the site can be discovered.
+
+Learn how to make links crawlable -> https://support.google.com/webmasters/answer/9112205
+
+Uncrawlable Link
+
+body.mediawiki > div#content > a#top
+
+<a id="top">
+</pre>
+
+Can we use a better API from mediawiki upstream documentation (linked above)?
+
+Or alternatively, could we simply add an <code>id=</code> to our <code>div</code>?
+
+'''DEV'''
+
+* First the mediawiki links were researched.
+** They are actually using the same syntax just on wikitables, but later down they are using the same syntax.
+** It seems they may have a newer mediawiki version - one where they fixed the "bug" that we reported a couple of weeks ago. Because for example in this old verison https://web.archive.org/web/20221008164934/https://www.mediawiki.org/wiki/Manual:Collapsible_elements they still have the [a] element like we still have now, so they are probably just a couple of versions ahead 
+* About the "body.mediawiki > div#content > a#top" - this is an element that seems Mediawiki auto-generates. It is above the content area which the wiki editor can influence. The very first thing right above the sitenotice. Wikipedia actually also has this very element at the top of every article
+
+Patrick:
+
+* MediaWiki 1.40 does not have this fix yet.
+
+TODO:
+
+* recheck in mediawiki 1.41
+
 == Check Useragreement ==
 
 Please check Useragreement on Kicksecure and Whonix. Widgets have been restored. But the "Yes" Widget seemed to be broken a while ago
@@ -201,7 +252,40 @@ TODO:
 TODO
 
 = TODO DEV =
+== mediawiki code editor ==
+For example https://www.kicksecure.com/wiki/MediaWiki:Utility.css shows errors.
+
+* Worth fixing?
+* False-positives?
+
 == Code ==
+=== code review ===
+Patrick made some changes in Kicksecure wiki. Please review.
+
+=== browser cache busting #3 ===
+todo: discuss
+
+Dev thinks we might need to embed
+
+* <code>mw-combined-skincss.min.css</code>,
+* <code>Hide_all_banners.min.css</code>,
+* <code>Page_Homepage.min.css</code>
+
+differently. They are added not via Headscript and therefore neither have the "version" nor the "hsversion" suffix.
+
+Patrick:
+
+Ideas how to implement this?
+
+'''DEV'''
+* Dev would see 2 ways
+*# Modify our CSS extension fork and add the same auto cache "version" parameter to it
+*# Or simpler but a little bit harder to maintain: list all scripts that are called via CSS extension and manually add "?version=xyz" to it. The problem with this is that CSS extension fork will still have to be modified because it usually adds "?extension=css" to the end of all urls. This is incompatible with just adding "?version" because then there would be 2 question marks
+
+Patrick:
+
+* This has been implemented server side using nginx sub_filter.
+* This seems complete now?
 
 === pagespeed ===
 1)
@@ -268,33 +352,24 @@ maybe we could fix all contrast issues by using slightly different background co
 
 related: [[Dev/mediawiki#Sufficient_Color_Contrast]]
 
-=== whonix homepage hero image replacement ===
-TODO: implement
+=== pagespeed - button, link, and menuitem elements do not have accessible names. ===
+Learn more button issue.
 
-Please design our hero image to look like the HTML 5 video player.
+When an element doesn't have an accessible name, screen readers announce it with a generic name, making it unusable for users who rely on screen readers. Learn how to make command elements more accessible.
 
-1. Make a screenshot of a (or our) HTML 5 video player.
+https://dequeuniversity.com/rules/axe/4.7/aria-command-name
 
-2. Modify the screenshot to put our Whonix laptop image inside the player.
-
-3. Use the newer image as the new hero image.
-
-Upload a copy of the HTML 5 video player screenshot to the wiki as we might need it as a template later when replacing the hero image.
-
-=== whonix homepage hero image code ===
-TODO: implement, if sensible
-
-https://www.whonix.org/w/index.php?title=MediaWiki:Page_Homepage.css&action=raw&ctype=text/css&css-extension=1
-
-Possible to avoid
+Failing Elements
 
 <pre>
-	background-image: url(/w/images/thumb/6/62/Play-symbol.png/180px-Play-symbol.png);
+div#security > div.inner-wrapper > div.mw-collapsible > span.mw-collapsible-toggle
+<span class="mw-collapsible-toggle mw-collapsible-toggle-default mw-collapsible-toggle-…" role="button" tabindex="0" aria-expanded="false">
 </pre>
 
-?
-
-For page speed reasons. We might not need the play symbol anymore after the new hero image anyhow?
+<pre>
+div#upcoming > div.inner-wrapper > div.mw-collapsible > span.mw-collapsible-toggle
+<span class="mw-collapsible-toggle mw-collapsible-toggle-default mw-collapsible-toggle-…" role="button" tabindex="0" aria-expanded="false">
+</pre>
 
 === FYI - Google Mobile-Friendly Test wants larger font sizes ===
 TODO: Nothing to do. Please move to Dev/mediawiki archived tasks.
@@ -322,11 +397,67 @@ How to see font size in browser console in chromium:
 * select text -> right click -> inspect -> <code>computed</code> -> scroll down to font size
 </pre>
 
+=== exclude super menu from search results ===
+Or was this already done?
+
+=== whonix homepage press section ===
+Please compare with https://elementary.io/
+
+* elementary: on mobile (iphone se in developer console), they have 5 media outlets fit into smartphone screen
+* Whonix: only 2,5 media outlets fit into a smartphone screen
+
+todo:
+
+* mobile and desktop: please make the media images much smaller
+* desktop: please add much more space between the different media outlets - similar to elementary
+
+== header hover over effect and link ==
+todo: discuss
+
+As for Download, About, Docs, Community, Support, would it be possible to have a hover over effect for the main button?
+
+And make these links clickable?
+
+Link targets:
+
+* Download -> Download
+* About -> About
+* Docs -> Documentation
+* Community -> Forums
+* Support -> Support
+
+JS vs noJS? If not possible or reasonable with noJS, perhaps a JS-only feature?
+
+What about on mobile? The hambuger menu on mobile would would not have this feature.
+
+Confusing?
+
+Any examples of websites doing it that way?
+
+* https://www.apple.com/
+
+'''DEV'''
+* Yes, this is possible
+* Might be confusing, yes. I'm personally not a fan. But maybe it's good for most people if apple does it.
+* The real problem however occurs on a touch device where click = hover. A touch device will never see the hover effect because the link will always be clicked
+** This can be maybe be negated with javascript because it can be determined if there is a touch screen and thus it is probably a touch device.
+** But admin has to decide what to do then: On touch device remove link and just use hover?
+* And NoJS touch devices will never see the hover effect
+
+Patrick:
+
+* No hover over effect as this might be confusing indeed.
+* touch devices: no extra link
+* desktop: please add link targets only
+
 == donation appeal page ==
+todo: discuss
+
 * appeal
 ** https://www.thunderbird.net/en-US/thunderbird/115.0/appeal/
 ** https://web.archive.org/web/20230801072145/https://www.thunderbird.net/en-US/thunderbird/115.0/appeal/
 ** can be an HTML standalone page if that simplifies the development
+* needs link to imprint
 * where do we link to this page?
 
 == Wiki Content - Deep Content ==
@@ -427,168 +558,14 @@ todo: image creation, if interested
 
 = REVIEW PLEASE =
 
-=== homepage - sequential heading levels ===
-for:
-
-* Kicksecure homepage
-* Whonix homepage
-
-pagespeed complains
-
-Heading elements are not in a sequentially-descending order
-
-This might be easy to fix maybe?
-
-We're not supposed to jump from h2 to h4. Ok...
-
-It seems we're using h4 as a stylistic element?
-
-Maybe options:
-
-* A) downgrade all the h4 to h3 - would this majorly mess up our (homepage) CSS?
-* B) downgrade all h4 to h3 and increase the font size using <font size=>?
-* C) We sneak in an h3?
-
-now (pseudocode):
-
-<pre>
-        <h2>Fully Featured with Advanced Security Components</h2>
-</pre>
-
-maybe future (pseudocode):
-
-<pre>
-        <h2>Fully Featured</h2>
-        <h3>with Advanced Security Components</h3>
-</pre>
-
-places where Patrick found the h2 to h4 jumping issue:
-
-1)
-
-<pre>
-  <div id="security" class="section-features">
-    <div class="inner-wrapper">
-      <h2>
-        Fully Featured with Advanced Security Components
-        <span class="share-tooltip" data-anchor="security"></span>
-      </h2>
-
-      <div class="col-container cc-3 justify">
-
-        <div class="card-wrapper" id="explain-protectedupdates">
-          <a href="/wiki/Operating_System_Software_and_Updates">
-            <span class="image-wrapper">
-              <img class="image image-cover" alt="Protection from Targeted Malicious Updates"
-                src="/w/images/thumb/3/34/Operatingsystemupdated234234.jpg/300px-Operatingsystemupdated234234.jpg" decoding="async" loading="lazy" />
-            </span>
-            <h4>Protection from Targeted Malicious Updates</h4>
-            <p>
-              Kicksecure update servers know neither the identity nor IP address of the user because
-              all upgrades are downloaded over Tor.
-            </p>
-          </a>
-        </div>
-</pre>
-
-2)
-
-<pre>
-      <h2 class="no-item">
-        Freedom Values
-        <span class="share-tooltip" data-anchor="values"></span>
-      </h2>
-</pre>
-
-'''DEV'''
-* Done
-* h4 was moved to h3
-* h4 styles were transferred to h3
-
-=== footer - TM vs R ===
-background:
-
-* Soon, Whonix can use the R (registered) sign.
-* However, Kicksecure will stay only on the TM (trade mark) for some time.
-
-feature request:
-
-Make TM vs R configurable in the footer as it will be project Kicksecure vs Whonix specific.
-
-'''DEV'''
-* Done
-* Footer has been changed to use Template:Project_name_long  for the main footer headline
-* If admin changes Template:Project_name_long globally to "R" for Whonix (as Dev expects) the for Whonix the footer will read "R" and for Kicksecure it will read "TM" as Template:Project_name_long will be TM for Kicksecure still
-
-
-== add querystring to Headscript ==
-purpose: invalidate browser cache on css changes
-
-todo Dev:
-
-* append <code>?querystring=$cacheVersion</code> to our custom css/js in Headscript
-* append to fontawesome, instantpage, etc too
-* read version number from a local file in <code>/srv/shared/cache-version/version-file</code>
-* fail gracefully (no PHP errors if $cacheVersion cannot be determined due to any error state)
-* security:
-** no code execution from <code>/srv/shared/cache-version/version-file</code>
-** consider what would happen if there are extraneous newlines
-* sanity tests
-** check string length maximum of $cacheVersion to be <code>10</code>. Otherwise refuse to use it.
-* fall back to <code>?querystring=none</code> if local file is missing or has invalid contents
-* cacheVersion example: <code>1693476848</code> (unixtime)
-* document in Dev/mediawiki
-
-todo Patrick:
-
-* Patrick will write a script that hashes all contents of mw-autogen and libs folder. If there are more, less or changed files, the hash in file <code>/srv/shared/cache-version/hashsum</code> will be updated. Based on that, a new unixtime will be written to <code>/srv/shared/cache-version/version-file</code>.
-** unixtime is used to make it easier for Dev to see that the $cacheVersion was really updated. More easy to read than <code>24d4d1a</code>.
-** This will happen when cacheclear is run.
-
-Rejected alternatives:
-
-<code>Cache-Control</code> HTTP header <code>stale-while-revalidate</code> would result in lots of <code>If-None-Match</code> requests and <code>304</code> responses.
-
-'''DEV'''
-* Done
-* All scripts now have "?version=[numbers]"
-* All images and fonts have "?hsversion=1" (manual increment)
-* Open: Dev thinks we might need to embed mw-combined-skincss.min.css, Hide_all_banners.min.css Page_Homepage.min.css differently. They are added not via Headscript and therefore neither have the "version" nor the "hsversion" postfix
-
-== header hover over effect and link ==
-todo: discuss
-
-As for Download, About, Docs, Community, Support, would it be possible to have a hover over effect for the main button?
-
-And make these links clickable?
-
-Link targets:
-
-* Download -> Download
-* About -> About
-* Docs -> Documentation
-* Community -> Forums
-* Support -> Support
-
-JS vs noJS? If not possible or reasonable with noJS, perhaps a JS-only feature?
-
-What about on mobile? The hambuger menu on mobile would would not have this feature.
-
-Confusing?
-
-Any examples of websites doing it that way?
-
-* https://www.apple.com/
-
-'''DEV'''
-* Yes, this is possible
-* Might be confusing, yes. I'm personally not a fan. But maybe it's good for most people if apple does it.
-* The real problem however occurs on a touch device where click = hover. A touch device will never see the hover effect because the link will always be clicked
-** This can be maybe be negated with javascript because it can be determined if there is a touch screen and thus it is probably a touch device.
-** But admin has to decide what to do then: On touch device remove link and just use hover?
-* And NoJS touch devices will never see the hover effect
-
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2023-09-01
+** add querystring to Headscript discussion + version + hsversion
+** CSS extension cache busting discussion
+** footer - TM vs R – Kicksecure and Whonix Headline + Symbol solution
+** homepage - sequential heading levels
+** Whonix HP new player hero image + play / pause player upgrade + SVG play symbol
 
 * 2023-08-31
 ** header nav menu hover plus link analysis
