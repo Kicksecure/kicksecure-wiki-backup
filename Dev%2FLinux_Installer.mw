@@ -154,7 +154,7 @@ Exit code 0 does not guarantee that the script did what was expected to be done,
 == toolkit ideas ==
 
 * makeself - in Debian
-* appiamge - build dependencies not in Debian - https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=854902
+* AppImage - build dependencies not in Debian - https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=854902
 * Nuitka - Python compiler - only in Debian unstable, will be in testing, long term candidate
 * https://packages.debian.org/bookworm/pex - Python compiler
 * https://github.com/icculus/mojosetup - not in Debian
@@ -215,8 +215,86 @@ Exit code 0 does not guarantee that the script did what was expected to be done,
 ** page 3: show the CLI output of <code>dist-installer-cli</code>
 *** show either a success icon and success message or a failure icon and failure message, depending on the exit code of installer <code>dist-installer-cli</code>
 
+== Root ==
+The installer GUI should be executed as a normal user, not as root. This is in adherence to the native Wayland protocol, which disallows the execution of GUI applications as root. Any attempts to circumvent this restriction result in the activation of the Xwayland compatibility layer, a scenario best avoided for future-proofing.
+
+It might be prudent for the installer to invoke the <code>sudo</code> command directly. This seems plausible.
+
+Should <code>sudo</code> be absent, an error message should be displayed.
+
+<blockquote><code>sudo</code> is unavailable, aborting the installer. Consider utilizing the CLI version of this installer, which accommodates <code>sudo</code>, <code>su</code>, and <code>doas</code>. Refer to: https://www.kicksecure.com/wiki/Dev/Linux_Installer#sudo</blockquote>
+If feasible, initiate a terminal window within the GUI and execute the script below.
+
+<pre>
+#!/bin/bash
+
+## Copyright (C) 2023 - 2023 ENCRYPTED SUPPORT LP <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+## This script assists in prompting sudo authorization for the user.
+## It ensures sudo credential caching is enabled on the system.
+## This script assumes that dist-installer-gui has already
+## verified the installation of sudo.
+## To avoid redundancy, code from dist-installer-cli is utilized.
+
+## NOTE: This script may exit with a non-zero exit code upon failure.
+
+#set -x
+set -e
+
+true "$0: START"
+
+## TODO: Modify path
+source usr/bin/dist-installer-cli
+
+set_default
+get_su_cmd
+
+if [ "$credential_caching_status" != "yes" ]; then
+  log error "Sudo credential caching is essential for this graphical installer."
+  exit 1
+fi
+
+true "$0: TERMINATED: SUCCESS."
+</pre>
+
+Upon successful sudo authorization via this (child) script, the GUI (parent) should automatically inherit the authorization status, courtesy of <code>sudo</code>'s default credential caching mechanism.
+
+For users who have configured sudo to employ alternative authentication methods, such as fingerprint recognition, leveraging <code>sudo</code> directly for root access should ensure compatibility.
+
+If the sudo authorization script fails (by exiting with a non-zero exit code) the dist-installer-gui should show an error message.
+
+<blockquote>
+<code>sudo</code> authorization failed. You can always re-run this installer. Refer to: https://www.kicksecure.com/wiki/Dev/Linux_Installer#sudo
+</blockquote>
+
 = Forum Discussion =
 [https://forums.whonix.org/t/whonix-linux-installer/15917 Forum discussion]
+
+= Debug Log =
+
+Debug logs are located in the directory:
+
+{{CodeSelect|code=
+~/dist-installer-cli-download/logs/
+}}
+
+Within this directory, you might find numerous sub-folders, each represented by a unique number. These numbers act as counters, indicating how many times the installer has been initiated by the user. Typically, the log with the highest number (i.e., the most recent one) will be of primary interest.
+
+When the installer is in operation, it will produce an output containing a line akin to:
+
+{{quotation
+|quote=
+xfce-installer-cli: [NOTICE]: Saving debug log to: '/home/user/dist-installer-cli-download/logs/115/debug.log'
+}}
+
+In the aforementioned example, the number <code>115</code> is showcased. Do note, this number will vary with each installation.
+
+Within these numbered directories, you can expect to find the following three files:
+
+* <code>debug.log</code>
+* <code>user.log</code>
+* A copy of the installer executed during that particular session.
 
 = See Also =
 {{Footer}}
