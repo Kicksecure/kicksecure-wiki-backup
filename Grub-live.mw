@@ -129,12 +129,11 @@ Tails is its own operating system whereas grub-live is a package enabling Live M
 
 {| class="wikitable" style="text-align: center; background-color: #fff"
 |- style="background-color: #f9f9f9"
-
 ! style="height: 35px"| '''Aspect'''
 ! '''grub-live on the host''' <ref>Meaning, <code>grub-live</code> outside of a virtual machine. For <code>grub-live</code> in a VM, see [[Live Mode]].</ref> /<br />'''grub-default-live on the host'''
 ! '''Tails DVD only'''
 ! '''Tails USB / DVD, with persistent USB'''
-! '''Tails read-only medium all other writable disks unplugged''' <ref>Assuming Tails on a DVD which can only be written to once, not DVD-RW.</ref> <ref>Or Using Tails USB with physical, active and effective (non-circumventable by software) write protection switch enabled.</ref>
+! '''Tails read-only medium and other devices with write capability unplugged''' <ref>Assuming Tails on a DVD which can only be written to once, not DVD-RW.</ref> <ref>Or using Tails USB with a physical, active, and effective (non-circumventable by software) write protection switch enabled.</ref>
 |-
 
 ! Common <ref>As in a substantial user group willing and able to do this.</ref> mode of operation
@@ -247,7 +246,7 @@ Without Live Mode Indicator (see below) it is not obvious to the user if they bo
 |-
 
 ! Live Mode Indicator
-| style="background-color: {{Yellow}}"| For Xfce only. Not yet documented. <ref>
+| style="background-color: {{Yellow}}"| For Xfce only. <ref>
 https://github.com/{{project_name_short}}/desktop-config-dist
 </ref>
 | style="background-color: {{Green}}"| Unneeded
@@ -310,6 +309,119 @@ https://github.com/{{project_name_short}}/desktop-config-dist
 
 |}
 
+= Security Considerations =
+How secure and reliable is any live mode?
+
+Computers typically default to data persistence rather than amnesia. Coupled with widespread computer security vulnerabilities (see [[Dev/About_Computer_(In)Security|About Computer (In)Security]]), implementing a secure system is challenging.
+
+<code>grub-live</code> is relatively straightforward. It primarily involves installing necessary dependencies and setting kernel parameters (details in [[#Implementation|Implementation]]). However, the underlying systems, such as <code>dracut</code> (or <code>initramfs-tools</code>/Debian's <code>live-tools</code>), are complex. Sparse developer documentation in this area increases the risk of failures post [[Release Upgrade]] or after installing new major versions of {{project_name_short}} or Debian, due to the [[unspecific|generic nature of the solution]].
+
+There is a potential risk that [[malware]] could [[#remount|remount]] a read-only disk as read-write. While no confirmed cases exist, theoretically, even legitimate software could inadvertently perform such actions. To mitigate this risk, it's advisable to use grub-live in conjunction with a physical read-only mode for hard drives, where feasible.
+
+Using grub-live on the host operating system, combined with virtual machines (VMs), is a safer configuration. In this setup, any disk remounting as read-write within a VM would be negated upon rebooting the host. VMs, in this context, are unaware of the host's live mode status and cannot directly alter it.
+
+Would using an [[ISO]] image be safer? Generally, yes. An ISO's inherent resistance to modification makes unauthorized changes more difficult. Though tools like <code>growisofs</code> can append data to an ISO, it's more complex than a simple remount command. Malware could potentially [https://wiki.debian.org/RepackBootableISO repack] and rewrite an ISO, but it's a more complicated process.
+
+What about read-only media, like a DVD-R (not DVD-RW)? This is indeed a safer option, but less practical. It requires burning the DVD, then using it in a read-only DVD reader, which is not a common practice.
+
+Combining physical write protection switches with grub-live would further enhance security. However, even this is not foolproof due to potential hardware vulnerabilities or defects. Thus, it should be considered an additional layer of defense rather than a complete solution.
+
+Reflecting on these aspects, we can categorize security configurations from least to most secure, as follows:
+
+Notes:
+
+* This list, created in December 2023, might have minor inaccuracies but generally represents the correct security hierarchy.
+* ISO HDD: It is possible to boot an ISO located on the hard drive. This is unspecific to Kicksecure and out of scope for this documentation.
+
+# VM live mode HDD boot without read-only VM HDD ("least secure")
+# VM live mode HDD boot with read-only VM hard drive
+# VM live mode ISO boot without VM HDDs connected
+# host live mode HDD without read-only HDD
+# host live mode HDD without read-only HDD + using VMs
+# host live mode HDD with read-only HDD
+# host live mode HDD with read-only HDD + using VMs
+# host live mode ISO HDD with read-only HDD
+# host live mode ISO HDD with read-only HDD + using VMs
+# same as above but with [[Full Disk Encryption]] as an additional safety layer
+# same as above but hardware write protection switches enabled
+# host live mode ISO DVD-RW with
+# host live mode ISO DVD-RW with + using VMs
+# host live mode ISO DVD-R with
+# host live mode ISO DVD-R with + using VMs
+# same as above but with all other storage devices disconnected ("most secure")
+
+Additional steps users can take to improve the security of live mode:
+
+* Avoiding installation of additional software, especially more complex software that uses mount / loop devices or breaks the live indicator such as for example <code>snapd</code>.
+* [[root#Prevent Malware from Sniffing the Root Password|Prevention of Malware Sniffing the Root Password]], because remount read-write requires [[root]].
+
+See also {{whonix_wiki
+|wikipage=Forensics
+|text=Whonix technical design documentation on forensics
+}}.
+
+In summary, while striving for maximum security, absolute guarantees are unattainable. Users seeking higher data amnesia assurances should consider becoming developers or auditors, or sponsoring focused development and review in the realm of anti-forensics, including the development of comprehensive automated testing frameworks.
+
+= Remount Disk as Read-Write after booting into Live Mode =
+{{Anchor|remount}}
+This is chapter is more of developer documentation, proof of concept, for curiously than something that users should do.
+
+'''1.''' Create a mount folder <code>/mnt/disk</code>.
+
+{{CodeSelect|code=
+sudo mkdir /mnt/disk
+}}
+
+'''2.''' Mount.
+
+Note: <code>/dev/sda3</code> applies to VirtualBox VMs. It needs to be replaced with the actual hard drive device name.
+
+{{CodeSelect|code=
+sudo mount /dev/sda3 /mnt/disk
+}}
+
+'''3.''' Remount a read-write.
+
+{{CodeSelect|code=
+sudo mount -o remount,rw /dev/sda3 /mnt/disk
+}}
+
+'''4.''' Do persistent modifications.
+
+For example, create a file <code>/home/test-file</code>.
+
+{{CodeSelect|code=
+touch /mnt/disk/home/test-file
+}}
+
+It is unclear if the disk could even be remounted to <code>/</code> but that is left as an sysadmin exercise to the reader.
+
+'''5.''' When done, unmount.
+
+{{CodeSelect|code=
+sudo umount /mnt/disk
+}}
+
+'''6.''' Remove the mount point.
+
+Optional.
+
+{{CodeSelect|code=
+sudo rmdir /mnt/disk
+}}
+
+'''7.''' Done.
+
+The process has been completed.
+
+Questions and answers:
+
+* Is this a security issue? Yes.
+* Is this issue specific to, caused by grub-live or Kicksecure? No, [[unspecific|unspecific to Kicksecure]].
+* Is this issue reproducible on other live systems, i.e. without grub-live, Kicksecure being involved? Yes.
+* Are also similar live systems affected? Yes, see [[#Security_Considerations|Security Considerations]].
+* What users can do to improve their security? See same link as above.
+
 = Troubleshooting =
 
 Here are some problems you might encounter and their possible solutions.
@@ -328,10 +440,10 @@ If not an already known issue, please follow these steps:
 
 <span class="fontsize19">1. Is livecheck.sh showing an error?</span>
 
-If [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/usr/share/livecheck/livecheck.sh livecheck] is showing an error it might be the following issue. Live check runs command <code>sudo --non-interactive /bin/lsblk --noheadings --all --raw --output RO</code> as the current unprivileged user. You can test this for yourself with the following command. If this is working then this is NOT the issue
+If [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/usr/share/livecheck/livecheck.sh livecheck] is showing an error it might be the following issue. Live check runs command <code>sudo --non-interactive /bin/lsblk --noheadings --raw --output RO</code> as the current unprivileged user. You can test this for yourself with the following command. If this is working then this is NOT the issue
 
 {{CodeSelect|code=
-sudo --non-interactive /bin/lsblk --noheadings --all --raw --output RO
+sudo --non-interactive /bin/lsblk --noheadings --raw --output RO
 }}
 
 If this is not working the problem might be that [https://forums.whonix.org/t/whonix-xfce-development/6213/102 this will only work by default for the user <code>user</code>], no other user. For example it will not work by default for the Linux user account <code>user2</code> or any other than <code>user</code>.
@@ -354,7 +466,7 @@ If the problem is that a user other than <code>user</code> is the logged in subj
 If the above method does not work try also this:
 
 {{CodeSelect|code=
-sudo /bin/lsblk --all
+sudo /bin/lsblk
 }}
 
 <span class="fontsize19">3. If nothing works, report the bug</span>
@@ -374,7 +486,7 @@ If anything in coloumn <code>RO</code> is set to <code>0</code>, then it is not 
 Example <code>lsblk</code> without any <code>snapd</code> installed, {{project_name_gateway_short}}, live mode, and [[VM_Live_Mode/Read_Only_Mode_Hard_Drive|read-only hard drive mode]] enabled.
 
 <pre>
-sudo lsblk --all
+sudo lsblk
 </pre>
 
 <pre>
@@ -386,7 +498,7 @@ sda      8:0    0  100G  1 disk
 Example <code>lsblk</code> without any <code>snapd</code> installed, {{project_name_gateway_short}}, live mode, and [[VM_Live_Mode/Read_Only_Mode_Hard_Drive|read-only hard drive mode]] disabled.
 
 <pre>
-sudo lsblk --all
+sudo lsblk
 </pre>
 
 <pre>
@@ -429,6 +541,24 @@ What grub-live technically in essence does:
 * 1) The grub-live is just shipping 1 grub config file [https://github.com/{{project_name_short}}/grub-live/blob/master/etc/grub.d/11_linux_live <code>/etc/grub.d/11_linux_live</code>].
 * 2) Pull required dependencies in [https://github.com/{{project_name_short}}/grub-live/blob/master/debian/control <code>debian/control</code>]
 * 3) Postinst runs: "<code>sudo update-grub</code>"
+
+== Implementation ==
+This is based on dracut module <code>90overlay-root</code> which gets enabled when kernel parameter <code>rootovl</code> is set. <code>90overlay-root</code> is only available in the Debian fork of dracut.
+
+* dracut module source file: {{CodeSelect|code=/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh|inline=true}}
+* [https://github.com/{{project_name_short}}/grub-live <code>grub-live</code> source code]
+* main file: [https://github.com/{{project_name_short}}/grub-live/blob/master/etc/grub.d/11_linux_live <code>/etc/grub.d/11_linux_live</code>]
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1017039
+* https://github.com/dracutdevs/dracut/issues/1565
+
+== Development ==
+Should port to [https://github.com/dracutdevs/dracut/tree/master/modules.d/90overlayfs <code>90overlayfs</code>]
+
+{{CodeSelect|code=
+rd.live.overlay.overlayfs=1 rd.live.overlay.readonly=1
+}}
+
+Confusing. Debian did not merge https://salsa.debian.org/debian/dracut/-/merge_requests/20
 
 = Footnotes =
 
