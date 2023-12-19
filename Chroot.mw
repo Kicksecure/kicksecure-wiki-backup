@@ -116,10 +116,16 @@ This shouldn't be done unless you are behind a firewall since apt-cacher-ng will
 |package=apt-cacher-ng
 }}
 
-Set <code>apt_cacher_ng_maybe</code> variable.
+Set <code>apt_cacher_ng_maybe</code> variable. <ref>
+No longer working.
 
 {{CodeSelect|code=
 apt_cacher_ng_maybe="--aptopt='Acquire::http { Proxy \"http://127.0.0.1:3142\"; }' --aptopt='Acquire::https { Proxy \"http://127.0.0.1:3142\"; }' --aptopt='Acquire::tor { Proxy \"http://127.0.0.1:3142\"; }'"
+}}
+</ref>
+
+{{CodeSelect|code=
+http_proxy=http://127.0.0.1:3142
 }}
 
 Create apt-cacher-ng https compatible sources.list file.
@@ -143,12 +149,12 @@ Run <code>mmdebstrap</code>. <ref>
 
 {{CodeSelect|code=
 sudo \
+   $apt_cacher_ng_maybe \
    SECURITY_MISC_INSTALL=force \
    DERIVATIVE_APT_REPOSITORY_OPTS=stable \
    mmdebstrap \
       --verbose \
       --variant=required \
-      $apt_cacher_ng_maybe \
       --include $package \
       $repo \
       "$path_to_chroot" \
@@ -165,6 +171,10 @@ During chroot build process the following files were already created.
 
 {{CodeSelect|code=
 sudo rm "$path_to_chroot/etc/apt/sources.list"
+}}
+
+{{CodeSelect|code=
+sudo rm "$path_to_chroot/etc/apt/sources.list.d/0000temp-sources.list"
 }}
 
 == Host Cleanup ==
@@ -187,7 +197,7 @@ sudo rm /etc/apt/trusted.gpg.d/derivative.gpg
 = Usage =
 === Simple Classic Chroot Method ===
 {{CodeSelect|code=
-sudo chroot ~/kicksecure-xfce-chroot bash
+sudo chroot ~/kicksecure-xfce-chroot zsh
 }}
 
 == systemd-nspawn Method ==
@@ -205,6 +215,36 @@ sudo systemd-nspawn -D ~/kicksecure-xfce-chroot
 === systemd-nspawn Boot Chroot CLI Only ===
 {{CodeSelect|code=
 sudo systemd-nspawn -D ~/kicksecure-xfce-chroot /sbin/init
+}}
+
+==== Troubleshooting ====
+===== sudo =====
+{{CodeSelect|code=
+sudo su
+}}
+
+If seeing this error when using "sudo su".
+
+<pre>
+sudo: effective uid is not 0, is /usr/bin/sudo on a file system with the 'nosuid' option set or an NFS file system without root privileges?
+</pre>
+
+* Qubes users:
+** If using mounting home with nosuid.
+
+{{CodeSelect|code=
+sudo mount -o remount,suid /rw/home
+}}
+
+===== networking =====
+systemd-networkd must be enabled on both, the host and inside the VM.
+
+{{CodeSelect|code=
+sudo systemctl enable systemd-networkd
+}}
+
+{{CodeSelect|code=
+sudo systemctl start systemd-networkd
 }}
 
 === systemd-nspawn Boot Chroot with GUI Support ===
