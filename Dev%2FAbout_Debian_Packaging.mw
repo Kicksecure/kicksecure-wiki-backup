@@ -6,6 +6,46 @@ __FORCETOC__
 {{intro|
 Debian Packaging of {{project_name_short}} Design Documentation / Recommends vs Depends / --no-install-recommends / Files in Home Folder / Files in /etc/skel
 }}
+= Purpose of Packaging =
+Packaging serves several crucial purposes in software distribution, ensuring not only the smooth integration and functioning of software but also maintaining standards of security, legality, and consistency. Here's a breakdown of its primary objectives:
+
+* '''Security hot fixes:''' Distributions can provide timely solutions when the original software creators are slow to respond or unavailable. This is vital since many developers are volunteers who may be preoccupied with other responsibilities.
+* '''License compliance:''' Distribution maintainers (DMs) verify that the software adheres to freedom-respecting licenses, ensuring legal compliance and ethical use. See [[Avoid nonfreedom software]] for more details.
+* '''No binary blobs:''' DMs ensure that the source package doesn't include pre-compiled binary files, promoting transparency and security.
+* '''Source code completeness:''' This involves verifying whether the source code is complete and buildable, ensuring that the end-users receive a functional product.
+* '''No embedded copies:''' Packages should not contain outdated or vulnerable third-party libraries as embedded copies. Refer to [https://wiki.debian.org/EmbeddedCopies Embedded Copies] for more information.
+* '''Build reproduction:''' Adhering to [https://reproducible-builds.org/ Reproducible Builds] practices allows for the creation of binaries that can be independently verified, enhancing trust and security.
+* '''Download mirroring:''' In case the original sources are temporarily unavailable, distribution mirrors ensure that the software can still be downloaded and used.
+* '''Hardening:''' Distributions may implement additional security measures to enhance protection against threats. This could vary based on the individual DM or team, including:
+** '''AppArmor:''' Implementing mandatory access control, like an AppArmor profile, especially if it's not maintained by the original software providers.
+** '''Compilation options:''' Utilizing more secure compilation options, which can be independent of the packages and applied distribution-wide.
+* '''Distribution integrations:''' Integration with the distribution's specific systems is crucial. For example, distributions using different initialization systems (like systemd, OpenRC, Runit, or SysVinit) require the DM to maintain appropriate init files for their system. For instance, Devuan, a non-systemd distribution, uses SysVinit and thus needs SysVinit scripts for all packages involving daemons (like sound servers, display servers, or internet servers).
+* '''Linting:''' Package checkers are used to automatically identify issues and enforce quality and standards in the packaging process.
+
+{{quotation
+|quote=Lintian dissects Debian packages and reports bugs and policy violations. It contains automated checks for many aspects of Debian policy as well as some checks for common errors. Every Debian maintainer should check packages with this tool.
+|context=[https://salsa.debian.org/lintian/lintian Lintian on Debian Salsa]
+}}
+{{quotation
+|quote=Command-line tool and website running thousands of checks to analyze packages, suggest fixes for source, packaging, software, and spelling, useful across various distros and platforms, not just Debian.
+|context=fosdem presentation, [https://archive.fosdem.org/2021/schedule/event/mariadb_distros/attachments/slides/4381/export/events/attachments/mariadb_distros/slides/4381/FOSDEM_2021_MariaDB_post_release_QA_in_Debian_and_Ubuntu_by_Otto_Kekalainen.pdf MariaDB post-release quality assurance in Debian and Ubuntu]
+}}
+** Lintian has [https://salsa.debian.org/lintian/lintian/-/tree/master/tags a plethora of checks]
+* '''Architecture support:''' Upstream often provides packages and/or source code for a limited number of architectures (or Intel / AMD64 only). Distributions often build packages for multiple architectures. To learn more how Debian does that, see [https://buildd.debian.org/ Debian Buildd - Debian Package Auto-Building].
+* '''Continuous Integration:''' For example, [https://ci.debian.net/ debci - Debian Continuous Integration].
+* '''Quality Assurance:''' For example, [https://piuparts.debian.org/ piuparts]
+
+{{quotation
+|quote=piuparts is a tool for testing that .deb packages can be installed, upgraded, and removed without problems. piuparts is short for "package installation, upgrading and removal testing suite"
+}}
+
+{{quotation
+|quote=It does this by creating a minimal Debian installation in a chroot, and installing, upgrading, and removing packages in that environment, and comparing the state of the directory tree before and after. piuparts reports any files that have been added, removed, or modified during this process. piuparts is meant as a quality assurance tool for people who create .deb packages to test them before they upload them to the Debian package archive.
+}}
+* '''Package Uninstallation Support:'''
+** Want to remove something installed from upstream using <code>sudo make install</code>? Good luck. That's usually by upstream considered the job by the distribution packaging.
+** Removing software installed directly from upstream sources can be a challenge. This is often because upstream developers typically consider the management of installation and uninstallation processes, including clean removal of installed files, to be the responsibility of distribution packaging rather than their own. Using commands like <code>sudo make install</code> often doesn't provide an easy reversal option, highlighting the importance of distribution packages in facilitating straightforward uninstallation.
+
 = Analyzing Dependency Chains =
 == reverse-depends ==
 {{Box|text=
@@ -113,6 +153,69 @@ systemd: /lib/systemd/system/systemd-random-seed.service
 ** would be better but still not great (this is for local administrator, not linux distribution)
 * <code>/lib/systemd/system/systemd-random-seed.service.d</code> folder and a file such as <code>/lib/systemd/system/systemd-random-seed.service.d/30_something.conf</code>
 ** is an ideal solution for linux distributions such as {{project_name_short}} since it does not takeover files by other packages and does not take away something from the local system administrator or user.
+
+Editing a file owned by a different packages residing in <code>/etc</code> would be even worse. Suppose for example file <code>/etc/hdparm.conf</code> was modified by a package by a derivative Linux distribution. Next time the base distribution (Debian) updates the file, this would lead to an {{Code2|dpkg interactive conflict resolution dialog}}.
+
+<pre>
+Configuration file `/etc/hdparm.conf'
+ ==> Modified (by you or by a script) since installation.
+ ==> Package distributor has shipped an updated version.
+   What would you like to do about it ?  Your options are:
+    Y or I  : install the package maintainer's version
+    N or O  : keep your currently-installed version
+      D     : show the differences between the versions
+      Z     : background this process to examine the situation
+ The default action is to keep your current version.
+*** interfaces (Y/I/N/O/D/Z) [default=N] ? N
+</pre>
+
+This is because the package manager (APT) cannot merge upstream (Debian) file changes with local file changes.
+
+Such prompts confusing for users as users do not know what to answer. These result in support requests. Whatever the user chooses is non-ideal. If the user chooses the package maintainer's (Debian's) version, the user will loose settings modifications by the derivative. If the user keeps the file, the user will miss out on updates by the package maintainer. Merging the file is a skill that only the minority of users possesses.
+
+This would not be an issue if the derivative distribution would fork, rebuild, upload the package that owns that file. In this example if the derivative distribution would upload package <code>hdparm</code> then there would be no issue updating <code>/etc/hdparm.conf</code> because the derivative would not "compete" with the base distribution. This however is not how it is done for derivatives such as Kicksecure, Whonix or Qubes. If just a small configuration change is required, the huge extra effort of a complete fork of the package is avoided to safe time. Only a drop-in configuration snippet gets shipped instead.
+
+= use /usr instead of /etc =
+* <code>/usr</code>: Is for distributions, packages.
+* <code>/etc</code>: Is for system administrators.
+
+If possible, avoid <code>/etc</code> and use <code>/usr</code> instead.
+
+Why distributions are still making use of <code>/etc</code>? While it's impossible for all distributions, but the most likely reason is legacy. This is for historic reasons. <code>systemd</code>, which continues to shape the direction which Linux distributions develop, many Linux distributions and upstream projects agree with this direction of moving to <code>/usr</code>. 
+
+{{quotation
+|quote=Note that while <code>systemd</code> itself explicitly supports booting up with entirely unpopulated images (<code>/usr/</code> being the only required directory to be populated) distributions might not be there yet: depending on your distribution further, manual work might be required to make this scenario work.
+|context=[https://systemd.io/BUILDING_IMAGES/ Building Images Safely]
+}}
+
+{{quotation
+|quote=While a lot of work has gone into ensuring systemd systems can safely boot with unpopulated /etc/ trees,
+|context=[https://systemd.io/BUILDING_IMAGES/ Building Images Safely]
+}}
+
+[https://uapi-group.org/ The Linux Userspace API Group] quote ticket [https://github.com/uapi-group/specifications/issues/76 Tracking upstream projects that do not support hermetic-usr for configuration] lists Linux software packages that still require configuration in <code>/etc</code> that do not support the <code>/usr</code> folder for configuration yet.
+
+{{quotation
+|quote=Hermetic <code>/usr/</code>
+
+[...]
+
+How can you help?
+
+[...]
+
+At this point some distributions (such as Fedora) are (probably more by accident than on purpose) already mostly hermetic in <code>/usr/</code>, at least for the most basic parts of the OS. However, this is not complete: many daemons require to have specific resources set up in <code>/var/</code> or <code>/etc/</code> before they can work, and the relevant packages do not carry <code>systemd-tmpfiles</code> descriptions that add them if missing. So there are two ways you could help here: politically, it would be highly relevant to convince distributions that an OS that is hermetic in <code>/usr/</code> is highly desirable and it's a worthy goal for packagers to get there. More specifically, it would be desirable if RPM/dpkg packages would ship with enough <code>systemd-tmpfiles</code> information so that configuration files the packages strictly need for operation are symlinked (or copied) from <code>/usr/share/factory/</code> if they are missing (even better of course would be if packages from their upstream sources on would just work with an empty <code>/etc/</code> and <code>/var/</code>, and create themselves what they need and default to good defaults in absence of configuration files).
+|context=systemd blog post [https://0pointer.net/blog/fitting-everything-together.html Fitting Everything Together]
+}}
+
+Marek (Qubes OS lead developer) also agrees with this.
+
+{{quotation
+|quote=, /etc is for user changes, packages should avoid modifying config files there of other packages if possible.
+|context=[https://github.com/QubesOS/qubes-issues/issues/8832#issuecomment-1881139726 Qubes issue tracker]
+}}
+
+Patrick (Kicksecure lead developer) also agrees with this.
 
 = config-package-dev =
 Debian package <code>xfce4-session</code> owns file <code>/etc/xdg/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml</code>. Therefore package <code>xfce-desktop-config-dist</code> cannot directly overwrite it.
