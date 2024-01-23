@@ -332,6 +332,54 @@ TODO:
 * Link source files in existing documentation (from now 'Mediawiki:File.js') to GIT repo
 ** Use Special:ReplaceText and possible a template
 
+== move source code to git #4 - error out if folder is unwriteable ==
+build-mw-combine.php needs resilience if folder is unwriteable
+
+In that case error out with non-zero exit code.
+
+To test, reproduce this issue locally:
+
+{{CodeSelect|code=
+sudo chown --recursive nobody:nogroup ./dist
+}}
+
+Why? Write permissions on the server aren't easy to handle and might be messed up one day.
+
+This was fixed thanks to the error handler. (Added by Patrick.)
+
+<pre>
+Uncaught exception: unlink(../dist/kicksecure/build-log.htm): Permission denied
+</pre>
+
+TODO:
+
+* please review
+
+== move source code to git #5 - path to log file ==
+On the server, log file creation is failing.
+
+<pre>
++ sudo --non-interactive -u nobody /var/www/mediawiki-shared/build/build.sh
+INFO: Building on kicksecure server because file /kicksecure exists...
+PHP Warning:  file_put_contents(./build-log.htm): Failed to open stream: Permission denied in /var/www/mediawiki-shared/build/build-mw-combine.php on line 232
+Build process completed.
++ true '/usr/local/bin/wiki-combine-scripts: OK'
+</pre>
+
+This is because the actually writeable folder is only /srv/shared/mw-autogen.
+
+The relative path ./build-log.htm does not work.
+
+Solution: put build-log.htm in the same folder as all other created files.
+
+Do not hardcode /srv/shared/mw-autogen. No need. Use the same mechanism also used for all other generated files.
+
+Was implemented by Patrick.
+
+TODO:
+
+* please review
+
 == FYI - mediawiki changelog ==
 FYI only
 
@@ -639,56 +687,8 @@ https://forums.whonix.org/t/tor-browser-integration/11912/72
 
 = REVIEW PLEASE =
 
-== document server stage test ==
-'''1.''' Do not document stage server IP.
-
-'''2.''' Document the following command.
-
-{{CodeSelect|code=
-curl --silent --head --header "nocache: true" "https://www.whonix.org" | grep x-server-type
-}}
-
-Expected output:
-
-<pre>
-x-server-type: stage
-</pre>
-
-'''3.''' Document some other stuff.
-
-/etc/hosts
-
-dig
-
-nslookuop
-
-DEV
-* Done
-* See [[Dev/mediawiki#Stage_.2F_Staging_Server_Testing]]
-
-== paypal widget ==
-
-'''DEV'''
-* Done all 3
-* See [[Dev/mediawiki#PayViaPaypal_module]] dev sandbox mode
-* Please also check if urls are correct - especially should it be 'https://sandbox.paypal.com/cgi-bin/webscr' ?
-
-=== paypal sandbox mode ===
-Please add some easy to use option to change from
-
-www.paypal.com
-
-to
-
-sandbox.paypal.com
-
-announce sandbox mode if enabled
-
-=== conspicuous notice if using sandbox.paypal.com ===
-Please add a notice similar to stage notice IF sandbox.paypal.com is active.
-
-=== stage server automatically use sandbox.paypal.com ===
-If reasonable effort, please implement.
+== paypal test query parameter ==
+todo
 
 = DONE / Log of DevSprint since 2021-12 =
 
