@@ -1,27 +1,26 @@
 {{Header}} __FORCETOC__
 {{#seo:
-|description=How to refactor the firewall script while being sure there are no iptables or nftables changes
+|description=How to refactor the firewall script while being sure there are no nftables changes.
 }}
 {{intro|
-How to refactor the firewall script while being sure there are no iptables or nftables changes
+How to refactor the firewall script while being sure there are no nftables changes.
 }}
-= Instructions =
+= nftables =
+1) Store current nftables rules to file a.
 
-1) Store current iptables rules to file a.
-
-<pre>
-sudo iptables-save-deterministic > a
-</pre>
+{{CodeSelect|code=
+sudo nft --stateless list ruleset > nftables-old
+}}
 
 2) Refactor the {{project_name_long}} firewall code.
 
 3) {{Reload_Firewall}}
 
-4) Store current iptables rules to file b.
+4) Store current nftables rules to file b.
 
-<pre>
-sudo iptables-save-deterministic > b
-</pre>
+{{CodeSelect|code=
+sudo nft --stateless list ruleset > nftables-new
+}}
 
 5) Compare files a and b.
 
@@ -39,21 +38,11 @@ meld a b
 
 6) There should be no diff.
 
-= nftables =
-
-{{CodeSelect|code=
-sudo nft --stateless list ruleset > nftables-old
-}}
-
-{{CodeSelect|code=
-sudo nft --stateless list ruleset > nftables-new
-}}
-
-= systemcheck iptables test =
+= systemcheck nftables test =
 Does not exist yet.
 
-* "''systemcheck (which is somewhat a replacement for the lack of test suite) could indeed be useful to check if the loaded iptables rules match a hardcoded iptables dump. Yes, with additional firewalll add-ons that would be hard. Then these firewall add-ons could ship a dump that also gets verified. (iptables-dumps.d folder checked by systemcheck or so.) But then multiple firewall add-ons gets hard. Mutliple firewall add-ons and dumping, that kind of flexibility might be stretching what the {{project_name_short}} project may be able to implement.''" (From [https://forums.whonix.org/t/bolt-on-for-whonix-firewall-best-place-to-put-files/2222 (Forum)  Bolt on for whonix_firewall - best place to put files?] )
-** systemcheck could use this iptables diff facility to warn the user of non-standard / unexpected rules present. And, just like unwanted packages, could ask the user to run ''e.g. iptables-save-whonix'' to establish a new baseline. systemcheck would then pass, unless something else had changed things user unexpectedly, at which point systemcheck would again warn.
+* "''systemcheck (which is somewhat a replacement for the lack of test suite) could indeed be useful to check if the loaded nftables rules match a hardcoded nftables dump. Yes, with additional firewalll add-ons that would be hard. Then these firewall add-ons could ship a dump that also gets verified. (nftables-dumps.d folder checked by systemcheck or so.) But then multiple firewall add-ons gets hard. Mutliple firewall add-ons and dumping, that kind of flexibility might be stretching what the {{project_name_short}} project may be able to implement.''" (From [https://forums.whonix.org/t/bolt-on-for-whonix-firewall-best-place-to-put-files/2222 (Forum)  Bolt on for whonix_firewall - best place to put files?] )
+** systemcheck could use this nftables diff facility to warn the user of non-standard / unexpected rules present. And, just like unwanted packages, could ask the user to run ''e.g. nftables-save-whonix'' to establish a new baseline. systemcheck would then pass, unless something else had changed things user unexpectedly, at which point systemcheck would again warn.
 
 = Split {{project_name_short}} Firewall Script for better readability =
 ''From Patrick:''<br>
@@ -66,7 +55,7 @@ Does not exist yet.
 * IPv4 DROP INVALID INCOMING PACKAGES
 * IPv4 FORWARD
 * IPv6
-* more minor stuff (iptables_cmd, ip6tables_cmd)
+* more minor stuff (nftables_cmd)
 <br>
 Converted to shell functions. And added to helper-scripts.
 
@@ -76,7 +65,7 @@ However, the goal is to make the firewall scripts easier to read. Not more diffi
 <br>
 * Early files in firewall config foleder could contain bash scripting of the form:
 <pre>
-function ScriptFuncPreloadElement1() { script lines, e.g. $iptables_cmd ''blah''}
+function ScriptFuncPreloadElement1() { script lines, e.g. $nftables_cmd ''blah''}
 </pre>
 ** Optionally followed, for inline / immediate execution rather than hooking in later within firewall script, with:
 <pre>
@@ -100,7 +89,7 @@ firewall_input_hook_end[${#firewall_input_hook_end[@]}]=ScriptFuncPreloadElement
 <hr>
 '''<u>Reference</u>: [https://forums.whonix.org/t/whonix-torrents-and-being-a-good-tor-citizen/1766 (Forum)  torrents, and being a good tor citizen]'''
 <br>
-<u>''Solution, part b''</u> demonstrates an example sample set of iptables rules that could be injected, within the firewall. (''Proof of concept, only.'')
+<u>''Solution, part b''</u> demonstrates an example sample set of nftables rules that could be injected, within the firewall. (''Proof of concept, only.'')
 <hr>
 '''<u>Reference</u>: [https://forums.whonix.org/t/favourite-whonix-bash-script-boilerplate-template/2235/2 (Forum)  Favourite (whonix?) bash script boilerplate template?]'''
 <br>
