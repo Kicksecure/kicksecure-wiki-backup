@@ -1,12 +1,12 @@
 {{Header}}
 {{title|title=
-/bin/bash Proper Whitespace Handling - Whitespace Safety
+/bin/bash - Proper Whitespace Handling - Whitespace Safety - End-of-Options Parameter Security
 }}
 {{#seo:
-|description=Supporting multiple command line parameters with spaces in wrapper scripts.
+|description=Supporting multiple command line parameters with spaces in wrapper scripts and Use of End-of-Options Parameter (--).
 }}
 {{intro|
-Supporting multiple command line parameters with spaces in wrapper scripts.
+Supporting multiple command line parameters with spaces in wrapper scripts and End-of-Options Parameter (--) for better security.
 }}
 = Bash Proper Whitespace Handling =
 <pre>
@@ -32,6 +32,43 @@ cmd+=("${main_app_dir}/")
 "${cmd[@]}"
 </pre>
 
+
+= Use of End-of-Options Parameter (--) =
+
+The end-of-options parameter "<code>--</code>" is crucial because otherwise inputs might be mistaken for command options. This might even be a security risk. Here are examples using the `sponge` command:
+
+{{CodeSelect|code=
+echo test | sponge -a testfilename  
+}}
+
+Result: OK. This works because "testfilename" doesn't look like an option.
+
+{{CodeSelect|code=
+echo test | sponge -a --testfilename
+}}
+
+Result: Fail. The command interprets "--testfilename" as a series of options:
+
+<pre>
+sponge: invalid option -- '-'
+sponge: invalid option -- 't'
+sponge: invalid option -- 'e'
+...
+test
+</pre>
+
+{{CodeSelect|code=
+echo test | sponge -a -- --testfilename
+}}
+
+Result: OK. The `--` signals that "--testfilename" is a filename, not an option.
+
+Conclusion:
+
+* The "<code>--</code>" parameter marks the end of command options.
+* Use "<code>--</code>" add the end of a command prevent misinterpretation.
+* This technique is applicable to many Unix/Linux commands, not just <code>sponge</code>.
+
 = nounset - Check if Variable Exists  =
 
 <pre>
@@ -51,11 +88,46 @@ fi
 echo "$HOME"
 </pre>
 
+= Safely Using Find with End-Of-Options =
+
+Example:
+
+Note: Variable could be different. Could be for example <code>--/usr</code>.
+
+{{CodeSelect|code=
+folder_name="/usr"
+}}
+
+{{CodeSelect|code=
+printf '%s' "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
+}}
+
+Of if <code>safe_echo_nonewline</code> is available from helper-scripts.
+
+{{CodeSelect|code=
+# shellcheck disable=SC1091
+source /usr/libexec/helper-scripts/safe_echo.sh
+safe_echo_nonewline "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
+}}
+
+Not using bash's built-in <code>echo</code>, because it does not support end-of-options ("<code>--</code>").
+
+Not using <code>/usr/bin/echo</code>, because it does not support end-of-options ("<code>--</code>").
+
+{{CodeSelect|code=
+## Broken!
+## The '-n' option is needed to avoid piping a newline to 'find'.
+echo -n -- "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
+}}
+
 = misc =
 <pre>
 base_name="${file_name##*/}"
 file_extension="${base_name##*.}"
 </pre>
+
+= See Also =
+* https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md
 
 {{Footer}}
 
