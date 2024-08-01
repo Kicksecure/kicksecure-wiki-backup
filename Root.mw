@@ -6,6 +6,7 @@ title=Safely Use Root Commands
 |description=Tips on using sudo / root (privileged) commands safely
 |image=Root123123.jpg
 }}
+{{passwords_mininav}}
 [[image:Root123123.jpg|250px|thumb]]
 {{intro|
 The root account is a special user account in Unix-based operating systems that has complete access to all files and commands on a system. It is typically used only for system administration tasks that require unrestricted access. This page gives tips on using <code>sudo</code> / root (privileged) commands safely.
@@ -31,9 +32,10 @@ The rationale of <u>prevention of root compromise</u> has the following goals: <
 Also see: [[Dev/Strong_Linux_User_Account_Isolation|Permissions]].
 </ref>
 
-* <u>Protect the host operating system</u>: Malware breaking out of the virtualizer is a lot harder without root access. <ref>
+* <u>Protect the host operating system</u>: If using {{VM}}: Malware breaking out of the virtualizer is a lot harder without root access. <ref>
 https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-301316132
-</ref> (Applies only when using virtual machines.)
+</ref>
+* <u>Protection from rootkits</u>: Root access allow malware to install more difficult to detect and remove rootkits.
 * <u>Protect the virtualizer</u>: It is harder to attack the virtualizer without root access. (Applies only when using virtual machines.)
 * <u>Protect the hardware</u>: A compromised host operating system might result in malware infecting the hardware, i.e. to avoid a persistent hardware backdoor (such as in BIOS or other firmware) surviving even re-installation of the host operating system. In many cases, root access is required before hardware can be attacked. <ref>
 For example flash utilities for Linux require root access. In theory, it's conceivable of software bugs in firmware of hardware resulting in hardware compromise without prior root compromise. No such examples happening in the wild where known to the author at time of writing.
@@ -54,7 +56,25 @@ The default root account is locked (or should be locked). <ref>
 In new builds of {{project_name_long}} version <code>15.0.0.3.6</code>. Earlier {{project_name_long}} builds did not lock the root account by default and should be locked.
 </ref> This is a purposeful security feature -- see below for further details.
 
-It is [[Post_Install_Advice#Change_Passwords|recommended to change passwords]].
+Users can [[Post_Install_Advice#Change_Passwords|change or set a password]] for security reasons if this is useful in their case based on this [[Default_Passwords#Information|Information]].
+
+= Run with Administrative Rights =
+To run an application with root rights.
+
+'''1.''' Run a user to administrative rights utility.
+
+Note: Replace <code>command</code> with the actual command.
+
+* {{cli}}: {{CodeSelect|inline=true|code=sudo command}}
+* {{gui}}: See [[Root#Graphical_Applications_with_Root_Rights|Graphical Applications with Root Rights]].
+
+'''2.''' Password entry.
+
+If a password has been configured, the utility will prompt for.
+
+= User Password versus Root Password =
+
+Tools such as sudo, lxsudo prompt for the user's password. This is different from the root password.
 
 = General Security Advice =
 
@@ -309,7 +329,7 @@ Any graphical application can see what is typed in another graphical application
 
 This process is currently for advanced users only since it is quite cumbersome, i.e. has bad usability. The usability of this will be improved once proposal [[Dev/boot_modes|Multiple Boot Modes for Better Security (an Implementation of Untrusted Root)]] has been implemented.
 
-To more securely perform administrative tasks that require root access:
+To more securely perform administrative tasks that require root access, see the following overview steps below. Detailed technical steps are available further below.
 
 # Prerequisite knowledge: [[Desktop#Virtual_Consoles|how to switch to a different virtual console]], [[SysRq|usage of the SysRq key]] and [[Login spoofing|login spoofing]].
 # These instructions are ideally applied after installing the host / VM when it is still considered free of [[Malware and Firmware Trojans|malware]].
@@ -341,12 +361,14 @@ Perform the following steps securely using <code>sudo</code>. Use <u>one</u> of 
 
 === Non-GUI Environment Method ===
 * Advantage: can keep current user session(s) and/or graphical session (X Window System) running.
-* Disadvantage: cannot use graphical session during administrative tasks. <ref>
+* Disadvantages: cannot use graphical session during administrative tasks <ref>
 Unless perhaps advanced users manage to run a different X server on a different virtual console. This might not be possible, secure. Depends on if the exclusive lock of X can be suspended while using an X server in a different virtual console. This has not been researched.
-</ref>
+</ref> and requires SysRq, which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
 
 {{Box|text=
-'''1.''' Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark>
+'''1.''' [[SysRq#Enable_SysRq|Enable SysRq]].
+
+'''2.''' Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark>
 This step might be unnecessary. Not researched yet.
 </ref>
 
@@ -354,7 +376,7 @@ This step might be unnecessary. Not researched yet.
 
 (Press <code>Alt + SysRq + w</code>)
 
-'''2.''' Switch to another [[Desktop#Virtual_Consoles|virtual console]].
+'''3.''' Switch to another [[Desktop#Virtual_Consoles|virtual console]].
 
 (Press <code>Alt + Crtl + F2</code>) <ref>
 Pressing <code>Alt + Crtl + F7</code> results in <code>tty2</code>.
@@ -364,22 +386,22 @@ This is to make these instructions compatible with most Linux distributions as w
 * Most Linux distributions login CLI virtual consoles on <code>tty1</code> (<code>Alt + Crtl + F1</code>) by default and X Window System on <code>tty7</code> (<code>Alt + Crtl + F7</code>).
 * Qubes X Window System by default runs on <code>tty1</code>. (<code>Alt + Crtl + F1</code>)
 
-<code>tty2</code> (<code>Alt + Crtl + F2</code>) will be most most users an unused virtual console which can be used for the purpose of this chapter.
+<code>tty2</code> (<code>Alt + Crtl + F2</code>) will be for most users an unused virtual console which can be used for the purpose of this chapter.
 </ref>
 
-'''3.''' Press Secure Access Key also to [[Login spoofing|defeat login spoofing]].
+'''4.''' Press Secure Access Key also to [[Login spoofing|defeat login spoofing]].
 
 [[SysRq]] + <code>k</code>
 
 (Press <code>Alt + SysRq + k</code>)
 
-'''4.''' Login as user <code>admin</code> from that non-graphical environment ([[Desktop#Virtual_Consoles|virtual console]]). <ref>
-A X Window System non-root user cannot sniff key strokes of different (non-)root users utilizing a different virtual console (<code>tty</code>).
+'''5.''' Login as user <code>admin</code> from that non-graphical environment ([[Desktop#Virtual_Consoles|virtual console]]). <ref>
+An X Window System non-root user cannot sniff keystrokes of different (non-)root users utilizing a different virtual console (<code>tty</code>).
 </ref>
 
-'''5.''' Perform any necessary administrative tasks.
+'''6.''' Perform any necessary administrative tasks.
 
-'''6.''' Remove user <code>user</code> from group <code>sudo</code>.
+'''7.''' Remove user <code>user</code> from group <code>sudo</code>.
 
 <u>Note</u>: This only needs to be performed once.
 
@@ -387,27 +409,27 @@ A X Window System non-root user cannot sniff key strokes of different (non-)root
 sudo delgroup user sudo
 }}
 
-'''7.''' Logout user <code>admin</code>.
+'''8.''' Logout user <code>admin</code>.
 
 {{CodeSelect|code=
 logout
 }}
 
-'''8.''' Switch back to previous virtual console.
+'''9.''' Switch back to previous virtual console.
 
 X Window System runs in:
 
 * most Linux distributions: virtual console <code>7</code> (Press <code>Alt + Crtl + F7</code>)
 * Qubes: virtual console <code>1</code> (Press <code>Alt + Crtl + F1</code>)
 
-'''9.''' Re-login if needed and continue usual work as user <code>user</code>.
+'''10.''' Re-login if needed and continue usual work as user <code>user</code>.
 }}
 
 === Logout Method ===
 * Advantage: can use graphical session (X Window System) during administrative tasks using privileged user <code>admin</code>.
-* Disadvantage: cannot keep graphical session of unprivileged user <code>user</code> running. In other words, simplified, all applications run under user <code>user</code> will be terminated. <ref>
+* Disadvantage: cannot keep graphical session of unprivileged user <code>user</code> running. In other words, simplified, all applications run under user <code>user</code> will be terminated <ref>
 Non-simplified: applications run by user <code>user</code> in a different virtual console or run through systemd (user) services can be left running.
-</ref>
+</ref> and requires SysRq, which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
 
 {{Box|text=
 '''1.''' Terminate all running applications in current graphical (X) session.

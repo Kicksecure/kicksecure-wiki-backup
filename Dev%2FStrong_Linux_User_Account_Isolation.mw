@@ -7,7 +7,8 @@
 |description=Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam-tally2, pam-cracklib, /etc/securetty
 |image=Useraccountisolatiom123123.jpg
 }}
-[[image:Useraccountisolatiom123123.jpg|thumb]]
+{{passwords_mininav}}
+[[image:Useraccountisolatiom123123.jpg|200px|thumb]]
 {{intro|
 Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam-tally2, pam-cracklib, /etc/securetty
 }}
@@ -86,8 +87,10 @@ Bruteforcing into Linux user accounts is severely limited in by package [https:/
 * https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/faillock2-security-misc
 * [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-info This also has good usability.] After the first authentication failure, pam_tally2-info by security-misc will show the number of remaining login attempts before unlock prodecure will be required. Once required, will show a link to documentation how to perform [[root#unlock|unlock procedure]].
 
+forum discussion: [https://forums.whonix.org/t/protect-linux-user-accounts-against-brute-force-attacks protect Linux user accounts against brute force attacks]
+
 == Online Password Cracking Restrictions ==
-A secure password for root/user accounts must not necessarily follow the same rationale as explained on the [[Passwords]] page. Offline attacks against the password (parallelization, password cracking attempts only limited by RAM, disk, and CPU) are not possible. Only "online" attacks are possible. Similar to attempts of cracking a password of a user account on a website. Only x attempts every y time are possible. See also [https://forums.whonix.org/t/protect-linux-user-accounts-against-brute-force-attacks protect Linux user accounts against brute force attacks].
+A secure password for root/user accounts must not necessarily follow the same rationale as explained on the [[Passwords]] page. Offline attacks against the password (parallelization, password cracking attempts only limited by RAM, disk, and CPU) are not possible. Only "online" attacks are possible. Similar to attempts of cracking a password of a user account on a website. Only x attempts every y time are possible. See also [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]].
 
 == /etc/securetty ==
 Package [https://github.com/{{project_name_short}}/security-misc security-misc] removes all non-comments from <code>/etc/securetty</code>. Thereby root login and ancient consoles can no longer be used to attempt root login.
@@ -133,8 +136,11 @@ Removes read, write and execute access for others for all users who have home fo
 * `/usr/share/pam-configs/mkhomedir-security-misc`
 
 = Issues =
+== General Issues ==
+These issues are [[unspecific|unspecific to {{project_name_short}}]]. Most if not all Freedom Software Linux desktop distributions are affected by one or multiple of these issues.
+
 == sudo password sniffing ==
-A compromised user account <code>user</code> could be infected with a keylogger which could trivially read the <code>sudo</code> password and thereby acquire root access.
+A compromised user account <code>user</code> could be infected with a keylogger (which unfortunately, does not even require root access) which could trivially read the <code>sudo</code> password and thereby acquire root access.
 
 Therefore, instructions to [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] are still required. It's for advanced users only and awareness and usability is bad.
 
@@ -229,7 +235,7 @@ Potential solutions:
 
 == Setting up a fake sudo ==
 
-An attacker can setup a fake <code>sudo</code> binary so the user gives them their password:
+An attacker can setup a fake <code>sudo</code> binary so the user gives them their password. Here is a simple example attack implementation on how to accomplish that.
 
 {{CodeSelect|code=
 cat <<\EOF > /tmp/sudo
@@ -246,6 +252,8 @@ EOF
 chmod +x /tmp/sudo
 export PATH="/tmp:${PATH}"
 }}
+
+This example attack implementation has in theory a lot room for improvement but that is besides the point being made here.
 
 Specifying the file path of the real <code>sudo</code> will not work either:
 
@@ -287,6 +295,41 @@ Potential solutions:
 = User Freedom =
 [[Kicksecure]] / [[Whonix]] / [https://github.com/{{project_name_short}}/security-misc security-misc] does not restrict user freedom. All default settings can be undone. Everything is configurable and documented on page [[Root]].
 
+= Default Empty Password Security Impact =
+Does a default password such as <code>changeme</code> provide better security than an empty by default password? No, because malware could trivially easily [https://forums.whonix.org/t/dsudo-default-password-sudo/8766 <code>dsudo</code>] to enter <code>changeme</code> into the sudo prompt.
+
+= Rationale for Change from Default Password changeme to Empty Default Password =
+
+* '''Usability:''' Better usability.
+* '''No impact on security:''' See [[#Default Empty Password Security Impact|Default Empty Password Security Impact]].
+* '''Security theater:''' A default public known account password for user <code>user</code> is security theater. Due to many [[Dev/Strong_Linux_User_Account_Isolation#Issues|issues]], having a user password to password protect running <code>sudo</code> from the user account is also security theater in many contexts. When a user password makes sense is documented in the user documentation.
+* '''User documentation:''' See [[Default Passwords]].
+* '''Real security:''' See the [[root|Safely Use Root Commands]], especially [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] (SysRq based solution).
+* '''Root login:''' [[Dev/Strong_Linux_User_Account_Isolation#Root_Login_Disabled|Root Login Disabled]] remains unchanged.
+* '''No user freedom restriction:''' The users ability to configure a user account password remains unchanged. It is still possible to set a password.
+* '''Accidental copy/paste of sudo command:''' A terminal window is very powerful, dangerous in any case. One needs to know what one is doing. A destructive command such as <code>rm -rf ~/file-name *</code> where the user actually meant to write <code>rm -rf ~/file-name*</code> deletes all user data. Only preventing <code>sudo</code> does not make a sufficient difference.
+* '''Secure Administrative Rights Prompt Infeasibility:''' There are too many [[Dev/Strong_Linux_User_Account_Isolation#Issues|issues]] which prevent the creation of a secure root prompt that cannot be trivially broken by malware. It is technically challenging to fix all of them. These are generic issues applicable to most if not all Freedom Software desktop Linux distributions. In other words, these issues are [[unspecific|unspecific to {{project_name_short}}]].
+** '''Future:''' A "boot into admin mode" feature is planned. This is elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sudo password sniffing]].
+* '''Comparison:''' How did Google Android and Apple iOS solve this issue? By having developed different graphical interfaces and user freedom restrictions where [[Miscellaneous_Threats_to_User_Freedom#Administrative_Rights|the used is being refused administrative rights]].
+* Forum discussion: [https://forums.whonix.org/t/whonix-default-password-changeme-impact/13115 default password (changeme) impact]
+
+== Default Password Implementation Level ==
+What technically changed.
+
+Instead of running <code>echo "${user_to_be_created}:${password}" | chpasswd --encrypted</code>, now <code>passwd --delete user</code> is run during the build process in dist-base-files [https://github.com/Kicksecure/dist-base-files/blob/master/debian/dist-base-files.postinst <code>debian/dist-base-files.postinst</code>].
+
+Related <code>/etc/shadow</code>  entry, before <code>17.2.0.1</code> and below:
+
+<pre>
+user:aTayYxVyw5kDo:19935:0:99999:7:::
+</pre>
+
+After, build version <code>17.2.0.7</code> and above:
+
+<pre>
+user::19932:0:99999:7:::
+</pre>
+
 = Conclusions =
 * In {{Kicksecure}} based Linux distributions:
 ** On <u>single-user</u> systems:
@@ -313,6 +356,8 @@ Potential solutions:
 * https://www.howtogeek.com/124950/htg-explains-why-you-shouldnt-log-into-your-linux-system-as-root/
 * https://unix.stackexchange.com/questions/244124/why-does-turnkey-linux-not-have-sudo-installed-by-default-if-youre-never-suppo
 * https://unix.stackexchange.com/questions/106529/why-is-sudo-not-installed-by-default-in-debian
+
+= See also =
 
 = Footnotes =
 {{reflist|close=1}}
