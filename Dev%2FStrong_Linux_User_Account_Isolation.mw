@@ -14,7 +14,7 @@ Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, C
 }}
 = Essentials =
 == Introduction ==
-There are many advanced details being discussed in many places but explanations of the essential foundations are hard to find. When this topic is usually discussed, there is a large amount of unspoken assumptions, threat models.
+There are many advanced details being discussed in many places, but explanations of the essential foundations are hard to find. When this topic is usually discussed, there is a large amount of unspoken assumptions and threat models.
 
 Example [https://www.jwz.org/xscreensaver/faq.html#root-lock quote]:
 
@@ -22,15 +22,43 @@ Example [https://www.jwz.org/xscreensaver/faq.html#root-lock quote]:
 
 Proper Unix hygiene dictates that you should log in as yourself, and su to root as necessary. People who spend their day logged in as root are just begging for disaster.</blockquote>
 
-Sounds quite important, right?
+Sounds quite important, right? Is it?
 
-TODO: elaborate
+What kind of disaster awaits if being logged in as root? No automatic security disaster. Many applications (such as Kate; Wayland) refuse to run as root. Due to this convention, it is best to go with the flow (what most Linux distributions do) and avoid being logged in as root. As many actions as possible should be done with a non-root user.
 
-* What kind of disaster awaits if being logged in as root?
-* Single-user system vs multi-user system.
-* Local system vs remote server.
-* Applications and daemons running under different Linux user accounts.
-* Some explanations are correct but for a different threat model.
+Avoiding root compromise is useful for reasons explained in chapter [[Root#Rationale|Rationale]].
+
+Many applications nowadays run under different Linux user accounts. For example, the web server and database server very likely run under different Linux user accounts.
+
+Many of the things written about sudo, su, root, and user isolation are correct but written in a different time and/or with a different threat model in mind.
+
+Is sudo a security tool? Yes. But what does this mean? sudo provides an audit trail. It keeps a log of all invocations of sudo. Specifically, if there are multiple system administrators, and there is an unexplained issue, they can look at the logs and investigate who performed which action. By default, this only works in non-malicious cases. An attacker with root rights also has the ability to remove evidence of their own actions from logs. Secure, tamper-proof append-only logs is a different security problem to solve.
+
+'''Password input security:''' The sudo project does not guarantee a secure password entry mechanism. Various attack vectors, such as malware, can compromise password security by intercepting or sniffing passwords entered via sudo. This is being elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]].
+
+'''Password encryption:''' But how can malware steal the password? Aren't passwords encrypted? Yes, passwords are encrypted in <code>/etc/shadow</code> file. Additionally, non-root users cannot read <code>/etc/shadow</code> file thanks to default file permissions. This, however, is of little help against malware. As elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]], what malware actually can do to steal the password does not involve attacking the encryption. The encryption of passwords in <code>/etc/shadow</code> is only useful in a different threat model. For example, if an attacker gained access to <code>/etc/shadow</code> (by possibly getting access through full system compromise), then at least the attacker still does not know that user's password. This can be useful in case the user re-used this password elsewhere, for example to log in to their online banking.
+
+'''single-user system vs multi-user system:''' The usefulness of sudo also depends on whether it is a single-user system or a multi-user system. This is elaborated in chapter [[Default_Passwords#Information|Information]].
+
+'''Local system vs remote server:''' When using password-based login, the user password matters. However, password-based logins are to be avoided. Public key authentication is much more secure.
+
+== History ==
+Sharing the root password historically when one computer was often shared by multiple system administrators was bad. When someone changed the root password and did not properly record the new password, other system administrators could no longer easily login. Hence, sudo has been developed. With sudo it became possible for individual users to login as root (sudo su) or to execute individual commands with root rights (sudo command).
+
+See also [https://security.stackexchange.com/a/233042 this answer] by co-author of sudo, Bob Coggeshall. <ref>
+Bob Coggeshall is mentioned on [https://www.sudo.ws/about/history/ sudo history].
+</ref>
+
+== Console Login Attacks ==
+Are compromised users (such as man, ntp, sdwdate) capable to switch to a console such as tty0, hvc0 and attempt to login? Without root access or kernel exploit, unlikely.
+
+Why "I" (the user) can do it but user <code>man</code> cannot? What makes "me" (the user) and user <code>man</code> different? Why the user can switch a virtual console using ctrl + alt + F1, why can user <code>man</code> not?
+
+{{quotation
+|quote=This is about where the process is started and what has connected as controlling terminal. It isn't anything Qubes specific. A non-privileged process cannot inject characters into a separate session (lets forget about X11 breaking all this assumptions, as we are talking about non-X11 session), especially if it's of a different user, similarly as it cannot write to files it doesn't have write permission. to. You can think of it as a write access to <code>/dev/tty</code> (or <code>/dev/hvc0</code> in this case). When you login on <code>/dev/hvc0</code>, login process (running as root) will setup permission to <code>/dev/hvc0</code> and also pass an open FD to it to your shell. Then, you (user, and that shell) will be able to interact with <code>/dev/hvc0</code> and specifically run commands connected to it. If you don't login there, login process will not set the permissions, so you won't have access.
+This does assume kernel enforced permissions are effective, but as we are talking here about in-VM account isolation only, it's a reasonable assumption.
+|context=[https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366 Comment by Marek Marczykowski-Górecki, Qubes lead developer]
+}}
 
 == Non-Hardened Linux Distributions ==
 Most if not all Linux desktop operating systems:
