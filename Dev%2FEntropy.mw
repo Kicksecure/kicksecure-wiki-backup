@@ -341,6 +341,94 @@ Kernel developer Theodore Y. Ts'o in 2019: https://lore.kernel.org/linux-ext4/20
 
 Exactly such mechanisms need to be scrutinized. For example, [https://github.com/QubesOS/qubes-issues/issues/1752 Qubes OS does not persist random seed files (entropy) in App Qubes #1752], reported 2016, unfixed at time of writing October 2021.
 
+= Code Comparison - /dev/random vs. /dev/urandom =
+== Introduction ==
+From [https://github.com/torvalds/linux/blob/master/drivers/char/random.c Linux source code <code>random.c</code>]. (At the time of git commit [https://github.com/torvalds/linux/blob/78eb4ea25cd5fdbdae7eb9fdf87b99195ff67508/drivers/char/random.c <code>78eb4ea25cd5fdbdae7eb9fdf87b99195ff67508</code>].) Code from end of July 2024.
+
+== Source Code Comments ==
+
+<pre>
+ * Reading from /dev/random has the same functionality as calling
+ * getrandom(2) with flags=0. In earlier versions, however, it had
+ * vastly different semantics and should therefore be avoided, to
+ * prevent backwards compatibility issues.
+ *
+ * Reading from /dev/urandom has the same functionality as calling
+ * getrandom(2) with flags=GRND_INSECURE. Because it does not block
+ * waiting for the RNG to be ready, it should not be used.
+</pre>
+
+== struct file_operations ==
+
+Note the difference, random vs urandom.
+
+A)
+
+<pre>
+const struct file_operations random_fops = {
+	.read_iter = random_read_iter,
+</pre>
+
+B)
+
+<pre>
+const struct file_operations urandom_fops = {
+	.read_iter = urandom_read_iter,
+</pre>
+
+== read_iter ==
+
+A)
+
+<pre>
+static ssize_t random_read_iter(struct kiocb *kiocb, struct iov_iter *iter)
+{
+	int ret;
+
+	if (!crng_ready() &&
+	    ((kiocb->ki_flags & (IOCB_NOWAIT | IOCB_NOIO)) ||
+	     (kiocb->ki_filp->f_flags & O_NONBLOCK)))
+		return -EAGAIN;
+
+	ret = wait_for_random_bytes();
+	if (ret != 0)
+		return ret;
+	return get_random_bytes_user(iter);
+}
+</pre>
+
+B)
+
+<pre>
+static ssize_t urandom_read_iter(struct kiocb *kiocb, struct iov_iter *iter)
+{
+	static int maxwarn = 10;
+
+	/*
+	 * Opportunistically attempt to initialize the RNG on platforms that
+	 * have fast cycle counters, but don't (for now) require it to succeed.
+	 */
+	if (!crng_ready())
+		try_to_generate_entropy();
+
+	if (!crng_ready()) {
+		if (!ratelimit_disable && maxwarn <= 0)
+			++urandom_warning.missed;
+		else if (ratelimit_disable || __ratelimit(&urandom_warning)) {
+			--maxwarn;
+			pr_notice("%s: uninitialized urandom read (%zu bytes read)\n",
+				  current->comm, iov_iter_count(iter));
+		}
+	}
+
+	return get_random_bytes_user(iter);
+}
+</pre>
+
+== Conclusion ==
+
+This is not a comprehensive comprising. This is only to show that
+
 = Entropy Sources =
 === Introduction ===
 It has to be researched if they do work well inside Virtual Machines. Simply installing all of them may not be wise.
