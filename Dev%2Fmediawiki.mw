@@ -588,17 +588,22 @@ The footer is structually (html) positioned in the main content area. The vector
 *** <code><nowiki>https://</nowiki>www.{{project_clearnet}}</code> can of course be index normally.
 ** <code><nowiki>https://</nowiki>www.{{project_clearnet}}/wiki/Homepage</code> while far from being a secret, a technical implementation detail, should not be shown to users as it would confusing.
 ** Editing <code><nowiki>https://</nowiki>www.{{project_clearnet}}/wiki/Homepage</code> will result in making changes to <code><nowiki>https://</nowiki>www.{{project_clearnet}}</code>.
-* Structure
+* '''Structure'''
 ** The page is wrapped in div with the class <code>section-wrapper</code>
 ** Right below there are the sections which can be CSS references via <code>.section-wrapper > div</code>. They all have classes as names that start with <code>section-</code>, e. g. <code>section-banner</code>, <code>section-download</code>, <code>section-press</code>
 ** Inside every section there is a <code>div</code> directly below the parent which has the class <code>inner-wrapper</code>, which wraps the inner content and helps with positioning. It is also a resource for future designers to design the content via CSS
 ** Right below the section-wrapper there can also be other elements
 ** <code>h2</code> is the standard tag for headlines
+* '''Hero image'''
+** The hero image is optimized for page load speed and minimal content shift while also adressing limited bandwidth of the Whonix servers
+** First we tried a very small preview image scaled up to size and blurred, shortly after being replaced by the fully loaded hero image. The problem was that Lighthouse / Pagespeed output the error "Serves images with low resolution".
+** Then we removed this preview image (class "overview-image-preview") and instead placed the preview image url in the src-attribute of ".overview-image > img". We hoped that the src image should always be loaded and would be initially shown. But the browser immediately fetched a larger image from srcset which slowed the performance metric. The src attribute is just a fallback option.
+** Now we use an SVG image as the preview image which solves the "Serves images with low resolution" Lighthouse issue. SVGs are NOT seen as too small by Lighthouse because they can scale. This SVG image was losely generated from the small preview image because it has little detail which creates an SVG with a small file size.
 * There are special classes for sections which can be used give those sections a special look
 ** <code>dark-section</code> : a dark section has a dark background. It can be combined with row-3- and row-5-sections. The dark section spans over the whole page, while the inner content is max 960px
 ** <code>row-3-section</code> : These sections have 3 elements on wide displays, 2 on medium displays and 1 on small displays. They are used for testimonials, features or other text heavy tasks
 ** <code>row-5-section</code> : The sections have 5 elements on wide displays, 3 on medium displays and 2 on small displays. They are used for icons and low information items
-* There is also a special class for images <code>image-contain</code> which is optional. By default images are in the background with <code>background-size: cover;</code> so the image always fills the whole area but because of the some parts might a cut. While with <code>image-contain</code> the image has <code>background-size: contain;</code> so the image will be fully visible but not cover the whole area. See example below
+* There is also a '''special class for images <code>image-contain</code>''' which is optional. By default images are in the background with <code>background-size: cover;</code> so the image always fills the whole area but because of the some parts might a cut. While with <code>image-contain</code> the image has <code>background-size: contain;</code> so the image will be fully visible but not cover the whole area. See example below
 '''Creating a new section'''
 * copy the following structure inside of <code><nowiki><div class="section-wrapper"></div></nowiki></code> and exchange <code>yourSectionName</code> by something of your choice
 <pre>
@@ -1692,6 +1697,8 @@ In the above example icon and image are both used which is not very sensible. Mo
 ### Example : <code><nowiki>{{CodeSelect|code=echo "Hello World"}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"}}
 ## '''inline''' (optional, boolean) : This parameter makes the CodeSelect box an inline element which flows with the text instead of a block which it usually is
 ### Example : <code><nowiki>{{CodeSelect|code=echo "Hello World"|inline=true}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|inline=true}}
+## '''breaklines''' (optional, boolean) : This parameter changes the way line breaks are handled. If true then lines will NOT be visually preserved like a in a pre-element (this would be normal CodeSelect behaviour), but will be broken if the width limit of the container element is reached. This mostly affects very long lines, which would then visually be broken. The copied content however is not affected, meaning there will be no line breaks there.
+### Example : <code><nowiki>{{CodeSelect|breaklines=true|code=abcdefghijklmnopqrstuvwxyzabc...}}</nowiki></code> renders to {{CodeSelect|breaklines=true|code=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz}}
 ## '''lang''' (optional, string, default: "bash") : When specified this parameter can select a specific language which should be highlighted in the CodeSelect box (for example: bash). A specific keyword is "none" meaning no highlighting will take place
 ### Example : <code><nowiki>{{CodeSelect|code=echo "Hello World"|lang=none}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|lang=none}}
 ## '''buttonImage''' (optional, string) : We introduced a mode to now make CodeSelect a simple button to copy code or text to the clipboard. Use buttonImage and the code box changes to a simple button. Add the buttonImage-parameter specifying the image source url.
@@ -2651,8 +2658,8 @@ Result
 * Functionality
 ** This wrapper is applied via Javascript and therefore does not work for nojs users
 ** The wrapper always stays 100% width. And if the table is too wide there will be an overflow bar
-** '''On desktop''' there is an additional overflow bar at the top of the table to indicate an overflowing table (which to user would overlook if the table is very long and the bottom scrollbar would not be visible when the table comes into view). The top scollbar and the bottom scrollbar are linked and therefore always scroll simultaneously. If you're on desktop test this here [[Desktop#Xfce_Scaling]]
-** '''On mobile''' the wrapper also introduces helper elements to indicate overflow. There is a "swipe" indicator above and below the table, because many smartphones do not show a scroll bar unless the user is already scrolling
+** '''On desktop''' there is an additional overflow bar at the top of the table for more accessibility to indicate an overflowing table (which to user would overlook if the table is very long and the bottom scrollbar would not be visible when the table comes into view). The top scollbar and the bottom scrollbar are linked and therefore always scroll simultaneously. If you're on desktop test this here [[Desktop#Xfce_Scaling]]
+** '''On mobile''' the wrapper also introduces helper elements to indicate overflow for more accessibility. There is a "swipe" indicator above and below the table, because many smartphones do not show a scroll bar unless the user is already scrolling
 ** '''Hidden Tables''' : Sometimes tables are hidden (for example when wrapped in mw-collapsible) and therefore have no dimension. In this case the normal method does not work and would produce wrappers with a height of 0 and result in a faulty layout
 *** To fix this we use IntersectionObserver to check if and when a table becomes visible. Only then will the usual Javascript be executed. And the IntersectionObserver will be disconnected to save computing power
 *** We also check if IntersectionObserver is available (it's not in old browser) and for those rare cases where it's not we do not apply the Javascript with the WikitableAutoWrapper at all to have at least a readable fallback
@@ -2660,7 +2667,13 @@ Result
 * Relevant files
 ** [https://github.com/adrelanos/mediawiki-customized-dist/blob/master/mediawiki-shared/src/shared/WikitableAutoWrapper.js WikitableAutoWrapper.js]
 ** [https://github.com/adrelanos/mediawiki-customized-dist/blob/master/mediawiki-shared/src/shared/WikitableAutoWrapper.css WikitableAutoWrapper.css]
-* '''NOTE''' : This solution replaces the previous solutions "scroll-table" and "scroll-overflow-indicator"
+* '''NOTES'''
+*# This solution replaces the previous solutions "scroll-table" and "scroll-overflow-indicator"
+*# Scrollbar problem on Firefox
+*#* Since version 100 Firefox per Default hides scrollbars when the element is not scrolling, see https://connect.mozilla.org/t5/discussions/scrollbars-disappear-in-firefox-100/td-p/5433
+*#* This goes against our accessibility efforts to help users understand where information might be hidden in an overflowing table
+*#* We tried implementing non-native Javascript scrollbars, namely Overlayscollbars, Simplebar, Slimbar, Minibar, Tinyscollbar and more. However our needs for horizontal scrollbars, good documentation, (somewhat) active development, ease of use and a small footprint (below 10kb) ruled out all candidates
+*#* As this problem currently (2024-08) only affects Firefox users and for them it's only a tiny accessibility disadvantage we decided to not pursue this issue further. Maybe in the future if this affects more browsers this issue could be revisited and proper development time could be allocated
 
 = USAGE : CSS Design Documentation (Alphabetical order) =
 
