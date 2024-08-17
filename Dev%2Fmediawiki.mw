@@ -98,11 +98,18 @@ Layout, Skin, CSS, JavaScript, Links, Header, Footer, CodeSelect, Mobile Fronten
 ** <code>debug</code> : This query parameter determines if the minified version or the readable version is printed (if <code>debug = true</code>)
 ** <code>dontload</code> : This parameter offers to not load our auto-generated js or css files. There are 3 options: <code>?dontload=js</code> <code>?dontload=css</code> and <code>?dontload=jscss</code>
 ** <code>$wgResourceLoaderDebug</code> is a setting for <code>LocalSettings.php</code> where the whole wiki can go into debug mode. Similar to the url parameter debug
+* There are also some additions regarding favicons
+
+=== Fonts ===
+
 * Our fonts are now also referenced and loaded with <code>preload</code> this way for better performance. This includes Roboto (regular font), Cousine (monospace font for pre, code etc) and Font Awesome (Icons)
 ** Regarding preload a good article as a resource is this: https://www.debugbear.com/blog/rel-preload-problems
 ** If crossorigin is omitted the fonts are loaded twice due to the crossorigin settings on the server
 ** Only <code>preload</code> is possible. <code>defer</code> or <code>async</code> is only supported by browsers for scripts but not for fonts.
-* There are also some additions regarding favicons
+* '''No hsversion''': All files called in Headscript usually have a headscript version number added to the URL so it can be controlled when the user browser has should fetch the files again so the user is up-to-date with the most recent file versions.
+** However FontAwesome loads its webfonts via the CSS file already. So if the URL for the font-preloading that we're doing is not the same URL as in the CSS then the webfont file is loaded twice which negatively impacts performance. This was the case previously as we were using the headscript version number, because the CSS file references the webfont without a headscript version number. And this cannot be changed.
+** So now we '''removed the headscript version number from all fonts''' and the double loading bug is fixed.
+** We also '''changed the FontAwesome folder name and the other font folder names to include the a date when we added them'''. This way when a new version is available the folder can be changed reflecting the then-current date and the user browser will fetch the newest version
 
 == BUILD: File auto-generation, Combine, Minify, Host Locally, mw-autogen, src-copy ==
 
@@ -433,10 +440,7 @@ https://github.com/jthingelstad/foreground/issues/392
 
 ==== Versioning in Headscript ====
 
-* All files called in Headscript usually have a headscript version number added to the URL so it can be controlled when the user browser has should fetch the files again so the user is up-to-date with the most recent file versions
-* However FontAwesome loads its webfonts via the CSS file already. So if the URL for the font-preloading that we're doing is not the same URL as in the CSS then the webfont file is loaded twice which negatively impacts performance. This was the case previously as we were using the headscript version number, because the CSS file references the webfont without a headscript version number. And this cannot be changed.
-* So now we removed the headscript version number and the double loading bug is fixed.
-* We also changed the FontAwesome folder name to include the FontAwesome version. This way when a new version is available the folder can be changed and the user browser will fetch the newest version
+All files called in Headscript usually have a headscript version number, but not our fonts including FontAwesome. [[Dev/mediawiki#Fonts|Read here about our Fonts]]
 
 ==== Subsetting ====
 
@@ -744,7 +748,13 @@ The footer is structually (html) positioned in the main content area. The vector
 ** First we tried a very small preview image scaled up to size and blurred, shortly after being replaced by the fully loaded hero image. The problem was that Lighthouse / Pagespeed output the error "Serves images with low resolution".
 ** Then we removed this preview image (class "overview-image-preview") and instead placed the preview image url in the src-attribute of ".overview-image > img". We hoped that the src image should always be loaded and would be initially shown. But the browser immediately fetched a larger image from srcset which slowed the performance metric. The src attribute is just a fallback option.
 ** Now we use an SVG image as the preview image which solves the "Serves images with low resolution" Lighthouse issue. SVGs are NOT seen as too small by Lighthouse because they can scale. This SVG image was losely generated from the small preview image because it has little detail which creates an SVG with a small file size.
-* There are special classes for sections which can be used give those sections a special look
+* '''Explainer Video (only Whonix homepage)'''
+** We have a Whonix explainer video ready for all users clicking the hero image
+** To save bandwidth this video is not preloaded. The source-src-attribute is not set to prevent the browser from preloading.
+** Instead an attribute "data-src" is set containing the source. If the user clicks on the hero image then the source from data-src is used to set the src-attribute and the video is reloaded and starts to play
+** This is done in the Whonix LocalPages.js file
+** Also no poster (video thumbnail) is set, because the video player is hidden behind the hero image until the image is clicked
+* There are '''special classes''' for sections which can be used give those sections a special look
 ** <code>dark-section</code> : a dark section has a dark background. It can be combined with row-3- and row-5-sections. The dark section spans over the whole page, while the inner content is max 960px
 ** <code>row-3-section</code> : These sections have 3 elements on wide displays, 2 on medium displays and 1 on small displays. They are used for testimonials, features or other text heavy tasks
 ** <code>row-5-section</code> : The sections have 5 elements on wide displays, 3 on medium displays and 2 on small displays. They are used for icons and low information items
