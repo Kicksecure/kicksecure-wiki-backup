@@ -274,10 +274,116 @@ TODO:
 ** We could by a modern script and set it up with mysql
 * Admin said he will do script research again
 
-== FlaggedRevisions CacheClear Workaround ==
-TODO
-
 = TODO DEV =
+
+== Headscript jquery dependencies ==
+
+'''DEV'''
+
+* For the tinyscrollbar task we needed a way to use jquery dependent libraries
+* This has now been realized in mw-headscript line 204 to 227 with a new feature for external libraries that are dependent on jquery or any other mediawiki core library
+* Currently this is solved by "injecting" these "dependent library" loads BETWEEN the core being ready and the complete load of the combined project files
+* HOWEVER, there is a drawback. The more libraries which are in this space the later ALL project scripts are loaded. With one script that might not be a problem be maybe (?) with many (in the future?)
+** Patrick: A loading flow-chart would be helpful. (Just simple such as pseudo flow-chart: mediawiki JS -> jquery dependent -> our other JS) (Only if still relevant after my other answers below.)
+* '''Question to admin''': Keep the current solution? - Or we could introduce an internal javascript function (without any loading overhead) which ONLY loads a wrapped script AFTER the dependent libraries. All other scripts are loaded once jQuery is ready (as it was before)
+** Patrick: No loading overhead sounds good.
+** Patrick: Only loading a wrapper script after dependencies were load sounds necessary to avoid bugs?
+** Here also a simple flow chart to compare the different solutions might be helpful.
+* Also there have bee a couple of rearragements in the headscript. meta tags for example should be loaded before script and link tags. Also the project files should be loaded very last (to prevent the tiniest chance of inordered loading)
+** Patrick: Very nice.
+* '''Question to admin''': Please check mw-headscript and confirm if the current structure is satisfactory
+** Patrick: Looks good.
+* '''TODO'''
+** Documentation (after admin has decided and solution is final)
+
+Patrick:
+
+* usual mw-combined-wikijs.js isn't possible?
+* reminder (and reminding myself, need to look that up where that was implemented): we had a space (server nocache) for such experiments.
+* goal: JavaScript defer as usual? Seems inline JS is counter to that.
+* goal: Avoidance of content shift when direct link is used to somewhere where a CodeSelect box was used. Is this even possible? Would the required space be reserved in CSS?
+* Is it render blocking? Goal: It should not be render blocking.
+* Please compare speed (if the solution indicates that his might harm performance).
+** https://gtmetrix.com/ (record video)
+** https://www.webpagetest.org/
+
+== Vector Legacy Maintenance ==
+
+Vector Legacy: While "Legacy" is in its name, it doesn't necessarily mean that bug reporting are off limits or that pull requests would be rejected. It might mean that. Name "legacy" is motivation to check if that is the case. It however, cannot be taken granted just based on the name.
+
+Asked upstream MediaWiki directly.
+
+{{quotation
+|quote=Would a pull request have a chance for review and merge since this is about Vector legacy?
+|context=[https://phabricator.wikimedia.org/T373045 Legacy Vector TOC Lighthouse bugs due to toggle collapse]
+}}
+
+Bug report [https://phabricator.wikimedia.org/T373045 Legacy Vector TOC Lighthouse bugs due to toggle collapse] is also indirectly asking this question thanks to the [https://gerrit.wikimedia.org/r/c/mediawiki/skins/Vector/+/1064423 1064423: Revert "Legacy Vector is not a responsive skin"] pull request.
+
+TODO: please document in [[Dev/mediawiki]] and remove from here
+
+== pagespeed - Values assigned to role="" are not valid ARIA roles ==
+<pre>
+Values assigned to role="" are not valid ARIA roles
+</pre>
+
+"Values assigned to role="" are not valid ARIA roles." - this evolves around TOC which is rendered with HTML non-conformities. However this seems to be caused by the old vector skin which is not developed any further, so a bug report <u>might</u> be futile. We could however remove this element via Javascript. This fixes the problem and would also be easy with minimal effort to implement in our TOCLevelSwitcher script.
+
+MediaWiki upstream bug report: [https://phabricator.wikimedia.org/T373045 Legacy Vector TOC Lighthouse bugs due to toggle collapse]
+
+TODO: please document in [[Dev/mediawiki]] and remove from here
+
+* goal: 1 chapter per pagespeed issue so this can be easily looked up again in the future
+
+== pagespeed - Form elements do not have associated labels ==
+
+<pre>
+Form elements do not have associated labels
+</pre>
+
+this evolves around the same TOC elements from above.
+
+"label.toctogglelabel" is empty which is not valid and which triggers "Form elements do not have associated labels" in Lighthouse for "input#toctogglecheckbox".
+
+* Bug report below (with framing why it's still relevant). Side note for admin: It seems that the TOC rendering that WE have in the wiki is by the MediaWiki core, specifically Parsoid, and not the skin. It appears that the new vector skin functions differently and renders the TOC itself, therefore the new vector TOC has a lot of classes with "vector-" in it and the id "vector-toc". This is also implied here https://stackoverflow.com/a/76055033
+
+TODO: please document in [[Dev/mediawiki]] and remove from here
+
+== pagespeed - Links do not have a discernible name ==
+<pre>
+Links do not have a discernible name
+</pre>
+
+this is the issue regarding a.mw-file-magnify what was bug-reported by us to MediaWiki recenty
+
+TODO: please document in [[Dev/mediawiki]] and remove from here
+
+== pagespeed - Links are not crawlable ==
+<pre>
+Links are not crawlable
+</pre> 
+
+We wrote a bug report about this too, it's about a.mw-selflink.selflink. Our suggestion was to add a role.
+
+TODO: please document in [[Dev/mediawiki]] and remove from here
+
+== tinyscrollbar: CodeSelect custom scroll bar + wikitable wrapper scrollbar attempt 2 ==
+
+Admin found this CodeSelect box to not show an overflow bar on small device https://www.whonix.org/wiki/OnionShare#onion-grater_Profile
+Box with <code>sudo onion-grater-add 40_onionshare</code>
+
+'''DEV'''
+* Dev cannot reproduce this error
+* On all tests, scrollbar was visible. Was tested on Samsung A8, Chrome Devtools Mobile simulation (DMS), Chromium DMS, Firefox DMS
+* BUT as per usual on Mobile (and Firefox DMS) the scrollbar was ONLY shown when the user scrolled or "touched" the element. So maybe that's the problem?
+* If so shall we handle it like with wikitable?
+** add a mobile scrollbar indicator for mobile
+** ignore the issue for firefox because it will be a very rare issue
+
+'''DEV'''
+* The issue was again the scrollbar that is THERE but hidden on mobile and on firefox
+* Admin decided to allocate time for custom scrollbar (attempt 2) and to use the tiniest available library and our own script to add this scrollbar ONLY where needed (codeSelect and wikitable wrapper)
+* The library has been successfully added and a proof-of-concept implementation has been realized
 
 == pagespeed - others ==
 This is just a catchall for those that I might have forgotten above.
@@ -305,17 +411,20 @@ TODO: please fix those which are fixable with reasonable effort
 * Whonix and Kicksecure About pages are now solved apart from MediaWiki issues that are reported as bug reports
 * Whonix and Kicksecure Documentation pages are now also fixed. There was a footer image ratio error fixed which also positively affects all other pages
 
-== pagespeed - archive.org button - Touch targets do not have sufficient size or spacing. ==
-
-https://pagespeed.web.dev/analysis/https-www-kicksecure-com-wiki-About/wfn2q2z1dx?form_factor=mobile
+== pagespeed - mininav - Links are not crawlable ==
+On https://www.whonix.org/wiki/About the mininav to About itself is not a link. Not sure it should be a link either.
 
 <pre>
-Touch targets do not have sufficient size or spacing.
-Touch targets with sufficient size and spacing help users who may have difficulty targeting small controls to activate the targets. Learn more about touch targets.
-Failing Elements
-archive.org
-<a rel="noreferrer noopener" href="https://web.archive.org/web/https://github.com/Kicksecure/tirdad" target="_blank">
+Links are not crawlable
+Search engines may use href attributes on links to crawl websites. Ensure that the href attribute of anchor elements links to an appropriate destination, so more pages of the site can be discovered. Learn how to make links crawlable
+Uncrawlable Link
+About
+<a class="mw-selflink selflink">
+About
+<a class="mw-selflink selflink">
 </pre>
+
+Dunno if this can be avoided?
 
 == Test with Tor Browser 14.0a1 ==
 https://dist.torproject.org/torbrowser/14.0a1/
@@ -355,7 +464,16 @@ These bugs might be caused by Tor Browser.
 5) updated (written for clarity): This Tor Browser bug is similar to images slow or never loading. This is not directly our bug. However, is there something that can be done better on our website to workaround this bug? In case if images fail to load (or maybe some browsers / crawlers not loading images) then it would be good if our website looks somewhat good anyhow as such things would likely be visible on a very slow load as it might happen over Tor / flaky networks. If possible with reasonable effort.
 
 == backport mediawiki-link-to-archive ==
-backport the new changes implemented by https://github.com/Archi-Strasbourg/mediawiki-link-to-archive in our already existing fork
+Backport the new changes implemented by https://github.com/Archi-Strasbourg/mediawiki-link-to-archive in our already existing fork, if sensible.
+
+== Dark Mode Maintenance ==
+https://gerrit.wikimedia.org/r/c/mediawiki/extensions/DarkMode/+/849628 was merged upstream by mediawiki.
+
+Please reconsider all of [[Dev/mediawiki#Extension_Dark_Mode_.28Fork.29|Extension Dark Mode (Fork)]].
+
+* Mentioned Tor Browser issues resolved?
+* Can our fork be retired?
+** Otherwise backport new upstream changes to our fork?
 
 == tab controller - no tab expanded by default ==
 How to use a tab controller but require that none is shown by default?
@@ -492,6 +610,11 @@ TODO research: https://forums.whonix.org/t/very-hard-to-notice-phishing-scam-fir
 * Post in forums.
 
 == Content ==
+=== Kicksecure About ===
+https://www.kicksecure.com/wiki/About
+
+* start using left/right images similar as on https://www.whonix.org/wiki/About
+
 === Template:W-APT-Repository-Key ===
 https://www.kicksecure.com/wiki/Template:W-APT-Repository-Key
 
@@ -533,73 +656,18 @@ tasks:
 = WAITING ON =
 = REVIEW PLEASE =
 
-== Pagespeed Documentation pages : mw-collapsible label ==
-
-'''DEV'''
-* DONE
-* There was a Lighthouse error "Heading elements are not in sequentially - descending order". This was due to headlines used as mw-collapsible labels
-* This was solved by introducing p-element as label, see documentation [[Dev/mediawiki#Expand_.28mw-collapsible.29_paragraph_as_label|Expand (mw-collapsible) paragraph as label]]
-
-== pagespeed About Whonix and Kicksecure - touch targets spacing ==
-
-https://www.whonix.org/wiki/About problem "Touch targets do not have sufficient size or spacing."
-
-'''DEV'''
-* Done depending on admin
-* The number of problematic items was greatly reduced from about 30 to now 4
-* All citation backlink arrows were corrected and also look better now (see Footnotes)
-* Archiv links and external links have now more spacing to the archiv and onion symbols. Those symbols are also a bit lower now (to have more space above)
-* 4 items are still critized. Dev could try to fix those too, but it seems to be a tougher task because they could also be "false positives"
-* Question to admin: As the icons for archive and onion are now farther away from the link words I would suggest forcing the icons to NOT break on their own at a new line but only break together with the link text. What is your opinion?
-
-'''DEV'''
-* DONE
-* All touch targets are now properly spaced. No problems left
-* Archive links still looking good
-* Citation backlinks look better now (more readable)
-* Also new line nowrap idea was implemented in Template and Widget Archive Link. Also a new parameter was introduced "linewrap" for very long link to still allow line wrap if needed. See here for updated documentation [[Dev/mediawiki#Archive_link_.28Template.29|Archive_link (Template)]]
-
-== pagespeed - others - Whonix About ==
-
-* Dev: "Values assigned to role="" are not valid ARIA roles." - this evolves around TOC which is rendered with HTML non-conformities. However this seems to be caused by the old vector skin which is not developed any further, so a bug report would be futile. We could however remove this element via Javascript. This fixes the problem and would also be easy with minimal effort to implement in our TOCLevelSwitcher script.
-** Vector Legacy: While "Legacy" is in its name, it doesn't mean that bug reporting are off limits or that pull requests would be rejected? It might mean that. Name "legacy" is motivation to check if that is the case. It however, cannot be taken granted just based on the name.
-**  Please write a mediawiki upstream bug report (if it does not exist yet) for this issue so I can forward it to a mediawiki contributor who would send a pull request.
-* Dev: "Form elements do not have associated labels" - this evolves around the same TOC elements from above. So a Mediawiki request or bug report might be out of the picture. Javascript solution is also possible here.
-** Same as above.
-* "Links do not have a discernible name" - this is the issue regarding a.mw-file-magnify what was bug-reported by us to MediaWiki recently. However here a Javascript solution is also possible. This solution could be removed once the fix it.
-** Patrick: No JS based fixes please in this case. Upstream issues which upstream is likely to fix, we wait for upstream.
-* Dev: "Links are not crawlable" - We wrote a bug report about this too, it's about a.mw-selflink.selflink. Our suggestion was to add a role. This can also be fixed temporarily with Javascript
-** Patrick: No JS based fixes please in this case. Upstream issues which upstream is likely to fix, we wait for upstream.
-
-'''DEV'''
-* DONE
-* No JS acknowledged
-* Bug report below (with framing why it's still relevant). Side note for admin: It seems that the TOC rendering that WE have in the wiki is by the MediaWiki core, specifically Parsoid, and not the skin. It appears that the new vector skin functions differently and renders the TOC itself, therefore the new vector TOC has a lot of classes with "vector-" in it and the id "vector-toc". This is also implied here https://stackoverflow.com/a/76055033
-
-'''Legacy Vector TOC Lighthouse bugs due to toggle collapse'''
-
-We are using Legacy Vector and it's TOC with the up-to-date MediaWiki version. There are two Lighthouse bugs happening due to invalid HTML in the TOC toctogglecheckbox and toctogglelabel
-
-First, "label.toctogglelabel" is empty which is not valid and which triggers "Form elements do not have associated labels" in Lighthouse for "input#toctogglecheckbox". A label-element needs to have text or another describing HTML element. We suggest adding the "collapse" text not via CSS, but regularely as text. Or add a span element with this text if more flexibility for CSS styling is needed
-
-Second, "input#toctogglecheckbox" has the role "button" which is not valid for an input checkbox element and therefore triggers "Values assigned to role="" are not valid ARIA roles." in Lighthouse. We suggest simply removing role="button" which is the invalid part and not necessary.
-
-== Top Headline missing edit button ==
-
-* One page Dev/mediawiki a headline was shown as headline level 1 but had no edit button
-
-'''DEV'''
-* Semi fix. Please archive task
-* Bug was thoroughly examined.
-* No Javascript, CSS or HTML bug
-* Previous and following chapter were analysed
-* Also the previous, this and the following chapter were copied to a testpage were everything worked fine
-* It seemed the previous chapter also loads the chapter with the missing editsection button. So it was assumed the problem lies in the previous chapter, so sections of the were strategically deleted to find the problematic subsection.
-* The problem was a wikitable in the direct previous chapter, a level 2 headline. Removing the wikitable solved the problem. But this is not a solution, so wikitable was just html-commented out (and notice was given)
-* Dev would normally suggest a bug report to MediaWiki. However the bug is not reproducable in a smaller test page, see [[Testpage]]. It seems this is a "complexity bug", which is cause by multiple not obviously connected causes. Dev also performed a full page wikitext analysis and found no syntax errors (just very few of spelling errors which were corrected)
-* So Dev suggests just archiving these finds and for now work with html-commenting out the problematic tables if necessary. If the bug becomes a practical one (and not a theoretical one like now) this should be reinvestigated
-
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2024-08-21
+** Task analysis + transcription
+** overlong archive link analysis
+*** fixed improperly close archive_link
+*** removed nowrap solution
+*** documentation
+** bug Overlong CodeSelect not showing scroll bar analysis
+** headscript reorganize + cleanup
+*** add jquery dependent scripts section
+** tinybar implementation + first test successful
 
 * 2024-08-20
 ** About pages (Kick, Whonix) Lighthouse fixed
