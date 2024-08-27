@@ -51,7 +51,7 @@ These tools are responsible for creating <code>/etc/fstab</code>. That is why ch
 
 * initramfs-tools: <code>/usr/share/initramfs-tools/init</code>
 * [https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487 dracut: used by Kicksecure by default at time of writing.]
-** There is an implementation ins security-misc currently disabled by default.
+** There is an implementation in security-misc currently disabled by default.
 *** <code>/usr/lib/dracut/modules.d-disabled</code>
 *** Was functional.
 *** Was said to slow down the boot process.
@@ -68,6 +68,7 @@ Disadvantages:
 ** Custom kernel with all modules already compiled-in.
 ** Boot / virtualization methods not involving an initrd such as systemd-nspawn, and perhaps docker, OpenVZ.
 * configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+* shell scripting (in case of the dracut based implementation by security-misc)
 
 == Systemd drop-in mount options for units that already exist ==
 
@@ -117,7 +118,7 @@ Options=defaults,nodev,nosuid,bind
 WantedBy=sysinit.target
 </pre>
 
-Now the tricky part is, we want unit to come into effect when there is actually no partition for <code>/var</code> on disk. Should this be the case, this a proper mount unit will be created on start up by the system using the <code>/etc/fstab</code> file. Having this unit under this specific path provides us with this exact functionality. When there is a line in fstab for a partition, a proper moutn unit gets created dynamically that overrides our unit under this path, so it effectively becomes non existent. But if there is no such unit to override us, we take effect and assume that since there is no mount unit to override us, there is no partition on disk for <code>/var</code>, so we can bind it to itself.
+Now the tricky part is, we want unit to come into effect when there is actually no partition for <code>/var</code> on disk. Should this be the case, this a proper mount unit will be created on start up by the system using the <code>/etc/fstab</code> file. Having this unit under this specific path provides us with this exact functionality. When there is a line in fstab for a partition, a proper mount unit gets created dynamically that overrides our unit under this path, so it effectively becomes non existent. But if there is no such unit to override us, we take effect and assume that since there is no mount unit to override us, there is no partition on disk for <code>/var</code>, so we can bind it to itself.
 
 Binding partitions to itself is also tricky for other reasons. This is not a real mount. Binding one directory to itself allows us a workaround to make use of the hardened mount options for that said directory. But if we want to bind several path, that may be nested in a way, the order of binding would then be of the essence. Having bound <code>/var</code> to itself before binding <code>/var/tmp</code> will result in a double bind situation that allows several points of acces to <code>/var/tmp</code>. A process that might opened this directory before the second bind might retain access under the options normally meant for <code>/var</code>. Not to mention the extra complexity introduced during boot and shut down with nested bind mounts. So when writing such units, attention must be paid to the order.
 

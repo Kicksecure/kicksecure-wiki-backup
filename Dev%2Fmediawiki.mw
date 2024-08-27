@@ -1866,6 +1866,7 @@ In the above example icon and image are both used which is not very sensible. Mo
 ## '''inline''' (optional, boolean) : This parameter makes the CodeSelect box an inline element which flows with the text instead of a block which it usually is
 ### Example : <code><nowiki>{{CodeSelect|code=echo "Hello World"|inline=true}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|inline=true}}
 ## '''breaklines''' (optional, boolean) : This parameter changes the way line breaks are handled. If true then lines will NOT be visually preserved like a in a pre-element (this would be normal CodeSelect behaviour), but will be broken if the width limit of the container element is reached. This mostly affects very long lines, which would then visually be broken. The copied content however is not affected, meaning there will be no line breaks there.
+### Example : <code><nowiki>{{CodeSelect|code=abcdefghijklmnopqrstuvwxyzabc...}}</nowiki></code> renders to {{CodeSelect|code=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz}}
 ### Example : <code><nowiki>{{CodeSelect|breaklines=true|code=abcdefghijklmnopqrstuvwxyzabc...}}</nowiki></code> renders to {{CodeSelect|breaklines=true|code=abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz}}
 ## '''lang''' (optional, string, default: "bash") : When specified this parameter can select a specific language which should be highlighted in the CodeSelect box (for example: bash). A specific keyword is "none" meaning no highlighting will take place
 ### Example : <code><nowiki>{{CodeSelect|code=echo "Hello World"|lang=none}}</nowiki></code> renders to {{CodeSelect|code=echo "Hello World"|lang=none}}
@@ -1903,6 +1904,8 @@ $ sudo apt "example1"
 *## For a download of newer version in the future go to https://prismjs.com/download.html and choose the languages we support (see above). Ask admin how to implement those files.
 *# '''insertHtmlMode''' : This gives the opportunity for Devs to insert structured HTML into the code box, not just text. This is useful if CodeSelect is used in another widget or for special demonstrations. To use it reconstruct the codeSelect widget and just add the class insert-html-mode. '''NOTE''': This parameter sets the parameter lang to "none" because it does not work with highlighting
 *## Example. <code><nowiki><span class="code-select">More <b>Info</b> here</span></nowiki></code> <span class="code-select">More <b>Info</b> here</span> vs <code><nowiki><span class="code-select insert-mode-html">More <b>Info</b> here</span></nowiki></code> <span class="code-select insert-mode-html">More <b>Info</b> here</span>
+*# '''custom scrollbars''': For js users the codeSelect boxes are initialized with [[Dev/mediawiki#CustomScollbar|CustomScollbar]]
+*## '''feature class cs-no-custom-scrollbars''': The initilization with custom scrollbars can be prevented by adding the class <code>cs-no-custom-scrollbars</code> to the code-select parent element. Then codeSelect will revert back to standard overflow behavior (but prone to content shift e. g. in Firefox)
 
 == Community Support Template ==
 
@@ -1949,6 +1952,31 @@ $ sudo apt "example1"
 ** [[Dev/wikitest#CustomRepo_.28Template.29|CustomRepo (Template)]]
 * Relevant files
 ** [[Template:CustomRepo]]
+
+== CustomScollbar ==
+
+* This is a '''developer feature'''
+* Sometimes it is needed to realized custom scollbars with javascript. For this we are using the library tinyscrollbar. Specifically for [[Dev/mediawiki#CodeSelect|CodeSelect]] and [[Dev/mediawiki#WikitableAutoWrapper_and_ScrollableIndicator|WikitableAutoWrapper and ScrollableIndicator]] because we want to prevent content shift and guarantee best accessibility - for users to always know if an element is scrollable - specifically on Firefox and on mobile devices where the scrollbar gets hidden automatically
+* '''USAGE'''
+** To make use of it your element needs the following structure{{CodeSelect|code=
+<span class="custom-scrollbar-container">
+  <span class="viewport">
+    <span class="overview"></span>
+  </span>
+  <span class="scrollbar">
+    <span class="track">
+      <span class="thumb"></span>
+    </span>
+  </span>
+</span>
+}}
+** Your content needs to be placed in "overview"
+** More classes can be added if needed
+** finally initialized like this {{CodeSelect|code=mwDev.tools.addCustomScrollbar( $('.custom-scrollbar-container'), options );}}
+** For more documentation read here: https://baijs.com/tinyscrollbar/
+* Relevant files
+** {{CustomRepo|CustomScrollbar.js}}
+** {{CustomRepo|CustomScrollbar.css}}
 
 == Debug-via-url-modal ==
 
@@ -2200,12 +2228,13 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 == Hash Controller ==
 
 * The Hash of the URL (e. g. in kicksecure.com#anchor1 the "anchor1" part) can be a powerful tool to control parts of the page. In its usual use case and for nojs users it makes the browser window jump to the desired location. With Javascript the hash can be used as any data point
-* The hash controller is for developers centralizes the hash behavior as sub category in [[Dev/mediawiki#DevTools]].
+* The hash controller is for developers and centralizes the hash behavior as sub category in [[Dev/mediawiki#DevTools]].
 * '''USAGE''' : The following functions are available
 ** '''get()''' : Simply get the current hash as a string. '''NOTE for Devs''' : You get the decoded string, meaning special chars are transformed back from their escaped url form to their special char self. Also note that this might be confusing because many browsers show these special chars in their special char form. But as only ascii is allowed in urls their are in reality escaped.
 ** '''set( hash : string )''' : Simply set the current hash with a string (without '#')
-** '''register( id : string, callback : function, requestInitialTrigger : boolean )''' : Register a function for a specific id/hash. Meaning: If the URL has/gets this hash then this function will be executed. If requestInitialTrigger is set to true then at the load time of the page all relevant functions will be executed. This execution will '''only happen ONCE''' - even if multiple functions set requestInitialTrigger tro true.
-** '''trigger( initial : string )''' : Trigger the checking function. The initial parameter is only needed internally for {{CustomRepo|MwCombineJsWrapper.js}}. If the initial-parameter is set to "initial" (verbose for more clarity) then this will only fire if at least one function set requestInitialTrigger to true in the register-function
+** '''register( id : string, callback : function, requestInitialTrigger : boolean )''' : Register a function for a specific id/hash. Meaning: If the URL has/gets this hash then this function will be executed. Triggers EVERY TIME the hash changes. If requestInitialTrigger is set to true then at load time of the page all registered functions will be executed. This execution will '''only happen ONCE''' - even if multiple functions set requestInitialTrigger to true.
+** '''registerInitialCallback( initialCallback : function )''' : Register a function which is ONLY ONCE executed after the initial trigger has called all registered hash (and empty-hash) callbacks once
+** '''trigger( isInitialTrigger : boolean )''' : Triggers <code>triggerRegisteredCallbacks</code>, the execution function for all has registered callback functions. The <code>isInitialTrigger</code> parameter is only needed internally for {{CustomRepo|MwCombineJsWrapper.js}}. This initial execution will only be triggered if either in the <code>register</code> function <code>requestInitialTrigger</code> is set to true at least once OR if at least one function is registered with <code>registerInitialCallback</code>
 * Relevant files
 ** {{CustomRepo|HashController.js}}
 ** {{CustomRepo|MwCombineJsWrapper.js}}
