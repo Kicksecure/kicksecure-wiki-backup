@@ -1585,6 +1585,18 @@ done < js.txt
 </div>
 </div>
 
+== Parser Function Special constructions for if, ifeq, ifexpr and more ==
+
+We use MediaWiki [https://www.mediawiki.org/wiki/Help:Extension:ParserFunctions Parser Functions] in a lot of templates. Specifically if-constructions. However, Parser Functions are not as easy to use as in programming languages. Sometimes more complex constructions are needed to achieve the desired logical conditions. In this chapter we document such constructions that we use as a reference for developers and to give inspiration how to achieve the desired outcome. This is also needed because online searches are very sparse regarding these problems.
+
+=== Converting if into a string result to be used in ifeq ===
+
+<pre>{{#ifeq: {{#if: {{{project|}}} | {{{project|}}} | {{project_name_short_lowercase}}}} | {{project_name_short_lowercase}} | yes | no }}</pre>
+
+* The construction above  is used in [[Template:DonorCard]] and basically says "either the project parameter is NOT set or the project parameter equals the content of the project_name_short_lowercase template".
+* This is normally hard to do because <code><nowiki>{{#if ...}}</nowiki></code> would be the right construction to check whether the variable is set and <code><nowiki>{{#ifeq: ...}}</nowiki></code> is correct for comparing strings. The whole expression cannot be modelled in either of them.
+* What we do is '''convert the boolean of the if construction into a string''' where a given parameter outputs itself again to be compared while a not-given parameter outputs the correct second condition and therefore always leads to true.
+
 = Pagespeed and Lighthouse =
 
 * Lighthouse is a performance testing tool by Google for websites that is widely used and highly regarded: https://developers.google.com/web/tools/lighthouse/
@@ -2068,16 +2080,17 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 == DonorCard ==
 
 * Kicksecure and Whonix survive on donations and services we provide. To thank our donors we opened the [[Donors|Donor recognition program]]. It is a voluntary opt-in program only if requested by the donors. For this page we need cards to appropriately thank our donors. Therefore the template DonorCard was developed.
-* The template has 5 levels which are: xs, s, m, l and xl
+* The template has 6 levels which are: xs, s, m, l, xl and dis (discreet donor with confidential amount)
 * The cards are designed to be responsive meaning they will take as much space as given
 * To see examples look here: [[Testpage_Donors]]
 * '''Parameters'''
 ** '''name | string, mandatory''' : inserts the donor name or name of organization
-** '''range | string, mandatory''' : there are 6 options: xs, s, m, l, xl and anon. See how each options looks on [[Testpage_Donors]]
-** '''logo | string optional''' : is an image file name representing the donor which is implemented using the <nowiki>[[File:...]]</nowiki> Syntax
+** '''range | string, mandatory''' : there are 6 options: <code>xs</code>, <code>s</code>, <code>m</code>, <code>l</code>, <code>xl</code> and <code>dis</code>. See how each options looks on [[Testpage_Donors]]
+** '''logo | string optional''' : is an image file name representing the donor which is implemented internally using the name parameter in the <nowiki>[[File:...]]</nowiki> Syntax
 ** '''link | string, optional''' : using link to a url changes the image to a link image. If link is used then a link indicator image is also inserted to let the user know that the image is clickable
 ** '''date | string, optional''' : simply outputs the date of the donation
 ** '''message | string, optional''' : outputs a message, usually a thank you message
+** '''project | string, optional''' : Specifies the project that this donation is going to. Omit the project parameter then the card will show up on ALL project wikis. Specify a project by setting the parameter in lower case (e. g. whonix or kicksecure) then the card will show up only on the specified project. Set the parameter with wrong spelling (case sensitive) and the card will show up in no project wiki at all (so typos are easily visible).
 * '''Syntax'''
 ** {{CodeSelect|code={{DonorCard
 {{!}}name=John Doe
@@ -2086,6 +2099,7 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 {{!}}link=Donors
 {{!}}date=2019-01-01
 {{!}}message=Thank you very much
+{{!}}project=whonix
 }}
 }}
 * Relevant files
