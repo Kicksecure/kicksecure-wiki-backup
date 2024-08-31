@@ -2598,6 +2598,35 @@ Example {{Quotation|quote=An important quote from a developer
 |context=Name, Position, Link
 }}
 
+== ScrollAutoWrapper ==
+
+* '''Motivation'''
+** '''Overwide elements''': Tables and other elements like pre-tags have a flexible width auto-adjusting to their content - this means it can have over 100% of the given width of the content column of the page. We call elements with this condition "overwide elements"
+** To give the user a smooth experience these overwide elements should not surpass 100% width
+** To solve this we created an auto-wrapper for all overwide elements.
+** This solution is currently only auto-applied for <code>pre</code>-elements and <code>table</code> elements with the "wikitable" class (which is our standard class for styled tables)
+* '''Functionality'''
+** This wrapper is applied via Javascript and therefore does not work for nojs users
+** The wrapper is also only applied if the element is determined to have overwidth
+** The wrapper always stays 100% width. And if the element is too wide there will be an overflow bar
+*** This is also a prerequisite for other elements which ScrollAutoWrapper is applied to. They need to have something similar to <code>display: block; width: 100%, overflow: auto;</code>, so a scrollbar would naturally appear in case of overwidth without any Javascript
+** '''Custom overflow scrollbar''' : In case of overwidth (element width more than 100% of content column) there are scrollbars at the bottom and occasionally at the top (see next point below for clarification) of the overwide element for more accessibility to indicate an overwide element (which to user would overlook if the element is very long and the bottom scrollbar would not be visible when the element comes into view). The top scollbar and the bottom scrollbar are linked and therefore always scroll simultaneously. This works '''for mobile AND desktop''' because we are using a custom scrollbar library "tinyscrollbar" to not take any chances of a lowered accessiblity due to Firefox's auto-disappearing scrollbars or mobile auto-disappearing scrollbars
+** '''Conditional top scrollbar''' : Not always a top scrollbar is needed. It might in fact be detrimental to the clarity of overwide element if it's very short in height and therefore the bottom scrollbar is immediately visible. Then the top scrollbar would be very confusing. We therefore have introduced a setting <code>fullScreenHeightFraction</code> in the ScrollAutoWrapper.js file. This value should be ideally and logically between <code>.3</code> and <code>1.5</code> and is to be interpreted "Once an element is a fraction of the browser viewport height that is equal or greater than the fullScreenHeightFraction then a top scrollbar will be introduced, otherwise not". The value is currently set to <code>.5</code>, which admin can adjust once more empirical values have been tested.
+** '''Hidden elements''' : Sometimes overwide elements are first hidden (for example when wrapped in mw-collapsible) and therefore have no dimension and are not yet overwide. In this case the normal method does not work and would produce wrappers with a height of 0 and would result in a faulty layout
+*** To fix this we use IntersectionObserver to check if and when the element becomes visible. Only then will the usual Javascript be executed. And the IntersectionObserver will be disconnected to save computing power
+*** We also check if IntersectionObserver is available (it's not in old browser) and for those rare cases where it's not we do not apply the Javascript with the WikitableAutoWrapper at all to have at least a readable fallback
+** '''Special margins''' : Sometimes a table has special margins. The wrapper has to have those margins because the table gets 0 on all margins to preserve "margin joining" with surrounding elements which otherwise would lead to content shift. Therefore the wrapper automatically gets the computed styles from the table while the tables gets 0 for all margins
+* '''Tests / Examples''' : [[Dev/wikitest#ScrollAutoWrapper|ScrollAutoWrapper]]
+* '''Relevant files'''
+** {{CustomRepo|ScrollAutoWrapper.js}}
+** {{CustomRepo|ScrollAutoWrapper.css}}
+* '''NOTES'''
+*# This solution replaces the previous solutions <code>WikitableAutoWrapper</code>, <code>scroll-table</code> and <code>scroll-overflow-indicator</code> / <code>ScrollableIndicator</code>
+*# Scrollbar problem on Firefox
+*#* Since version 100 Firefox per Default hides scrollbars when the element is not scrolling, see https://connect.mozilla.org/t5/discussions/scrollbars-disappear-in-firefox-100/td-p/5433
+*#* This goes against our accessibility efforts to help users understand where information might be hidden in an overwide element
+*#* We tried implementing non-native Javascript scrollbars, namely Overlayscollbars, Simplebar, Slimbar, Minibar, Tinyscollbar and more. Our needs are a horizontal scrollbar feature, linked scrollbars feature, good documentation, (somewhat) active development (not abandoned), ease of use and a small footprint (below 10kb). Our choice felll on tinyscrollbar
+
 == sd-start (currently retired) ==
 
 * https://www.{{project_clearnet}}/wiki/Widget:Sd-start-short
@@ -2911,31 +2940,6 @@ Result
 * '''Rendered examples''' : [[Dev/wikitest#VideoLink|Wiki test VideoLink]]
 * '''For Devs'''
 ** To introduce new platforms simply copy a link code line in [[Template:VideoLink]] and modify the image, the alt description and url
-
-== WikitableAutoWrapper and ScrollableIndicator ==
-
-* Motivation
-** Tables have a flexible width auto-adjusting to their content - this means it can have over 100% of the given width.
-** To give the user a smooth experience tables should not surpass 100% width
-** To solve this we created an auto-wrapper for all tables with the "wikitable" class (which is our standard class for styled tables).
-* Functionality
-** This wrapper is applied via Javascript and therefore does not work for nojs users
-** The wrapper always stays 100% width. And if the table is too wide there will be an overflow bar
-** '''Custom overflow scrollbar''' : In case of table overflow (table width more than 100% of screen) there are scrollbars at the top and the bottom of the table for more accessibility to indicate an overflowing table (which to user would overlook if the table is very long and the bottom scrollbar would not be visible when the table comes into view). The top scollbar and the bottom scrollbar are linked and therefore always scroll simultaneously. This works '''for mobile AND desktop''' because we are using a custom scrollbar library "tinyscrollbar" to not take any chances of a lowered accessiblity due to Firefox's auto-disappearing scrollbars or mobile auto-disappearing scrollbars
-** '''Hidden Tables''' : Sometimes tables are hidden (for example when wrapped in mw-collapsible) and therefore have no dimension. In this case the normal method does not work and would produce wrappers with a height of 0 and result in a faulty layout
-*** To fix this we use IntersectionObserver to check if and when a table becomes visible. Only then will the usual Javascript be executed. And the IntersectionObserver will be disconnected to save computing power
-*** We also check if IntersectionObserver is available (it's not in old browser) and for those rare cases where it's not we do not apply the Javascript with the WikitableAutoWrapper at all to have at least a readable fallback
-** '''Special margins''' : Sometimes a table has special margins. The wrapper has to have those margins because the table gets 0 on all margins to preserve "margin joining" with surrounding elements which otherwise would lead to content shift. Therefore the wrapper automatically gets the computed styles from the table while the tables gets 0 for all margins
-* Relevant files
-** {{CustomRepo|WikitableAutoWrapper.js}}
-** {{CustomRepo|WikitableAutoWrapper.css}}
-* '''NOTES'''
-*# This solution replaces the previous solutions "scroll-table" and "scroll-overflow-indicator"
-*# Scrollbar problem on Firefox
-*#* Since version 100 Firefox per Default hides scrollbars when the element is not scrolling, see https://connect.mozilla.org/t5/discussions/scrollbars-disappear-in-firefox-100/td-p/5433
-*#* This goes against our accessibility efforts to help users understand where information might be hidden in an overflowing table
-*#* We tried implementing non-native Javascript scrollbars, namely Overlayscollbars, Simplebar, Slimbar, Minibar, Tinyscollbar and more. However our needs for horizontal scrollbars, good documentation, (somewhat) active development, ease of use and a small footprint (below 10kb) ruled out all candidates
-*#* As this problem currently (2024-08) only affects Firefox users and for them it's only a tiny accessibility disadvantage we decided to not pursue this issue further. Maybe in the future if this affects more browsers this issue could be revisited and proper development time could be allocated
 
 = USAGE : CSS Design Documentation (Alphabetical order) =
 
