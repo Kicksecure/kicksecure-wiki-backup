@@ -644,9 +644,17 @@ This behavior is desired for small blocks of text (e.g. headings). For big chunk
 * 5 - Font Awesome false positive - yes and no. Font Awesome is using explicitly the standard option font-display:block which Lighthouse does not like because it tolerates invisible text up to 3 seconds. But font-display:swap is not really an option, because in this case a standard font is loaded and only when the special font is ready the standard font is replaced. This is terrible for icons because then you have a lot of ugly box-symbols, that are the replaced by real symbols. Dev could however change to font-display:swap which would make Lighthouse happy. Maybe the box placeholder symbols are not as bad as having no icons at all?
 * Patrick: Font Awesome is not used above the fold. Therefore not important to use placeholders.
 
-== MediaWiki Default Links ==
+== MediaWiki Default Links - LinkToArchive Fork ==
 
-The default links in the wiki are realized via the [https://github.com/adrelanos/mediawiki-link-to-archive link-to-archive] MediaWiki Extension
+* External links in MediaWiki (starting with http or https) were previously enhanced on our wikis by using the [https://www.mediawiki.org/wiki/Extension:LinkToArchive MediaWiki LinkToArchive extension], see also their [https://github.com/Archi-Strasbourg/mediawiki-link-to-archive/ GitHub repository]
+* With this extension an external link ("'''main link'''") get an '''additional link''' following it. This additional link is slighly elevated and says <code>[archive]</code> and points to an archived version of the main link
+* However we created '''our own fork of this extension to address our specific needs''', see [https://github.com/adrelanos/mediawiki-link-to-archive LinkToArchive fork]
+*# We wanted an icon instead of the text <code>[archive]</code> to represent the archive link
+*# We used a couple of different HTML constructions and added a class "ext-link-to-archive" to be consistent with our other modules on the website
+*# We wanted to analyse if the link is already an archive link (<code>web.archive.com/web</code>) or an <code>.onion</code> link. In those cases the additional link changes in some significant ways
+*#* In the '''normal''' case: The additional link is set to the web archive with the whole main url as a suffix. The additional link icon is the archive icon. The additional link title becomes "Link to archived version".
+*#* In the '''archive''' case: The additional link gets just the main url (because it's already an archive link). The additional link icon is the archive icon. The additional link title becomes "This is a web.archive.org link".
+*#* In the '''onion''' case: The additional link gets just the main onion link (because it's not compatible with web archive). The additional link icon is the onion icon. The additional link title becomes "This is an .onion link".
 
 == Wiki editor software enhancements ==
 
@@ -1633,8 +1641,9 @@ We use MediaWiki [https://www.mediawiki.org/wiki/Help:Extension:ParserFunctions 
 == Error "Links are not crawlable" ==
 
 * Lighthouse error report <code>Links are not crawlable</code>
-* This error is found with <code>a.mw-selflink.selflink</code>. These are rendered when an internal wiki link is pointing to the exact page the user in on. However they don't have an href- oder name-attribute and are therefore not functional links which would be crawlable. Search engine crawlers and Lighthouse see this as a conflict. It would be better and solve the problem if at least <code>role="presentation"</code> was added to the self-link to clarify its role as a non-link
+* This error is found with <code>a.mw-selflink.selflink</code>. These are rendered when an internal wiki link with the <code><nowiki>[[Page_Title]]</nowiki></code> syntax is pointing to the exact page the user in on. However selflinks don't have an href- oder name-attribute and are therefore not functional links and are therefore not crawlable. Search engine crawlers and Lighthouse see this as a conflict. It would be better and it would solve the problem if at least <code>role="presentation"</code> was added via the MediaWiki core to the <code>a.mw-selflink.selflink</code> to clarify its role as a non-link
 * A MediaWiki upstream bug report was filed: [https://phabricator.wikimedia.org/T373609 Lighthouse error "Links are not crawlable" for selflink links]
+* This bug can also affect all [[Dev/mediawiki#Mini_Navigation|Mini Navigation]] elements because they are relying on standard MediaWiki elements, especially internal wiki links with the <code><nowiki>[[Page_Title]]</nowiki></code> syntax
 
 = EXPORT to new wiki =
 
@@ -2810,7 +2819,9 @@ Result
 **# '''active (optional, recommended, only "true")''' : active can only be set to true. This means that the corresponding tab to the section with <code>|active=true</code> will be pre-selected. If this parameter is not set the very first section will always be selected.
 **#* '''NOTE''' : Please avoid settings multiple sections to active, that would be a syntax error
 **#* '''NOTE''' : It is '''highly recommended''' to give one tab the active-parameter, because otherwise content shift will occur.
-**# '''image (optional)''' : Here an image in wikitext form is given <code><nowiki>[[File:my-image.png|50px]]</nowiki></code> to have an image which will be shown on the left of the tab before the tab title in the navbar. '''NOTE''' : Be sure to use a small image of max. 60 x 60 pixel.
+**# '''image (optional)''' : Here an image in wikitext form is given <code><nowiki>[[File:my-image.png|alt=My image alt text|50px]]</nowiki></code> to have an image which will be shown on the left of the tab before the tab title in the navbar.
+**#* '''NOTE''' : Be sure to use a small image of max. 60 x 60 pixel.
+**#* '''NOTE''' : Always use alt-parameter, because image will be wrapped in a link element. This way your prevent Pagespeed / Lighthouse error "Image elements do not have [alt] attributes"
 ** '''Parameters for Controller'''
 **# '''content (mandatory)''' : For the controller content is different from section. The controller may ONLY have multiple sections - meaning instances of Template:Tab in the section variant - as children
 **# '''linkid (optional)''' : This is an internal id to link multiple controllers. This is needed if multiple controllers need to switch in unison. If two or more controllers have this parameter with the same content they will be linked, meaning: All tabs being clicked in one of the navigations will switch the tabs in the other navigations as well. This is synchronized by the number of the tab. Example: You click tab 1 in controller 1 then section 1 in controller 1 is shown AND then tab 1 in controller 2 is also shown as well as section 1 in controller 2.
@@ -3086,6 +3097,26 @@ sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.wh
 </pre>
 
 = TASK ARCHIVE : Done =
+== fonts and scrollbar causes content shifting ==
+
+https://www.kicksecure.com/wiki/VirtualBox/Troubleshooting
+
+Please test on gtmetrix.
+
+* enable Video
+* network: 3G (slow)
+
+Hopefully this example is still active: https://gtmetrix.com/reports/www.kicksecure.com/saJHEvIh/
+
+has content shifting
+
+'''DEV'''
+* DONE: Investigation and headscript restructur
+* Investigation found that the content shift is caused by the loaded special fonts. This is unavoidable
+* Scrollbar cannot cause this issue from bottom up (and there is no scrollbar in the picture). Also scrollbar is optimized to have no content shift
+* Dev optimized the mw-headscript according to HTML guidelines. Now fonts are first preloaded then the CSS is loaded. This causes a slightly more optimal loading waterfall for the font files
+* All in all however the content shift remains because it is unavoidable
+
 == GoogleOff- exclude from google - whonix RAM wiki page ==
 google search term:
 
