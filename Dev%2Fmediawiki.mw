@@ -656,6 +656,21 @@ This behavior is desired for small blocks of text (e.g. headings). For big chunk
 *#* In the '''archive''' case: The additional link gets just the main url (because it's already an archive link). The additional link icon is the archive icon. The additional link title becomes "This is a web.archive.org link".
 *#* In the '''onion''' case: The additional link gets just the main onion link (because it's not compatible with web archive). The additional link icon is the onion icon. The additional link title becomes "This is an .onion link".
 
+=== backport mediawiki-link-to-archive from upstream ===
+September 2024
+
+Backport the new changes implemented by https://github.com/Archi-Strasbourg/mediawiki-link-to-archive in our already existing fork, if sensible.
+
+'''DEV'''
+
+* New changes by the original author were checked
+* The only noteworthy changed was checking for <code>action=edit</code> in the url, original comment: <code>// Check if the URL ends with "action=edit"</code>
+** This however seems strange considering that this extension is for external links only, underlined by the fact that we are checking of HTTP(S) at the very beginning.
+** So this basically prevents urls from having an "archived" link icon that have the "action=edit" parameter in the URL. This however just reliably applies to external MediaWiki links. Other pages could use "action=edit" in a different way and might therefore still be justifiably archivable
+* Analysis: Dev thinks that the original author solves a very very specific use case for himself here and that this is not needed, nor would it be an improvement to our extension
+* '''Question to admin''': Dev had the idea that our fork could be improved by moving the archive icon image and the onion icon image to the extension in an image folder. Then our extension would also be standalone. Now you need to have the 2 images that we are using on your server
+** Patrick: Not needed.
+
 == Wiki editor software enhancements ==
 
 * The standard wiki editor software is enhanced in multiple ways
@@ -1645,6 +1660,9 @@ We use MediaWiki [https://www.mediawiki.org/wiki/Help:Extension:ParserFunctions 
 * A MediaWiki upstream bug report was filed: [https://phabricator.wikimedia.org/T373609 Lighthouse error "Links are not crawlable" for selflink links]
 * This bug can also affect all [[Dev/mediawiki#Mini_Navigation|Mini Navigation]] elements because they are relying on standard MediaWiki elements, especially internal wiki links with the <code><nowiki>[[Page_Title]]</nowiki></code> syntax
 
+== Error "Failed to load resource: net::ERR_ACCESS_DENIED" ==
+One issue <code>Failed to load resource: net::ERR_ACCESS_DENIED</code> can not be reproduced in local Lighthouse, only on Pagespeed (PS). This might be a timing issue or a CORS issue. But for testing admin would have to enable cross-origin-resource-policy: cross-site on the server. This might however be a (small) security risk and therefore not a long term solution. DEV thinks it might be a timing issue with PS loading the files too late and therefore being rejected by the server. Maybe a longer server timeout could solve this problem.
+
 = EXPORT to new wiki =
 
 If new wiki shall be created which is similar to the current master (Kicksecure) you can use the Export function to export all necessary pages and files (e. g. images) and then import those files in the new clean slate wiki.
@@ -2006,7 +2024,7 @@ $ sudo apt "example1"
 * Relevant files
 ** [[Template:CustomRepo]]
 
-== CustomScollbar ==
+== CustomScrollbar ==
 
 * This is a '''developer feature'''
 * Sometimes it is needed to realized custom scollbars with javascript. For this we are using the library tinyscrollbar. Specifically for [[Dev/mediawiki#CodeSelect|CodeSelect]] and [[Dev/mediawiki#WikitableAutoWrapper_and_ScrollableIndicator|WikitableAutoWrapper and ScrollableIndicator]] because we want to prevent content shift and guarantee best accessibility - for users to always know if an element is scrollable - specifically on Firefox and on mobile devices where the scrollbar gets hidden automatically
@@ -2025,6 +2043,7 @@ $ sudo apt "example1"
 }}
 ** Your content needs to be placed in "overview"
 ** More classes can be added if needed
+** There are also <code>globalSettings</code> in the CustomScrollbar.js file. These are applied to ALL instances of CustomScrollbar and are overridden only by individual settings
 ** finally initialized like this {{CodeSelect|code=mwDev.tools.addCustomScrollbar( $('.custom-scrollbar-container'), options );}}
 ** For more documentation read here: https://baijs.com/tinyscrollbar/
 * Relevant files
@@ -2616,7 +2635,8 @@ Example {{Quotation|quote=An important quote from a developer
 ** This solution is currently only auto-applied for <code>pre</code>-elements and <code>table</code> elements with the "wikitable" class (which is our standard class for styled tables)
 * '''Functionality'''
 ** This wrapper is applied via Javascript and therefore does not work for nojs users
-** The wrapper is also only applied if the element is determined to have overwidth
+** The wrapper is also only applied if the element is determined to have overwidth.
+*** To counter false-positives (for example it already happened in one case due to late-loaded fonts) we use the setting <code>enrichTolerance</code>, which should stay above <code>.99</code> (99 percent). This settings says "As long as the inner size is (e. g.) 99 percent or less of the outer size, no scroll wrapper will be applied"
 ** The wrapper always stays 100% width. And if the element is too wide there will be an overflow bar
 *** This is also a prerequisite for other elements which ScrollAutoWrapper is applied to. They need to have something similar to <code>display: block; width: 100%, overflow: auto;</code>, so a scrollbar would naturally appear in case of overwidth without any Javascript
 ** '''Custom overflow scrollbar''' : In case of overwidth (element width more than 100% of content column) there are scrollbars at the bottom and occasionally at the top (see next point below for clarification) of the overwide element for more accessibility to indicate an overwide element (which to user would overlook if the element is very long and the bottom scrollbar would not be visible when the element comes into view). The top scollbar and the bottom scrollbar are linked and therefore always scroll simultaneously. This works '''for mobile AND desktop''' because we are using a custom scrollbar library "tinyscrollbar" to not take any chances of a lowered accessiblity due to Firefox's auto-disappearing scrollbars or mobile auto-disappearing scrollbars
@@ -2635,6 +2655,18 @@ Example {{Quotation|quote=An important quote from a developer
 *#* Since version 100 Firefox per Default hides scrollbars when the element is not scrolling, see https://connect.mozilla.org/t5/discussions/scrollbars-disappear-in-firefox-100/td-p/5433
 *#* This goes against our accessibility efforts to help users understand where information might be hidden in an overwide element
 *#* We tried implementing non-native Javascript scrollbars, namely Overlayscollbars, Simplebar, Slimbar, Minibar, Tinyscollbar and more. Our needs are a horizontal scrollbar feature, linked scrollbars feature, good documentation, (somewhat) active development (not abandoned), ease of use and a small footprint (below 10kb). Our choice felll on tinyscrollbar
+
+== bug: Custom Scrollbar on mobile not draggable ==
+
+* The element itself is draggable, but the scrollbar cannot be touched on mobile.
+* Please test and fix
+
+'''DEV'''
+
+* Analysis complete
+* The option to have the scrollbar draggable is not implemented in tinyscrollbar. This would need us forking the original or making a separate augmentation via JS (not recommended by Dev)
+* Easy improvement suggestion: Make scrollbars much smaller on mobile (half size?), so they are big enough to indicated "scrollability", but small enough so the mobile user is not motivated to try to touch the scollbar
+** Patrick: Also confusing. Not worth it.
 
 == sd-start (currently retired) ==
 
@@ -2816,9 +2848,8 @@ Result
 **# '''title (mandatory)''' : This title needs to be gives as a wikitext headline. This headline should integrate in the normal flow and hierarchy of the whole page because for nojs users this is all that they will see.
 **# '''content (mandatory)''' : This parameter is where you put all the real wikitext content that is shown when tab is active but hidden when inactive. And always shown for nojs users
 **#* '''link-tabs''' : This is an alternative to having content in a tab. If a single link is given as content (as external link, complex external link <nowiki>[https://mediawiki.org MediaWiki]</nowiki> or internal link <nowiki>[[Wikipage]]</nowiki>) then the nav point in the navbar will become an external / internal link instead of (standard:) a button to show the content. '''NOTE''' : For no-js users the content will be rendered as headline + the link as given.
-**# '''active (optional, recommended, only "true")''' : active can only be set to true. This means that the corresponding tab to the section with <code>|active=true</code> will be pre-selected. If this parameter is not set the very first section will always be selected.
+**# '''active (optional, only "true")''' : active can only be set to true. This means that the corresponding tab to the section with <code>|active=true</code> will be pre-selected. If this parameter is not set NO tab will be selected and NO content will be shown. This is required for some situations.
 **#* '''NOTE''' : Please avoid settings multiple sections to active, that would be a syntax error
-**#* '''NOTE''' : It is '''highly recommended''' to give one tab the active-parameter, because otherwise content shift will occur.
 **# '''image (optional)''' : Here an image in wikitext form is given <code><nowiki>[[File:my-image.png|alt=My image alt text|50px]]</nowiki></code> to have an image which will be shown on the left of the tab before the tab title in the navbar.
 **#* '''NOTE''' : Be sure to use a small image of max. 60 x 60 pixel.
 **#* '''NOTE''' : Always use alt-parameter, because image will be wrapped in a link element. This way your prevent Pagespeed / Lighthouse error "Image elements do not have [alt] attributes"
