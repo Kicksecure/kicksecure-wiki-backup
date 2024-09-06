@@ -438,6 +438,16 @@ https://github.com/jthingelstad/foreground/issues/392
 * Sometimes Javascript is only needed on specific pages for specific tasks. This happens very rarely.
 * So we created {{CustomRepo|Pages.js}} - a LocalWiki file where the page specific JS functions are combined
 
+== jscookie ==
+Within headscript we use:
+
+<pre>
+<script id="js-cookie-script" defer fetchpriority="low" src="/libs/jscookie/js.cookie.min.js?hsversion=2"></script>
+</pre>
+
+* <code>jscookie</code> is a simple small cookie library for all our cookie control needs and is only 2kb in size. So it's very practical and we couldn't program it ourselves any smaller.
+* We use it for <code>DebugViaUrlModal</code>, <code>FlyinNotification</code>, <code>SiteNotice</code> and <code>TocLevelSwitcher</code>.
+
 == FontAwesome ==
 
 * FontAwesome is used as a local webfont to make the site more beautiful.
@@ -1487,7 +1497,6 @@ But using the emulated mobile device with the same skin only these get loaded:
 * https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=jquery%2Cmediawiki&only=scripts&skin=minerva&version=obJk0fES
 * https://www.{{project_clearnet}}/w/load.php?debug=false&lang=en&modules=startup&only=scripts&skin=minerva&target=mobile
 
-
 search for
 
 <pre>
@@ -1620,6 +1629,15 @@ We use MediaWiki [https://www.mediawiki.org/wiki/Help:Extension:ParserFunctions 
 * This is normally hard to do because <code><nowiki>{{#if ...}}</nowiki></code> would be the right construction to check whether the variable is set and <code><nowiki>{{#ifeq: ...}}</nowiki></code> is correct for comparing strings. The whole expression cannot be modelled in either of them.
 * What we do is '''convert the boolean of the if construction into a string''' where a given parameter outputs itself again to be compared while a not-given parameter outputs the correct second condition and therefore always leads to true.
 
+== Double empty line replacement ==
+
+For a wiki wide replacement of double empty lines this procedure was successfully tested on 2024-09-05
+
+# Go to the ReplaceText Special Page
+# Use this RegExp <code>(\n{2})\n+</code> and this replacing text <code>$1</code>. This will find any double empty lines (or more) and replace them with a single empty line
+# Repeat if necessary (sometimes due to nested templates the replacement is not fully effective)
+# Check Recent Changes and confirm that all changes were as desired
+
 = Pagespeed and Lighthouse =
 
 * Lighthouse is a performance testing tool by Google for websites that is widely used and highly regarded: https://developers.google.com/web/tools/lighthouse/
@@ -1660,8 +1678,23 @@ We use MediaWiki [https://www.mediawiki.org/wiki/Help:Extension:ParserFunctions 
 * A MediaWiki upstream bug report was filed: [https://phabricator.wikimedia.org/T373609 Lighthouse error "Links are not crawlable" for selflink links]
 * This bug can also affect all [[Dev/mediawiki#Mini_Navigation|Mini Navigation]] elements because they are relying on standard MediaWiki elements, especially internal wiki links with the <code><nowiki>[[Page_Title]]</nowiki></code> syntax
 
+== Error "Links rely on color to be distinguishable." ==
+
+* Lighthouse error report <code>Links rely on color to be distinguishable.</code>
+* This error can be found in various places whenever the only differentiating quality of a link from the text is its color: same font, same size, same font weight, same font style, just different color. This is not enough for Lighthouse in some cases
+* So whenever this error occurs, you have the (not limited to) following options: change font-family, change font-size, change font-weight (e. g. bold), change font style (e. G. italic), underline link, use letter-spacing etc.
+
 == Error "Failed to load resource: net::ERR_ACCESS_DENIED" ==
+
 One issue <code>Failed to load resource: net::ERR_ACCESS_DENIED</code> can not be reproduced in local Lighthouse, only on Pagespeed (PS). This might be a timing issue or a CORS issue. But for testing admin would have to enable cross-origin-resource-policy: cross-site on the server. This might however be a (small) security risk and therefore not a long term solution. DEV thinks it might be a timing issue with PS loading the files too late and therefore being rejected by the server. Maybe a longer server timeout could solve this problem.
+
+== Pagespeed "Reduce unused CSS" ==
+
+* This issue refers to CSS files or commands that are loaded but cannot be applied to any element on the page. So they are "unused" and therefore unnecessary. More information on this page https://developer.chrome.com/docs/lighthouse/performance/unused-css-rules
+* To check which files are exactly affected use e. g. Chrome Developer Tools, open the command menu (Ctrl+Shift+P) and type "Coverage" to open the coverage sub menu. More information here https://developer.chrome.com/docs/devtools/css/reference?hl=de#coverage
+* This tool is a good orientation / indicator, but can also be confusing. For example a CSS rule that has an impact on an element, but is ultimately not needed (because another rule does the same thing), is also considered "unused", although it technically overrides the other rule (with the same effect)
+* CSS styles that are not used are in read, while files that are completely unused are at the bottom having "0%" use
+* In our case almost all unused CSS files are auto-loaded by wiki and therefore mostly out of our control
 
 = EXPORT to new wiki =
 
@@ -1992,23 +2025,6 @@ $ sudo apt "example1"
 {{Community Support|scope=page}}
 
 {{Community Support|scope=chapter}}
-
-== ContentImage (Template) - image wrapper for overlenght images ==
-
-* Content images is a term for images used in the content produced. These images usually occur between text, paragraphs, headlines. Sometimes these images can become too large for small display sizes
-* For images which are expected to be too large for some displays, this wrapper template is ideal. Images inside this wrapper will have max-width:100% and height:auto;
-* '''NOTE''' : Thumbnails DO NOT need to be wrapped in ContentImage, because they already have a max-width of 100%, read more here: [[Dev/mediawiki#Responsive_Thumbnails]]
-* '''USAGE'''
-** Simply wrap any image that you suspect could be oversize in this wrapper
-** Parameter
-*** '''addToClass (optional, string)''' : This parameter's text will be added to the class attribute of the content image wrapper container
-*** '''w100 (optional, boolean)''' :  Makes an image always width 100%. This parameter if true will add the class ciw-w100 to the content iamge wrapper container. This will make the container and all its children <code>width: 100%; display: inline-block;</code>. This parameter was introduced as a helper due to a changed in the way images are handled in MediaWiki since version 1.40.
-** Example with wrapper Code {{CodeSelect|code={{ContentImage{{!}}[[File:Image-too-wide-demonstration.jpg]]}}}}
-** Example without wrapper <pre>[[File:Image-too-wide-demonstration.jpg]]</pre>
-** Example with wrapper {{ContentImage|[[File:Image-too-wide-demonstration.jpg]]}}
-* Relevant files
-** [[Template:ContentImage]]
-** {{CustomRepo|Utility.css}}
 
 == CustomRepo (Template) ==
 
@@ -4074,7 +4090,6 @@ It would be better to use this other one;
 
     etc ..
 
-
 </ul>
 </pre>
 
@@ -4281,6 +4296,28 @@ resources:
 
 === video gallery ===
 Would it make sense to add a video gallery / switcher using arrows so users can watch the other two Whonix explainer videos too?
+
+= FEATURE ARCHIVE =
+
+The following features are RETIRED
+
+== ContentImage (Template) - image wrapper for overlenght images ==
+
+* '''This feature is retired and replaced by a global setting for all content images'''
+* Content images is a term for images used in the content produced. These images usually occur between text, paragraphs, headlines. Sometimes these images can become too large for small display sizes
+* For images which are expected to be too large for some displays, this wrapper template is ideal. Images inside this wrapper will have max-width:100% and height:auto;
+* '''NOTE''' : Thumbnails DO NOT need to be wrapped in ContentImage, because they already have a max-width of 100%, read more here: [[Dev/mediawiki#Responsive_Thumbnails]]
+* '''USAGE'''
+** Simply wrap any image that you suspect could be oversize in this wrapper
+** Parameter
+*** '''addToClass (optional, string)''' : This parameter's text will be added to the class attribute of the content image wrapper container
+*** '''w100 (optional, boolean)''' :  Makes an image always width 100%. This parameter if true will add the class ciw-w100 to the content iamge wrapper container. This will make the container and all its children <code>width: 100%; display: inline-block;</code>. This parameter was introduced as a helper due to a changed in the way images are handled in MediaWiki since version 1.40.
+** Example with wrapper Code {{CodeSelect|code={{ContentImage{{!}}[[File:Image-too-wide-demonstration.jpg]]}}}}
+** Example without wrapper <pre>[[File:Image-too-wide-demonstration.jpg]]</pre>
+** Example with wrapper {{ContentImage|[[File:Image-too-wide-demonstration.jpg]]}}
+* Relevant files
+** [[Template:ContentImage]]
+** {{CustomRepo|Utility.css}}
 
 = Footnotes =
 <references />
