@@ -1629,14 +1629,45 @@ We use MediaWiki [https://www.mediawiki.org/wiki/Help:Extension:ParserFunctions 
 * This is normally hard to do because <code><nowiki>{{#if ...}}</nowiki></code> would be the right construction to check whether the variable is set and <code><nowiki>{{#ifeq: ...}}</nowiki></code> is correct for comparing strings. The whole expression cannot be modelled in either of them.
 * What we do is '''convert the boolean of the if construction into a string''' where a given parameter outputs itself again to be compared while a not-given parameter outputs the correct second condition and therefore always leads to true.
 
-== Double empty line replacement ==
+== Replacement instructions ==
+
+In this chapter some specific wiki wide text replacements are documented so they can later be reproduced safely if needed.
+
+=== Double empty line replacement ===
 
 For a wiki wide replacement of double empty lines this procedure was successfully tested on 2024-09-05
 
 # Go to the ReplaceText Special Page
-# Use this RegExp <code>(\n{2})\n+</code> and this replacing text <code>$1</code>. This will find any double empty lines (or more) and replace them with a single empty line
+# Use this RegExp {{CodeSelect|inline=true|code=(\n{2})\n+}} and this replacing text {{CodeSelect|inline=true|code=$1}}. This will find any double empty lines (or more) and replace them with a single empty line
+# Check "Use regular expressions" checkbox and click "Check All" to search in all namespaces and Click "Continue"
 # Repeat if necessary (sometimes due to nested templates the replacement is not fully effective)
 # Check Recent Changes and confirm that all changes were as desired
+
+=== Replace all image wiki tags with file tags ===
+
+MediaWiki has shifted from the <code><nowiki>[[image: ...]]</nowiki></code> syntax to the <code><nowiki>[[File: ...]]</nowiki></code> syntax. This is explained here https://www.mediawiki.org/wiki/Help:Images . All examples are with the new file syntax and also the intro paragraph is very clear: <blockquote>Images that are stored on a MediaWiki server are usually rendered by using the File: namespace prefix (but the legacy Image: namespace prefix is still supported as a synonym) as the target of a MediaWiki link.</blockquote>
+
+On 2024-09-06 we have replaced all <code><nowiki>[[Image: [[image: [[file:</nowiki></code> syntaxes with the upper case <code><nowiki>[[File: ...]]</nowiki></code> syntax. Here is an instruction to reproduce this process if needed in the future
+
+# Go to the ReplaceText Special Page
+# Use this RegExp <code><nowiki>\[\[(image|Image|file)\:</nowiki></code> and this replacing text <code><nowiki>[[File:</nowiki></code>. This will find all legacy image tags and lowercase file tags and replace them with the uppercase file synax.
+# Check "Use regular expressions" checkbox and click "Check All" to search in all namespaces and Click "Continue"
+# Repeat if necessary (sometimes due to nested templates the replacement is not fully effective)
+# Check Recent Changes and confirm that all changes were as desired
+
+=== Replace old images with new ones ===
+
+* The Dev and Admin team agreed on new naming schemes for project internal images like logos or graphical components. These are documented here [[Dev/Logo]].
+* On 2024-09-06 therefore the existing images were renamed and replace in all wikitext (and possible wiki project source files, but there were none) with the new file names
+* To not interrupt running wikis by temporarely having unfunctioning images, follow these instructions
+
+# Document all image names to replace in a table on your local computer in one row and write all the desired new names in a second row
+# Go to the wiki pages of all images (structure <code>wiki.domain/wiki/File:image.bmp</code>) and click "move". Enter the new file name from your second row of the table as new name in <code>New title:</code>. '''Important''': Keep the checkbox <code>Leave a redirect behind</code> checked!
+# Go to the ReplaceText Special Page
+# Use the old filename for each image as the search and the new file name as the replacement text
+# Click "Check All" to search in all namespaces and Click "Continue"
+# Check Recent Changes and confirm that all changes were as desired
+# Now visit all wiki pages of the old images again but with the query parameter <code>?redirect=no</code>. Now delete this page (More → Delete)
 
 = Pagespeed and Lighthouse =
 
@@ -1923,7 +1954,7 @@ Example Usage
 * '''special class "ib-for-thumb"''' : This can and should be used for info-box elements (Box and MBox) that are next to the thumbnail. If these have the class "ib-for-thumb" then the info-box will not be very thin and unreadable for small devices but will be cleared and moved to its own line. Examples
 {{CodeSelect|code=
 {{mbox
-{{!}} image = [[File:Kicksecure-seal.svg|40px|alt=Test]]
+{{!}} image = [[File:Kicksecure-image-seal.svg|40px|alt=Test]]
 {{!}} icon = fa-solid fa-info cs-red-light
 {{!}} addToClass = ib-for-thumb
 {{!}} text = My Text here
@@ -1931,7 +1962,7 @@ Example Usage
 }}
 
 {{mbox
-| image = [[File:Kicksecure-seal.svg|40px|alt=Test]]
+| image = [[File:Kicksecure-image-seal.svg|40px|alt=Test]]
 | icon = fa-solid fa-info cs-red-light
 | addToClass = ib-for-thumb
 | text = My Text here
@@ -2010,6 +2041,27 @@ $ sudo apt "example1"
 *## Example. <code><nowiki><span class="code-select">More <b>Info</b> here</span></nowiki></code> <span class="code-select">More <b>Info</b> here</span> vs <code><nowiki><span class="code-select insert-mode-html">More <b>Info</b> here</span></nowiki></code> <span class="code-select insert-mode-html">More <b>Info</b> here</span>
 *# '''custom scrollbars''': For js users the codeSelect boxes are initialized with [[Dev/mediawiki#CustomScollbar|CustomScollbar]]
 *## '''feature class cs-no-custom-scrollbars''': The initilization with custom scrollbars can be prevented by adding the class <code>cs-no-custom-scrollbars</code> to the code-select parent element. Then codeSelect will revert back to standard overflow behavior (but prone to content shift e. g. in Firefox)
+
+== Collapsible Template ==
+
+* To use the mw-collapsible functionality can be a bit too verbose and unpractical having multiple nested elements, see https://www.mediawiki.org/wiki/Manual:Collapsible_elements
+* Until new we were using this verbose syntax for most of our needs <code><nowiki><div class="mw-collapsible mw-collapsed"><div class="mw-collapsible-content">...</div></div></nowiki></code>
+* Therefore we introduced our own Template:Collapsible the have a short hand for this.
+** This template is a little bit less feature rich than the verbose syntax, but it is therefore tighter and more practical
+** The standard setting is collapsed (mw-collapsed) and standard colors of the TOC (toccolours)
+* '''Parameters'''
+** '''title | wikitext, mandatory''' : This text will be seen always, even if the content box is collapsed
+** '''content | wikitext, mandatory''' : The hidden content that is only seen if the content box is expanded
+** '''smallTitle | boolean, optional, default: false''' : If true then the title will not be shown in the style of a headline, but in the style of normal text
+* '''Example''' {{CodeSelect|code=
+{{Collapsible
+{{!}}title=My interesting title
+{{!}}smallTitle=true
+{{!}}content=My interesting content
+}}
+}}
+* Relevant files
+** [[Template:Collapsible]]
 
 == Community Support Template ==
 
@@ -2139,7 +2191,7 @@ The modal also has a '''toggle button''' at the top now which de/actives the coo
 ** {{CodeSelect|code={{DonorCard
 {{!}}name=John Doe
 {{!}}range=xs
-{{!}}logo=Kicksecure-icon-logo.svg
+{{!}}logo=Kicksecure-logo-icon.svg
 {{!}}link=Donors
 {{!}}date=2019-01-01
 {{!}}message=Thank you very much
@@ -3389,7 +3441,7 @@ Layout was forced before the page was fully loaded. If stylesheets are not yet l
 MediaWiki by upstream default sends a response header which does a HTTP/2 Server Push. Example:
 
 <pre>
-link: </w/images/2/2a/Kicksecure-text-logo.svg?b0edc>;rel=preload;as=image
+link: </w/images/2/2a/Kicksecure-logo-text.svg?b0edc>;rel=preload;as=image
 </pre>
 
 Not on the main HTML document but for the CSS load.php. Example:
@@ -3405,7 +3457,7 @@ However, the hash <code>?b0edc</code> is auto generated by MediaWiki and after a
 This causes the following warning with our custom skin:
 
 <pre>
-The resource https://www.kicksecure.com/w/images/2/2a/Kicksecure-text-logo.svg?b0edc was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+The resource https://www.kicksecure.com/w/images/2/2a/Kicksecure-logo-text.svg?b0edc was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
 </pre>
 
 This is because it does not know the hash <code>?b0edc</code>.
