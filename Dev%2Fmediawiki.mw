@@ -130,6 +130,26 @@ Layout, Skin, CSS, JavaScript, Links, Header, Footer, CodeSelect, Mobile Fronten
 # '''NOTE:''' By using this solution the source files (css js etc) are not directly called when the page is loaded. They are merely the source which the combined, minified files are rendered from. So every time there is a change in the source files it first has to be rendered to the output files.
 #* One exception is the use of Extension:CSS where we want to use scripts only on specific pages like so <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css}}</nowiki></code>. In this case the source copy folder is very useful
 
+=== build.sh, build-mw-combine.php, deploy-to-servers-or-locally.sh ===
+
+* '''The build process explained'''
+** '''On the server'''
+**# First the server pulls the current state of the <code>mediawiki-customized-dist</code> repository.
+**# <code>build.sh</code> is called. This script determines on which server it is executed and calls build-mw-combine.php with this information as its first parameter (currently: <code>kicksecure</code> or <code>whonix</code>)
+**# <code>build-mw-combine.php</code> reads all source files and renders them into the <code>autogen-src-copy-folder</code> and combines them into minified files and writes them to then <code>autogen-folder</code>. Furthermore a log file is written
+** '''For the local dev'''
+**# Local dev calls <code>deploy-to-servers-or-locally.sh</code>
+**## This script first prompt if he wants to use a local path. If so then the <code>build.sh</code> is called with the local path and renders the files (like described above) for every keyword available currently: <code>kicksecure</code> or <code>whonix</code>). The script ends then. No git or server actions are performed.
+**## If dev does not give a local path then git actions are performed (checking if up-to-date etc). Then dev is prompted for a commit message (empty=exit) and current changes are committed and pushed.
+**# Finally <code>mediawiki-customized-dist-deploy-to-servers.sh</code> (not part of the repository) is called with user credentials for kicksecure and whonix to trigger both servers to update. On the server the process is as described above.
+* '''Files specifically'''
+** <code>deploy-to-servers-or-locally.sh</code> is a script only used by the local dev either to locally build from his current local state or to git push and trigger the servers to update
+** <code>build.sh</code> is a script that is used by the servers to render the combined production files and by the local dev for the same purpose locally as well
+*** '''Parameter 1 (basePath), optional''': This parameter represents a base path for where the rendered combined productions files are written
+** <code>build-mw-combine.php</code> is called by build.sh to perform its core purpose while doing the heavy lifting in more feature rich PHP
+*** '''Parameter 1 (server keyword), optional, default:'kicksecure'''': This parameter represents they keyword for which server this script is executed on to fetch the correct source files for this specific server
+*** '''Parameter 2 (basePath), optional, default:[emptyString]''': This parameter represents a base path for where the rendered combined productions files are written. This path is used as a prefix to all rendering paths
+
 === Javascript specific ===
 
 * We decided to not use [[Mediawiki:Common.js]] to implement a lot of JavaScript.
@@ -1919,7 +1939,7 @@ Template:Donation mininav
 
 == Archive_link (Template) ==
 
-# Archive_link creates a custom absolute link with an auto-created link to web archive and multiple options. It structurally mimics the MediaWiki extension "Link to archive", but is also wrapped into a span-wrapper with <code>class="archive-link"</code>
+# Archive_link creates a custom absolute link with an auto-created link to web archive and multiple options. It structurally mimics the MediaWiki extension "Link to archive"
 # Documentation for wiki editors: [[Dev/wiki#Links]]
 # It is realized via the files
 ## [[Template:Archive_link]]
