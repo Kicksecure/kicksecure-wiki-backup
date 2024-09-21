@@ -7,31 +7,127 @@ ALSA, PulseAudio, PipeWire - Development Considerations
 ALSA, PulseAudio, PipeWire - Development Considerations
 }}
 
-PipeWire bug reports:
+= PipeWire bug reports =
 
 * [https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/4263 Debian 12 on Virtualbox with Intel HD Audio will result in non-loading videos] - reports that AC97 works better than Intel HD.
 ** https://forums.whonix.org/t/virtualbox-intel-hd-audio-and-pipewire-incompatibility-audio-broken-after-increasing-ram-to-5-gb-no-sound-after-latest-updates-pipewire-bug/18211/16
 * [https://forums.whonix.org/t/sound-is-cleaner-with-pipewire-from-backports-on-virtualbox/20344 Sound is cleaner with pipewire from backports on virtualbox]
 
-QEMU / KVM bug reports:
+= Debian bug reports =
+* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1081965 Debian 12 in VirtualBox with Intel HD Audio, PipeWire, and 4 GB RAM causes videos to fail loading]
 
-* [https://gitlab.freedesktop.org/pipewire/pipewire/-/issues/4263 Sound doesnt work on debian guest + debian host using Pipewire]
+= QEMU / KVM bug reports =
+
 * KVM forum: [https://forums.whonix.org/t/no-audio-with-spice-pipewire-halts-with-alsa-qemu-pipewire-unsupported/20341 No audio with SPICE + pipewire, halts with ALSA, Qemu pipewire unsupported]
+** [https://gitlab.com/qemu-project/qemu/-/issues/2561 Sound doesnt work on debian guest + debian host using Pipewire]
 
-VirtualBox bug reports:
+= VirtualBox bug reports =
 
-* [https://forums.whonix.org/t/choppy-sound-on-workstation-change-virtualbox-audio-settings-to-virtualbox-defaults-ac97-versus-intel-hd/17876 Choppy sound on Workstation - change VirtualBox Audio Settings to VirtualBox defaults - AC97 versus Intel HD] reports that Intel HD works better than AC97.
+* [https://forums.whonix.org/t/choppy-sound-on-workstation-change-virtualbox-audio-settings-to-virtualbox-defaults-ac97-versus-intel-hd/17876 Choppy sound on Workstation - change VirtualBox Audio Settings to VirtualBox defaults - AC97 versus Intel HD] reports that Intel HD works better than AC97 (Blocker to be reliable option due to debian specific issue with Intel HD Audio).
 * https://www.virtualbox.org/ticket/20330
 * https://www.virtualbox.org/ticket/20634
 
-Qubes bug reports:
-
-* [https://github.com/QubesOS/qubes-issues/issues/1698 Qubes appVMs/StandaloneVMs fast speed for youtube playback]
-
-Kicksecure, security-misc bug reports:
+= Kicksecure, security-misc bug reports =
 
 * https://forums.whonix.org/t/kicksecure-17-2-2-0-unreleased-version-sound-driver-issue/20379
 * [https://github.com/Kicksecure/security-misc/issues/271 kernel module blacklist breaks VirtualBox audio devices ICH AC97 and maybe Intel HD]
+
+= Impact of Host Operating System =
+None. Unspecific to Windows host versus Linux host.
+
+= Summary of PipeWire Sounds Issues inside VirtualBox =
+
+Intel HD Audio:
+
+* plain Debian/Kicksecure + 2GB RAM: functional
+* plain Debian/Kicksecure + 4+GB RAM: broken
+* ArchLinux: Working
+
+AC97:
+
+* ac97 + Debian/Kicksecure + any GB = functional
+
+= pipewire-alsa =
+* https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/46
+
+= Error and Warnings =
+== mod.rt: Can't find org.freedesktop.portal.Desktop. Is xdg-desktop-portal running? ==
+{{anchor|mod.rt: Can't find org.freedesktop.portal.Desktop. Is xdg-desktop-portal running}}
+<pre>
+pipewire[1578]: mod.rt: Can't find org.freedesktop.portal.Desktop. Is xdg-desktop-portal running?
+pipewire[1578]: mod.rt: found session bus but no portal
+</pre>
+
+* Non-Qubes Debian based issue only. Xfce issue only.
+* Qubes Debian based does not have this issue.
+* missing package: <code>xdg-desktop-portal</code> and probably also <code>xdg-desktop-portal-gtk</code>
+* problem is that Xfce does not have its own XDG desktop portal implementation. Therefore the <code>xdg-desktop-portal</code> systemd user unit does not autostart by default.
+** manual workaround: {{CodeSelect|inline=true|code=
+systemd --user start xdg-desktop-portal
+}}
+** <code>xdg-desktop-portal-gtk</code> is a good choice as per https://github.com/flatpak/xdg-desktop-portal/pull/1199
+** Xfce does not provide an XDG Desktop Portal by default.
+*** [https://gitlab.xfce.org/xfce/xfce4-session/-/issues/181 Please provide an xfce-portals.conf for xdg-desktop-portal >= 1.17])
+*** [https://gitlab.xfce.org/xfce/xfce4-session/-/issues/159 Does xdg-desktop-portal-xfce exist, or should it exist?]
+** TODO research: how to implement this by default as a Linux distribution
+*** in Debian <code>trixie</code> perhaps https://packages.debian.org/trixie/xdg-desktop-portal-xapp would work
+
+== SPA handle 'api.libcamera.enum.manager' could not be loaded; is it installed? ==
+https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/43
+
+<pre>
+wireplumber[1883]: SPA handle 'api.libcamera.enum.manager' could not be loaded; is it installed?
+wireplumber[1883]: PipeWire's libcamera SPA missing or broken. libcamera not supported.
+</pre>
+
+missing package: <code>pipewire-libcamera</code>
+
+== WARN IPAManager ipa_manager.cpp:154 No IPA found in '/usr/lib/x86_64-linux-gnu/libcamera' ==
+<pre>
+WARN IPAManager ipa_manager.cpp:154 No IPA found in '/usr/lib/x86_64-linux-gnu/libcamera'
+</pre>
+
+missing package: <code>libcamera-ipa</code>
+
+== wireplumber[1029]: Failed to set scheduler settings: Operation not permitted ==
+<pre>
+wireplumber[1029]: Failed to set scheduler settings: Operation not permitted
+</pre>
+
+* https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/44
+* https://gitlab.freedesktop.org/pipewire/wireplumber/-/issues/255
+
+== alsa ==
+<pre>
+alsactl[624]: alsa-lib main.c:1541:(snd_use_case_mgr_open) error: failed to import hw:0 use case configuration -2
+</pre>
+
+<pre>
+alsactl[624]: /usr/sbin/alsactl: set_control:1339: failed to obtain info for control #29 (No such file or directory)
+</pre>
+
+<pre>
+(udev-worker)[541]: controlC0: Process '/usr/sbin/alsactl -E HOME=/run/alsa -E XDG_RUNTIME_DIR=/run/alsa/runtime restore 0' failed with exit code 99.
+</pre>
+
+* Solution? No longer install <code>alsa-utils</code> by default.
+* https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/6
+* https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/45
+
+= Debugging PipeWire =
+Run as user (non-root):
+
+{{CodeSelect|code=
+sudo journalctl -f
+}}
+
+{{CodeSelect|code=
+dbus-manager --session
+}}
+
+{{CodeSelect|code=
+systemctl --user restart wireplumber
+}}
 
 [[Category:Development]]
 {{Footer}}

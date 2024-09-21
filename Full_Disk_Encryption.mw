@@ -303,6 +303,74 @@ will show you how many iterations could be made in a requested 2000 ms. To custo
 
 |}
 
+= TPM =
+== Different Use Cases ==
+=== TPM Transparent Encryption ===
+A common usability issue in systems without TPM transparent encryption is the need for multiple passwords: one for Full Disk Encryption (FDE) and another for [[login]].
+
+In systems using TPM (Trusted Platform Module) for transparent encryption, the encryption key is securely stored within the TPM, and no pre-boot authentication is required. FDE is automatic, meaning the system can unlock the encrypted disk upon boot, using the TPM to manage the encryption key.
+
+The user only needs to enter a password at the login manager during the regular login process, rather than at boot. This enhances user convenience while ensuring the encryption key is protected by TPM's hardware security features.
+
+While TPM transparent encryption offers clear usability advantages, such as eliminating the need for pre-boot authentication, it also has potential vulnerabilities.
+
+* '''Advantages''':
+** '''Improved Usability''': No more password input during pre-boot authentication, offering a seamless experience for the user.
+** '''Disk Swap Security''': In the event of a hard drive failure or disposal, the data remains secure and cannot be recovered, provided the LUKS implementation follows best practices and the encryption algorithms used are not compromised. Since the encryption key is not stored on the disk itself (and is instead securely managed by the TPM or passphrase), even if someone obtains physical access to the discarded or damaged drive, they will not be able to decrypt or recover the data.
+* '''Disadvantage''':
+** '''Cold Boot Attack Vulnerability''': TPM transparent encryption can be vulnerable to [[Cold Boot Attack Defense]], including both traditional "cold" boot attacks and "warm" cold boot attacks.
+*** '''Cold Boot Attack Overview''': A cold boot attack exploits the fact that encryption keys, including FDE keys, are stored in volatile memory (RAM) while the system is running. When the system is powered off or restarted, data in RAM does not immediately vanish but gradually fades. During this brief period, an attacker can quickly reboot the machine into a prepared environment or physically remove the RAM to read its contents using specialized tools.
+*** '''"Normal" vs "Warm" Cold Boot Attacks''': In systems without TPM transparent encryption, cold boot attacks can sometimes be mitigated by simply powering off the system. However, TPM transparent encryption introduces an additional risk: '''warm cold boot attacks'''. 
+*** '''Attack Overview''': In this scenario, if an adversary gains physical access to a device using TPM transparent encryption, they can simply reboot the machine. Since there is no pre-boot authentication required, the system automatically boots, and the encryption key is loaded into RAM, making it susceptible to extraction.
+*** '''TPM Transparent Encryption & RAM''': In TPM transparent encryption, because no pre-boot authentication is involved, the system boots automatically, and the TPM releases the encryption key into RAM to decrypt the disk. Once the operating system is running, the key often remains in RAM to allow continuous access to the encrypted disk.
+*** '''Vulnerability''': Cold boot attacks exploit this by attempting to recover the FDE key from RAM after a sudden shutdown or reboot, bypassing the protection the TPM offers when the system is fully powered down. Since the encryption key remains in the system's memory during operation, an attacker can potentially extract it from RAM if they act quickly enough after the shutdown or reset.
+
+Where is the TPM?
+
+Either
+
+* soldered on the motherboard; or
+* inside the CPU; or
+* an external security key (FIDO2 security token).
+
+In case of a TPM stored inside the system (soldered or CPU):
+
+{{quotation
+|quote=Even though this sounds a lot weaker than the FIDO2/PKCS#11 model TPM2 still bring benefits for securing your systems: because the cryptographic key material stored in TPM2 devices cannot be extracted (at least that's the theory), if you bind your hard disk encryption to it, it means attackers cannot just copy your disk and analyze it offline — they always need access to the TPM2 chip too to have a chance to acquire the necessary cryptographic keys. Thus, they can still steal your whole PC and analyze it, but they cannot just copy the disk without you noticing and analyze the copy.
+|context=https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html
+}}
+
+External FIDO2 security token are more secure than built-in TPM because the user can more easily carry and/or hide them.
+
+=== TPM as Additional Key ===
+LUKS supports multiple keyslots. For instance, a keyslot 1 could be a password, keyslot 2 a keyfile and keyslot 3 a TPM. At each boot, the user could choose which authentication method to use.
+
+The use case might be to use TPM Transparent Encryption but have a backup password in case of TPM failure or hard disk migration to a different system.
+
+=== TPM to Strengthen Weak Passwords ===
+{{quotation
+|quote=TPM2 stuff to allow short (4 digits or so) "PINs" for unlocking the harddisk, i.e. kind of a low-entropy password you type in. The reason this is reasonably safe is that in this case the PIN is passed to the TPM2 which enforces that not more than some limited amount of unlock attempts may be made within some time frame, and that after too many attempts the PIN is invalidated altogether. Thus making dictionary attacks harder (which would normally be easier given the short length of the PINs).
+|context=https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html
+}}
+
+== Complexity Risk ==
+The integration of TPM introduces additional complexity to the system. While security is a crucial factor, it is not the only consideration. Usability and data safety are equally important, particularly in ensuring the user does not face complete data loss.
+
+The system's complexity should remain within the user's technical capabilities. If the setup or recovery process is too complex for the user, it could lead to unintended consequences, such as losing access to critical data. Therefore, the balance between security, usability, and data safety must be carefully managed.
+
+== Implementation Issues ==
+{{quotation
+|quote=There's still plenty room for further improvement in all of this. In particular for the TPM2 case: what the text above doesn't really mention is that binding your encrypted volume unlocking to specific software versions (i.e. kernel + initrd + OS versions) actually sucks hard: if you naively update your system to newer versions you might lose access to your TPM2 enrolled keys (which isn't terrible, after all you did enroll a recovery key — right? — which you then can use to regain access.
+
+[...]
+
+Nothing updates the enrollment automatically after you initially enrolled it, hence after the first kernel/initrd update you have to manually re-enroll things again, and again, and again … after every update.
+|context=https://0pointer.net/blog/unlocking-luks2-volumes-with-tpm2-fido2-pkcs11-security-hardware-on-systemd-248.html
+}}
+
+== Resources ==
+* https://github.com/QubesOS/qubes-issues/issues/9460
+
 = Advice for Solid-state Drives and USB Storage =
 
 {{mbox

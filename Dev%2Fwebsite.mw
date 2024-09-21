@@ -230,44 +230,53 @@ report only
 
 = TODO DEV =
 
-== header menu ==
-To <code>Support</code>, please add [[Reporting Bugs]]
+== small server deploy upgrade ==
 
-== thumbgallery ==
+<pre>
+#!/bin/bash
 
-* Full width of the images for mobile below certain size
+set -e
 
-'''DEV'''
-* This is unfortunately not possible with the gallery tag
-* Gallery tag has some serious limitations
-*# It cannot be used inside a template. The rendering does not work properly with parameters (like for the content)
-*# It also hard-renders widths. So if a width is given then that width is in multiple elements, not just the image itself
-*# It also uses ul-elements with carries some limitations
-*# As already said the mobile modifications would be EXTREMELY complex
-* Dev recommends
-** Using thumbgallery for all our gallery needs and maybe just rename it to gallery and give it a parameter "mode=thumbgallery" so it just jumps to that mode on mobile
-** Writing <code><nowiki><gallery></nowiki></code> tag documentation to prevent future errors, especially about limitations
+if test -d REDACTED ; then
+  for i in REDACTED/*.conf ; do
+    bash -n "$i"
+    source "$i"
+  done
+fi
 
-Patrick:
+set -x
+set -o pipefail
 
-* please search for mediawiki bug reports, write new reports if none exists yet
-* please proceed
+#user_name="REDACTED"
+#password="REDACTED"
 
-== Wiki_Enhancements more content ==
+## XXX: hardcoded
+## XXX: duplicated. Is available from REDACTED
+##      But allowing hardcoded, standalone use for ease-of-use standalone by web dev.
+## @@@password@@@
+user_name="REDACTED"
+password="REDACTED"
 
-* mention that anyone can edit, thanks to Flagged Revisions, link to [[Contribute#Documentation]]
-* please look at the list of our installed extensions on https://www.kicksecure.com/wiki/Special:Version and mention the ones interesting for users
-* doesn't matter if we invented the functionality or got it from an existing extension as long as it is for the benefit of the user
+if [ "$1" = "kicksecure" ]; then
+  url=https://admin.kicksecure.com/run-git-pull.php
+elif [ "$1" = "whonix" ]; then
+  url=https://admin.whonix.org/run-git-pull.php
+else
+  true "$0: ERROR: missing argument kicksecure or whonix."
+  exit 1
+fi
 
-mention no tracking cookies
-[[Cookie_Policy#What_types_of_cookies_does_we_use_and_for_what_purposes.3F|What types of cookies does we use and for what purposes?]]
+curl \
+  --tlsv1.3 \
+  --proto =https \
+  --cert-status \
+  --user "${user_name}:${password}" \
+  "${url}"
+</pre>
 
-no tracking scripts
+TODO:
 
-onion website (reuse image from feature slider)
-
-'''DEV'''
-* Only the extensions point is still open. Will be done on monday
+* please add to git and documentation
 
 == ISO ==
 === ISO Try ===
@@ -336,6 +345,7 @@ https://www.kicksecure.com/wiki/About
 * Add more practical tips.
 ** Add a few search engines (same as on local browser homepages).
 ** Also mention AI (chatgpt, claude, perplexity) for search but add words of caution.
+*** Tell user to not post screenshots of what perplexity is saying. Follow the information to the source.
 
 === VPN ===
 * https://forums.whonix.org/t/new-vulnerabilities-in-vpns/20260
@@ -373,6 +383,45 @@ https://www.whonix.org/wiki/Troubleshooting
 
 = WAITING ON =
 = REVIEW PLEASE =
+
+== Editor save backup to localStorage - complete EditorAutobackup revision ==
+
+* Create a new comprehensive way to save auto-backups from an editing process.
+* Needs
+** only save when the editor content changed
+** save frequently to prevent especially against browser crashes
+** Reuse the old EditorAutobackup icon and also the old EditorAutobackup files
+** Maybe even better
+* Specification
+** The old EditorAutobackup icon and also the old EditorAutobackup files are used
+** The script saves every 30 seconds to localStorage a data set of: fileUrl, date and filecontent
+** The script only saves if the content has changed compared to the last version of the backup for this specific file
+** At every time there are no more than 50 saves in total (between all files) present. This saves local disk space and prevents the need the flush the localStorage (because these local saves will total less than 500kb, and that only if the editor works on a very large file)
+** Nice addition (if not much time needed): copy-to-clipboard button to quickly copy a whole revision to the clipboard
+** Probably needed: Editor synchronization when editor works in multiple tabs at the same time (meaning switch interval trigger on and off when leaving a tab and let the other tab's script handle the saving)
+* Data structure
+** Json (parent json to be saved completely)
+*** fileDates
+**** fileUrl → array with all timestamps in order
+*** datedContent
+**** date → [ fileUrl, content ]
+*** dates → array with up to 50 dates
+* Mechanisms
+** When a save is triggered
+**# then via fileDates the last date of the current fileUrl is retrieved
+**# Then via datedContent and the last date the content is retrieved and compared to the current state.
+**#* If the state is the same, then the date of the content is changed to the current date in datedContent. In fileDates the old date is deleted and the new date added
+**#* If the state is different then a new entry is added to fileDates and datedContent and dates
+**# If the limit of 50 total entries in dates is exceeded, then the oldest date is removed. With datedContent then the fileUrl is found for this oldest date. Then in datedContent this entry is deleted. And with the fileUrl and the date the entry is deleted in fileDates
+
+Patrick:
+
+* add to [[Wiki_Enhancements]]
+
+'''DEV'''
+* DONE
+* Documentation read here [[Dev/mediawiki#EditorAutoBackup|EditorAutoBackup]]
+* Added to wiki enhancements
 
 == Wiki_Enhancements twitter image broken ==
 https://www.kicksecure.com/wiki/Wiki_Enhancements
@@ -426,13 +475,39 @@ Patrick:
 
 * CORS is unlikely the issue because: Works on different wiki pages but all wiki pages have the same CORS headers. CORS is a a recommendation set by the server. The design idea is to protect a user's browser from a compromised server. The client software (browser or bot) needs to adhere to CORS. See also [[Website_Tests#Content_Security_Policy_.28CSP.29|Content Security Policy (CSP)]].
 
-== small server deploy upgrade ==
-
-'''DEV'''
-* DONE
-* Check implemented if local directory exists to prevent user error
-
 = DONE / Log of DevSprint since 2021-12 =
+
+* 2024-09-19
+** CodeSelect white space bug analysis
+** Editor-Autobackup new 100% implemented
+*** documentation
+*** added to wiki enhancements
+** deploy to servers prompt improvement
+
+* 2024-09-18
+** CodeSelect new technique textarea global helper
+*** table with codeselect overheight bugfix (automatically because it was caused in Firefox by old technique)
+*** codeselect cleanup and logical restructure
+** gallery tag documentation and wikitest test
+** Editor-Autobackup new 50% ready
+
+* 2024-09-17
+** CodeSelect
+*** execCommand replacement research + implementation of new syntax + permissions research
+*** white space bug solution (new implementation via textarea)
+** Discussion ToDo
+** CodeEditor pre and underline
+*** images created
+*** buttons added
+
+* 2024-09-16
+** CodeSelect research leading space bug + found newline collapse bug
+** add reporting bugs to support header whonix kicksecure
+** gallery tag mobile and minerva skin research + minerva like implementation
+** Extension HeadScript documentation update
+** Discussion competitor page style Research
+** Wiki Enhancements Extensions search + texts + remove standard extensions
+** EditorAutoBackup version 2.0 specifications
 
 * 2024-09-13
 ** Whonix and Kicksecure local pages move local info
