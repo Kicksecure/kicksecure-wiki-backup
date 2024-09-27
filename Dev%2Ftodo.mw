@@ -10,65 +10,22 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== ISO - calamares encryption settings ==
-* Can we use shell aliases or wrapper to influence cryptsetup default options to set strong encryption settings such as AES512 instead of only AES256?
-* https://github.com/calamares/calamares/issues/1452
-* or add a calamares feature so distro developers or users can configure the cryptsetup command line options in /etc/calamares
+== kloak - Qubes support - consider using Qubes API for orchestration ==
+* https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
 
-{{CodeSelect|code=
-sudo cryptsetup --verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random luksFormat <device>
-}}
-
-* distribution developers should control most if not all of that line
-* "sudo" - is probably a given since cameras runs as root.
-* "cryptsetup" - maybe a distribution wants to use a wrapper.
-* "--verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random" these are certainly options which a distribution should be able to decide.
-* "luksFormat" -
-* "<device>" - probably provided by calamares through a variable
-
-Based on theoretic considerations only. Since calamares uses a library to use cryptsetup (?) it may not be as simple for a distribution to set these command-line options?
-
-== dracut - test dracut without systemd ==
-* as discussed earlier
-* as it might fix the issue below
-
-== ISO - error message during boot: mount: /sysroot: special device LiveOS_rootfs does not exist ==
-https://forums.kicksecure.com/t/iso-error-message-during-boot-mount-sysroot-special-device-liveos-rootfs-does-not-exist/418
-
-== unbootable system after installing dracut on a standard Debian installation ==
-https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792
-
-== grub-live with 90overlayfs ==
-* context: [[grub-live]]
-* https://github.com/Kicksecure/grub-live
-* https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/11_linux_live
-* stop using 90overlay-root
-* port grub-live to 90overlayfs
-
-<pre>
-## dracut support
-## https://www.kicksecure.com/wiki/Grub-live#Developer_Information
-##
-## using Debian forked upstream module 90overlay-root (tested)
-GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rootovl"
-</pre>
-
-Comment out.
-
-<pre>
-## using dracut upstream module 90overlayfs (untested)
-#GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rd.live.overlay.overlayfs=1 rd.live.overlay.readonly=1"
-</pre>
-
-Comment in. Test. Fix if required. Report issues upstream to dracut.
-
-If there are bookworm related issues, please test on trixie.
-
-No backport required. The rationale of this task if to get away from Debian (fork) specific 90overlay-root to 90overlayfs one day. trixie is early enough since there are no major issues in the current implementation but might be in trixie if we don't port.
+== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
+* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
+* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
+* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
 
 == auto-detect, prompt for potential root devices in case the root= device is misconfigured or missing ==
 * https://github.com/dracutdevs/dracut/issues/2589
 * if doable with reasonable effort
+
+== live-build dracut test ==
+* from a Debian perspective (because Kicksecure will start using it at some point)
+* please test and notify upstream about your test results
+* https://salsa.debian.org/live-team/live-build/-/merge_requests/353
 
 == audio ==
 === audio generally ===
@@ -116,6 +73,15 @@ https://forums.kicksecure.com/t/meta-packages-kicksecure-desktop-versus-kicksecu
 * if not done by upstream yet
 * if doable with reasonable effort
 
+== Implement live mode with 90overlayfs ==
+* context: [[grub-live]]
+* https://github.com/Kicksecure/grub-live
+* https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/11_linux_live
+* stop using 90overlay-root
+* port grub-live to 90overlayfs
+* This does not work in Bookworm, but does work in Trixie.
+* Once Trixie is released and we're upgrading Kicksecure to it, switch modules. See https://github.com/dracutdevs/dracut/issues/1565#issuecomment-2378133277
+
 == VirtualBox serial console ==
 * {{CodeSelect|inline=true|code=
 sudo apt install serial-console-enable
@@ -148,6 +114,32 @@ sudo apt install serial-console-enable
 * test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
 
 = WAITING ON =
+== unbootable system after installing dracut on a standard Debian installation ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792
+* Caused by a missing dracut dependency, "systemd-cryptsetup", see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15
+* Bugfix tested, works
+* Waiting for Debian Salsa upgrade maintenance to finish before submitting bugfix
+
+== ISO - calamares encryption settings ==
+* Can we use shell aliases or wrapper to influence cryptsetup default options to set strong encryption settings such as AES512 instead of only AES256?
+* https://github.com/calamares/calamares/issues/1452
+* or add a calamares feature so distro developers or users can configure the cryptsetup command line options in /etc/calamares
+
+{{CodeSelect|code=
+sudo cryptsetup --verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random luksFormat <device>
+}}
+
+* distribution developers should control most if not all of that line
+* "sudo" - is probably a given since cameras runs as root.
+* "cryptsetup" - maybe a distribution wants to use a wrapper.
+* "--verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random" these are certainly options which a distribution should be able to decide.
+* "luksFormat" -
+* "<device>" - probably provided by calamares through a variable
+
+Based on theoretic considerations only. Since calamares uses a library to use cryptsetup (?) it may not be as simple for a distribution to set these command-line options?
+
+* Requires support in libkpmcore first, did research and started discussion at https://discuss.kde.org/t/making-libkpmcores-luks2-settings-more-secure/21764 to get the ball rolling
+
 == kloak - add support for /dev/input/mice ==
 * VM has no /dev/input/mouseX
 * VM has only /dev/input/mice
@@ -171,8 +163,70 @@ Patrick:
 Aaron:
 
 * Final implementation needs orchestration, asked for advice from Qubes OS devs at https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
+* May also implement as part of GUI daemon, see https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
 
 = REVIEW PLEASE =
+== grub-live with 90overlayfs ==
+* context: [[grub-live]]
+* https://github.com/Kicksecure/grub-live
+* https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/11_linux_live
+* stop using 90overlay-root
+* port grub-live to 90overlayfs
+
+<pre>
+## dracut support
+## https://www.kicksecure.com/wiki/Grub-live#Developer_Information
+##
+## using Debian forked upstream module 90overlay-root (tested)
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rootovl"
+</pre>
+
+Comment out.
+
+<pre>
+## using dracut upstream module 90overlayfs (untested)
+#GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rd.live.overlay.overlayfs=1 rd.live.overlay.readonly=1"
+</pre>
+
+Comment in. Test. Fix if required. Report issues upstream to dracut.
+
+If there are bookworm related issues, please test on trixie.
+
+No backport required. The rationale of this task if to get away from Debian (fork) specific 90overlay-root to 90overlayfs one day. trixie is early enough since there are no major issues in the current implementation but might be in trixie if we don't port.
+
+This works on Trixie - generate an initrd with the <code>overlayfs</code> module added, then boot with <code>rd.live.overlay.overlayfs=1</code> on the kernel command line. '''The <code>rd.live.overlay.readonly=1</code> parameter is unnecessary''' and should be removed - it's for systems where you have an immutable base filesystem and a persistent overlay, and you want to make the overlay read-only, putting another overlay on top of it.
+
+This does '''not''' work on Bookworm - the overlayfs module script is simply not run despite being present. It's possible to drop to a rescue shell using <code>rd.break=mount</code> on the kernel command line, then run the script manually - this works, but is obviously not practical.
+
+== dracut - test dracut without systemd ==
+* as discussed earlier
+* as it might fix the issue below
+* Works, implemented as https://github.com/ArrayBolt3/derivative-maker/commit/894d0657b7cd69370d67759709fff166d469cc37
+
+== ISO - error message during boot: mount: /sysroot: special device LiveOS_rootfs does not exist ==
+* https://forums.kicksecure.com/t/iso-error-message-during-boot-mount-sysroot-special-device-liveos-rootfs-does-not-exist/418
+* Fixed in https://github.com/ArrayBolt3/kloak/commit/29477f98d1192ced4fb0e630c07dbd8b97942d22
+
+== kloak - fix debug symbols ==
+* ISO build giving warning about missing debug symbols, advises adding <code>-g</code> flag to gcc commands
+* Should be resolved by https://github.com/ArrayBolt3/kloak/commit/29477f98d1192ced4fb0e630c07dbd8b97942d22
+
+== kloak - memory leaks ==
+* chatgpt suggests...
+** struct entry in main loop might not be freed
+** n1 = malloc(sizeof(struct entry));
+** please check for other variables (specifically in main loop) which might not be freed
+* Double-checked just in case, this had been previously checked in my own ChatGPT code review and doesn't appear to be a problem. Entry items are created and stored temporarily in <code>*n1</code>, then queued. Those items are later assigned to the <code>np</code> variable and then freed in the event release loop (<code>free(np)</code>). The only edge case where I can see this going wrong is if kloak gets stuck and stops delivering events, which would also freeze the keyboard and make the user very likely to immediately termiante kloak.
+* The other variable which ChatGPT warned me of is pfds, which is very clearly freed when the loop exits, needed throughout the loop's entire lifetime, and which will be automatically freed if the loop is terminated since terminating the loop terminates the whole program.
+
+== kloak - Qubes support - read and comment in Qubes kloak in dom0 ticket ==
+* https://github.com/QubesOS/qubes-issues/issues/8541
+* please read
+* please consider related to previous Qubes kloak work, communicate with Qubes
+* consider future wayland support
+* note: kloak doesn't necessarily need to run in dom0. Even if it "only" runs in a VM is a big win. Final decision is up to Qubes. This is yet to be discussed, decided.
+* Added comment at https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
+
 == ISO - must choose encrypt vs not encrypt. Empty default setting ==
 * https://forums.kicksecure.com/t/iso-no-default-for-encryption-on-off-user-should-choose-explicitly/567
 * Done via https://github.com/ArrayBolt3/live-config-dist/commit/410c62e664e7d1387e7c013867242838ff2cb912
@@ -184,6 +238,11 @@ Aaron:
 * https://github.com/ArrayBolt3/kloak/commit/4bbdf38cc6c6f9162348d9b23deef3169f8465b8
 
 = ARCHIVED =
+== read Dev bash wiki page ==
+* https://www.kicksecure.com/wiki/Dev/bash
+* might be already known, just in case
+* checked it, bookmarked it, some of the issues mentioned there were things I hadn't thought of before (like <code>echo '-e'</code> failing or security risks from failing to use <code>--</code> to signal end of options)
+
 == haveged test suite passes even if only 1s are produced? ==
 * please try to reproduce
 * comment on the ticket

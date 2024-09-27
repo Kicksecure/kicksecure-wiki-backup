@@ -22,7 +22,51 @@ On this page we give an overview on the continuous progress for Whonix and Kicks
 
 = arraybolt3 =
 
+== 2024-09-26 ==
+== Investigate using dracut's upstream overlayfs feature ==
+Date: 2024-09-26
+
+Kicksecure currently uses a Debian-specific filesystem overlay module for "live mode". dracut has the same feature already existing upstream, so we would like to switch to it.
+
+Tested switching to it on Kicksecure, for some reason the dracut-native overlayfs module was silently skipped over despite being set up properly. Tested again on Trixie, everything just worked. Upstream bug comment: https://github.com/dracutdevs/dracut/issues/1565#issuecomment-2378133277
+
+== Investigate Pipewire audio issues ==
+Date: 2024-09-26
+
+Successfully reproduced Pipewire audio bug and device-level workaround (switching to AC97 audio) using Debian 13 (Testing). I didn't think it would be reproducible on Debian 13, but it was. Still need to investigate if Ubuntu has this problem. Left a comment at https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/49.
+
+== Resolve inability to boot encrypted Debian with dracut ==
+Date: 2024-09-26
+
+Bug link: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792 If you install dracut on a Debian 13 (Testing) machine with unencrypted /boot and encrypted root, the system will fail to boot successfully upon next reboot.
+
+The root cause of this turned out to be a missing runtime dependency in dracut. When using systemd within dracut (as Debian does by default), <code>systemd-cryptsetup</code> is necessary to unlock the disk. The dracut package does not depend on <code>systemd-cryptsetup</code>, and so the initrd is left with no way to decrypt the root partition. Adding <code>systemd-cryptsetup</code> to the dependencies of dracut before installation is enough to resolve the problem. (The result doesn't look very good, the user is left with a gray rectangle that doesn't even necessarily look like a text box, and there's no indication that they're supposed to type their passphrase, but at least the disk can be decrypted.)
+
+Dracut gives no warnings when it generates an unusable initrd in this way, so I filed a bug report about it: https://github.com/dracut-ng/dracut-ng/issues/684 I also commented on the existing Debian bug report with my findings: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15 I did not yet submit the fix to Debian, as Debian Salsa happened to be down for maintenance just when I was doing this.
+
+== Switch to systemd-less dracut ==
+Date: 2024-09-26
+
+Dracut with systemd enabled has a module conflict leading to a scary error message about being unable to mount sysroot. This error message ultimately is harmless, but disturbing. See https://forums.kicksecure.com/t/iso-error-message-during-boot-mount-sysroot-special-device-liveos-rootfs-does-not-exist/418/4.
+
+When researching how to resolve this, I found https://github.com/dracutdevs/dracut/issues/1820#issuecomment-1133439023 which suggested omitting systemd from the dracut initramfs. After a couple of builds, I was able to do this and get a working Kicksecure ISO, however it now showed a (less scary) error message stating <code>switch_root: failed to unlink mnt: Directory not empty</code>. This turned out to be because Dracut mounts /dev/cdrom0 to /mnt/cdrom0 and then later tries to delete the directory without clearing it. After some more research, I wrote a dracut module that unmounted /mnt/cdrom0 and then rmdir'd /mnt/cdrom0, resolving the issue. This was tested and confirmed working. Code changes: https://github.com/ArrayBolt3/derivative-maker/commit/894d0657b7cd69370d67759709fff166d469cc37
+
+== Test for memory leaks in kloak ==
+Date: 2024-09-26
+
+ChatGPT pointed out some potential memory leak areas in kloak's source code. I looked at them and didn't see any particular issues. After checking the allocation and free behavior, I additionally compiled and ran kloak, then did typing tests and lots of mouse movements in order to stress test kloak. No significant memory usage was noticed indicative of a leak.
+
+== Investigate dom0 implementation of kloak in Qubes OS ==
+Date: 2024-09-26
+
+Read through https://github.com/QubesOS/qubes-issues/issues/8541, investigated qubes-gui-daemon's source code to determine how to implement kloak most effectively there and suggested a potential way forward (writing kloak's functionality into the GUI daemon). Comment at https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699 Implementing kloak within individual VMs does not seem practical in the long run since kloak can't run above the X server or compositor without special support from that server or compositor, and Qubes OS's Wayland compositor is intended to be implemented without support for kernel input devices. This means that kloak has to be placed at the GUI daemon layer, in which case it's most likely easiest to just make it part of the GUI daemon.
+
 == 2024-09-25 ==
+
+== Harden Calamares encryption settings ==
+Date: 2024-09-25
+
+Discovered that encryption code is located in libkpmcore, which is a component of KDE and not something that can be easily changed in Calamares yet. Discussed obstacles and potential implementation strategies with Patrick, decided to try just getting more secure settings upstream first. KDE development discussion post: https://discuss.kde.org/t/making-libkpmcores-luks2-settings-more-secure/21764
 
 == Require user to make encryption choice explicit ==
 Date: 2024-09-25
@@ -176,6 +220,17 @@ Reported changes and suggested merging them into Whonix's kloak fork. Pull reque
 = Hans =
 
 == Sprint 2024-08 to 2024-09 ==
+
+* 2024-09-26
+** USB_installation discussion and small improvements
+** ISO page
+*** number icon color language changed
+*** number and alphabet icons for Linux Ubuntu and Debian
+*** beautify iso_writer_installation_linux more and sub templates
+*** ISO page 7 new images for TOC (steps)
+** gallery tag new white style created
+*** documentation + tests
+** codemirror large file problem research + summary
 
 * 2024-09-25
 ** Art Gallery image fix
