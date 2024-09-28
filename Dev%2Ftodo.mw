@@ -20,12 +20,7 @@ TODO
 
 == auto-detect, prompt for potential root devices in case the root= device is misconfigured or missing ==
 * https://github.com/dracutdevs/dracut/issues/2589
-* if doable with reasonable effort
-
-== live-build dracut test ==
-* from a Debian perspective (because Kicksecure will start using it at some point)
-* please test and notify upstream about your test results
-* https://salsa.debian.org/live-team/live-build/-/merge_requests/353
+* if doable with reasonable effort please send a pull request to dracut-'''ng'''
 
 == audio ==
 === audio generally ===
@@ -36,6 +31,10 @@ TODO
 * https://forums.whonix.org/t/virtualbox-intel-hd-audio-and-pipewire-incompatibility-audio-broken-after-increasing-ram-to-5-gb-no-sound-after-latest-updates-pipewire-bug/18211
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1081965
 * please investigate if doable with reasonable effort
+* Tried switching between Pulseaudio and Pipewire on a booted VM, discovered I could "initialize" the speakers with Pulseaudio and then Pipewire would work thereafter
+* Virtually certain this is an upstream bug, was able to reproduce with both Ubuntu 24.04 and Arch Linux.
+* Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
+* Need to investigate upstream code
 
 == review and refactor meta packages ==
 
@@ -113,13 +112,16 @@ sudo apt install serial-console-enable
 * test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
 * test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
 
-= WAITING ON =
-== unbootable system after installing dracut on a standard Debian installation ==
-* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792
-* Caused by a missing dracut dependency, "systemd-cryptsetup", see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15
-* Bugfix tested, works
-* Waiting for Debian Salsa upgrade maintenance to finish before submitting bugfix
+== apparmor.d review ==
+* https://github.com/roddhjav/apparmor.d
+* https://forums.whonix.org/t/apparmor-d-full-set-of-apparmor-profiles-1500-profiles/17389
+** review
+* https://github.com/roddhjav/apparmor.d/issues?q=is%3Aissue+author%3Aadrelanos
+** check ticket status
+* lightweight security review
+** conceivable or too much effort?
 
+= WAITING ON =
 == ISO - calamares encryption settings ==
 * Can we use shell aliases or wrapper to influence cryptsetup default options to set strong encryption settings such as AES512 instead of only AES256?
 * https://github.com/calamares/calamares/issues/1452
@@ -166,6 +168,28 @@ Aaron:
 * May also implement as part of GUI daemon, see https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
 
 = REVIEW PLEASE =
+== live-build dracut test ==
+* from a Debian perspective (because Kicksecure will start using it at some point) by building an ISO
+* please test and notify upstream about your test results
+* https://salsa.debian.org/live-team/live-build/-/merge_requests/353
+* does the ISO have the "ISO - error message during boot: mount: /sysroot: special device LiveOS_rootfs does not exist" issue? (related to task below)
+* Trixie and Bullseye both work well, Bookworm fails to boot with a sysroot mount failure. See https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1082891
+
+== ISO - error message during boot: mount: /sysroot: special device LiveOS_rootfs does not exist ==
+* https://forums.kicksecure.com/t/iso-error-message-during-boot-mount-sysroot-special-device-liveos-rootfs-does-not-exist/418
+* fixed in https://github.com/ArrayBolt3/derivative-maker/commit/894d0657b7cd69370d67759709fff166d469cc37
+** Patrick: needs further work as discussed
+** Patrick: please no modules in derivative-maker (if needed needs to be in a package)
+** Patrick: please track down root cause
+* Root cause found, reported at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1082891
+
+= ARCHIVED =
+== unbootable system after installing dracut on a standard Debian installation ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792
+* Caused by a missing dracut dependency, "systemd-cryptsetup", see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15
+* Bugfix tested, works
+* Merge request in Debian at https://salsa.debian.org/debian/dracut/-/merge_requests/37
+
 == grub-live with 90overlayfs ==
 * context: [[grub-live]]
 * https://github.com/Kicksecure/grub-live
@@ -198,18 +222,14 @@ This works on Trixie - generate an initrd with the <code>overlayfs</code> module
 
 This does '''not''' work on Bookworm - the overlayfs module script is simply not run despite being present. It's possible to drop to a rescue shell using <code>rd.break=mount</code> on the kernel command line, then run the script manually - this works, but is obviously not practical.
 
+comment: [https://github.com/dracutdevs/dracut/issues/1565#issuecomment-2378133277 Boot Existing, Usual Linux Installation from Hard Disk in Live Mode / read-only mode with dracut #1565]
+
 == dracut - test dracut without systemd ==
 * as discussed earlier
 * as it might fix the issue below
 * Works, implemented as https://github.com/ArrayBolt3/derivative-maker/commit/894d0657b7cd69370d67759709fff166d469cc37
-
-== ISO - error message during boot: mount: /sysroot: special device LiveOS_rootfs does not exist ==
-* https://forums.kicksecure.com/t/iso-error-message-during-boot-mount-sysroot-special-device-liveos-rootfs-does-not-exist/418
-* Fixed in https://github.com/ArrayBolt3/kloak/commit/29477f98d1192ced4fb0e630c07dbd8b97942d22
-
-== kloak - fix debug symbols ==
-* ISO build giving warning about missing debug symbols, advises adding <code>-g</code> flag to gcc commands
-* Should be resolved by https://github.com/ArrayBolt3/kloak/commit/29477f98d1192ced4fb0e630c07dbd8b97942d22
+** Patrick: not going for this solution (as we would be the odd distribution out not using systemd in dracut, to avoid bugs as a result of that)
+** Patrick: instead merged with task [[Dev/todo#ISO_-_error_message_during_boot:_mount:_.2Fsysroot:_special_device_LiveOS_rootfs_does_not_exist|ISO - error message during boot: mount: /sysroot: special device LiveOS_rootfs does not exist]]
 
 == kloak - memory leaks ==
 * chatgpt suggests...
@@ -237,7 +257,32 @@ This does '''not''' work on Bookworm - the overlayfs module script is simply not
 * Please check/fix readme.
 * https://github.com/ArrayBolt3/kloak/commit/4bbdf38cc6c6f9162348d9b23deef3169f8465b8
 
-= ARCHIVED =
+== kloak - fix debug symbols ==
+=== W: kloak-dbgsym: debug-file-with-no-debug-symbols [usr/lib/debug/.build-id/3a/ae8c705abefbd590d2206221eea4c2abd90cf4.debug] ===
+
+<pre>
+N: 
+N:   The binary is installed as a detached "debug symbols" ELF file, but it
+N:   does not appear to have debug information associated with it.
+N:   
+N:   A common cause is not passing -g to GCC when compiling.
+N:   
+N:   Implementation detail: Lintian checks for the ".debug_line" and the
+N:   ".debug_str" sections. If either of these are present, the binary is
+N:   assumed to contain debug information.
+N: 
+N:   Please refer to Bug#668437 for details.
+N: 
+N:   Visibility: warning
+N:   Show-Always: no
+N:   Check: binaries/debug-symbols/detached
+N: 
+N:
+</pre>
+
+* ISO build giving warning about missing debug symbols, advises adding <code>-g</code> flag to gcc commands
+* Should be resolved by https://github.com/ArrayBolt3/kloak/commit/29477f98d1192ced4fb0e630c07dbd8b97942d22
+
 == read Dev bash wiki page ==
 * https://www.kicksecure.com/wiki/Dev/bash
 * might be already known, just in case

@@ -21,8 +21,37 @@ On this page we give an overview on the continuous progress for Whonix and Kicks
 }}
 
 = arraybolt3 =
+== 2024-09-27 ==
+== Debug audio failure with >2 GB RAM ==
+Date: 2024-09-27
+
+Verified bug under Debian, Ubuntu, and Whonix.
+
+Discovered while testing with Ubuntu that I could switch to pulseaudio, play audio briefly, then switch back to pipewire and everything would work. Somehow pulseaudio "initialized" the audio device and then pipewire was able to keep using it, I guess?
+
+Tried Pipewire from bookworm-backports, issue did not resolve.
+
+Initially I thought that Arch Linux did not have this issue because of https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1081965#5. With that in mind I looked at a diff between Arch Linux's Pipewire source code and Debian's Pipewire source code from backports. They were nearly identical with only a few non-suspicous-looking changes.
+
+I then attempted to build Debian's Pipewire using build settings from Arch. This eventually worked, however installing the modded version of Pipewire did not resolve the problem.
+
+As a sanity check, I then installed Arch Linux to see if the problem was reproducible there. It turned out it was reproducible, and the "initialize with pulseaudio first" hack also resolved the issue there.
+
+Reported some of my findings at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1081965#10 and https://forums.whonix.org/t/virtualbox-intel-hd-audio-and-pipewire-incompatibility-audio-broken-after-increasing-ram-to-5-gb-no-sound-after-latest-updates-pipewire-bug/18211/27. I'm pretty sure this is an upstream bug at this point and will be hunting for it when I resume work on this.
+
+== Debug sysroot mount failure with dracut ==
+Date: 2024-09-27
+
+Tested use of live-build to make dracut-based live Debian images (building Trixie, Bookworm, and Bullseye images for testing). Things mostly worked, however the Bookworm image failed to boot with the same sysroot mount failure that Kicksecure is experiencing.
+
+I then debugged the mount failure, and traced it to a difference between thw 90overlayfs module in Trixie and Bookworm combined with a missing feature in Bookworm. The full report is visible at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1082891.
 
 == 2024-09-26 ==
+== Submit dracut-related encrypted Debian boot failure fix ==
+Date: 2024-09-26
+
+Submitted fix discovered earlier at https://salsa.debian.org/debian/dracut/-/merge_requests/37
+
 == Investigate using dracut's upstream overlayfs feature ==
 Date: 2024-09-26
 
@@ -42,7 +71,7 @@ Bug link: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792 If you insta
 
 The root cause of this turned out to be a missing runtime dependency in dracut. When using systemd within dracut (as Debian does by default), <code>systemd-cryptsetup</code> is necessary to unlock the disk. The dracut package does not depend on <code>systemd-cryptsetup</code>, and so the initrd is left with no way to decrypt the root partition. Adding <code>systemd-cryptsetup</code> to the dependencies of dracut before installation is enough to resolve the problem. (The result doesn't look very good, the user is left with a gray rectangle that doesn't even necessarily look like a text box, and there's no indication that they're supposed to type their passphrase, but at least the disk can be decrypted.)
 
-Dracut gives no warnings when it generates an unusable initrd in this way, so I filed a bug report about it: https://github.com/dracut-ng/dracut-ng/issues/684 I also commented on the existing Debian bug report with my findings: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15 I did not yet submit the fix to Debian, as Debian Salsa happened to be down for maintenance just when I was doing this.
+Dracut gives no warnings when it generates an unusable initrd in this way, so I filed a bug report about it: https://github.com/dracut-ng/dracut-ng/issues/684 I also commented on the existing Debian bug report with my findings: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15 The fix for the packaging bug was submitted at https://salsa.debian.org/debian/dracut/-/merge_requests/37.
 
 == Switch to systemd-less dracut ==
 Date: 2024-09-26
@@ -50,6 +79,8 @@ Date: 2024-09-26
 Dracut with systemd enabled has a module conflict leading to a scary error message about being unable to mount sysroot. This error message ultimately is harmless, but disturbing. See https://forums.kicksecure.com/t/iso-error-message-during-boot-mount-sysroot-special-device-liveos-rootfs-does-not-exist/418/4.
 
 When researching how to resolve this, I found https://github.com/dracutdevs/dracut/issues/1820#issuecomment-1133439023 which suggested omitting systemd from the dracut initramfs. After a couple of builds, I was able to do this and get a working Kicksecure ISO, however it now showed a (less scary) error message stating <code>switch_root: failed to unlink mnt: Directory not empty</code>. This turned out to be because Dracut mounts /dev/cdrom0 to /mnt/cdrom0 and then later tries to delete the directory without clearing it. After some more research, I wrote a dracut module that unmounted /mnt/cdrom0 and then rmdir'd /mnt/cdrom0, resolving the issue. This was tested and confirmed working. Code changes: https://github.com/ArrayBolt3/derivative-maker/commit/894d0657b7cd69370d67759709fff166d469cc37
+
+Ultimately it looks like we won't go with this approach as systemdless dracut has issues with encrypted systems on Trixie at least. Testing to see if this even happens on Trixie is planned, and if so we'll fix the root cause there.
 
 == Test for memory leaks in kloak ==
 Date: 2024-09-26
@@ -220,6 +251,16 @@ Reported changes and suggested merging them into Whonix's kloak fork. Pull reque
 = Hans =
 
 == Sprint 2024-08 to 2024-09 ==
+
+* 2024-09-27
+** WhonixOnMac Tabcontroller vs thumbnail analysis + clearfix implementation + documentation
+** Discussion ToDo Boot menu + twitter image bug
+** Icon Template two new parameters border text
+*** style param 1 new option
+*** tests + documentation
+** ISO page “Boot the ISO” chapter revision rewrites
+*** reorder + illustration
+** ISO page boot menu explainer video created
 
 * 2024-09-26
 ** USB_installation discussion and small improvements
@@ -2355,6 +2396,40 @@ Reported changes and suggested merging them into Whonix's kloak fork. Pull reque
 
 = nurmagoz =
 == newer ==
+=== 23 - 27/9/2024 ===
+- Test new Whonix Windows Installer
+
+https://download.whonix.org/windows/17.2.3.2/
+
+- KVM PipeWire Fix - contact upstream
+
+https://gitlab.com/qemu-project/qemu/-/issues/2561#note_2123338529
+
+https://lists.libvirt.org/archives/list/users@lists.libvirt.org/thread/JGEVXVUPN5FB7Q3GSZ6VMX53MVVVJJH2/
+
+https://forums.whonix.org/t/no-audio-with-spice-pipewire-halts-with-alsa-qemu-pipewire-unsupported/20341/6
+
+- Test and Improve Whonix Installer Verification Documentation
+
+https://www.whonix.org/wiki/Verify_the_images_using_Windows
+
+- Test and improve KVM Serial Console
+
+https://www.whonix.org/wiki/KVM#Command_Line_Interface_(CLI)
+
+
+Forums: 
+
+https://forums.whonix.org/t/warning-last-releases-of-tor-degraded-its-anonimity-level-compared-to-i2p/20098/17
+
+https://forums.whonix.org/t/virtualbox-intel-hd-audio-and-pipewire-incompatibility-audio-broken-after-increasing-ram-to-5-gb-no-sound-after-latest-updates-pipewire-bug/18211/25
+
+https://forums.whonix.org/t/instructions-to-windows-verify-not-correct/20463/3
+
+https://forums.whonix.org/t/how-do-i-enter-the-whonix-shell-from-cli/7271/56
+
+
+
 === 17 - 22/9/2024 ===
 - Review / fix Dev/audio: 
 
