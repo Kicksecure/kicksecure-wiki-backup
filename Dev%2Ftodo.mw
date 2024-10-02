@@ -10,14 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== kloak - Qubes support - consider using Qubes API for orchestration ==
-* https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
-
-== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
-* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
-* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
-* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
-
 == auto-detect, prompt for potential root devices in case the root= device is misconfigured or missing ==
 * https://github.com/dracutdevs/dracut/issues/2589
 * if doable with reasonable effort please send a pull request to dracut-'''ng'''
@@ -35,9 +27,7 @@ TODO
 * Virtually certain this is an upstream bug, was able to reproduce with both Ubuntu 24.04 and Arch Linux.
 * Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
 * Need to investigate upstream code
-
-== org.freedesktop.secrets implementation ==
-* https://forums.kicksecure.com/t/error-storing-passphrase-in-keyring-the-name-org-freedesktop-secrets-was-not-provided-by-any-service-files/582
+* Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
 
 == ISO - logo size reduction ==
 * On the first page of calamares installer the Kicksecure logo looks a bit out of place because it is way to large. Please reduce the size a bit.
@@ -159,6 +149,7 @@ sudo cryptsetup --verbose --use-random --cipher aes-xts-plain64 --key-size 512 -
 Based on theoretic considerations only. Since calamares uses a library to use cryptsetup (?) it may not be as simple for a distribution to set these command-line options?
 
 * Requires support in libkpmcore first, did research and started discussion at https://discuss.kde.org/t/making-libkpmcores-luks2-settings-more-secure/21764 to get the ball rolling
+* Received no response for approximately six days, filed an MR: https://invent.kde.org/system/kpmcore/-/merge_requests/54
 
 == kloak - add support for /dev/input/mice ==
 * VM has no /dev/input/mouseX
@@ -185,24 +176,25 @@ Aaron:
 * Final implementation needs orchestration, asked for advice from Qubes OS devs at https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
 * May also implement as part of GUI daemon, see https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
 
+== kloak - Qubes support - consider using Qubes API for orchestration ==
+* https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
+* Waiting on response from Qubes OS devs
+
+== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
+* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
+* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
+* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
+* Prototype implemented and mostly working, draft PR at https://github.com/QubesOS/qubes-gui-daemon/pull/149
+* Waiting on response from Qubes OS devs
+
 = REVIEW PLEASE =
+== org.freedesktop.secrets implementation ==
+* https://forums.kicksecure.com/t/error-storing-passphrase-in-keyring-the-name-org-freedesktop-secrets-was-not-provided-by-any-service-files/582
+* Researched and commented: https://forums.kicksecure.com/t/error-storing-passphrase-in-keyring-the-name-org-freedesktop-secrets-was-not-provided-by-any-service-files/582/2
+
+= ARCHIVED =
 == Cloud virtualization - research RAM-less encryption techniques for disk and RAM encryption ==
-* TRESOR: https://www.cs1.tf.fau.de/research/system-security-group/tresor-trevisor-armored/ Provides full disk encryption functionality using an encryption key that is stored in CPU registers rather than RAM.
-* RamCrypt: https://faui1-files.cs.fau.de/filepool/projects/ramcrypt/ramcrypt.pdf Encrypts the RAM of Linux userland processes using a modified form of TRESOR, again keeping the core encryption key in CPU registers.
-* pKVM: https://lwn.net/Articles/890224/ Makes it difficult for the host kernel to access the RAM of virtual machines.
-* Goal is to be able to run virtual machines in the cloud in a manner resistant to cold-boot attacks.
-* Investigate theoretical practicality, feasability of implementation, and potential issues
-* Shortcomings in current TRESOR implementation that would need to be overcome:
-** The encryption password is read by the kernel during early bootup. This requires manual user intervention on every boot. Ideally an implementation of TRESOR would be able to read a scrambled form of the encryption key from a device, store it in the CPU, then await the input of a descramble key that can be used to "arm" the TRESOR key. This would allow existing methods of booting an encrypted system unattended to function properly, and would also allow using a stronger algorithm than SHA256 for converting the password to a key (SHA256 is so fast that it's prone to bruteforcing if the password isn't long enough, something like Argon2id would be much more desirable here).
-** At most one AES-256 encryption key can be stored at once, since TRESOR stores the key in CPU debug registers and there are only 256 bits of information in those registers. This makes it difficult to use TRESOR with more than one encrypted disk. In my opinion, ideally there should be a number of "slave" keys that can be decrypted by the TRESOR master key, allowing multiple encrypted disk devices to be used.
-* TRESOR shortcomings that cannot be overcome and require working with:
-** TRESOR only works on physical hardware, it cannot be used securely on virtual machines. For obvious reasons, vCPUs have their register's written to the host's RAM frequently, including the debug registers that TRESOR relies upon. Thus use of TRESOR for cloud VM hosting would require cooperation from a hosting provider.
-** Root access is sufficient to access the debug registers and extract the key if /dev/kmem is accessible or it is possible to load kernel modules. Thus a custom kernel is needed to use TRESOR securely, one with all drivers compiled in, modules disabled, and /dev/kmem absent.
-* Shortcomings in RamCrypt that cannot be overcome and require working with:
-** RamCrypt only adds an extra barrier of difficulty to an attack, it does not meaningfully prevent one. RAM has to be decrypted before access a page at a time with RamCrypt, which means that in the event of a cold-boot attack or other method of gaining direct RAM access part of the process's core is visible. In the case of an nginx server given in the paper, a critical encryption key used by the server was exposed 3% of the time, which doesn't seem like much but still gives a solid chance of a successful attack especially if the attacker can time the attack carefully.
-** Where TRESOR provides a performance *increase*, RamCrypt comes with a substantial performance *hit* of at least 25% in the benchmarks shown. That's with single-threaded workloads and a maximum of 4 pages of RAM unencrypted at any one time. As thread count gets higher, the hit increases dramatically, and to decrease it one must allow more pages of RAM to be simultaneously decrypted, reducing security.
-* pKVM is not an encryption-based feature, rather it makes use of page table magic to keep the host from accessing the guest's memory easily. It will not prevent cold-boot attacks. It may be compatible with RamCrypt, however.
-* Rough time estimate: possibly around 240 hours of actual time invested (four hours a day, five days a week, for three months), this is a '''very''' rough estimate since actual time will depend on how receptive the kernel devs are to the ideas and how much effort is required to polish their implementation to a usable state
+See https://www.whonix.org/wiki/Dev/cloud#Confidential_VMs
 
 == live-build dracut test ==
 * from a Debian perspective (because Kicksecure will start using it at some point) by building an ISO
@@ -219,7 +211,6 @@ Aaron:
 ** Patrick: please track down root cause
 * Root cause found, reported at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1082891
 
-= ARCHIVED =
 == unbootable system after installing dracut on a standard Debian installation ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792
 * Caused by a missing dracut dependency, "systemd-cryptsetup", see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#15

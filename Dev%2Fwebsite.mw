@@ -235,15 +235,32 @@ report only
 * For content pages the Kicksecure wiki might still be the master however
 
 = TODO DEV =
+== Slow loading Javascript problem ==
 
-== wiki saving bug ==
-* go to [[Dev/website#EditorAutoBackup_quota_full_exception|EditorAutoBackup quota full exception]] -> click save -> nothing happens (bug) -> click save again -> successfully saved
-* EditorAutoBackup button remains broken on these websites
-* maybe browser cache bug?
-* bug was introduced by the same time EditorAutoBackup was introduced
-* happening on long pages such as Dev/website / [[ISO]]
-* not happening on short pages such as [[TestpageForFlyInNotification]]
-* does not happen when disabling our JS / dontload=js using debug helper (https://www.kicksecure.com/w/index.php?title=Dev%2Fwebsite&stable=0&dontload=js)
+'''DEV'''
+* On pages where a lot of Javascript is used the page can slow down significantly
+* A report was done for [[Dev/mediawiki]] by using DebugViaUrlModal. Total time about 6000ms
+** '''enhanceHeadlines +2300ms / 38%'''
+*** 259 elements
+*** content: Sharetooltip is added to each one
+*** possibly time consuming: Sharetooltip creates Dom and adds event handler
+** '''scrollAutoWrapper +1500ms / 25%'''
+*** 79 elements
+*** Custom scrollbar is being added
+*** possibly time consuming: (1) scrollbar library (2) ObserverEventHandler (needed if an element is hidden at the start)
+** '''CodeSelect +1000ms / 17%'''
+*** 1420 elements
+*** possibly time consuming: (1) code Highlighting (as with CodeMirror) (2) scrollbar library (3) events for functionality
+** '''header +300ms / 5%'''
+*** Not very important. Most scripts add 50 ms - 200 ms to loading
+* Web workers were researched to use parallel processes - dead end, because web workers cannot access the main thread / Dom / events
+* setTimeout method was explored + fixes were added
+** setTimeout works, however the main problem is that the browser has no "time to breathe". Added setTimeout between the scripts helps, but for the main identified problem scripts, setTimeout might need to be applied to the individual "enrichment" of "time costly" elements
+
+Patrick:
+
+* use more setTimeout for the individual "enrichment"
+* please document
 
 == Content ==
 === ISO documentation - compare with Tails ===
@@ -349,35 +366,6 @@ https://www.whonix.org/wiki/Troubleshooting
 
 = WAITING ON =
 = REVIEW PLEASE =
-
-== collapsible template - Learn More button ==
-Please change label from "Expand" to "Learn More".
-
-Expand and other labels are probably not required. So this can be hardcoded for code simplicity.
-
-'''DEV'''
-* DONE
-* For this Dev created a new script
-* Documentation [[Dev/mediawiki#CollapsibleGlobalMods|CollapsibleGlobalMods]]
-* Dev applied “learn more” label bus also “Show Less” label to all occurances
-* The script <u>respects</u> manual settings of data-expandtext and data-collapsetext
-* Therefore all currents settings of data-expandtext and data-collapsetext were removed (except from wikitest to show the functionality). The removed instances were all "Learn More" and "Show Less" anyways
-
-== debug helper unselecting a few scripts broken ==
-go to debug helper -> click on EditorAutoBackup.js
-
-expected result: URL contains string to disable EditorAutoBackup.js
-
-actual result: nothing happens
-
-'''DEV'''
-* DONE. Bug was fixed
-* Reason for bug occuring
-** This bug was introduced when we moved from wiki hosted source files (eg MediaWiki:BackToTopButton.js) to self hosted source files
-** But as this problem was probably not expected no one checked until now
-** The scripts until now relied on the source files ALWAYS starting with "Mediawiki:"
-** Now everything works fine again
-* Changes were needed in two files: {{CustomRepo:DebugViaUrlModal}} and {{CustomRepo:MwCombineJsWrapper}}
 
 == ISO BIOS Video - #2 ==
 TODO:
