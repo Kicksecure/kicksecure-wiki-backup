@@ -10,9 +10,28 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== secure cloud research ==
+move notes from chat to wiki
+
+== pKVM research ==
+research if pKVM assumes a locked down host and/or remote attestation (Google SafetyNet)
+
+== hardware security features for RamCrypt ==
+If software-only isn't possible, maybe hardware features such as SGX need to be used.
+
+todo research: Are there still unpatched security issues in SGX or similar features that could be used for that?
+
+== research Intel / AMD RAM Encryption ==
+* https://www.kernel.org/doc/html/next/x86/amd-memory-encryption.html
+* https://www.trentonsystems.com/en-us/resource-hub/blog/what-is-intel-tme
+
 == auto-detect, prompt for potential root devices in case the root= device is misconfigured or missing ==
 * https://github.com/dracutdevs/dracut/issues/2589
 * if doable with reasonable effort please send a pull request to dracut-'''ng'''
+* Pull request: https://github.com/dracut-ng/dracut-ng/pull/694
+
+== dracut add support for undeclared CDLABEL ==
+as discussed
 
 == audio ==
 === audio generally ===
@@ -29,8 +48,11 @@ TODO
 * Need to investigate upstream code
 * Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
 
-== ISO - logo size reduction ==
+== ISO - calamares - logo size reduction ==
 * On the first page of calamares installer the Kicksecure logo looks a bit out of place because it is way to large. Please reduce the size a bit.
+
+== ISO - calamares - encrypt button bug ==
+See video provided.
 
 == Kicksecure grub-theme ==
 * maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
@@ -129,28 +151,6 @@ sudo apt install serial-console-enable
 ** conceivable or too much effort?
 
 = WAITING ON =
-== ISO - calamares encryption settings ==
-* https://forums.kicksecure.com/t/iso-cryptsetup-full-disk-encryption-fde-set-more-secure-default-encryption-settings/588
-* Can we use shell aliases or wrapper to influence cryptsetup default options to set strong encryption settings such as AES512 instead of only AES256?
-* https://github.com/calamares/calamares/issues/1452
-* or add a calamares feature so distro developers or users can configure the cryptsetup command line options in /etc/calamares
-
-{{CodeSelect|code=
-sudo cryptsetup --verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random luksFormat <device>
-}}
-
-* distribution developers should control most if not all of that line
-* "sudo" - is probably a given since cameras runs as root.
-* "cryptsetup" - maybe a distribution wants to use a wrapper.
-* "--verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random" these are certainly options which a distribution should be able to decide.
-* "luksFormat" -
-* "<device>" - probably provided by calamares through a variable
-
-Based on theoretic considerations only. Since calamares uses a library to use cryptsetup (?) it may not be as simple for a distribution to set these command-line options?
-
-* Requires support in libkpmcore first, did research and started discussion at https://discuss.kde.org/t/making-libkpmcores-luks2-settings-more-secure/21764 to get the ball rolling
-* Received no response for approximately six days, filed an MR: https://invent.kde.org/system/kpmcore/-/merge_requests/54
-
 == kloak - add support for /dev/input/mice ==
 * VM has no /dev/input/mouseX
 * VM has only /dev/input/mice
@@ -188,11 +188,55 @@ Aaron:
 * Waiting on response from Qubes OS devs
 
 = REVIEW PLEASE =
+== RamCrypt + no-fill cache mode ==
+* Draft an email for the kernel development mailing list asking about the possibility of 100% RAM encryption, mounting CPU cache as RAM for the 3%.
+* Draft written and shared with Patrick.
+
+== ISO - Fix encryption checkbox bugs ==
+* https://github.com/calamares/calamares/issues/2375
+* https://github.com/calamares/calamares/issues/2379
+* PR at https://github.com/calamares/calamares/pull/2376
+
+== ISO - calamares encryption settings ==
+* https://forums.kicksecure.com/t/iso-cryptsetup-full-disk-encryption-fde-set-more-secure-default-encryption-settings/588
+* Can we use shell aliases or wrapper to influence cryptsetup default options to set strong encryption settings such as AES512 instead of only AES256?
+* https://github.com/calamares/calamares/issues/1452
+* or add a calamares feature so distro developers or users can configure the cryptsetup command line options in /etc/calamares
+
+{{CodeSelect|code=
+sudo cryptsetup --verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random luksFormat <device>
+}}
+
+* distribution developers should control most if not all of that line
+* "sudo" - is probably a given since cameras runs as root.
+* "cryptsetup" - maybe a distribution wants to use a wrapper.
+* "--verbose --use-random --cipher aes-xts-plain64 --key-size 512 --hash sha512 --use-random" these are certainly options which a distribution should be able to decide.
+* "luksFormat" -
+* "<device>" - probably provided by calamares through a variable
+
+Based on theoretic considerations only. Since calamares uses a library to use cryptsetup (?) it may not be as simple for a distribution to set these command-line options?
+
+* Requires support in libkpmcore first, did research and started discussion at https://discuss.kde.org/t/making-libkpmcores-luks2-settings-more-secure/21764 to get the ball rolling
+* Received no response for approximately six days, filed an MR: https://invent.kde.org/system/kpmcore/-/merge_requests/54
+
+Patrick:
+
+* on https://discuss.kde.org/t/making-libkpmcores-luks2-settings-more-secure/21764 please post a link to https://invent.kde.org/system/kpmcore/-/merge_requests/54
+* on https://invent.kde.org/system/kpmcore/-/merge_requests/54 please post a comment such as (adjust as comfortable, after verification):
+** <nowiki>No, /dev/random is not the same as /dev/urandom even on modern kernels. [Code Comparison - /dev/random vs. /dev/urandom](https://www.kicksecure.com/wiki/Dev/Entropy#Code_Comparison_-_.2Fdev.2Frandom_vs._.2Fdev.2Furandom)</nowiki>
+** "cryptsetup --help" on Debian bookworm:
+* aes-xts-plain64 seems to be the default indeed. The argument of not hardcoding it to automatically get safer the default in the future makes sense.
+* Glad if we can get the hash size increase.
+
+Aaron:
+
+* Left desired notes on merge request: https://invent.kde.org/system/kpmcore/-/merge_requests/54#note_1044980
+
+= ARCHIVED =
 == org.freedesktop.secrets implementation ==
 * https://forums.kicksecure.com/t/error-storing-passphrase-in-keyring-the-name-org-freedesktop-secrets-was-not-provided-by-any-service-files/582
 * Researched and commented: https://forums.kicksecure.com/t/error-storing-passphrase-in-keyring-the-name-org-freedesktop-secrets-was-not-provided-by-any-service-files/582/2
 
-= ARCHIVED =
 == Cloud virtualization - research RAM-less encryption techniques for disk and RAM encryption ==
 See https://www.whonix.org/wiki/Dev/cloud#Confidential_VMs
 

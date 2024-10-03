@@ -1029,6 +1029,18 @@ For demonstrative purposes only: https://web.archive.org/web/20220204103725/http
 <div class="robots-nocontent"><!--googleoff: index--><!--noindex-->CONTENT<!--/noindex--><!--googleon: index--></div>
 </pre>
 
+== Wiki Load Cascade : HTML, CSS, Javascript ==
+
+# The wiki is loaded like normal with its HTML, CSS and Javascript files
+# At the same time our libraries (JS, CSS) are loaded
+# And our combined, minified files are loaded too, learn more [[Dev/mediawiki#BUILD:_File_auto-generation.2C_Combine.2C_Minify.2C_Host_Locally.2C_mw-autogen.2C_src-copy|BUILD: File auto-generation, Combine, Minify, Host Locally, mw-autogen, src-copy]]
+# Execution of files in dependency order, learn more [[Dev/mediawiki#jQuery_dependent_and_other_wiki_core_dependent_libraries_and_scripts|jQuery dependent and other wiki core dependent libraries and scripts]]
+#* The only wiki file with our own code is [[MediaWiki:Common.js]]. The contained script triggers an event for the window <code>mediaWikiCommonJsIsLoaded</code>. This signals that the Mediawiki JS is fully loaded. Our combined Javascript scripts are now executed - specifically only those which are just MediaWiki core dependent
+#* In [[Dev/mediawiki#Extension_HeadScript|Extension HeadScript]] scripts are now triggered that are not only dependent on the MediaWiki core but also on other libraries to be loaded
+# The synchronous execution of our many JS scripts can block the Dom main threat of the browser for a long time on large and complex pages
+#* For this reason we execute our scripts wrapped within setTimout callbacks to make them asynchronous. This gives the browser "room to breathe" and to render changes to the Dom in between executing scripts
+#* On a micro-level we use this setTimeout async method for some "load expensive" scripts between the calls of each individual element in a set that is being enriched with functionality: {{CustomRepo|CodeSelect.js}}, {{CustomRepo|ShareToolitp.js}} and {{CustomRepo|ScrollAutoWrapper.js}}
+
 = Development Rules =
 
 Every developer please follow these rules and consult with the admin. A wiki is a collaborative process so compliance with the rules makes everyone's life easier. Thank you.
@@ -2485,6 +2497,7 @@ File:Example.jpg|Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed di
 ** '''set( hash : string )''' : Simply set the current hash with a string (without '#')
 ** '''register( id : string, callback : function, requestInitialTrigger : boolean )''' : Register a function for a specific id/hash. Meaning: If the URL has/gets this hash then this function will be executed. Triggers EVERY TIME the hash changes. If requestInitialTrigger is set to true then at load time of the page all registered functions will be executed. This execution will '''only happen ONCE''' - even if multiple functions set requestInitialTrigger to true.
 ** '''registerInitialCallback( initialCallback : function )''' : Register a function which is ONLY ONCE executed after the initial trigger has called all registered hash (and empty-hash) callbacks once
+*** '''NOTE''': Once the initial trigger event <u>has been executed</u>, all other <code>initialCallback</code> functions that are registered with <code>registerInitialCallback</code> will be <u>immediately</u> executed.
 ** '''trigger( isInitialTrigger : boolean )''' : Triggers <code>triggerRegisteredCallbacks</code>, the execution function for all has registered callback functions. The <code>isInitialTrigger</code> parameter is only needed internally for {{CustomRepo|MwCombineJsWrapper.js}}. This initial execution will only be triggered if either in the <code>register</code> function <code>requestInitialTrigger</code> is set to true at least once OR if at least one function is registered with <code>registerInitialCallback</code>
 * Relevant files
 ** {{CustomRepo|HashController.js}}
