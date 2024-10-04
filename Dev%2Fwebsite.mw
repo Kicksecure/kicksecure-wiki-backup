@@ -11,11 +11,6 @@ Website Enhancements Planning
 }}
 = TODO: ADMIN - SOON =
 
-== Install EmbedVideo (fork) extension ==
-
-* Please install https://www.mediawiki.org/wiki/Extension:EmbedVideo_(fork)
-* It is necessary for embedding the ISO boot menu explainer video
-
 = TODO: ADMIN - DELAYED =
 == archivebox ==
 https://archivebox.io/#quickstart
@@ -235,94 +230,6 @@ report only
 * For content pages the Kicksecure wiki might still be the master however
 
 = TODO DEV =
-== EditorAutoBackup large file save problem ==
-
-'''DEV'''
-* Dev can now reproduce the bug again
-* Shall bug be fixed?
-
-Patrick:
-
-* Yes.
-
-== wiki saving bug #2 ==
-* go to [[Dev/website#EditorAutoBackup_quota_full_exception|EditorAutoBackup quota full exception]] -> click save -> nothing happens (bug) -> click save again -> successfully saved
-* EditorAutoBackup button remains broken on these websites
-* maybe browser cache bug?
-* bug was introduced by the same time EditorAutoBackup was introduced
-* happening on long pages such as Dev/website / [[ISO]]
-* not happening on short pages such as [[TestpageForFlyInNotification]]
-* does not happen when disabling our JS / dontload=js using debug helper (https://www.kicksecure.com/w/index.php?title=Dev%2Fwebsite&stable=0&dontload=js)
-
-'''DEV'''
-* Admin reports that bug seems to be fixed
-* We agreed to set it on "Done" for the time being
-* However if this bug ever occurs again, the editor / admin / dev is advised to go into the Chrome Console > Application > LocalStorage and copy the whole value of the "wikiEditorAutoBackup" key entry into a text file. This text file should be given to Dev then
-
-Patrick:
-
-* bug is back on [[Dev/todo]]
-* first click, bug:
-
-<pre>
-Uncaught TypeError: Cannot read properties of undefined (reading '1')
-    at saveEntry (mw-combined-wikijs.js:1312:80)
-    at getContentAndSave (mw-combined-wikijs.js:1368:7)
-    at eventContentUpdate (mw-combined-wikijs.js:1371:35)
-    at HTMLFormElement.<anonymous> (mw-combined-wikijs.js:1481:7)
-    at HTMLFormElement.dispatch (jquery.js:5145:27)
-    at elemData.handle (jquery.js:4949:28)
-saveEntry @ mw-combined-wikijs.js:1312
-getContentAndSave @ mw-combined-wikijs.js:1368
-eventContentUpdate @ mw-combined-wikijs.js:1371
-(anonymous) @ mw-combined-wikijs.js:1481
-dispatch @ jquery.js:5145
-elemData.handle @ jquery.js:4949
-</pre>
-
-* second click, ok.
-
-== Slow loading Javascript problem ==
-
-'''DEV'''
-* On pages where a lot of Javascript is used the page can slow down significantly
-* A report was done for [[Dev/mediawiki]] by using DebugViaUrlModal. Total time about 6000ms
-** '''enhanceHeadlines +2300ms / 38%'''
-*** 259 elements
-*** content: Sharetooltip is added to each one
-*** possibly time consuming: Sharetooltip creates Dom and adds event handler
-** '''scrollAutoWrapper +1500ms / 25%'''
-*** 79 elements
-*** Custom scrollbar is being added
-*** possibly time consuming: (1) scrollbar library (2) ObserverEventHandler (needed if an element is hidden at the start)
-** '''CodeSelect +1000ms / 17%'''
-*** 1420 elements
-*** possibly time consuming: (1) code Highlighting (as with CodeMirror) (2) scrollbar library (3) events for functionality
-** '''header +300ms / 5%'''
-*** Not very important. Most scripts add 50 ms - 200 ms to loading
-* Web workers were researched to use parallel processes - dead end, because web workers cannot access the main thread / Dom / events
-* setTimeout method was explored + fixes were added
-** setTimeout works, however the main problem is that the browser has no "time to breathe". Added setTimeout between the scripts helps, but for the main identified problem scripts, setTimeout might need to be applied to the individual "enrichment" of "time costly" elements
-
-Patrick:
-
-* use more setTimeout for the individual "enrichment"
-* please document
-
-'''DEV'''
-* DONE
-* Changes were done with great success. Report: On our [[Dev/website]]
-** Dev tests before showed a blocked loading time of 6000ms to 6500ms
-** Dev tests now show a <u>semi</u>-blocked loading time of 900ms to 1000ms
-** Semi-blocking means that even in those 1000ms the user can interact with the page nicely because the browser "breathes" between the different scripts loads (work of yesterday) which was not the case before
-** There are not many drawbacks. The page gradually enriches, but as we focussed on preventing content shift before the content does not shift but only changes slightly in appearance
-** The only drawback is that currently the timing check is not very meaningful anymore, because it cannot account for the scripts anymore that are individually async
-* Documentation here: [[Dev/mediawiki#Wiki_Load_Cascade_:_HTML.2C_CSS.2C_Javascript|Wiki Load Cascade : HTML, CSS, Javascript]]
-* '''Todo Admin'''
-** Check if everything is satisfactory
-** Should something be done about the now inaccurate timing checks? - Dev could come up with something prob. in about 1-2 hours
-* Patrick:
-** yes, please.
 
 == numbers 1 2 3 and A B C Templates ==
 [[ISO]], [[VirtualBox]] etc. now look a lot better with the small colorful numbers such as 1, 2, 3. It's desirable to use this wiki wide.
@@ -334,6 +241,15 @@ TODO:
 * port existing uses to the new template
 * if worthwhile. maybe even simpler <code><nowiki>{{1}} {{2}} {{3}}</nowiki></code>, because '''1.''', '''2.''', '''3.''' is used a lot in the wiki. 
 ** or perhaps this could be done using CSS styling?
+
+'''DEV'''
+* DONE
+* Created Template:IconSet with the currently used icons as presets
+* Documentation here: [[Dev/wikitest#IconSet_.28Template.29|IconSet (Template)]]
+
+Patrick:
+
+* please port existing uses numbers on [[ISO]], [[VirtualBox]] page (and others?) to IconSet
 
 == Content ==
 === Whonix Windows Installer page revision ===
@@ -428,83 +344,125 @@ https://www.whonix.org/wiki/Troubleshooting
 = WAITING ON =
 = REVIEW PLEASE =
 
+== Slow loading Javascript problem ==
+
+'''DEV'''
+* On pages where a lot of Javascript is used the page can slow down significantly
+* A report was done for [[Dev/mediawiki]] by using DebugViaUrlModal. Total time about 6000ms
+** '''enhanceHeadlines +2300ms / 38%'''
+*** 259 elements
+*** content: Sharetooltip is added to each one
+*** possibly time consuming: Sharetooltip creates Dom and adds event handler
+** '''scrollAutoWrapper +1500ms / 25%'''
+*** 79 elements
+*** Custom scrollbar is being added
+*** possibly time consuming: (1) scrollbar library (2) ObserverEventHandler (needed if an element is hidden at the start)
+** '''CodeSelect +1000ms / 17%'''
+*** 1420 elements
+*** possibly time consuming: (1) code Highlighting (as with CodeMirror) (2) scrollbar library (3) events for functionality
+** '''header +300ms / 5%'''
+*** Not very important. Most scripts add 50 ms - 200 ms to loading
+* Web workers were researched to use parallel processes - dead end, because web workers cannot access the main thread / Dom / events
+* setTimeout method was explored + fixes were added
+** setTimeout works, however the main problem is that the browser has no "time to breathe". Added setTimeout between the scripts helps, but for the main identified problem scripts, setTimeout might need to be applied to the individual "enrichment" of "time costly" elements
+
+Patrick:
+
+* use more setTimeout for the individual "enrichment"
+* please document
+
+'''DEV'''
+* DONE
+* Changes were done with great success. Report: On our [[Dev/website]]
+** Dev tests before showed a blocked loading time of 6000ms to 6500ms
+** Dev tests now show a <u>semi</u>-blocked loading time of 900ms to 1000ms
+** Semi-blocking means that even in those 1000ms the user can interact with the page nicely because the browser "breathes" between the different scripts loads (work of yesterday) which was not the case before
+** There are not many drawbacks. The page gradually enriches, but as we focussed on preventing content shift before the content does not shift but only changes slightly in appearance
+** The only drawback is that currently the timing check is not very meaningful anymore, because it cannot account for the scripts anymore that are individually async
+* Documentation here: [[Dev/mediawiki#Wiki_Load_Cascade_:_HTML.2C_CSS.2C_Javascript|Wiki Load Cascade : HTML, CSS, Javascript]]
+* '''Todo Admin'''
+** Check if everything is satisfactory
+** Should something be done about the now inaccurate timing checks? - Dev could come up with something prob. in about 1-2 hours
+* Patrick:
+** yes, please.
+
+'''DEV'''
+* DONE
+* Page loading was greatly improved
+* page loading now outputs when the measuring starts and then outputs a detailled report when all expectedEvents are done
+* For more details read updated documentation [[Dev/mediawiki#Performance_Testing|Performance Testing]]
+
+== fix PHP warnings ==
+<pre>
+PHP Warning:  Undefined array key "buttonImageEager" in /srv/shared/compiled_templates/db7710a15d177d440b3131fc61c870087c04b6c0_0.wiki.CodeSelect.php on line 26
+PHP Warning:  Attempt to read property "value" on null in /srv/shared/compiled_templates/db7710a15d177d440b3131fc61c870087c04b6c0_0.wiki.CodeSelect.php on line 26
+PHP Warning:  Undefined array key "buttonImage" in /srv/shared/compiled_templates/db7710a15d177d440b3131fc61c870087c04b6c0_0.wiki.CodeSelect.php on line 30
+PHP Warning:  Attempt to read property "value" on null in /srv/shared/compiled_templates/db7710a15d177d440b3131fc61c870087c04b6c0_0.wiki.CodeSelect.php on line 30
+PHP Warning:  Undefined array key "buttonImage" in /srv/shared/compiled_templates/db7710a15d177d440b3131fc61c870087c04b6c0_0.wiki.CodeSelect.php on line 30
+PHP Warning:  Attempt to read property "value" on null in /srv/shared/compiled_templates/db7710a15d177d440b3131fc61c870087c04b6c0_0.wiki.CodeSelect.php on line 30
+</pre>
+
+'''DEV'''
+* Dev introduced existence checks
+* Admin can please run pages with codeSelect again and check if warnings still occur
+
+== EditorAutoBackup large file save problem / wiki saving bug #2 ==
+* go to [[Dev/website#EditorAutoBackup_quota_full_exception|EditorAutoBackup quota full exception]] -> click save -> nothing happens (bug) -> click save again -> successfully saved
+* EditorAutoBackup button remains broken on these websites
+* maybe browser cache bug?
+* bug was introduced by the same time EditorAutoBackup was introduced
+* happening on long pages such as Dev/website / [[ISO]]
+* not happening on short pages such as [[TestpageForFlyInNotification]]
+* does not happen when disabling our JS / dontload=js using debug helper (https://www.kicksecure.com/w/index.php?title=Dev%2Fwebsite&stable=0&dontload=js)
+
+'''DEV'''
+* Admin reports that bug seems to be fixed
+* We agreed to set it on "Done" for the time being
+* However if this bug ever occurs again, the editor / admin / dev is advised to go into the Chrome Console > Application > LocalStorage and copy the whole value of the "wikiEditorAutoBackup" key entry into a text file. This text file should be given to Dev then
+
+Patrick:
+
+* bug is back on [[Dev/todo]]
+* first click, bug:
+
+<pre>
+Uncaught TypeError: Cannot read properties of undefined (reading '1')
+    at saveEntry (mw-combined-wikijs.js:1312:80)
+    at getContentAndSave (mw-combined-wikijs.js:1368:7)
+    at eventContentUpdate (mw-combined-wikijs.js:1371:35)
+    at HTMLFormElement.<anonymous> (mw-combined-wikijs.js:1481:7)
+    at HTMLFormElement.dispatch (jquery.js:5145:27)
+    at elemData.handle (jquery.js:4949:28)
+saveEntry @ mw-combined-wikijs.js:1312
+getContentAndSave @ mw-combined-wikijs.js:1368
+eventContentUpdate @ mw-combined-wikijs.js:1371
+(anonymous) @ mw-combined-wikijs.js:1481
+dispatch @ jquery.js:5145
+elemData.handle @ jquery.js:4949
+</pre>
+
+* second click, ok.
+
+'''DEV'''
+* DONE
+* Dev implemented a "data consistency cleanup" that should fix orphaned data
+* Dev also did some bug fixes, including a wrong data type
+* Should be fixed now
+
 == ISO documentation - compare with Tails ==
-* https://tails.net/install/linux/index.en.html
-* check if Tails has instructions or visual elements that we also should add
-** exclusive of off-topic and excessive warnings
-** exclusive of JavaScript based file verification
+https://tails.net/install/linux/index.en.html
 
-'''DEV'''
-* DONE
-* DIFFERENT: Details hardware requirements → Not needed: because very few / no requirements that not everybody has
-* DIFFERENT: Tails is not magic warning → Not needed: maybe irritates / scares the user
-* DIFFERENT: Protecting / Limitations / Reducings risks → not needed: Seems to be a chapter of pros and cons of Tails. If someone goes on the INSTALL PAGE they are already sure they want the product. Don't waste their time by trying to convince them AGAIN or worse don't discourage them so they will decide against downloading
-* DIFFERENT: EFF / Front Line defenders guides → not needed: To encounter new installation instructions can be overwhelming already. So it's adviced to not give more information or require more actions or reading from the user than is absolutely necessary
-* SIMILAR: The installation steps are very nice and simple
-* DIFFERENT: They use / recycle the "your steps" icons again in the installation process. → Maybe needed: This can be a nice touch if it's done tastefully. Might be a slight improvement
-* DIFFERENT: Verify via Javascript. → Maybe needed: This seems to be a nice, handy feature. However this depends on what admin knows about the users. If it's really only highly skilled users who use the verification then the longer process might not only be tolerable but might be what they PREFER. But if it's also casual users who would like to do a verification then Javascript based verification might be a good idea
-* DIFFERENT: Well Done banner → Maybe needed: This banner is a good indicator for a completion. But it is too dynamic and big. What we have with the "Done" points is equally as good or better. BUT we could add a bigger DONE icon at the end of the large chapters
-* DIFFERENT: Their boot menu explainer video → Needed: Our video needs to be integrated as soon as possible. Ours is shorter and better.
-* DIFFERENT: Troubleshoot Tails not starting → Maybe needed: But not so specific, rather a "Troubleshooting" chapter, where we think of all the problems a user could have or list problems that users had in the past and give answers
-* DIFFERENT: Test your Wifi chapter → Maybe needed: This is a content question. Dev does not know if there is value in having this content chapter for Kicksecure
-
-== ISO BIOS Video - #2 ==
-TODO:
-
-* A video similar to https://tails.net/install/inc/videos/boot-menu-key.webm
-* Not a full ISO installation video.
-* Animation only.
-* Not a real test of the real Kicksecure ISO.
-
-'''DEV'''
-* DONE
-* Video was created (see chat)
-* It is kept really short and to the point
-* Dev tested rendering to GIF - 6,1M B - vs rendering to mp4 - 0,56 MB
-* So Dev suggests using mp4 and if auto-looping is desired do it via Javascript
-
-Patrick:
-
-* see private feedback
-
-'''DEV'''
-* Revision DONE
-* Waiting for further revisions
-* Revision was done + new step was added + audio track was added
-* speaker text draft was created
-* Video was checked with exiftool
-* Video was uploaded
-* '''Admin please see [[Dev/website#Install_EmbedVideo_.28fork.29_extension|Install EmbedVideo (fork) extension]] to allow video embedding with player'''
-
-== EditorAutoBackup quota full exception ==
-
-'''DEV'''
-* Dev suggests securing EditorAutoBackup against "full quota" exception
-* The exception occurred when Dev editing large files (like [[ISO]] and [[Progress_Reports]]) back to back. This way the localStorage quota (of 5 MB) filled rather quickly. This leads to a JS exception
-* Dev suggests handling the exception and also introducing a content filtering for large files when old entries are deleted so that large files have priority to be deleted. And Dev suggests having not only a "number of dates" limiter, but also a "max sizes" limiter for large files (meaning a normal file can have 25 entries for example, but a large file only 10 and the saves will be therefore only every 30 seconds or so
-* '''TODO ADMIN''': Decide how do we proceed?
-
-Patrick:
-
-* Yes. Fewer revisions stored for large pages. Super sized pages need to be well handled. Maybe even disabling saving for super sized (could be logs or something).
-
-'''DEV'''
-* DONE
-* New features: byte oversize management, general exception handling, icon color change + notification
-* Documentation [[Dev/mediawiki#EditorAutoBackup|EditorAutoBackup]]
-* Cleanup
-* Note: In the testing process with super large files Dev had heavy performance issues. Dev thought that could be caused by EditorAutoBackup. It was deactivated but problems still persisted. Dev finally figured out that '''CodeMirror''' (our optional syntax highlighting extension) cannot handle large files very well. Normally this is not a problem. Dev just wanted to let admin know
-
-Patrick:
-
-* Please look for a CodeMirror upstream bug and if none found, please draft one.
-
-'''DEV'''
-* I have found this post on the extension discussions https://www.mediawiki.org/w/index.php?title=Topic:Xy5wdyzedunlq944&topic_showPostId=xy6h0qknewsvivzr#flow-post-xy6h0qknewsvivzr
-* TLDR: The extension has this problem, just like vanilla CodeMirror, just like many tools with syntax highlighting
-** The problem is that basically the whole doc needs to be analysed and then a completely new document is created with a lot of HTML structure to "syntax highlight". This is processing intensive and takes time
-** Replier also says that the module would basically have to be rewritten to eg just render parts of the page on demand.
-* So basically this is not a bug and could just be feature request by us. But give that it would be a huge undertaking for them I see the chances very slim
+* '''DIFFERENT:''' Details hardware requirements → Not needed: because very few / no requirements that not everybody has
+* '''DIFFERENT:''' Tails is not magic warning → Not needed: maybe irritates / scares the user
+* '''DIFFERENT:''' Protecting / Limitations / Reducing risks → Not needed: Seems to be a chapter of pros and cons of Tails. If someone goes on the INSTALL PAGE they are already sure they want the product. Don't waste their time by trying to convince them AGAIN or worse don't discourage them so they will decide against downloading
+* '''DIFFERENT:''' EFF / Front Line defenders guides → Not needed: To encounter new installation instructions can be overwhelming already. So it's advised to not give more information or require more actions or reading from the user than is absolutely necessary
+* '''SIMILAR:''' The installation steps are very nice and simple
+* '''DIFFERENT:''' They use / recycle the "your steps" icons again in the installation process. → Maybe needed: This can be a nice touch if it's done tastefully. Might be a slight improvement
+* '''DIFFERENT:''' Verify via Javascript. → Maybe needed: This seems to be a nice, handy feature. However, this depends on what admin knows about the users. If it's really only highly skilled users who use the verification, then the longer process might not only be tolerable but might be what they PREFER. But if it's also casual users who would like to do a verification, then Javascript-based verification might be a good idea. → rejected in [[Dev/mediawiki#check_integrity_of_user_downloaded_files|check integrity of user downloaded files]]
+* '''DIFFERENT:''' Well Done banner → Maybe needed: This banner is a good indicator for completion. But it is too dynamic and big. What we have with the "Done" points is equally as good or better. BUT we could add a bigger DONE icon at the end of the large chapters
+* '''DIFFERENT:''' Their boot menu explainer video → Needed: Our video needs to be integrated as soon as possible. Ours is shorter and better.
+* '''DIFFERENT:''' Troubleshoot Tails not starting → Maybe needed: But not so specific, rather a "Troubleshooting" chapter, where we think of all the problems a user could have or list problems that users had in the past and give answers
+* '''DIFFERENT:''' Test your Wifi chapter → Maybe needed: This is a content question. Dev does not know if there is value in having this content chapter for Kicksecure
 
 == Wiki_Enhancements twitter image broken ==
 https://www.kicksecure.com/wiki/Wiki_Enhancements
