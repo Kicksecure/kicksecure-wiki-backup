@@ -10,50 +10,10 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== RamCrypt + no-fill cache mode ==
-* Draft an email for the kernel development mailing list asking about the possibility of 100% RAM encryption, mounting CPU cache as RAM for the 3%.
-
-<pre>
-Subject: Investigating practicality of full memory encryption techniques using frozen cache and TRESOR/RamCrypt
-
-I am currently helping with software development for the Kicksecure and Whonix projects, which are heavily focused on privacy and security. One of the goals we'd like to achieve is making it possible to securely run virtual machines on x86_64-architecture cloud servers in a manner resistant to cold-boot attacks, without relying on technology such as Intel SGX and TDX or AMD SEV that requires trusting CPU-vendor-provided code, keys, etc.
-
-The two main technologies we're looking into for this purpose are TRESOR[1] and RamCrypt[2]. TRESOR is a full disk encryption mechanism that stores all disk encryption keys in CPU registers, such that the key is never[3] stored in RAM. If used on the hardware of a VM host, this would prevent a cold-boot attack from finding the disk encryption key. RamCrypt is a full memory encryption mechanism that uses the same technique as TRESOR to hide an encryption key inside the CPU, using it to transparently encrypt and decrypt the memory of running applications using memory paging techniques. Both of them have working proof-of-concept implementations described in the linked papers. Our hope is to eventually get fully functional, production-ready TRESOR and RamCrypt implementations created and upstreamed into the Linux kernel. For the avoidance of doubt, I am not the author of or a contributor to either TRESOR or RamCrypt.
-
-One issue we have with RamCrypt is that it leaves part of a protected process's memory unencrypted in RAM as necessary. By default, up to four 4k pages of RAM are unencrypted at a time, with new pages being decrypted and older ones being encrypted transparently as needed. This has the serious disadvantage of making a cold-boot attack potentially successful, even if it is statistically unlikely to work. The chances of a successful attack against RamCrypt are non-negligible - the RamCrypt paper shows that a RamCrypt-protected nginx instance left a critical encryption key exposed in RAM 3% of the time in their test scenarios. This is worrying to us, and we're wondering if there is a way to prevent this from being a problem.
-
-Our current hope is to use a cache-as-RAM technique (similar to what is described in the Frozen Cache[4] project) to potentially overcome this limitation. The idea, roughly speaking, is to ensure that protected process memory is only ever present in decrypted form in one of the CPU caches, and is prohibited from ever touching system RAM. When a page of memory is accessed that is encrypted, a previously decrypted page will be encrypted, written to system RAM, then an encrypted page will be decrypted into cache and used. Cache should be approximately as hard to access in a cold-boot attack as registers, thus this would allow a protected process to be immune to cold-boot attacks by never storing any sensitive data decrypted in RAM. It appears that no-fill cache mode could potentially be used for this purpose, though doing so without entirely destroying system performance seems like it would be tricky and probably require dedicating one or more CPU cores to running "protected" software with this modified caching mode.
-
-The high-level end goal is to allow KVM-accelerated QEMU processes to be run encrypted via RamCrypt, with no unencrypted VM memory touching system RAM, and with the physical machine running TRESOR to protect the filesystem on which the VM virtual disks are stored. To begin with, though, it would be useful to know whether it's even possible with Linux's architecture to combine RamCrypt and no-fill cache mode to transparently encrypt a process's memory without exposing it decrypted in RAM. Some advice on how to go about implementing something along these lines would also be welcome, so that we can implement it in a way that is most likely to be accepted into the upstream kernel.
-
-Thanks for taking the time to read this, and have a great day!
-
-[1] https://faui1-files.cs.fau.de/filepool/projects/tresor/tresor.pdf
-[2] https://faui1-files.cs.fau.de/filepool/projects/ramcrypt/ramcrypt.pdf
-[3] Well, almost never - the key is briefly stored in RAM when read from whatever device provides it, but it is immediately expunged from RAM thereafter.
-[4] https://frozencache.blogspot.com/
-</pre>
-
-* Parick: minor corrections have been made. Please post.
-
-== secure cloud research ==
-move notes from chat to wiki
-
-== pKVM research ==
-research if pKVM assumes a locked down host and/or remote attestation (Google SafetyNet)
-
 == hardware security features for RamCrypt ==
 If software-only isn't possible, maybe hardware features such as SGX need to be used.
 
 todo research: Are there still unpatched security issues in SGX or similar features that could be used for that?
-
-== research Intel / AMD RAM Encryption ==
-* https://www.kernel.org/doc/html/next/x86/amd-memory-encryption.html
-* https://www.trentonsystems.com/en-us/resource-hub/blog/what-is-intel-tme
-
-== dracut follow-up ==
-* https://github.com/dracut-ng/dracut-ng/issues/684
-* https://github.com/dracut-ng/dracut-ng/pull/609
 
 == auto-detect, prompt for potential root devices in case the root= device is misconfigured or missing ==
 * https://github.com/dracutdevs/dracut/issues/2589
@@ -224,8 +184,61 @@ Aaron:
 * Waiting on response from Qubes OS devs
 
 = REVIEW PLEASE =
+== research Intel / AMD RAM Encryption ==
+* https://www.amd.com/content/dam/amd/en/documents/epyc-business-docs/white-papers/memory-encryption-white-paper.pdf
+* https://www.intel.com/content/www/us/en/developer/articles/news/runtime-encryption-of-memory-with-intel-tme-mk.html
+* https://www.kernel.org/doc/html/next/x86/amd-memory-encryption.html
+* https://www.trentonsystems.com/en-us/resource-hub/blog/what-is-intel-tme
+* https://forums.whonix.org/t/enable-secure-memory-encryption-sme-kernel-parameter-mem-encrypt-by-default/10393
+* https://en.wikichip.org/wiki/x86/sme
+* https://en.wikichip.org/wiki/x86/tme
+* Researched and added to Whonix Dev/cloud page. tl;dr: AMD SEV and SME does not seem suitable. Intel TME-MK appears promising.
+
+== pKVM research ==
+* research if pKVM assumes a locked down host and/or remote attestation (Google SafetyNet)
+* Researched and added to Whonix Dev/cloud page
+
+== dracut follow-up ==
+* https://github.com/dracut-ng/dracut-ng/issues/684
+* https://github.com/dracut-ng/dracut-ng/pull/609
+* Tested commit, followed up at https://github.com/dracut-ng/dracut-ng/issues/684#issuecomment-2394398786, this is done
+
+== calamares luks encryption settings ticket ==
+* please reply https://github.com/calamares/calamares/issues/2374
+* replied: https://github.com/calamares/calamares/issues/2374#issuecomment-2394028666
+
+== secure cloud research ==
+* move notes from chat to wiki
+* Revamped Confidential VMs section in wiki
 
 = ARCHIVED =
+== RamCrypt + no-fill cache mode ==
+* Draft an email for the kernel development mailing list asking about the possibility of 100% RAM encryption, mounting CPU cache as RAM for the 3%.
+
+<pre>
+Subject: Investigating practicality of full memory encryption techniques using frozen cache and TRESOR/RamCrypt
+
+I am currently helping with software development for the Kicksecure and Whonix projects, which are heavily focused on privacy and security. One of the goals we'd like to achieve is making it possible to securely run virtual machines on x86_64-architecture cloud servers in a manner resistant to cold-boot attacks, without relying on technology such as Intel SGX and TDX or AMD SEV that requires trusting CPU-vendor-provided code, keys, etc.
+
+The two main technologies we're looking into for this purpose are TRESOR[1] and RamCrypt[2]. TRESOR is a full disk encryption mechanism that stores all disk encryption keys in CPU registers, such that the key is never[3] stored in RAM. If used on the hardware of a VM host, this would prevent a cold-boot attack from finding the disk encryption key. RamCrypt is a full memory encryption mechanism that uses the same technique as TRESOR to hide an encryption key inside the CPU, using it to transparently encrypt and decrypt the memory of running applications using memory paging techniques. Both of them have working proof-of-concept implementations described in the linked papers. Our hope is to eventually get fully functional, production-ready TRESOR and RamCrypt implementations created and upstreamed into the Linux kernel. For the avoidance of doubt, I am not the author of or a contributor to either TRESOR or RamCrypt.
+
+One issue we have with RamCrypt is that it leaves part of a protected process's memory unencrypted in RAM as necessary. By default, up to four 4k pages of RAM are unencrypted at a time, with new pages being decrypted and older ones being encrypted transparently as needed. This has the serious disadvantage of making a cold-boot attack potentially successful, even if it is statistically unlikely to work. The chances of a successful attack against RamCrypt are non-negligible - the RamCrypt paper shows that a RamCrypt-protected nginx instance left a critical encryption key exposed in RAM 3% of the time in their test scenarios. This is worrying to us, and we're wondering if there is a way to prevent this from being a problem.
+
+Our current hope is to use a cache-as-RAM technique (similar to what is described in the Frozen Cache[4] project) to potentially overcome this limitation. The idea, roughly speaking, is to ensure that protected process memory is only ever present in decrypted form in one of the CPU caches, and is prohibited from ever touching system RAM. When a page of memory is accessed that is encrypted, a previously decrypted page will be encrypted, written to system RAM, then an encrypted page will be decrypted into cache and used. Cache should be approximately as hard to access in a cold-boot attack as registers, thus this would allow a protected process to be immune to cold-boot attacks by never storing any sensitive data decrypted in RAM. It appears that no-fill cache mode could potentially be used for this purpose, though doing so without entirely destroying system performance seems like it would be tricky and probably require dedicating one or more CPU cores to running "protected" software with this modified caching mode.
+
+The high-level end goal is to allow KVM-accelerated QEMU processes to be run encrypted via RamCrypt, with no unencrypted VM memory touching system RAM, and with the physical machine running TRESOR to protect the filesystem on which the VM virtual disks are stored. To begin with, though, it would be useful to know whether it's even possible with Linux's architecture to combine RamCrypt and no-fill cache mode to transparently encrypt a process's memory without exposing it decrypted in RAM. Some advice on how to go about implementing something along these lines would also be welcome, so that we can implement it in a way that is most likely to be accepted into the upstream kernel.
+
+Thanks for taking the time to read this, and have a great day!
+
+[1] https://faui1-files.cs.fau.de/filepool/projects/tresor/tresor.pdf
+[2] https://faui1-files.cs.fau.de/filepool/projects/ramcrypt/ramcrypt.pdf
+[3] Well, almost never - the key is briefly stored in RAM when read from whatever device provides it, but it is immediately expunged from RAM thereafter.
+[4] https://frozencache.blogspot.com/
+</pre>
+
+* Parick: minor corrections have been made. Please post.
+* Posted: https://lore.kernel.org/lkml/20241003194147.2566a393@kf-ir16/T/#u
+
 == ISO - Fix encryption checkbox bugs ==
 * https://github.com/calamares/calamares/issues/2375
 * https://github.com/calamares/calamares/issues/2379
