@@ -10,24 +10,149 @@ The system or {{VM}} is no longer booting?
 
 This can be [[Dev/image_creation|very difficult]] to analyze and difficult to fix. Asking in support forums might not result in helpful answers. Fixing this most likely requires being an [[Advanced Users|advanced user]] or even a very advanced user.
 }}
-== Potential Causes ==
-* Interrupted updates;
-* [[Malware_and_Firmware_Trojans|malware]] ([[Malware_and_Firmware_Trojans#Valid_Compromise_Indicators_versus_Invalid_Compromise_Indicators|less likely]]); 
-* [[Troubleshooting#Hardware_Issues|hardware issues]];
-* bugs (either in {{project_name_long}} or any components it is based on);
-* user misconfiguration;
-* third-party software introduced issues.
 
-== Potential Problem Solutions ==
-Options:
+== Troubleshooting ==
 
-* '''A)''' Become knowledgeable about the Linux boot process and debugging;
-* '''B)''' Hire a sysadmin to fix this;
-* '''C)''' [[Factory Reset]].
+Boot failure is a general term for a broad range of conditions that prevent a system from becoming fully operational for general use after being powered on. The number of potential causes and resulting issues are far too large to cover here, but in practice most "boot failures" are caused by a select few issues. This page will attempt to help you find the reason your system is "failing to boot" and fix it.
 
-The knowledge on how to fix Linux boot issues is a general Linux sysadmin skill and [[unspecific|unspecific to {{project_name_short}}]].
+This guide assumes a moderate level of proficiency in Linux use. If you do not feel comfortable attempting to repair your system yourself, see the "Getting Help" section below. Alternatively, you can [[Factory Reset]] Kicksecure by reinstalling it.
 
-Some pointers can be found on the [[Recovery]] wiki page.
+Note that this page assumes that the boot failure is not the result of a malware infection. If you suspect that your system has been compromised, the only safe solution is to reinstall all operating systems (including Kicksecure) that are installed on your device. See [[ISO|the download page]]] for download and installation instructions for Kicksecure.
+
+=== Triage ===
+
+The first step in debugging a boot failure is to determine what *exactly* has failed. All boot failures have in common that the system does not reach a working GUI where the user can begin working, however there are many places in the startup process that can break, and identifying which place has broken is very important.
+
+The boot process goes through the following stages from power-on to a working system. Use this guide to determine which part of the boot process has most likely failed. Keep in mind that some issues may be difficult to pinpoint to any one particular part of the boot process. Even in those instances, having a general idea of the location of the issue is still very useful.
+
+* Power on
+** This is the stage your system starts at when you first press the power button. Power is applied to the various system components, triggering each device's processor to load firmware and begin processing.
+*** Failures in this stage of the boot process are always the result of hardware or firmware damage, and typically manifest as:
+*** The system is entirely unresponsive to a power button press (no lights turn on, no fans spin up, screen backlight does not power on)
+*** The system's fans spin up when the power button is pressed and the power light may even come on, but there is no drive activity and the screen backlight doesn't come on
+*** Lights on the keyboard or elsewhere on the system are blinking in regular patterns that you haven't seen before, lights on the system turn strange colors, or you hear beeps emitted from the system speaker
+* BIOS / Firmware
+** Once the CPU is partially operational, it begins running system firmware. This code initializes your hardware, then searches for a bootloader and runs it.
+*** Failures in this stage of the boot process can be hardware-related or configuration-related. Typical problems at this point are:
+*** Error messages are shown on the screen early in the boot process, and these errors do not appear to be Linux kernel logs or bootloader errors
+* Bootloader discovery and launch
+** After initializing the hardware, the firmware searches for a bootloader to run. The way in which this is done varies from machine to machine.
+** Older systems with legacy BIOS firmware check all drives in the system in a specific order, looking at the "boot sector" of the drive to determine if it looks like a bootloader or not. The first valid boot sector found is loaded and executed.
+*** Issues with bootloader discovery and launch on BIOS systems typically manifest as a "No Operating System Found" error message. If a machine has multiple operating systems installed or present, it's also possible for the wrong OS to boot.
+** Newer systems with UEFI firmware have a list of installed bootloaders stored in non-volatile memory (NVRAM) that is embedded into the hardware. Each bootable disk has an EFI System Partition (ESP) that stores each installed bootloader as a set of files on the disk. The firmware uses the list of bootloaders stored in NVRAM to locate the desired bootloader to run. If a bootloader in the list is not accessible, the firmware proceeds to the next bootloader in the list. If no valid installed bootloaders are found, the firmware then probes for a "fallback" bootloader installed on any of the disks, searching the disks in a specific order and loading the first valid fallback bootloader it finds.
+*** Issues with bootloader discovery and launch on UEFI systems can manifest in a number of different ways. Some systems will show a "No Operating System Found" message and shut down, some will allow you to insert a bootable drive and retry boot, some will give you an opportunity to enter a firmware setup mode, and some might drop you to a UEFI shell. It's also possible for the wrong OS to boot if the system has multiple operating systems installed.
+* Kernel / initramfs discovery and kernel launch
+** Once the firmware has loaded and executed the bootloader (usually GRUB), it will then proceed to find, load, configure, and launch the operating system's kernel and initramfs. The kernel is a core component of the operating system, acting as an interface between the system's hardware and software. The initramfs is a small, compressed bundle of files that assist the kernel in locating and booting the rest of the OS. The bootloader will usually use a configuration file to locate the kernel and initramfs. If there are multiple operating systems installed, it may also display a boot menu allowing the user to choose their desired operating system.
+*** Issues with kernel / initramfs discovery and kernel launch typically result in the user being dropped to a GRUB shell. This is a rescue environment from which the user can find and load the operating system themselves. You may also be shown an error message such as "error: you need to load the kernel first". These issues are usually the result of a missing or damaged bootloader configuration file.
+* Hardware preparation
+** Once the kernel is loaded, it will initialize itself, and (re)initialize some of the hardware on the machine. This allows any software executed thereafter to run in a known-good, predictable environment without having to take special hardware considerations into account in most instances.
+*** Issues with kernel hardware preparation generally manifest as a cryptic kernel panic during early boot. These issues are usually the result of a hardware problem or kernel bug.
+* Initramfs launch
+** The kernel will then load and execute an <code>init</code> application from the initramfs, usually called located at <code>/sbin/init</code>.
+*** Initramfs launch problems usually manifest as a kernel panic stating that the root filesystem could not be mounted, or that there is "no working init found". This is usually the result of faulty kernel configuration in the bootloader's config file.
+* Root filesystem discovery and handoff
+** The <code>init</code> executable's job is to orchestrate other executables on the initramfs to locate, decrypt if necessary, and mount the operating system's root partition. Once the root partition is found and mounted, the initramfs filesystem is wiped, the system "pivots" to the real root filesystem, and finally the <code>/sbin/init</code> executable on the real root filesystem is loaded, replacing the <code>init</code> executable from the initramfs.
+*** Issues with root filesystem discovery and handoff usually result in the user being dropped to an "emergency shell". This shell allows access to the "mini OS" present in the initramfs, and is mainly useful for debugging why the boot process failed at this stage. One can oftentimes find the proper root filesystem themselves, mount it, and then exit the emergency shell to finish the boot process if things get hung up here. It's also possible for a root FS discovery failure to result in the boot process hanging indefinitely.
+* System service startup
+** The <code>init</code> executable from the root filesystem now looks at various configuration files on the system, and uses the info in them to mount additional partitions, configure and launch system services, and eventually launch the login manager. Services are executed in stages so that when each service starts, any prerequisite services it needs are already started.
+*** Issues with system service startup can manifest in a large number of different ways. Commonly one will be dropped to an "emergency mode" shell (distinct from the "emergency shell" from the root filesystem discovery stage), or the boot process will hang indefinitely with some services shown as being in a "FAILED" state.
+* Login manager startup
+** Once most system services are operational, the <code>init</code> executable launches a GUI login manager and a number of <code>login</code> processes for text-mode login. If the system reaches this point successfully, most users will consider the boot to be successful even if things don't quite work right thereafter.
+*** Issues with login manager startup usually result in the user being able to login only at a text-mode console. The login manager can also get stuck in a restart loop, preventing the user from logging in even that way.
+* Desktop startup
+** Once the user logs in, or if autologin is configured, the graphical login manager will run the set of programs the user sees at the "desktop". This includes a "panel" (on Kicksecure this is the task bar at the top of the screen), a "desktop" (the program that displays a wallpaper and shows your desktop icons), and a number of smaller services and applets that complete the desktop experience. From here the user can launch and use applications.
+*** Issues with desktop startup can manifest in a large number of different ways. The user may be unable to graphically log in, or important desktop components may be missing or behave erratically.
+
+=== Fixing the problem ===
+
+Once you have located the step of the boot process that has failed, you can attempt to fix the issue. The following are some common problems, and how to resolve them.
+
+* Power on
+** Potential problem: RAM failure
+*** The hardware can act very erratically or fail to work at all if one or more RAM modules have failed. If your system has user-replaceable RAM, and you have more than one RAM module installed, try removing all but one of them, then attempt to boot again. If this does not have any effect on observed symptoms, try removing the last RAM module and inserting one of the others in its place. If none of the available RAM modules work when installed alone, the issue is probably not RAM-related.
+** Potential issue: Core hardware failure
+*** Many of the components on modern systems cannot be replaced easily. If one of them fails, the system may become unusable and irreparable.
+* BIOS / Firmware
+** Potential problem: Bad BIOS configuration option
+*** The firmware on most computers has a large array of options one can enable or disable. Blindly changing these options is not a good idea. However, if you see an error message describing a particular component of the system as being unusable or misconfigured, there may be a firmware setting you can change to resolve the issue.
+* Bootloader discovery and launch
+** Potential problem: Overwritten boot information
+*** Some activities will overwrite a disk's boot files or modify the NVRAM operating system list. Reinstalling the bootloader or installing an additional operating system usually will do this. This oftentimes works as intended, but it is possible for the firmware to not be able to locate boot files any longer after this. If this occurs, you can boot from a USB drive, chroot into your original operating system (if it is still available), and reinstall the bootloader from there. See the Chroot Boot Recovery section below for instructions.
+** Potential problem: UEFI firmware fails to pick up Kicksecure boot entry
+*** It is possible for some systems to fail to add a boot entry for Kicksecure to the NVRAM. When this happens booting the Kicksecure installation can be difficult. See Chroot Boot Recovery below for instructions to resolve this.
+* Kernel / initramfs discovery and kernel launch
+** Potential problem: Incorrect partition UUIDs in bootloader configuration
+*** If you repartition your disk, or clone a partition, it is possible and even easy to end up with partitions that are perfectly valid but that the bootloader is not configured to find. This can usually be fixed by rebuilding the bootloader configuration. See the Chroot Boot Recovery section below for instructions.
+** Potential problem: GRUB is unable to see the operating system's drive
+*** Sometimes GRUB or the system's firmware will lack the proper drivers to access the drive on which the OS is installed. This can happen if an NVMe drive is installed into a system that did not originally have an NVMe slot on the motherboard. In this instance, you will not be able to boot the system if the kernel and initramfs are located on the OS's drive. The best way to resolve this issue is usually to use manual partitioning when installing Kicksecure, placing the boot partition on a drive that GRUB can access and placing the rest of the OS on the desired drive.
+* Hardware preparation
+** Potential problem: Intel RST is enabled on the OS's drive
+*** Systems featuring 10th-gen Intel processors oftentimes have a feature known as Rapid Storage Technology (RST). Such systems are oftentimes advertised as having "Intel Optane" technology. Intel RST is incompatible with the Linux kernel, and the kernel developers have intentionally not added support for it. The best solution to this issue is usually to go into the system's firmware settings, find the settings for the drive the OS is installed on, and ensure it is not set to "RAID" mode. If it is, change it to "AHCI" if possible. This will resolve the issue. Note that if you have an installation of Windows already present on the drive, switching from RAID to AHCI mode or vice versa may cause Windows to become unbootable.
+* Initramfs launch
+** Potential problem: Initramfs was not loaded by bootloader
+*** If the initramfs is missing entirely or the bootloader is not properly configured to find it, it will not be loaded during boot and the kernel will not be able to use it. See the Chroot Boot Recovery section below for instructions to fix this.
+* Root filesystem discovery and handoff
+** Potential problem: Corrupted or incorrect root UUID kernel parameter
+*** If the <code>root=</code> kernel parameter does not point to the proper filesystem, the initramfs will be unable to find it and will drop you to an emergency shell. This can happen if you clone your root filesystem by copying everything on it to another partition or disk. The easiest way to fix this is by using the steps in the the Chroot Boot Recovery section below.
+** Potential problem: Incorrectly named filesystem in crypttab
+*** On encrypted systems, the <code>/etc/crypttab</code> file assigns a specific device name to each encrypted partition that is decrypted at bootup. <code>/etc/fstab</code> is then supposed to mount those devices as appropriate. The device names must match between the two files or else the system will not be able to mount all encrypted filesystems properly. Furthermore, the crypttab file must be embedded into the initramfs properly. If these conditions are not met, the system will fail to boot. To fix this, use the steps in the Chroot Boot Recovery section below.
+* System service startup
+** Potential problem: Hardware is incompatible with latest kernel
+*** If the machine hangs during system service startup with some failed services, and you just recently updated your software, it is possible that a new kernel was installed that is incompatible with your hardware. To boot from an earlier kernel, reboot the machine, then on the boot menu select <code>Advanced options for Kicksecure</code>. You will see a list of available kernels to boot from. Select an older kernel to boot from, taking care to '''not''' use a <code>(recovery mode)</code> option. (Recovery mode boots the system into an emergency shell and will usually not be useful in this particular scenario.)
+** Potential problem: Important system software was uninstalled
+*** If you recently removed an important software component from your system, it can result in system service startup failing. See the Chroot Boot Recovery section below for instructions on how to resolve this.
+* Login manager startup
+** Potential problem: Login screen is displayed and attempting to log in immediately drops you back to the login screen again
+*** This issue is typically the result of a misconfigured login manager. You may be able to resolve the issue by using <code>sudo apt install reinstall lightdm lightdm-gtk-greeter</code>.
+* Desktop startup
+** Potential problem: Graphics driver issues
+*** Your desktop might not load or may behave erratically if your system's graphics drivers are not working properly with your graphics hardware. You can try to boot with safe graphics mode to see if this is a likely issue. To do this, when Kicksecure's boot menu appears, press <code>e</code> to edit the boot options. Move the cursor down to the line that starts with <code>linux</code>, then move your cursor to immediately after the <code>ro</code> argument and type <code>nomodeset</code>, ensuring that the newly added option is separated from surrounding options with at least one space on each side. Then press Ctrl+X to boot.
+
+=== Chroot Boot Recovery ===
+
+Many of the boot issues mentioned in this document can be solved by chrooting into the broken system. From here you can regenerate boot configuration data and modify incorrect configuration files. You will need a live Kicksecure ISO for this procedure, see the [[ISO|download page]] for guidance on how to obtain one and prepare it for use.
+
+* Boot the affected system from the live ISO.
+** On physical hardware, flash the ISO to a USB drive and boot the machine from the USB drive.
+** On virtual hardware (VirtualBox or KVM), configure the virtual machine to use the Kicksecure ISO file as a virtual CD-ROM, and set the ISO file to be at the top of the boot order.
+* Open a terminal using Ctrl+Alt+T.
+* Run <code>lsblk</code> to view the drives and partitions in the system. The partition containing Kicksecure's root filesystem should be recognizable by size.
+* Mount Kicksecure's root filesystem using <code>sudo mount /dev/sdXY /mnt</code>, replacing <code>sdXY</code> as appropriate.
+* Determine which partition contains Kicksecure's boot filesystem (which is always separate from the root filesystem). Mount it using <code>sudo mount /dev/sdXY /mnt/boot</code>, again replacing <code>sdXY</code> as appropriate.
+* If the system uses UEFI firmware, there will be an additional, small fat32 partition near the beginning of the drive Kicksecure is installed onto. Mount it using <code>mount /dev/sdXY /mnt/boot/efi</code>, again replacing <code>sdXY</code> as appropriate.
+* Bind-mount several system directories into <code>/mnt</code> so that recovery tools will work:
+** <code>sudo mount --bind /dev /mnt/dev</code>
+** <code>sudo mount --bind /dev/pts /mnt/dev/pts</code>
+** <code>sudo mount --bind /proc /mnt/proc</code>
+** <code>sudo mount --bind /sys /mnt/sys</code>
+* Run <code>chroot /mnt</code> to enter the chroot environment. Commands you run at this point will act as if you were running them on the installed system.
+* Depending on which boot issue you are attempting to resolve, you may have to modify some configuration files before regenerating boot data.
+** UEFI firmware fails to pick up Kicksecure boot entry
+*** Determine the disk containing Kicksecure's EFI system partition, then determine which partition on the disk is the EFI system partition.
+*** Run <code>efibootmgr -c -d /dev/sdX -p Y -L 'Kicksecure' -l 'EFI\Kicksecure\shimx64.efi'</code>, replacing <code>sdX</code> and <code>Y</code> as appropriate. This should add a Kicksecure boot entry to your UEFI NVRAM.
+** Incorrectly named filesystem in crypttab
+*** Run <code>nano /etc/crypttab</code>. For each entry in the file (usually there will only be one), copy down the first field (the filesystem name) and paste it into a Mousepad text document. Close the file with Ctrl+X, then run <code>nano /etc/fstab</code>. Check all fstab lines that point to a filesystem under <code>/dev/mapper</code> and ensure that the names shown in those fstab lines match those shown in the crypttab file.
+** Important system software was uninstalled
+*** Reinstall any important packages you uninstalled previously, using <code>apt install</code>. You can check your apt history log at <code>/var/log/apt/history.log</code> to see what packages you may have uninstalled recently.
+* After completing any necessary prerequiste steps from above, regenerate boot information.
+** Reinstall the bootloader by running <code>grub-install /dev/sdXY</code> replacing <code>sdXY</code> as appropriate.
+** Regenerate GRUB's configuration file by running <code>update-grub</code>.
+** Regenerate all initramfs files on the system by running <code>dracut --regenerate-all --force</code>.
+* After running the above commands, exit the chroot environment by running <code>exit</code>.
+* Shut down the system and remove the Kicksecure live ISO. Then power the system back on. If all goes well, Kicksecure should now boot successfully.
+
+=== Getting Help ===
+
+If you are not comfortable attempting to repair your system by yourself, you can ask for help via Kicksecure's support forum at https://forums.kicksecure.com/.
+
+=== Additional Resources ===
+
+The following Wiki pages may have useful information:
+
+* [[Malware_and_Firmware_Trojans|Malware]] 
+** [[Malware_and_Firmware_Trojans#Valid_Compromise_Indicators_versus_Invalid_Compromise_Indicators|Valid versus Invalid compromise indicators]]
+* [[Troubleshooting#Hardware_Issues|Troubleshooting Hardware Issues]]
+* [[Recovery|Recovery wiki page]]
 
 {{reflist|close=1}}
 {{Footer}}
