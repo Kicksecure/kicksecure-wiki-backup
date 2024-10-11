@@ -162,23 +162,57 @@ sudo spectre-meltdown-checker --paranoid ; echo $?
 === Forum Discussion ===
 See: https://forums.whonix.org/t/whonix-vulerable-due-to-missing-processor-microcode-packages/5739
 
-= fwupd =
-{{stub}}
+= Firmware Update Manager (fwupd) =
 
-* https://packages.debian.org/bookworm/fwupd-signed
+== Introduction == 
+
+[https://github.com/fwupd/fwupd fwupd]: Is a system daemon to allow session software to update firmware. Mainly using LVFS (Linux Vendor Firmware Service) to deliver firmware updates. 
+
+[https://fwupd.org/ LVFS]: Is a centralized service where hardware vendors upload their firmware updates, which are then distributed to Linux systems using fwupd.
+
+=== Debian ===
+
+==== Installation ====
+
+{{Install_Package_Host|package=
+fwupd-signed
+}}
+
+==== Usage ====
+===== List a summary of the security status for the firmware installed  =====
 
 {{CodeSelect|code=
 sudo fwupdmgr security
 }}
 
-Qubes:
-
-* https://forum.qubes-os.org/t/how-to-do-firmware-updates-with-qubesos-4-2/23547
-* https://github.com/QubesOS/qubes-issues/issues/8813
+===== List available firmware updates =====
 
 {{CodeSelect|code=
-sudo qubes-fwupdmgr --help
+sudo fwupdmgr get-updates
 }}
+
+===== Install firmware updates =====
+
+{{CodeSelect|code=
+sudo fwupdmgr update
+}}
+
+=== Qubes ===
+
+Notes:
+
+* The Update-Qube (appvm) for dom0 (which is most likely sys-firewall/sys-net) must have fwupd package installed <ref>https://github.com/QubesOS/qubes-issues/issues/9214#issuecomment-2105430931</ref> (it comes installed by default in full/normal template).
+** To install it on Fedora minimal template:(A system restart is better to be performed after installation)
+
+{{CodeSelect|code=
+dnf install --setopt=install_weak_deps=False fwupd-qubes-vm
+}}
+
+* There is no different in usage between debian commands and qubes, just add <code>qubes-</code> to <code>fwupdmgr</code>
+
+* At the moment of writing there is not yet Qubes detailed documentation about this tool <ref>https://github.com/QubesOS/qubes-issues/issues/8813</ref>.
+
+Example for command usage:
 
 {{CodeSelect|code=
 sudo qubes-fwupdmgr get-devices
@@ -187,6 +221,38 @@ sudo qubes-fwupdmgr get-devices
 {{CodeSelect|code=
 sudo qubes-fwupdmgr get-updates
 }}
+
+
+== Troubleshoot ==  
+
+=== You are using legacy BIOS ===
+
+<pre>
+user@host:~$ sudo fwupdmgr security 
+WARNING: UEFI firmware can not be updated in legacy BIOS mode
+See https://github.com/fwupd/fwupd/wiki/PluginFlag:legacy-bios for more information.
+HSI unavailable for hypervisor
+user@host:~$
+</pre>
+
+=== Your UEFI doesnt support this method of update ===
+
+<pre>
+[user@dom0 ~]$ sudo qubes-fwupdmgr refresh
+WARNING: UEFI capsule updates not available or enabled in firmware setup
+See https://github.com/fwupd/fwupd/wiki/PluginFlag:capsules-unsupported for more information.
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  2230  100  2230    0     0  50444      0 --:--:-- --:--:-- --:--:-- 50681
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 1216k  100 1216k    0     0  20.0M      0 --:--:-- --:--:-- --:--:-- 20.1M
+Validating directories
+WARNING: UEFI capsule updates not available or enabled in firmware setup
+See https://github.com/fwupd/fwupd/wiki/PluginFlag:capsules-unsupported for more information.
+Successfully refreshed metadata manually
+[user@dom0 ~]$
+</pre>
 
 = See Also =
 

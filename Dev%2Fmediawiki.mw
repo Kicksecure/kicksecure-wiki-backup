@@ -23,8 +23,8 @@ Layout, Skin, CSS, JavaScript, Links, Header, Footer, CodeSelect, Mobile Fronten
 * The extension and the fork in general have 3 options: One to write page specific inline CSS in the MediaWiki page itself. The second option allows to link locally hosted CSS files. The third option allows to link internal CSS pages raw as files
 ** '''Caution''': The first option of this ORIGINAL extension (not our fork) for a page specific CSS seems experimental to us, because the CSS text is encoded as a base64 string and imported link so <code><nowiki><link rel="stylesheet" href="data:text/css;charset=UTF-8;base64,I3Np...Q7Cn0="></nowiki></code>. This is not widely supported in all browsers so this options does not seem reliable and therefore is not recommended for production use!
 * Our fork
-** '''Usage option 1 - locally hosted''': You can reference locally hosted files, e. g. <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css?hsversion={{Hsversion}}}}</nowiki></code> . '''NOTE''': For this the file has to be hosted in the locally allowed folder. In our case this is set to <code>/mw-autogen</code> in localSettings.php via the variable $wgCSSPath which belongs to the Extension:CSS . This means our example <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css?hsversion={{Hsversion}}}}</nowiki></code> actually (relatively) references the local file <code>/mw-autogen/src-copy/Page_Homepage.min.css?hsversion=...</code>
-*** '''NOTE''': Please ALWAYS use the postfix <code><nowiki>?hsversion={{Hsversion}}</nowiki></code>. This ensures that files are always loaded in their currect up-to-date version
+** '''Usage option 1 - locally hosted''': You can reference locally hosted files, e. g. <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css}}</nowiki></code> . '''NOTE''': For this the file has to be hosted in the locally allowed folder. In our case this is set to <code>/mw-autogen</code> in localSettings.php via the variable $wgCSSPath which belongs to the Extension:CSS . This means our example <code><nowiki>{{#css:/src-copy/Page_Homepage.min.css}}</nowiki></code> actually (relatively) references the local file <code>/mw-autogen/src-copy/Page_Homepage.min.css</code>
+*** '''NOTE''': Please ALWAYS use the postfix <code><nowiki></nowiki></code>. This ensures that files are always loaded in their currect up-to-date version
 ** '''Usage option 2 - from the DB''': You can reference files hosted in the DB, e.g. <code><nowiki>{{#css:Mediawiki:Your-local-styles.css}}</nowiki></code> . This calls the file from the wiki. In our fork we allow the admin to set allowed namespaces, so CSS files in these namespaces are not "sanitized" by Mediawiki which sometimes leads to unexpected problems. In our case we set the namespace "MediaWiki:" to be not sanitized
 ** '''[Generally deprecated] Usage option 3 - inline''': ''[This option should only be used for testing or specific use cases where an interaction with wiki content like templates is strictly necessary]'' You can write inline code, e.g. <code><nowiki>{{#css: body { background-color: green; } }}</nowiki></code> . Our fork implements this as a style-tag (instead of a link tag with base64 like the original extension, see above)
 * MediaWiki upstream: [https://phabricator.wikimedia.org/tag/mediawiki-extensions-css/ mediawiki-extension-css] feature requests and patches:
@@ -131,7 +131,7 @@ Layout, Skin, CSS, JavaScript, Links, Header, Footer, CodeSelect, Mobile Fronten
 ** Regarding preload a good article as a resource is this: https://www.debugbear.com/blog/rel-preload-problems
 ** If crossorigin is omitted the fonts are loaded twice due to the crossorigin settings on the server
 ** Only <code>preload</code> is possible. <code>defer</code> or <code>async</code> is only supported by browsers for scripts but not for fonts.
-* '''No hsversion''': All files called in Headscript usually have a headscript version number added to the URL so it can be controlled when the user browser has should fetch the files again so the user is up-to-date with the most recent file versions.
+* '''No hsversion''': All files called in Headscript usually have a headscript version number (exact parameter <code>hsversion_from_server_replacement_unixtime</code>) added to the URL so it can be controlled when the user browser has should fetch the files again so the user is up-to-date with the most recent file versions.
 ** However FontAwesome loads its webfonts via the CSS file already. So if the URL for the font-preloading that we're doing is not the same URL as in the CSS then the webfont file is loaded twice which negatively impacts performance. This was the case previously as we were using the headscript version number, because the CSS file references the webfont without a headscript version number. And this cannot be changed.
 ** So now we '''removed the headscript version number from all fonts''' and the double loading bug is fixed.
 ** We also '''changed the FontAwesome folder name and the other font folder names to include the a date when we added them'''. This way when a new version is available the folder can be changed reflecting the then-current date and the user browser will fetch the newest version
@@ -497,7 +497,7 @@ https://github.com/jthingelstad/foreground/issues/392
 Within headscript we use:
 
 <pre>
-<script id="js-cookie-script" defer fetchpriority="low" src="/libs/jscookie/js.cookie.min.js?hsversion=2"></script>
+<script id="js-cookie-script" defer fetchpriority="low" src="/libs/jscookie/js.cookie.min.js"></script>
 </pre>
 
 * <code>jscookie</code> is a simple small cookie library for all our cookie control needs and is only 2kb in size. So it's very practical and we couldn't program it ourselves any smaller.
@@ -921,6 +921,17 @@ or
 * however this is not working with Chrome when there are special characters in the ID at the moment (2022-02-02) and this [[https://support.google.com/chrome/thread/11993079/chrome-76-has-anchor-bug-anchors-not-working-correctly-on-web-pages?hl=en bug seems to be known but ignored]] by the dev team
 * to be fair, Mediawiki ultimately causes the problem itself by generating anchor IDs with special characters which is forbidden in HTML. Headline: "What is up?" - ID: #what_is_up?
 ** Maybe this can be changed by an extension or by a setting in localsettings.php ?
+
+== CSS: Replacing Hovering vanishing scrollbars in some cases ==
+
+* '''Motivation'''
+** Scrollbars come in different shapes and sizes. But a more recent development is '''"Hovering vanishing scrollbars"'''
+** These have been introduced by mobile devices, but some desktop browser now also use these kinds of scrollbars
+** They don't take any space, they are rather slim, they hover over the content and they vanish (or never appear) if the user does not scroll this particular area that has an overflow (which can be scrolled)
+** The problem with these scrollbars is that they are vanishing. They are hardly visible to begin with when they appear. But as they are not visibile automatically they can lead to heavy confusion. Users may not know that a content area is much longer and might be missing out on valuable information. Users might also be confused if the suddently cannot scroll further or if their viewport changes because they are suddenly in a scrollable area which they knew nothing about before because there was no scrollbar visible
+* '''Solution'''
+** For these reasons we decided that - not for all but - in very confusing cases we replace the native scrollbars with a custom scrollbar solution that we control the visibility and the styling of
+** These custom scrollbars are documented here: [[Dev/mediawiki#CustomScrollbar|CustomScrollbar]]
 
 == Table of Contents ==
 
@@ -1471,7 +1482,39 @@ Instructions to create a bimi logo from an inkspace svg (tested method)
 # Check with https://easydmarc.com/tools/bimi-record-generator
 
 == Cache ==
-=== MediaWiki Purge : deleting cached file ===
+
+# Cache is a complex topic, that has a lot of benefits but also a lot of pitfalls. For websites there are multiple relevant caches, e. g. php cache on the server, CDN cache, static html cache (e. g. generated by apache / nginx) and browser cache on the client. For us the server static html cache and browser client cache is relevant
+# '''server static html cache''' : Our server generates a static html cache for a wiki page once the first time a wiki pages is loaded. After that only the static cache will be server. This happens until a cache-clear is executed and all cache files are deleted and the process starts new
+#* Benefits: This cache saves a lot of computing power for the wiki and improves load times for users
+#* Drawbacks: Once a new feature is introduced cache-clear has to be executed. Otherwise users will get the old version
+#* '''Cache bypass methods'''
+#*# Cookie nocache=true : If you have a cookie set to <code>nocache=true</code> then the server will always deliver the newest page content and not the cache. This cookie can be set by using the Debug Helper, learn more: [[Dev/mediawiki#Debug-via-url-modal|Debug-via-url-modal]]
+#*# query ?nocache=true : If you have the url query parameter <code>?nocache=true</code> then the same is achieved as with the nocache cookie (see above)
+#*# request header nocache:true : If you call the page with the request header <code>nocache: true</code> then the same is achieved as with the nocache cookie (see above)
+#* '''Cache clear methods'''
+#*# Clear cache scripts on server : On the server there are clear cache scripts for admins. Execute one of these scripts to clear the server cache.
+#*#* '''NOTE''': This action also changes the <code>hsversion_from_server_replacement_unixtime</code> value, which is neede for the browser client cache clear methods
+#*# Mediawiki purge : Use the MediaWiki purge method (more infos below) to clear the server cache for a single page in the wiki.
+# '''browser client cache'''
+#* Browsers cache scripts, files and whole pages locally to save time and bandwidth. So when a page is loaded that has been visited before chances are large parts of the page are loaded from cache and not from the internet
+#* Mobile browsers are (understandably) especially aggressive with this behavior. They might even not call a page (the main document) but just the headers to see if changes have happened based on the cache directive headers
+#* Benefits: This saves a lot of bandwidth and load time for the user
+#* Drawbacks: The user might not get the newest version of the website because the browser prevents it
+#* '''Cache bypass methods'''
+#*# Developer tools disable cache: Open the browser developer tools dialog, choose "Network" and click "disable cache" (or something similar). Now the browser will not cache the page or its elements
+#*# Arbitrary query parameter: Use an arbitrary (unused!) query parameter like <code>?x=1</code> to bypass the browser cache. With a new query parameter the browser is forced to reload the document and also the server will not have a cached version because the server caches only per exact URL.
+#* '''Cache clear methods'''
+#*# Clear cache button: There are plugins and browser specific settings to clear the whole cache of the browser or just for the page. This depends on the browser and can be researched on the internet
+#* '''Force Cache clear methods by the server'''
+#*# Header settings: The header <code>cache-control: s-maxage=86400, must-revalidate, max-age=0</code> is set by the server and forces the browser to revalidate the document. However not all browsers do this
+#*#* '''NOTE''': Big platforms also use aggressive (no-)cache headers. In this article there are [https://fred-gu.medium.com/fix-the-annoying-web-page-caching-issue-permanently-5d16527d0b5a header examples from some big platforms].
+#*# Automatic method hsversion parameter: For all our important scripts, styles, images etc we use a query parameter <code>hsversion_from_server_replacement_unixtime</code>. This parameter is appended to all our scripts and guarantees that the browser has to reload the script once the hsversion changes. Such a change happens when the cache clear script on the server is executed
+#*# Rename library path method: For all our libraries (functional js/css libraries like FontAwesome, instant.page etc) we do not use hsversion because the browser would have to reload them even though they very rarely if ever change. If the DO change then we simple change the folder in this manner <code>library-name_date-reverse</code>, e. g. "Font-Awesome_2023-08-03". This way the browser is forced to reload the library. We do not use the library version number because for us it's more important when we changed the version
+
+{{Anchor|MediaWiki_Purge_:_deleting_cached_file}}
+=== Server cache clear : MediaWiki Purge - deleting cached file ===
+
+This method clears the server cache (HTML) for a specific page.
 
 If you click purge on page or use the respective urls (examples below) then the cached file on the server is deleted and you should get the newest version
 
@@ -1480,18 +1523,30 @@ mediawiki cache purge:
 * https://www.{{project_clearnet}}/wiki/FAQ?action=purge
 * https://www.{{project_clearnet}}/wiki/FAQ?useformat=mobile?action=purge
 
-=== nginx Cache Bypass ===
+{{Anchor|nginx_Cache_Bypass}}
+=== Server Cache Bypass methods ===
+
+These methods can be used to bypass the server cache.
+
 nginx bypass cache example (not really deleting the cache either yet):
 
-* '''A)''' <u>query parameter:</u>
-** https://www.{{project_clearnet}}/wiki/FAQ?nocache=true
-** https://www.{{project_clearnet}}/wiki/FAQ?nocache=true
-* '''B)''' <u>HTTP request header:</u>
-** {{CodeSelect|code=
+{{IconSet|h2|A}} '''query parameter:'''
+
+https://www.{{project_clearnet}}/wiki/FAQ?nocache=true
+
+{{CodeSelect|code=
+https://www.{{project_clearnet}}/wiki/FAQ?nocache=true
+}}
+
+{{IconSet|h2|B}} '''HTTP request header:'''
+
+{{CodeSelect|code=
 curl --head --header "nocache: true" "https://www.kicksecure.com/wiki/Documentation"
 }}
-* '''C)''' <u>HTTP cookie:</u>
-** {{CodeSelect|code=
+
+{{IconSet|h2|B}} '''HTTP cookie:'''
+
+{{CodeSelect|code=
 curl --head --cookie "nocache=true" "https://www.kicksecure.com/wiki/Documentation"
 }}
 
@@ -2204,7 +2259,7 @@ $ sudo apt "example1"
 == CustomScrollbar ==
 
 * This is a '''developer feature'''
-* Sometimes it is needed to realized custom scollbars with javascript. For this we are using the library tinyscrollbar. Specifically for [[Dev/mediawiki#CodeSelect|CodeSelect]] and [[Dev/mediawiki#WikitableAutoWrapper_and_ScrollableIndicator|WikitableAutoWrapper and ScrollableIndicator]] because we want to prevent content shift and guarantee best accessibility - for users to always know if an element is scrollable - specifically on Firefox and on mobile devices where the scrollbar gets hidden automatically
+* Sometimes it is needed to realized custom scollbars with javascript. For this we are using the library tinyscrollbar. Specifically for [[Dev/mediawiki#CodeSelect|CodeSelect]] and [[Dev/mediawiki#WikitableAutoWrapper_and_ScrollableIndicator|WikitableAutoWrapper and ScrollableIndicator]] because we want to prevent content shift and guarantee best accessibility - for users to always know if an element is scrollable - specifically on Firefox and on mobile devices where the scrollbar gets hidden automatically. For a more detailled motivation read [[Dev/mediawiki#CSS:_Replacing_Hovering_vanishing_scrollbars_in_some_cases|CSS: Replacing Hovering vanishing scrollbars in some cases]]
 * '''USAGE'''
 ** To make use of it your element needs the following structure{{CodeSelect|code=
 <span class="custom-scrollbar-container">
@@ -3387,6 +3442,15 @@ sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.wh
 </pre>
 
 = TASK ARCHIVE : Done =
+== Instant page download button bug (2024-10-08) ==
+
+'''DEV'''
+
+* Dev noticed when hovering download buttons that there's always an error in the console
+* Dev realized it's due to instant page trying to load the "next page" when hovering, but not being allowed to fetch or refusing to fetch the data file
+* See on wikitest [[Dev/wikitest#Download_Button_.28Widget.29|Download_Button (Widget)]]
+* Solved by using data-no-instant attribute in download button, see https://instant.page/blacklist
+
 == Pay as you go ==
 examples:
 
