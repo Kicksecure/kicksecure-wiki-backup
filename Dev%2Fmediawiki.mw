@@ -3442,6 +3442,57 @@ sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.wh
 </pre>
 
 = TASK ARCHIVE : Done =
+== Slow loading Javascript problem ==
+
+'''DEV'''
+
+* On pages where a lot of Javascript is used the page can slow down significantly
+* A report was done for [[Dev/mediawiki]] by using DebugViaUrlModal. Total time about 6000ms
+** '''enhanceHeadlines +2300ms / 38%'''
+*** 259 elements
+*** content: Sharetooltip is added to each one
+*** possibly time consuming: Sharetooltip creates Dom and adds event handler
+** '''scrollAutoWrapper +1500ms / 25%'''
+*** 79 elements
+*** Custom scrollbar is being added
+*** possibly time consuming: (1) scrollbar library (2) ObserverEventHandler (needed if an element is hidden at the start)
+** '''CodeSelect +1000ms / 17%'''
+*** 1420 elements
+*** possibly time consuming: (1) code Highlighting (as with CodeMirror) (2) scrollbar library (3) events for functionality
+** '''header +300ms / 5%'''
+*** Not very important. Most scripts add 50 ms - 200 ms to loading
+* Web workers were researched to use parallel processes - dead end, because web workers cannot access the main thread / Dom / events
+* setTimeout method was explored + fixes were added
+** setTimeout works, however the main problem is that the browser has no "time to breathe". Added setTimeout between the scripts helps, but for the main identified problem scripts, setTimeout might need to be applied to the individual "enrichment" of "time costly" elements
+
+Patrick:
+
+* use more setTimeout for the individual "enrichment"
+* please document
+
+'''DEV'''
+
+* DONE
+* Changes were done with great success. Report: On our [[Dev/website]]
+** Dev tests before showed a blocked loading time of 6000ms to 6500ms
+** Dev tests now show a <u>semi</u>-blocked loading time of 900ms to 1000ms
+** Semi-blocking means that even in those 1000ms the user can interact with the page nicely because the browser "breathes" between the different scripts loads (work of yesterday) which was not the case before
+** There are not many drawbacks. The page gradually enriches, but as we focussed on preventing content shift before the content does not shift but only changes slightly in appearance
+** The only drawback is that currently the timing check is not very meaningful anymore, because it cannot account for the scripts anymore that are individually async
+* Documentation here: [[Dev/mediawiki#Wiki_Load_Cascade_:_HTML.2C_CSS.2C_Javascript|Wiki Load Cascade : HTML, CSS, Javascript]]
+* '''Todo Admin'''
+** Check if everything is satisfactory
+** Should something be done about the now inaccurate timing checks? - Dev could come up with something prob. in about 1-2 hours
+* Patrick:
+** yes, please.
+
+'''DEV'''
+
+* DONE
+* Page loading was greatly improved
+* page loading now outputs when the measuring starts and then outputs a detailled report when all expectedEvents are done
+* For more details read updated documentation [[Dev/mediawiki#Performance_Testing|Performance Testing]]
+
 == Instant page download button bug (2024-10-08) ==
 
 '''DEV'''

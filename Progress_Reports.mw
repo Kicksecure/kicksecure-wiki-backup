@@ -13,10 +13,10 @@ Progress Reports
 * [[#Hans|Hans]]
 * [[#nurmagoz|nurmagoz]]
 </div>
-[[File:Page-progress-reports-thumb.jpg|thumb|200px]]
 {{intro|
 On this page we give an overview on the continuous progress for Whonix and Kicksecure and on the most active contributors.
 }}
+[[File:Page-progress-reports-thumb.jpg|thumb|300px]]
 = Introduction =
 
 {{#widget:Icon_Bullet_List
@@ -26,6 +26,42 @@ On this page we give an overview on the continuous progress for Whonix and Kicks
 }}
 
 = arraybolt3 =
+== 2024-10-11 ==
+== Rework Qubes OS kloak patch ==
+Date: 2024-10-11
+
+The Qubes OS "X event buffering" patch at https://github.com/QubesOS/qubes-gui-daemon/pull/149 was reviewed by a Qubes OS developer and several changes were requested. I got Qubes OS R4.3 installed on my primary development system, prepped it to build Qubes OS packages, and then did development and testing of the patch there. All requested changes were implemented, many of the comments were resolved (though I left some open for further discussion and review). The patch was also tested for functionality and appears to work well so far.
+
+== 2024-10-10 ==
+== Begin effort to port Kicksecure to live-build ==
+Date: 2024-10-10
+
+I downloaded the latest live-build from https://salsa.debian.org/live-team/live-build (using the tip of the master branch), and merged in https://salsa.debian.org/live-team/live-build/-/merge_requests/353 so as to enable use of dracut. I then created a Debian Sid chroot within my Kicksecure development virtual machine, and built and installed live-build within it. (live-build works surprisingly well inside a chroot environment.) I then researched live-build's features, as well as how to use it properly, and then worked on getting a basic Kicksecure-like ISO built using it.
+
+Due to some oddities surrounding package installation, dracut repeatedly got uninstalled at some point during the build process, resulting in the build crashing later on. To fix this, I modified the code of live-build to avoid installing packages that were the source of the issue (namely live-config and live-boot). Additionally, the security-misc package was crashing the build because it was intentionally failing to install itself when it detected there were no users with sudo rights on the system. This ended up requiring a live-build hook to work around, which is not a desirable solution long-term. Quite a few very long builds had to be done before I finally got a working ISO, and I had to tweak the source code of live-build slightly, but I was successful at getting the ISO to both build and boot to a Kicksecure desktop. The source code of my live-build fork is at https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads. The live-build configuration that finally worked somewhat for me is at https://github.com/ArrayBolt3/kicksecure-live-build.
+
+The finished ISO had quite a few problems:
+
+* A generic-looking Debian live GRUB theme is shown on bootup.
+* Due to a dracut bug in bookworm, the ISO will drop you to a dracut emergency shell if you attempt to boot it by just pressing "Enter" when prompted. You must press <code>e</code> to edit the boot options, and add <code>rd.live.overlay.overlayfs=1</code> to the end of the kernel command line to get the ISO to boot.
+* When it does boot, you will be shown a very strange "Welcome to LXQt" window with no window decorations or anything. No window manager will be loaded.
+* To get past this state, you have to press Ctrl+Alt+F2 to get to a TTY, then go to <code>/etc/lightdm</code> delete the <code>lightdm.conf.d</code> directory recursively, and edit <code>lightdm.conf</code> so it contains no uncommented autologin configuration. Then you have to run <code>sudo systemctl restart lightdm</code> and you are presented with a login greeter. At the greeter screen, click on the wrench logo in the panel at the top of the screen, and select an XFCE session to log into. Then log in with username "user" and password "live", and ''now'' you will see a Kicksecure desktop.
+* The user is shown as being "Debian live user" in the application menu, with a prominent Debian logo applied. This is wrong.
+* More software than expected ends up preinstalled, such as "Zutty" (Zero-cost Unicode Teletype, which somehow ends up becoming the default terminal), Tor Browser Donwloader, and lximage-qt for instance.
+* Installation fails with a bootloader-related error, likely because we have a tweaked version of a bootloader install script that no longer applies, and my configuration doesn't preload the various GRUB versions into the on-ISO repository.
+* The notifier in the upper-right corner of the screen showing which mode is active shows "Live" with a green light, rather than "ISO" with a disc icon.
+
+Additionally, my test build used only remote packages, not locally built ones.
+
+Next steps:
+
+* Figure out a more elegant way of excluding bad packages other than modifying the source code of live-build. If modifications are absolutely necessary, add a blacklist feature and then use it.
+* Determine why additional software is getting installed such as Zutty and bits of LXQt, and make it stop happening. (This is probably caused by package dependencies somehow.)
+* Fix all the bugs.
+* Add the ability to install packages from a local repo and test it.
+* See if live-build can be used for building more than just live images. Some of the docs made it sound like it could be used for making preinstalled images, which could potentially be used for building VirtualBox and other hypervisor iamges using live-build too.
+* Integrate live-build into derivative-maker (or the other way around?) so that source code cloning, package building, and ISO assembly can be done in one command like what is currently possible with derivative-maker.
+
 == 2024-10-09 ==
 == KeePassXC secret service feature request ==
 Date: 2024-10-09
@@ -449,6 +485,15 @@ Reported changes and suggested merging them into Whonix's kloak fork. Pull reque
 = Hans =
 
 == Sprint 2024-08 to 2024-10 ==
+
+* 2024-10-11
+** Server forcing browser cache clear methods research and suggestions
+** Kicksecure About page promo beauty content
+** Self support first page new chapter + new image
+** VPN port shadow attacks content
+** help youself mininav template suggestions
+** Documentation links added
+** template kicksecure_wiki archive none + target_blank + improve image suggestion
 
 * 2024-10-10
 ** Download Button Modal
