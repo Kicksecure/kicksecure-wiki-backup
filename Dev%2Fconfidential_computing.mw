@@ -34,7 +34,13 @@ The cloud server administrator should have the capability to:
 * observe, manipulate software execution of the customer.
 
 = Implementation Goals =
-Ideally all software based. Not using hardware based RAM encryption and/or TPM. If that is at all possible. TODO: research
+* If at all possible, the host OS should be remotely attestable. When the host OS is able to be freely controlled by an attacker, it allows for advanced attacks such as MemBuster to be used to carry out side-channel attacks against transparently encrypted memory. (https://www.usenix.org/conference/usenixsecurity20/presentation/lee-dayeol)
+* If at all possible, the hardware state of the host machine should be remotely attestable. Otherwise a malicious PCIe or other hardware device could be used to attack the system in various ways. It may be difficult to tell for sure if a device is what it says it is, but if that hurdle can be overcome, something such as System Transparency could be used to compare the system's hardware state to a known-good state before permitting the host OS to boot.
+* Individual guest operating systems must be remotely attestable.
+* The RAM of virtual machines should be transparently encrypted by the host's kernel, using a key that is not saved to RAM.
+** If this is impossible, enabling the secure encryption of the data of individual processes may be an acceptable workaround.
+* The disk contents of virtual machines must be transparently encrypted.
+* Ideally all software based. Not using hardware based RAM encryption and/or TPM. If that is at all possible. TODO: research
 
 = Components =
 == Full Disk Encryption Key Proetction from Cold Boot Attacks ==
@@ -189,6 +195,10 @@ GD-183A: AMD Infinity Guard features vary by EPYC™ Processor generations and/o
 *** It may be possible to use no-fill cache mode (a.k.a. cache-as-RAM) to mitigate RamCrypt's shortcomings in this area. It is not yet known if this is possible, and it is very likely that doing so would come with an even greater performance hit. See https://frozencache.blogspot.com/
 **** PrivateCore vCage somehow manages to control CPU cache in a manner that doesn't harm performance too badly and does acheive the desired goal, so this may very well be possible. No-fill cache mode on Intel CPUs has an effect on L3 cache, so in theory if one managed the cache in a fully manual manner it could be possible to keep decrypted data present only in CPU cache.
 *** Could be made to support 256-bit AES? The default implementation only supports 128-bit AES.
+* The "3% problem". 3% of memory were unencrypted.
+** At this level of threat model where we are considering a cold boot attack by the cloud server admin, unfortunately, 97% encrypted and 3% unencrypted means still a 100% loss.
+*** The way to break this is my measuring the electricity to the RAM banks. There was a similar attack against ledger hardware wallet by researchers presenting at CCC (wallet.fail).
+*** Or by using a malicious RAM bank that logs access to everything that goes into as a hardware proxy. Unknown if that exists yet but it seems quite easier to develop than breaking into the CPUs cache with a cold boot attack.
 
 === PrivateCore vCage ===
 * Provides similar security to Intel TME / AMD SME, but appears to use a software implementation rather than hardware CPU features.
@@ -198,6 +208,12 @@ GD-183A: AMD Infinity Guard features vary by EPYC™ Processor generations and/o
 ** No source code appears to have been published
 ** No contact information was visible on the website
 ** Facebook acquired PrivateCore and it's products have never been made available to the general public.
+
+=== OpenPOWER ===
+* TODO: easier to implement RAM encryption with POWER9/11?
+
+=== RISV-V ===
+* Good enough performance to consider using?
 
 == Kernel isolation ==
 === Use Case ===
@@ -249,6 +265,8 @@ related: [[Dev/boot modes]]
 ** In cloud computing, remote attestation is used to verify that a virtual machine (VM) or physical server is in a trusted state before allowing it to interact with sensitive data or perform specific operations.
 ** On Android, the operating system or application ... see [[Miscellaneous_Threats_to_User_Freedom#Device_Attestation_such_as_SafetyNet|Device Attestation such as SafetyNet]].
 
+In an ideal situation, the keys used for remote attestation should be able to be set by a known-trusted entity, and cycled out without requiring hardware replacement. Raptor Engineering's FlexVer is capable of this. Unfortunately many remote attestation technologies used in amd64-family CPUs (Intel TDX, Intel SGX, AMD SEV) rely on a key that is hardcoded into the CPU and ultimately controlled by Intel. TPM chips also oftentimes rely on the security of a key written to them by the manufacturer. Should one of these keys ever become compromised, remote attestation with these technologies will no longer be trustworthy, and replacing the compromised key with a good one will require that every single affected CPU or TPM device be replaced with a new one containing a new key.
+
 === Intel Trusted eXecution Technology ===
 * https://www.intel.com/content/www/us/en/support/articles/000025873/processors.html
 * https://invisiblethingslab.com/resources/bh09dc/Attacking%20Intel%20TXT%20-%20paper.pdf
@@ -280,6 +298,17 @@ related: [[Dev/boot modes]]
 === Keylime ===
 * https://keylime.dev/
 * Leverages TPM features to provide remote attestation and other security features. Investigate further.
+
+=== System Transparency ===
+* https://www.system-transparency.org/
+* https://mullvad.net/en/blog/2019/6/3/system-transparency-future
+* https://docs.system-transparency.org/st-1.1.0/docs/reference/stboot-system/
+** Uses a Linux Unified Kernel Image (UKI) as a bootloader for another OS.
+** Carefully checks the integrity of the OS being booted before allowing it to be loaded and run.
+** Tools are included for generating the bootloader executable and configuring it properly.
+** Potentially usable for verifying the hardware state of the host machine. Intel TXT could be used to load the stboot bootloader in a verified fashion, then stboot could verify that the system's hardware matches a known-good state before loading the real OS.
+** Does not seem to have remote attestation tools built in yet? Is the TPM supposed to handle this?
+** Requires that the bootloader itself be uncompromised at boot - TPM attestation or Intel TXT might be useful for this.
 
 == Miscellaneous useful technologies ==
 
@@ -389,6 +418,26 @@ Please contact us at support@integricloud.com with your IntegriCloud™ username
 ** https://learn.microsoft.com/en-us/azure/architecture/solution-ideas/articles/homomorphic-encryption-seal
 * AWS
 ** https://aws.amazon.com/security/cryptographic-computing/
+
+= Full process memory encryption research =
+This is research that has been done to implement a RamCrypt-based memory encryption strategy that keeps decrypted information in the CPU cache, allowing important data to only touch system RAM in an encrypted form.
+
+== No-fill cache mode ==
+This is a CPU cache mode present on Intel CPUs that (among other things) prevents cache contents from being replaced when a read or write misses the cache and accesses system memory instead. If a memory range is in the cache, the memory range's cache mode is set to writeback, and then the cache is placed into no-fill mode, it will essentially "freeze" that location of memory in the system's cache, ensuring that read accesses to that area of memory only access the cache, and that write accesses only update the cache. Note however it is possible to explicitly instruct the CPU to flush cache contents to system RAM, and that the instruction that does this (wbinvd) '''must not''' be executed while sensitive data is present in the cache.
+
+== Memory paging ==
+See https://wiki.osdev.org/Paging. In all 32-bit and 64-bit Intel-based systems (and really most non-embedded systems in general), memory accesses are virtualized and go through a memory management unit (MMU) that translates virtual addresses to physical addresses. This is used for a lot of things, including allowing the OS to implement a swapfile, but notably for our use one can mark a particular page of memory as being "not present" for basically any reason. RamCrypt takes advantage of this to mark an encrypted memory page as being "not present", so that any attempt to access that page triggers a ''page fault''. This instructs the kernel to figure out why the page is marked as "not present" and fix it if possible. The kernel can then see that the page is encrypted, decrypt it, mark it as present, and then have the program attempt the memory access again.
+
+If there is already code executing in the page fault handler to decrypt the RAM page, it should be possible to relocate it at the same time. In theory, it may be possible to freeze a relatively large portion of system RAM into cache using no-fill cache mode, then have the RamCrypt page fault handler decrypt RAM contents into the cached area. Then the page fault handler would change the address the page is located at to point to the decrypted page in cache, mark it as present, and then return control to the application (such as QEMU).
+
+== Cache as Instruction RAM ==
+https://pete.akeo.ie/2011/08/ubrx-l2-cache-as-instruction-ram.html Data loaded into cache will probably end up loaded into the L1 data cache first, which is problematic as the CPU cannot execute code in the L1 data cache. It has to be moved to the L1 instruction cache first. The UBRX project worked around this by loading executable code into the L1 data cache, then reading enough of some sort of data to eventually push the code out of L1 cache and into L2 cache. Then the CPU could be instructed to execute it. For memory pages containing executable code, this may be necessary to allow them to run after decryption. (It's unclear if this is actually still necessary - the data in the L1 cache should just be at an address, like any other form of data in memory, so it seems like the CPU should be able to figure out that it's dealing with "self-modifying" code and move the data to the L1 instruction cache by itself. Experimentation will be needed to determine if this is the case or not.)
+
+== BareMetal ==
+https://github.com/ReturnInfinity/BareMetal Very small operating system written mostly in assembly language for 64-bit Intel and AMD CPUs. It's small and relatively simple, thus would be useful for prototyping and benchmarking transparent RAM encryption with cache used as RAM. If a working implementation can be made here, then it is likely possible to implement the same sort of technology in Xen or Linux. 
+
+== BitVisor ==
+https://github.com/matsu/bitvisor Small hypervisor meant to provide security features (such as transparent encryption) to a single guest OS. Could also potentially be used to prototype a RAM encryption + frozen cache implementation. Might be usable for a production implementation although this would require the use of nested virtualization, further slowing down the system.
 
 = Footnotes =
 <references />
