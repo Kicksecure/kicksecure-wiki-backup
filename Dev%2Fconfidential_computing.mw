@@ -33,6 +33,12 @@ The cloud server administrator should have the capability to:
 * read hard drive or RAM contents of the customer.
 * observe, manipulate software execution of the customer.
 
+= Treat Model =
+* 1) random cloud employee cold boot attacking random machines -> 97% RamCrypt still better than nothing
+* 2) sophisticated direct attack against specific server -> 97% RamCrypt insufficient
+* not worry about intentional backdoor in Intel/AMD because then should not use CPU.
+** With this in mind, Intel TME-MK might be more worthwhile than RamCrypt. Except if we assume, that Intel TME-MK might be buggy. But then RamCrypt is buggy for sure due to the 3% unencrypted issue.
+
 = Implementation Goals =
 * If at all possible, the host OS should be remotely attestable. When the host OS is able to be freely controlled by an attacker, it allows for advanced attacks such as MemBuster to be used to carry out side-channel attacks against transparently encrypted memory. (https://www.usenix.org/conference/usenixsecurity20/presentation/lee-dayeol)
 * If at all possible, the hardware state of the host machine should be remotely attestable. Otherwise a malicious PCIe or other hardware device could be used to attack the system in various ways. It may be difficult to tell for sure if a device is what it says it is, but if that hurdle can be overcome, something such as System Transparency could be used to compare the system's hardware state to a known-good state before permitting the host OS to boot.
@@ -46,11 +52,22 @@ The cloud server administrator should have the capability to:
 == Full Disk Encryption Key Proetction from Cold Boot Attacks ==
 === TRESOR ===
 * https://www.cs1.tf.fau.de/research/system-security-group/tresor-trevisor-armored/
-* Provides full disk encryption capabilities using an encryption key that is stored only within CPU registers. 
+* Provides full disk encryption capabilities using an encryption key that is stored only within CPU registers. Uses x86-64 debug registers.
 * TRESOR is actually more performant than standard AES encryption.
 * When used on the host machine, it renders it impossible for a cold-boot attack to compromise disk encryption keys without being able to compromise the CPU's memory itself.
 * Similar advantages are conferred on guest VMs if their CPU registers are encrypted when saved to RAM.
 * Not yet present in the Linux kernel.
+
+=== Loop-Amnesia ===
+* https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=e5f940decaa589f3b2030429f48739281839e4d8
+* Similar to TRESOR, provids full disk encryption.
+* Only saves disk encryption keys in RAM in encrypted form. A "master key" is used to decrypt the encryption keys in CPU registers and never allows them to touch RAM unencrypted. Uses performance counter MSR registers.
+* Does not use CPU-accelerated AES instructions.
+* Not yet present in the Linux kernel.
+* Slows down disk I/O performance by a factor of 2.
+* Apparently will destroy any filesystems it protects if the system is put into suspend and then resumed. See warnings at https://patricksimmons.us/amnesia.html. TRESOR avoids this by re-prompting for an FDE passphrase on resume.
+* Not yet present in the Linux kernel.
+* Mentions non-maskable interrupts (NMIs) as a potential attack vector to get disk decryption state flushed to RAM via a carefully timed interrupt injection. This is a real danger in a cloud provider scenario. The paper mentions that the NMI handler for Linux could be modified to wipe all general purpose register contents from RAM after being invoked in order to reduce the likelihood of this causing a problem. This wouldn't entirely mitigate the attack however and the use of a DDR interposer could be used to render the subsequent wiping of RAM futile. This is probably an effective attack against TRESOR too.
 
 == RAM Encryption ==
 === Intel ===
@@ -211,6 +228,13 @@ GD-183A: AMD Infinity Guard features vary by EPYC™ Processor generations and/o
 
 === OpenPOWER ===
 * TODO: easier to implement RAM encryption with POWER9/11?
+* It's a different CPU architecture. POWER9 is different from AMD64(which includes Intel). Software needs to be available for POWER9. With Debian ("the universal operating system") this mostly isn't an issue as it supports most platforms including POWER9. In edge cases such as with Tor Browser, no POWER9 binaries are available and building from source code is difficult.
+* Demo: [https://www.whonix.org/wiki/Dev/Porting#Existing_Ports_of_Whonix Whonix reported to be running on POWER9 (OpenPOWER), Raptor Talos II using distro-morphing and KVM.]
+* There's Debian cloud (server) images (qcow2; raw) for "64-bit Little Endian PowerPC" which is probably compatible with POWER9.
+* Raptor is selling desktop computers and servers here: https://www.raptorcs.com/TALOSII/
+* There are no notebooks based on POWER9 as in October 2024.
+* Raptor is selling cloud servers: IntegriCloud - https://www.integricloud.com/
+** [[#IntegriCloud_raptorengineering|Some "weirdness" about IntegriCloud.]]
 
 === RISV-V ===
 * Good enough performance to consider using?
@@ -289,6 +313,7 @@ In an ideal situation, the keys used for remote attestation should be able to be
 * https://safeboot.dev/attestation/ provides a good overview of how this works.
 * Allows a remote user to ensure they trust a machine that they will eventually run a VM on.
 * Typically requires one to trust the TPM manufacturer, though Raptor FlexVer avoids this.
+* At least some TPMs may be reprogrammable by the end-user, potentially allowing one to generate and install their own keys for use in remote attestation. https://www.bsi.bund.de/SharedDocs/Downloads/DE/BSI/Cyber-Sicherheit/SiSyPHus/Workpackage5b_TPM_Provisioning.pdf?__blob=publicationFile&v=1 Assuming proper key management on the user's part, this would be much safer than trusting the TPM manufacturer.
 
 === swtpm ===
 * https://github.com/stefanberger/swtpm
@@ -391,18 +416,11 @@ Rough time estimate to get TRESOR working in Linux: possibly around 80 hours of 
 * https://cloud.google.com/confidential-computing
 ** Google Confidential Computing: A commercial offering powered by confidential computing technologies. No mentions of any special technologies in particular.
 
-== raptorengineering ==
+== IntegriCloud raptorengineering ==
 * https://www.integricloud.com/
 ** Appears to be RAPTOR Engineering's cloud computing division.
 ** Only provides firmware source code to "active users of the IntegriCloud™ platform, auditors for active users of the IntegriCloud™ platform, and security researchers."
-** Unclear whether physical auditing of the cloud servers is permitted, which is slightly strange since Raptor's FlexVer relies on yourself or someone you trust auditing the servers from what I understood from the papers.
-
-== Enclaive ==
-* https://www.enclaive.io/
-* https://github.com/enclaive
-** Provides software for managing confidential computing resources on other clouds.
-** Packages several applications with Gramine and Docker to allow them to run confidentially on otherwise untrusted VMs with Intel SGX.
-** Many of their open-source projects appear to not have seen much maintenance in the recent past (many repos have a last commit date of one year ago)
+** Unclear whether physical auditing of the cloud servers is permitted, which is slightly strange since [[[[Dev/confidential_computing#Raptor_FlexVer|Raptor FlexVer]] relies on yourself or someone you trust auditing the servers from what I understood from the papers.
 
 {{quotation
 |quote=NOTE: The source packages required to build reproducible versions of our node firmware and software stack are only available to active users of the IntegriCloud™ platform, auditors for active users of the IntegriCloud™ platform, and security researchers.
@@ -410,6 +428,39 @@ Rough time estimate to get TRESOR working in Linux: possibly around 80 hours of 
 Please contact us at support@integricloud.com with your IntegriCloud™ username to request access to the source packages and build instructions.
 |context=https://www.integricloud.com/content/base/software.html
 }}
+
+* Asked by e-mail about this in October 2024 but did not receive an e-mail at time of writing.
+
+<pre>
+Hello,
+
+During our research on confidential computing [1], we came across IntegriCloud.
+
+From an initial look, it seems your approach aligns well with our values in the security community, particularly around principles like security, Freedom Software, and transparency.
+
+However, one statement on your website struck us as somewhat inconsistent with these values:
+
+> NOTE: The source packages required to build reproducible versions of our node firmware and software stack are only available to active users of the IntegriCloud™ platform, auditors for active users of the IntegriCloud™ platform, and security researchers.
+
+Why the restriction? Wouldn't it make more sense to host the source code publicly on a source control platform, such as Git, to ensure greater openness and collaboration?
+
+Looking forward to your thoughts.
+
+I would also like to post your reply in full, without redactions, on our website for transparency and to satisfy the curiosity of our readers.
+
+Best regards,
+Patrick
+
+[1] https://www.kicksecure.com/wiki/Dev/confidential_computing
+[2] https://www.integricloud.com/content/base/software.html
+</pre>
+
+== Enclaive ==
+* https://www.enclaive.io/
+* https://github.com/enclaive
+** Provides software for managing confidential computing resources on other clouds.
+** Packages several applications with Gramine and Docker to allow them to run confidentially on otherwise untrusted VMs with Intel SGX.
+** Many of their open-source projects appear to not have seen much maintenance in the recent past (many repos have a last commit date of one year ago)
 
 = Homomorphic Encryption =
 
