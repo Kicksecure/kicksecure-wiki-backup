@@ -32,7 +32,7 @@ Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, C
 * '''Password input security:''' The sudo project does not guarantee a secure password entry mechanism. Various attack vectors, such as malware, can compromise password security by intercepting or sniffing passwords entered via sudo. This is being elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]].
 * '''Password encryption:''' But how can malware steal the password? Aren't passwords encrypted? Yes, passwords are encrypted in <code>/etc/shadow</code> file. Additionally, non-root users cannot read <code>/etc/shadow</code> file thanks to default file permissions. This, however, is of little help against malware. As elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]], what malware actually can do to steal the password does not involve attacking the encryption. The encryption of passwords in <code>/etc/shadow</code> is only useful in a different threat model. For example, if an attacker gained access to <code>/etc/shadow</code> (by possibly getting access through full system compromise), then at least the attacker still does not know that user's password. This can be useful in case the user re-used this password elsewhere, for example to log in to their online banking.
 * '''single-user system vs multi-user system:''' The usefulness of sudo also depends on whether it is a single-user system or a multi-user system. This is elaborated in chapter [[Default_Passwords#Information|Information]].
-* '''Local system vs remote server:''' When using password-based login, the user password matters. However, password-based logins are to be avoided. Public key authentication is much more secure.
+* '''Local system vs remote server:''' When using password-based login, the user password matters. However, password-based logins are only safe when logging into a machine locally. Public key authentication is much more secure for remote access.
 
 = Essentials =
 
@@ -47,23 +47,15 @@ In this chapter we would like to introduce the topic of user account isolation m
 |quote=I am the co-author of sudo. It was written in the early 80's specifically to address a need to protect the integrity of a shared resource (A VAX-11/750 running BSD UNIX) from its users (the faculty of the CS Department at SUNY/Buffalo). At the time, the only other option was 'su' which required everyone share a single password. Had a calamity occurred it would have been difficult or impossible to sift through the forensics ...
 }}
 
-== Console Login Attacks ==
+== Isolation rationale and benefits ==
 
-This explanation is about how user permissions and access to system resources, like virtual consoles (such as tty0 or hvc0), are controlled in Linux systems. In particular, it focuses on why regular users (like yourself) can switch between virtual consoles and log in, while system users like man, ntp, or sdwdate cannot.
+Oftentimes when we think of a user account, we think of an account on the system that someone is intended to log into. However, most systems have a large number of user accounts even if they are only intended to be used by a single person. This is because there are many background processes that run on most computers. Many of these background processes introduce some form of attack surface, or work with sensitive information that other background processes or other people should not be able to access. To reduce the risk of unauthorized access or severe damage in the event of a compromise, these services are given user accounts with appropriately restricted permisisons. If one of those background processes becomes compromised, the attacker will not be able to easily read or write data that the user account restricts them from accessing.
 
-'''Questions'''
-* Are compromised users (such as man, ntp, sdwdate) capable to switch to a console such as tty0, hvc0 and attempt to login? Without root access or kernel exploit, unlikely.
-* Why "I" (the user) can do it but user <code>man</code> cannot? What makes "me" (the user) and user <code>man</code> different? Why the user can switch a virtual console using ctrl + alt + F1, why can user <code>man</code> not?
+When properly implemented, user account isolation provides three main benefits:
 
-When you log in to a virtual console, the system (via the login process) grants you permission to access and control that console. This is done by adjusting the ownership and permissions of the device file associated with the console (like /dev/tty0), allowing your user session to interact with it. However, system users like man don’t get these permissions because they aren't meant to log in interactively. They are used for running specific background tasks and therefore don’t have access to virtual consoles.
-
-{{quotation
-|quote=This is about where the process is started and what has connected as controlling terminal. It isn't anything Qubes specific. A non-privileged process cannot inject characters into a separate session (let's forget about X11 breaking all this assumptions, as we are talking about non-X11 session), especially if it's of a different user, similarly as it cannot write to files it doesn't have write permission. to. You can think of it as a write access to <code>/dev/tty</code> (or <code>/dev/hvc0</code> in this case). When you login on <code>/dev/hvc0</code>, login process (running as root) will setup permission to <code>/dev/hvc0</code> and also pass an open FD to it to your shell. Then, you (user, and that shell) will be able to interact with <code>/dev/hvc0</code> and specifically run commands connected to it. If you don't login there, login process will not set the permissions, so you won't have access.
-This does assume kernel enforced permissions are effective, but as we are talking here about in-VM account isolation only, it's a reasonable assumption.
-|context=[https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366 Comment by Marek Marczykowski-Górecki, Qubes lead developer]
-}}
-
-TODO: <code>chvt</code>
+* It hinders system accounts from attacking other system accounts or people's user accounts. This reduces (though does not eliminate) the risk of a compromised service resulting in the entire system being compromised.
+* It hinders people's user accounts from attacking other people's user accounts or system accounts. This reduces (though does not eliminate) a malicious user's ability to steal data or compromise accounts they aren't supposed to access. This is only useful on systems that are used by more than one person, such as server machines.
+* It hinders both system accounts and people's user accounts from gaining unauthorized access to the root account. Root account access allows one to access any data or compromise any accounts or processes on the system, thus making it a frequent target for attackers.
 
 = Defenses against root user exploits =
 {{Anchor|Defenses}}
@@ -79,9 +71,9 @@ In this chapter we compare non-hardened vs. {{project_name_short}}-hardened Linu
 
 * By default, a compromised non-root user account which is member of group <code>sudo</code> is almost equal to full root compromise as there are too many ways for an attacker to retrieve the sudo password. [[#sudo password sniffing|Malware can sniff the sudo password]].
 * Compromised non-root users that are not member of group <code>sudo</code> in order to acquire root compromise require either,
-** '''A)''' a local privileged escalation exploit, <u>or</u>
+** '''A)''' a local privilege escalation exploit, <u>or</u>
 ** '''B)''' brute forcing the root password.
-** For example a user such <code>www</code> in case the web server gets exploited could not gain root without that.
+** For example, were the web server user (<code>www</code>) to become compromised, it could not gain root without that.
 * Home folder (<code>~</code>) (such as for example home folder of user <code>user</code> <code>/home/user</code>) might be readable by other users (such as for example by user <code>user2</code> or <code>www</code>). This to a large degree negates the usefulness of linux file permissions. While compromised user accounts might not be able to destroy user data, all private user data might be exfiltrated.
 
 == {{project_name_short}} Hardened Linux Distributions ==
@@ -138,7 +130,7 @@ Bruteforcing into Linux user accounts is severely limited in by package [https:/
 forum discussion: [https://forums.whonix.org/t/protect-linux-user-accounts-against-brute-force-attacks protect Linux user accounts against brute force attacks]
 
 == Online Password Cracking Restrictions ==
-A secure password for root/user accounts must not necessarily follow the same rationale as explained on the [[Passwords]] page. Offline attacks against the password (parallelization, password cracking attempts only limited by RAM, disk, and CPU) are not possible. Only "online" attacks are possible. Similar to attempts of cracking a password of a user account on a website. Only x attempts every y time are possible. See also [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]].
+A secure password for root/user accounts does not necessarily have to follow the rationale explained on the [[Passwords]] page. Offline attacks against the password (parallelization, password cracking attempts only limited by RAM, disk, and CPU) are not possible. Only "online" attacks are possible. Similar to attempts of cracking a password of a user account on a website. Only x attempts every y time are possible. See also [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]].
 
 https://security.stackexchange.com/questions/213084/how-strong-do-linux-user-account-passwords-have-to-be-when-using-full-disk-encry
 
@@ -172,6 +164,29 @@ By Debian default, any user account can attempt to use <code>su</code> to try to
 User documentation: [[Root#Substitute_User_.28su.29_Command|Safely Use Root Commands chapter Substitute User (su) Command]]
 
 related development discussion: https://forums.whonix.org/t/restrict-root-access/7658
+
+=== Console Login Attacks ===
+
+Blocking access to <code>su</code> would be ineffective if it were possible for a compromised user account to log into another user account by switching to a virtual terminal and bruteforcing the password from there. However, this is not possible due to access controls in the Linux kernel. This section explains how this works.
+
+The Linux kernel provides various virtual console devices to userspace, generally through the <code>/dev/tty*</code> devices. In order to switch between virtual console devices, the user must have write access to at least one of these devices. By default, these devices are owned by root and can only be read and written by the owning user. This prevents any non-root process from accessing virtual consoles without root access.
+
+One or more <code>login</code> processes are automatically started on some of these virtual terminals by the <code>init</code> program, which run as root and provide a login prompt to the user. These cannot be accessed without being able to read from and write to the virtual console each process runs on. Due to the permission restrictions mentioned above, no user process can attempt to log into the system as another user through the console without already having root privileges. When a user does log in using a virtual console, the <code>login</code> process controlling that console will change the permissions on it so that the user that just logged in can read and write data on that console. This permits them to interact with whatever program is executed on the console (typically a shell such as bash). Once the user logs out, the console device's permissions are changed back, preventing processes running as the user from exploiting the console login system to log in as someone else.
+
+{{quotation
+|quote=This is about where the process is started and what has connected as controlling terminal. It isn't anything Qubes specific. A non-privileged process cannot inject characters into a separate session (let's forget about X11 breaking all this assumptions, as we are talking about non-X11 session), especially if it's of a different user, similarly as it cannot write to files it doesn't have write permission. to. You can think of it as a write access to <code>/dev/tty</code> (or <code>/dev/hvc0</code> in this case). When you login on <code>/dev/hvc0</code>, login process (running as root) will setup permission to <code>/dev/hvc0</code> and also pass an open FD to it to your shell. Then, you (user, and that shell) will be able to interact with <code>/dev/hvc0</code> and specifically run commands connected to it. If you don't login there, login process will not set the permissions, so you won't have access.
+This does assume kernel enforced permissions are effective, but as we are talking here about in-VM account isolation only, it's a reasonable assumption.
+|context=[https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366 Comment by Marek Marczykowski-Górecki, Qubes lead developer]
+}}
+
+This raises the question of how it is possible to switch between virtual consoles using a keypress such as Ctrl+Alt+Fn, or by using a command such as <code>chvt</code>. Virtual console switching is done by one of two things - the kernel virtual console code itself, or a program that can control any one of the virtual console devices. If you are logged in at a TTY, and press a Ctrl+Alt+Fn key combo, the kernel's virtual console code will detect the keypress, and switch to the desired virtual terminal. If you use the <code>chvt</code> command while logged into a virtual terminal, it will be able to switch to another virtual terminal because the virtual terminal the user logged in at is now readable and writable by the logged in user. It can thus access it and tell the kernel virtual terminal code to switch to a different virtual terminal. When you have a running graphical session, things are slightly more complicated, because the X server will take control of one of the virtual consoles, and when one presses Ctrl+Alt+Fn, that keypress will go to X, not the kernel virtual console code. In this instance, X will interpret the keypress and instruct the kernel's virtual terminal code to switch to the user's desired virtual console.
+
+With the above rules in place, the only way to gain read/write access to a virtual terminal is to:
+* Have physical access to the computer, thus giving one the ability to communicate directly with the kernel virtual terminal code.
+* Or, be running under a user account that has logged in at a virtual terminal already.
+** In this latter instance, software running as the logged-in user could ''switch'' to a different virtual terminal, but it would not be able to attempt to login at that terminal. That would require read/write access to the virtual terminal that was switched to, and virtual terminals that have a login prompt are only able to be read from and written to by root or a person with physical access to the machine.
+
+It is also possible to communicate with an application that is controlling a virtual terminal. The most obvious example of this is when the X server is running as root (which it does by default on Debian-based systems, Kicksecure included). In this instance it is possible to do some limited console-level actions (namely switching to a different virtual terminal) even without direct read/write access to any virtual terminal device (for instance, by using <code>xdotool</code> to emulate a Ctrl+Alt+Fn keypress). Even in this scenario however, a malicious process that did this would not be able to login at the virtual terminal that was switched to, because it would not have read/write access to the virtual terminal that it switched to.
 
 == sudo restrictions ==
 By Debian default, users who are not members of the group <code>sudo</code> cannot use <code>sudo</code>. Therefore limited user accounts (for example user <code>sdwdate</code>) cannot use <code>sudo</code> to attempt to crack other user account passwords to run under these users.
@@ -207,7 +222,7 @@ Reasons:
 
 == X Windows System ==
 Any graphical application running under X Windows System (X11) can see what any user is typing in any other application for any user.
-For example, if user <code>user</code> running X11 would run <code>lxsudo -u limited-user some-application</code> that application if compromised could sniff anything that user <code>user</code> is writing. Including but not limited to any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
+For example, if user <code>user</code> running X11 would run <code>lxsudo -u limited-user some-application</code> a compromised graphical application could sniff anything that user <code>user</code> is writing. Including but not limited to any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
 
 See the following footnotes for references about security issues with GUI isolation related to X Windows System (X11). <ref>
 [https://blog.invisiblethings.org/2011/04/23/linux-security-circus-on-gui-isolation.html Quote] Joanna Rutkowska, security researcher, founder and advisor (formerly architecture, security, and development) of Qubes OS:
@@ -337,7 +352,7 @@ Potential solutions:
 = Passwords =
 
 == Default Empty Password Security Impact ==
-Does a default password such as <code>changeme</code> provide better security than an empty by default password? No, because malware could trivially easily [https://forums.whonix.org/t/dsudo-default-password-sudo/8766 <code>dsudo</code>] to enter <code>changeme</code> into the sudo prompt.
+Does a default password such as <code>changeme</code> provide better security than an empty by default password? No, because malware could easily use [https://forums.whonix.org/t/dsudo-default-password-sudo/8766 <code>dsudo</code>] to enter <code>changeme</code> into the sudo prompt.
 
 == Rationale for Change from Default Password changeme to Empty Default Password ==
 
@@ -348,7 +363,7 @@ Does a default password such as <code>changeme</code> provide better security th
 * '''Real security:''' See the [[root|Safely Use Root Commands]], especially [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] (SysRq based solution).
 * '''Root login:''' [[Dev/Strong_Linux_User_Account_Isolation#Root_Login_Disabled|Root Login Disabled]] remains unchanged.
 * '''No user freedom restriction:''' The users ability to configure a user account password remains unchanged. It is still possible to set a password.
-* '''Accidental copy/paste of sudo command:''' A terminal window is very powerful, dangerous in any case. One needs to know what one is doing. A destructive command such as <code>rm -rf ~/file-name *</code> where the user actually meant to write <code>rm -rf ~/file-name*</code> deletes all user data. Only preventing <code>sudo</code> does not make a sufficient difference.
+* '''Accidental copy/paste of sudo command not a concern:''' A terminal window is very powerful, dangerous in any case. One needs to know what one is doing. A destructive command such as <code>rm -rf ~/file-name *</code> where the user actually meant to write <code>rm -rf ~/file-name*</code> can delete all user data. Only preventing <code>sudo</code> does not make a sufficient difference.
 * '''Secure Administrative Rights Prompt Infeasibility:''' There are too many [[Dev/Strong_Linux_User_Account_Isolation#Issues|issues]] which prevent the creation of a secure root prompt that cannot be trivially broken by malware. It is technically challenging to fix all of them. These are generic issues applicable to most if not all Freedom Software desktop Linux distributions. In other words, these issues are [[unspecific|unspecific to {{project_name_short}}]].
 ** '''Future:''' A "boot into admin mode" feature is planned. This is elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sudo password sniffing]].
 * '''Comparison:''' How did Google Android and Apple iOS solve this issue? By having developed different graphical interfaces and user freedom restrictions where [[Miscellaneous_Threats_to_User_Freedom#Administrative_Rights|the used is being refused administrative rights]].
@@ -383,15 +398,15 @@ user::19932:0:99999:7:::
 **** '''E)''' [[#Online Password Cracking Restrictions|Online Password Cracking Restrictions]]
 *** <u>Malware Compromise Considerations</u>: Strong Linux user account passwords should be unnecessary for protection from locally running malware unless above security features can be circumvented.
 ** On <u>multi-user</u> systems:
-*** <u>Definition</u>: A multi-user system is defined here as a shared computer that has different multiple human users.
-*** <u>Assessment</u>: Similar to single-user systems but since necessarily additional Linux user accounts (such as for example user <code>user<u>2</u></code>) need to be added to Linux user group <code>console</code>. Therefore security feature Console Lockdown (A) will be ineffective against attacks from that user account. In effect, strong Linux user account passwords are more important. However, other security features (B, C, D, E) still providing protection.
+*** <u>Definition</u>: A multi-user system is defined here as a shared computer that has multiple human users.
+*** <u>Assessment</u>: Similar to single-user systems, but additional Linux user accounts (such as for example user <code>user<u>2</u></code>) will need to be added to Linux user group <code>console</code>. Therefore security feature Console Lockdown (A) will be ineffective against attacks from the added user accounts. In effect, strong Linux user account passwords are more important. However, other security features (B, C, D, E) still providing protection.
 ** <u>Remote Login</u>:
-*** Systems using remote login (such as [[SSH]]): A strong password might make sense such as during initial SSH setup while password based authentication has not been disabled yet in favor of exclusively using public key authentication. Once exclusively using public key authentication, a strong password should be no longer required for remote login.
+*** Systems using remote login (such as [[SSH]]): A strong password might make sense during initial SSH setup, before public key authentication has been set up. Once exclusively using public key authentication, password authentication should be disabled entirely. Once public key authentication is being used exclusively, a strong password should be no longer required for remote login.
 *** Systems not using remote login: No requirements for a strong password to protect remote logins since not using any remote login mechanism.
-** <u>Threat</u>: Could a compromised user <code>user</code> to escalate to <code>root</code> if user <code>user</code> was compromised?
+** <u>Threat</u>: Could a compromised user <code>user</code> escalate to <code>root</code> if user <code>user</code> was compromised?
 *** If using procedure [https://www.kicksecure.com/wiki/Root#Prevent_Malware_from_Sniffing_the_Root_Password Prevent Malware from Sniffing the Root Password]: no
 *** If not using procedure Prevent Malware from Sniffing the Root Password: yes, due to [[#Issues|issues]].
-** <u>[https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks Protection against Physical Attacks]</u>: This is a mostly unrelated issue. A [https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks#Screen_Lock screen lock] might be sufficient protection from lesser adversaries. In that case, a host screen locker and a better, non-default Linux account user password on the host operating system might help as the same password is used for the screen lock.
+** <u>[https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks Protection against Physical Attacks]</u>: This is a mostly unrelated issue. A [https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks#Screen_Lock screen lock] might be sufficient protection from lesser adversaries. In that case, a host screen locker and a better, non-default Linux account user password on the host operating system might help, as the login password will also be used for the screen lock.
 
 = Related Topics =
 {{Anchor|Related}}
