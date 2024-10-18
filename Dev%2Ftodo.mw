@@ -10,6 +10,12 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== security review ==
+* as discussed
+
+== live-build - dracut related fixes ==
+* please report and/or fix upstream anything dracut related that needs fixing due to new results with live-build
+
 == desktop-config-dist rd.live.image ==
 * FYI: this is now fixed in git. no more patch for live-build required.
 
@@ -20,6 +26,180 @@ TODO
 * add live-build git submodule to derivative-maker (as long all our changes aren't upstramed)
 * WIP config repo for building Kicksecure with live-build: https://github.com/ArrayBolt3/kicksecure-live-build
 * Fork of live-build used: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+
+== live-build - use APT with error-on-any ==
+* use option <code>apt --error-on=any</code> for all invocations of apt-get (update)
+* only needed for apt-get update, otherwise superfluous but non-issue
+* this is a security feature
+* this is to prevent inconsistent images that succeeded connecting to the "normal" repository but failed to connect to the security repository
+* can be implemented using already existing live-build option <code>--apt-options OPTION|"OPTIONS"</code>?
+
+== live-build - investigate options ==
+* because it contains options and todo
+* (originally from build-steps.d/1350_create-iso-config)
+* not all comments might be needed. some of my comments might be superfluous / obvious.
+
+<pre>
+   ## folder derivative-maker/live-build can be re-created using:
+   ## 2. help-steps/live-config
+
+   ## TODO: cleaner to not have these? better for reproducible builds?
+   #--apt-indices false
+
+## Kicksecure enabled backports by default so live-build does not need to
+## (kicksecure ships /etc/apt/sources.list.d/debian.list static file in package anon-apt-sources-list)
+   #--backports true|false
+
+## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
+   #--bootappend-live PARAMETER|"PARAMETERS"
+
+## Probably not needed.
+   #--checksums md5|sha1|sha224|sha256|sha384|sha512|none
+   #--debian-installer cdrom|netinst|netboot|businesscard|live|none
+
+   ## Kicksecure enables fasttrack repository by default. If build works, probably not needed.
+   #--keyring-packages PACKAGE|"PACKAGES"
+
+   #--cache-stages "bootstrap rootfs"
+
+## For cross-build support.
+   ## --architecture "$dist_build_target_arch"
+
+   ## --distribution "$dist_build_apt_stable_release"
+
+## TODO: should we keep as is (Debian default) for better compatibility or set to
+##       $SHORT_VMNAME / $VMNAME (already defined in help-steps/variables) to avoid conflicts with Debian (dual-boot)?
+   ## --hdd-label LABEL
+   ## --image-name NAME
+   ## --iso-application NAME
+   ## --iso-publisher NAME
+   ## --iso-volume NAME
+
+## Not applicable?
+   ## --hdd-size SIZE
+
+## TODO: source not needed
+   ## --source
+
+## yes. not bothering/mixing any other bootloaders such as isolinux (except shim, which live-build handles automatically)
+   --bootloaders grub-efi
+
+## already existing variable
+--linux-packages "$BUILD_KERNEL_PKGS"
+
+## already existing variable
+## usability feature
+## we want kernel headers installed by default (required for tirdad compilation (has a dependency); virtualbox guest utils (lacks dependency))
+## probably
+   ## --linux-packages "$BUILD_HEADER_PKGS"
+
+## We can probably set this because we cache using <code>${REPO_PROXY}</code>? Double caching not useful?
+## This option might have side effects.
+   ## --cache-packages false
+
+   ## TODO: Does this work? Is our apt-cache-ng (already existing variable ${REPO_PROXY}) functional?
+   ## --apt-ftp-proxy "${REPO_PROXY}"
+   ## --apt-http-proxy "${REPO_PROXY}"
+
+## important. using apt with --no-install-recommends
+## but not setting and apt config file for the user
+      --apt-recommends false \
+
+## if using debootstrap
+## important because we pull packages using packaging not using $debootstrap or live-build
+      --debootstrap-options "--variant=minbase" \
+
+## if using mmdebstrap
+## '--variant=required' is only supported by 'mmdebstrap'. It might not be supported by 'debootstrap'.
+      --debootstrap-options "--variant=required" \
+
+## same as above
+   --firmware-binary false
+   --firmware-chroot false
+
+## Seems correct.
+      --binary-image iso-hybrid \
+
+
+   lb config \
+      --distribution "$dist_build_apt_stable_release" \
+      --mirror-binary "$dist_build_apt_sources_mirror" \
+      --mirror-binary-security "$dist_build_apt_sources_security_mirror" \
+      --mirror-bootstrap "$dist_build_apt_sources_mirror" \
+      --mirror-chroot "$dist_build_apt_sources_mirror" \
+      --mirror-chroot-security "$dist_build_apt_sources_security_mirror" \
+      --mirror-debian-installer "$dist_build_apt_sources_mirror" \
+      --parent-mirror-binary "$dist_build_apt_sources_mirror" \
+      --parent-mirror-binary-security "$dist_build_apt_sources_security_mirror" \
+      --parent-mirror-bootstrap "$dist_build_apt_sources_mirror" \
+      --parent-mirror-chroot "$dist_build_apt_sources_mirror" \
+      --parent-mirror-chroot-security "$dist_build_apt_sources_security_mirror" \
+      --parent-mirror-debian-installer "$dist_build_apt_sources_mirror" \
+      --archive-areas "main contrib non-free non-free-firmware" \
+</pre>
+
+
+<pre>
+## use $dist_build_apt_stable_release instead of hardcoded "bookworm"
+    --distribution "bookworm"
+
+## probably needed? same as Kicksecue default APT sources archive areas
+## should we get this by parsing? in buildconfig.d/25_apt_sources.conf
+    --archive-areas "main contrib non-free non-free-firmware" \
+
+## sources not needed
+    --apt-source-archives false \
+    --source false \
+
+## zsync not used
+    --zsync false \
+
+## useful? irrelevant?
+    --chroot-filesystem ext4 \
+    --binary-filesystem ext4 \
+
+## useful to see what is going on. why not.
+    --verbose \
+    --debug
+
+## sanity testing and nice to compare logs
+lb config --dump
+lb config --validate
+
+## better verbose than not knowing what is going on
+lb build --verbose --debug
+</pre>
+
+== live-build - keep generated live-build folder out of source code folder ==
+* treat "lb config" as pristine/source code
+* place live-build folder in ~/derivative_binary folder (use already existing variable <code>binary_build_folder_dist</code>)
+* reason: live-build mixes config and binaries inside the same folder
+
+This is how it was done in the past:
+
+<pre>
+   mkdir --parents "$binary_build_folder_live_build"
+   cd "$binary_build_folder_live_build"
+</pre>
+
+== live-build - stop installation extraneous packages ==
+* dhcp / networking related packages
+* whiptail
+* should not be pulled by live-build
+* if deemed useful packages, needs to be discussed in forums and and done inside the derivative-maker /packages/ folder through Depends:
+
+== live-build - build raw images ==
+Building fully persistent images? Replacing grml-debootstrap?
+
+<pre>
+--system normal
+--binary-image hdd
+</pre>
+
+Useful? Low priority?
+
+== rootless X11 ==
+* only if doable with low effort such as just changing some configs (such as in lightdm config) or changing some installed packages
 
 == review root related documentation ==
 * read
@@ -143,18 +323,6 @@ sudo apt install serial-console-enable
 ** conceivable or too much effort?
 
 = WAITING ON =
-== kloak - add support for /dev/input/mice ==
-* VM has no /dev/input/mouseX
-* VM has only /dev/input/mice
-* kloak ignores /dev/input/mice.
-* (user reported using a Ubuntu 24.4 VM)
-* kloak only uses /dev/input/eventX devices by design, these are provided by the evdev driver and seem like they should always exist
-* Could not reproduce issue with QEMU using either Kicksecure or Lubuntu 24.04 - /dev/input/eventX devices for mouse always exist, as do individual /dev/input/mouse devices. Need to know what hypervisor was in use to test further
-
-Patrick:
-
-* asked user about which VM. waiting for reply.
-
 == kloak - add Qubes support ==
 * review to understand the history:
 ** https://github.com/QubesOS/qubes-issues/issues/1850
@@ -190,6 +358,21 @@ Aaron:
 * Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/370
 
 = REVIEW PLEASE =
+
+= ARCHIVED =
+== kloak - add support for /dev/input/mice ==
+* VM has no /dev/input/mouseX
+* VM has only /dev/input/mice
+* kloak ignores /dev/input/mice.
+* (user reported using a Ubuntu 24.4 VM)
+* kloak only uses /dev/input/eventX devices by design, these are provided by the evdev driver and seem like they should always exist
+* Could not reproduce issue with QEMU using either Kicksecure or Lubuntu 24.04 - /dev/input/eventX devices for mouse always exist, as do individual /dev/input/mouse devices. Need to know what hypervisor was in use to test further
+
+Patrick:
+
+* asked user about which VM. waiting for reply.
+** probably user error. archiving.
+
 == ISO - check git history ==
 * check derivative-maker source code git history as it might have useful options
 * Found and extracted <code>lb config</code> command. Commit used was from 2023-07-20, and is the latest <code>live-build</code> commit on that day.
@@ -241,7 +424,6 @@ desktop-config-dist(master)]% git describe
 * read e-mail on confidential computing, digest, add to wiki (cannot be copied/pasted)
 * Added notes to confidential computing page.
 
-= ARCHIVED =
 == keepassxc org.freedesktop.secrets Linux distribution compatibly feature request ==
 * Shortcoming have been identified in https://forums.kicksecure.com/t/error-storing-passphrase-in-keyring-the-name-org-freedesktop-secrets-was-not-provided-by-any-service-files/582/2
 * Post a feature request for kepassxc what kind of changes they would have to make so keepssxc can be easily used as a org.freedesktop.secrets provider as a Linux distribution.
