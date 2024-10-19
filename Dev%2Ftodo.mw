@@ -10,11 +10,22 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== security review ==
-* as discussed
+== faillock ==
+=== security-misc - review pam-configs ===
+* please have a look here in security-misc usr/share/pam-configs/ for introduction
+* Looked at it, seems reasonable and useful
 
-== live-build - dracut related fixes ==
-* please report and/or fix upstream anything dracut related that needs fixing due to new results with live-build
+=== security-misc - faillock - stop reset after reboot ===
+* should not be reset after reboot
+* the faillock status file is configureable already, see man pam_faillock
+* Requires pam config modifications to make work right, working proof-of-concept config determined and shared in chat.
+
+=== security-misc - faillock - stop reset after 24 hours ===
+* should not be reset after 24 hours
+* no need to automatically reset at all
+* user should always have a chance to learn about failed login attempts
+* this can (likely?) be configured in our already existing configuration file in security-misc
+* Lockout reset is preventable, tally reset cannot be configured out and the largest possible delay between resets that can be set is arbitrarily limited to 7 days.
 
 == desktop-config-dist rd.live.image ==
 * FYI: this is now fixed in git. no more patch for live-build required.
@@ -27,12 +38,10 @@ TODO
 * WIP config repo for building Kicksecure with live-build: https://github.com/ArrayBolt3/kicksecure-live-build
 * Fork of live-build used: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
 
-== live-build - use APT with error-on-any ==
-* use option <code>apt --error-on=any</code> for all invocations of apt-get (update)
-* only needed for apt-get update, otherwise superfluous but non-issue
-* this is a security feature
-* this is to prevent inconsistent images that succeeded connecting to the "normal" repository but failed to connect to the security repository
-* can be implemented using already existing live-build option <code>--apt-options OPTION|"OPTIONS"</code>?
+== live-build - use derivative-maker variable APT_OPTIONS ==
+* for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
+* set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
+* these include <code>--error-on=any</code> and more
 
 == live-build - investigate options ==
 * because it contains options and todo
@@ -45,25 +54,32 @@ TODO
 
    ## TODO: cleaner to not have these? better for reproducible builds?
    #--apt-indices false
+   # arraybolt3: Added.
 
 ## Kicksecure enabled backports by default so live-build does not need to
 ## (kicksecure ships /etc/apt/sources.list.d/debian.list static file in package anon-apt-sources-list)
    #--backports true|false
+   # arraybolt3: Left unset, seems to work.
 
 ## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
    #--bootappend-live PARAMETER|"PARAMETERS"
 
 ## Probably not needed.
    #--checksums md5|sha1|sha224|sha256|sha384|sha512|none
+   # arraybolt3: left unset
    #--debian-installer cdrom|netinst|netboot|businesscard|live|none
+   # arraybolt3: This MUST be set to "--debian-installer=live" (different values other than "none" may also work?). Not doing so results in the on-CD apt repo that contains bootloader packages not being created, and alternate ways of making that repo ended up erroring out in my experiments.
 
    ## Kicksecure enables fasttrack repository by default. If build works, probably not needed.
    #--keyring-packages PACKAGE|"PACKAGES"
+   # arraybolt3: left unset, but perhaps it should be set to include the fasttrack repository key. Currently I'm using "--debootstrap-options" to include it.
 
    #--cache-stages "bootstrap rootfs"
+   # arraybolt3: left unset. This automatically "just works".
 
 ## For cross-build support.
-   ## --architecture "$dist_build_target_arch"
+   # --architecture "$dist_build_target_arch"
+   # arraybolt3: Note that for cross builds to work, this must be paired with "--bootstrap-qemu-arch" if building for a foreign architecture like arm64. Needs testing.
 
    ## --distribution "$dist_build_apt_stable_release"
 
@@ -79,13 +95,16 @@ TODO
    ## --hdd-size SIZE
 
 ## TODO: source not needed
-   ## --source
+   # --source
+   # arraybolt3: left unset, defaults to false.
 
 ## yes. not bothering/mixing any other bootloaders such as isolinux (except shim, which live-build handles automatically)
-   --bootloaders grub-efi
+   # --bootloaders grub-efi
+   # arraybolt3: left unset, live-build figures this out automatically and generates an ISO that is both BIOS-bootable and UEFI-bootable with GRUB by default.
 
 ## already existing variable
---linux-packages "$BUILD_KERNEL_PKGS"
+  # --linux-packages "$BUILD_KERNEL_PKGS"
+  # arraybolt3: set to install linux-image and linux-headers. May be set differently once integration with derivative-maker is done.
 
 ## already existing variable
 ## usability feature
@@ -95,30 +114,35 @@ TODO
 
 ## We can probably set this because we cache using <code>${REPO_PROXY}</code>? Double caching not useful?
 ## This option might have side effects.
-   ## --cache-packages false
+   # --cache-packages false
 
    ## TODO: Does this work? Is our apt-cache-ng (already existing variable ${REPO_PROXY}) functional?
-   ## --apt-ftp-proxy "${REPO_PROXY}"
-   ## --apt-http-proxy "${REPO_PROXY}"
+   # --apt-ftp-proxy "${REPO_PROXY}"
+   # --apt-http-proxy "${REPO_PROXY}"
 
 ## important. using apt with --no-install-recommends
 ## but not setting and apt config file for the user
-      --apt-recommends false \
+      # --apt-recommends false \
+      # arraybolt3: already set.
 
 ## if using debootstrap
 ## important because we pull packages using packaging not using $debootstrap or live-build
-      --debootstrap-options "--variant=minbase" \
+      # --debootstrap-options "--variant=minbase" \
+      # arraybolt3: set.
 
 ## if using mmdebstrap
 ## '--variant=required' is only supported by 'mmdebstrap'. It might not be supported by 'debootstrap'.
-      --debootstrap-options "--variant=required" \
+      # --debootstrap-options "--variant=required" \
+      # arraybolt3: "required" and "minbase" appear to be treated identically by mmdebstrap, therefore not setting this.
 
 ## same as above
-   --firmware-binary false
-   --firmware-chroot false
+   # --firmware-binary false
+   # --firmware-chroot false
+   # arraybolt3: already set.
 
 ## Seems correct.
-      --binary-image iso-hybrid \
+      # --binary-image iso-hybrid \
+      # arraybolt3: set.
 
 
    lb config \
@@ -155,12 +179,14 @@ TODO
     --zsync false \
 
 ## useful? irrelevant?
-    --chroot-filesystem ext4 \
-    --binary-filesystem ext4 \
+    # --chroot-filesystem ext4 \
+    # --binary-filesystem ext4 \
+    # arraybolt3: both seem irrelevant.
 
 ## useful to see what is going on. why not.
-    --verbose \
-    --debug
+    # --verbose \
+    # --debug
+    # arraybolt3: set.
 
 ## sanity testing and nice to compare logs
 lb config --dump
@@ -182,12 +208,6 @@ This is how it was done in the past:
    cd "$binary_build_folder_live_build"
 </pre>
 
-== live-build - stop installation extraneous packages ==
-* dhcp / networking related packages
-* whiptail
-* should not be pulled by live-build
-* if deemed useful packages, needs to be discussed in forums and and done inside the derivative-maker /packages/ folder through Depends:
-
 == live-build - build raw images ==
 Building fully persistent images? Replacing grml-debootstrap?
 
@@ -196,7 +216,11 @@ Building fully persistent images? Replacing grml-debootstrap?
 --binary-image hdd
 </pre>
 
-Useful? Low priority?
+Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
+
+== live-check - run once only ==
+* to avoid log spam (passwordless root)
+* create a done file in folder <code>/run/user/$USER</code> so the livecheck script does not run sudo over and over again
 
 == rootless X11 ==
 * only if doable with low effort such as just changing some configs (such as in lightdm config) or changing some installed packages
@@ -205,11 +229,16 @@ Useful? Low priority?
 * read
 * improve
 * https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation
-** Read, added improvement including rewriting the console login attacks section.
+** Read, added improvements including rewriting the console login attacks section.
 * https://www.kicksecure.com/wiki/Root
+** Read, added improvements including documenting how to run GUI applications as root under Wayland
 * https://www.kicksecure.com/wiki/Default_Passwords
+** Read, didn't see anything that needed added.
 * https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks
 * https://www.kicksecure.com/wiki/Dev/boot_modes
+
+== fix broken recovery mode ==
+* Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
 
 == audio ==
 === audio generally ===
@@ -357,9 +386,41 @@ Aaron:
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031929
 * Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/370
 
+== live-build - use APT with error-on-any ==
+* use option <code>apt --error-on=any</code> for all invocations of apt-get (update)
+* only needed for apt-get update, otherwise superfluous but non-issue
+* this is a security feature
+* this is to prevent inconsistent images that succeeded connecting to the "normal" repository but failed to connect to the security repository
+* can be implemented using already existing live-build option <code>--apt-options OPTION|"OPTIONS"</code>?
+* Requires a patch to live-build. Using <code>--apt-options</code> results in a build failure with <code>E: Command line option --error-on=any is not understood in combination with the other options</code>
+* Patch written, submitted upstream as https://salsa.debian.org/live-team/live-build/-/merge_requests/371. New configuration option now used in my branch of live-build.
+
+== security-misc - investigate PAM ==
+* there is /etc/pam.d/sudo-i for interactive and /etc/pam.d/sudo
+* pam has concepts of common-session-noninteractive vs common-session (non-interactive)
+* how could we on the PAM level notice if faillock is used interactively or non-interactively?
+* if non-interactive, skip faillock
+* if interactive, do not skip faillock
+* Bug report: https://github.com/linux-pam/linux-pam/issues/842
+
 = REVIEW PLEASE =
 
 = ARCHIVED =
+== security review ==
+* as discussed
+* done, notes shared in chat
+
+== live-build - stop installation extraneous packages ==
+* dhcp / networking related packages
+* whiptail
+* should not be pulled by live-build
+* if deemed useful packages, needs to be discussed in forums and and done inside the derivative-maker /packages/ folder through Depends:
+* Looks like this is solved, cannot find isc-related packages, ifupdown, or whiptail in my latest build.
+
+== live-build - dracut related fixes ==
+* please report and/or fix upstream anything dracut related that needs fixing due to new results with live-build
+* Reported the one main issue I ran into at https://salsa.debian.org/live-team/live-build/-/merge_requests/353#note_537378, verified that other issues I had encountered were no longer a problem.
+
 == kloak - add support for /dev/input/mice ==
 * VM has no /dev/input/mouseX
 * VM has only /dev/input/mice

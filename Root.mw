@@ -14,7 +14,7 @@ This page gives tips on using <code>sudo</code> / root (privileged) commands saf
 
 = Introduction =
 
-Learn how to use <code>sudo</code> / root (privileged) commands safely and why 'root' is important and what it is used for.
+Learn why 'root' is important, what it is used for, and how to use <code>sudo</code> / root (privileged) commands safely.
 
 = Rationale for Protecting the Root Account =
 
@@ -40,15 +40,15 @@ The rationale of <u>prevention of root compromise</u> has the following goals: <
 Also see: [[Dev/Strong_Linux_User_Account_Isolation|Permissions]].
 </ref>
 
-* <u>Protect the host operating system</u>: If using {{VM}}: Malware breaking out of the virtualizer is a lot harder without root access. <ref>
+* <u>Protect the host operating system</u>: If using {{VM}}: It is much less likely that malware will break out of a virtual machine if it does not have root access within the VM. <ref>
 https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-301316132
 </ref>
-* <u>Protection from rootkits</u>: Root access allow malware to install more difficult to detect and remove rootkits.
+* <u>Protection from rootkits</u>: Root access allow malware to install rootkits, which can be very difficult to detect and remove.
 * <u>Protect the virtualizer</u>: It is harder to attack the virtualizer without root access. (Applies only when using virtual machines.)
-* <u>Protect the hardware</u>: A compromised host operating system might result in malware infecting the hardware, i.e. to avoid a persistent hardware backdoor (such as in BIOS or other firmware) surviving even re-installation of the host operating system. In many cases, root access is required before hardware can be attacked. <ref>
-For example flash utilities for Linux require root access. In theory, it's conceivable of software bugs in firmware of hardware resulting in hardware compromise without prior root compromise. No such examples happening in the wild where known to the author at time of writing.
+* <u>Protect the hardware</u>: A compromised host operating system might result in malware infecting the hardware, i.e. malware could install a persistent hardware backdoor (such as in BIOS or other firmware) surviving even re-installation of the host operating system. In many cases, root access is required before hardware can be attacked. <ref>
+For example flash utilities for Linux require root access. In theory, it's conceivable of software bugs in firmware or hardware resulting in hardware compromise without prior root compromise. No such examples happening in the wild were known to the author at time of writing.
 </ref>
-* <u>Protect against compromised non-root users</u>: it is harder for potentially compromised other, non-root users (such as <code>www-data</code>) to access user <code>user</code> or other parts of the system.
+* <u>Protect against compromised non-root users</u>: it is harder for potentially compromised non-root users (such as <code>www-data</code>) to access user <code>user</code> or other parts of the system. This is important when considering that even single-user systems have many system-level user accounts.
 * <u>Sandboxing</u>: Sandboxing applications can prevent applications getting exploited by attackers <ref>
 An exploit or payload might require a function which is unavailable inside the sandbox.
 </ref> or limit the severity of the exploit since if sandboxing is successfully, malware will be trapped inside the sandbox. Sandboxing is a lot harder, less efficient or even impossible when applications are running as root. See also [[AppArmor]], [[apparmor.d|<code>apparmor.d</code> (Full System AppArmor Profile)]] and [[sandbox-app-launcher]].
@@ -74,7 +74,7 @@ Users can [[Post_Install_Advice#Change_Passwords|change or set a password]] for 
 == Run with Administrative Rights ==
 To run an application with root rights.
 
-{{IconSet|h2|1}} '''Run a user to administrative rights utility.'''
+{{IconSet|h2|1}} '''Use a privilege elevation utility to run commands as root.'''
 
 Note: Replace <code>command</code> with the actual command.
 
@@ -83,11 +83,11 @@ Note: Replace <code>command</code> with the actual command.
 
 {{IconSet|h2|2}} '''Password entry.'''
 
-If a password has been configured, the utility will prompt for.
+If a password has been configured, the utility will prompt for it.
 
 == User Password versus Root Password ==
 
-Tools such as sudo, lxsudo prompt for the user's password. This is different from the root password.
+Tools such as sudo and lxsudo prompt for the user's password. This is different from the root password.
 
 = Security and Best Practices =
 
@@ -116,7 +116,7 @@ Inappropriate Use of Root Rights:
 * Applications supposed to be run as user but run as root might create root owned files. These file permissions error can lead to additional issues.
 * Inter process communications such as with dbus might be broken.
 </ref> Related is also later chapter [[#Graphical Applications with Root Rights|Graphical Applications with Root Rights]].
-* Security issue.
+* Risks harmful code being run as root.
 
 = Graphical Applications and Root Rights =
 
@@ -191,7 +191,7 @@ Note: Replace <code>/path/to/file/name</code> with the actual path to the file.
 /path/to/file/name
 }}
 
-For example to open file <code>/etc/default/keyboard</code> with root rights, use.
+For example:
 
 {{Open with root rights|filename=
 /etc/default/keyboard
@@ -204,14 +204,12 @@ Use of [https://en.wikipedia.org/wiki/Polkit Polkit] (formerly PolicyKit) (<code
 
 == Wayland ==
 
-Running GUI applications as root (<code>lxsudo</code>, <code>sudo --set-home</code>, <code>pkexec</code> will no longer work when {{project_name_long}} has been ported from X11 to Wayland or when using [[Other Desktop Environments]] using Wayland because Wayland prohibits running GUI applications as with root rights.
+Running GUI applications as root (<code>lxsudo</code>, <code>sudo --set-home</code>, <code>pkexec</code> will be more difficult once {{project_name_long}} has been ported from X11 to Wayland. This is because Wayland requires applications to access <code>$XDG_RUNTIME_DIR/$WAYLAND_SOCKET</code> to open GUI windows. <ref>https://unix.stackexchange.com/a/423287/535873</ref> You may run into this when using [[Other Desktop Environments]] using Wayland.
 
-For applications doing actions that require root rights to be compatible with Wayland, application developers need to modify these to run the GUI part of the application as non-root and then use <code>pkexec</code> (or <code>sudo --non-interactive</code> with sudoers exceptions) to run the parts which actually require root rights.
-
-Update: It might be possible to run applications as root on Wayland. Untested.
+The following command should work to run Wayland applications as root in most instances. Replace <code>application-name</code> as appropriate:
 
 {{CodeSelect|code=
-sudo QT_QPA_PLATFORM=wayland XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
+sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
 }}
 
 = Root Account Management =
@@ -456,7 +454,7 @@ Unless perhaps advanced users manage to run a different X server on a different 
 
 {{IconSet|h3|1}} [[SysRq#Enable_SysRq|Enable SysRq]].
 
-{{IconSet|h3|2}} Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark>
+{{IconSet|h3|2}} Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (<code>unraw</code>) <ref name=unraw-required-questionmark>
 This step might be unnecessary. Not researched yet.
 </ref>
 
