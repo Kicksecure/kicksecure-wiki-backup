@@ -10,22 +10,49 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== faillock ==
-=== security-misc - review pam-configs ===
-* please have a look here in security-misc usr/share/pam-configs/ for introduction
-* Looked at it, seems reasonable and useful
+== pam_faillock ticket ==
+* What runs <code>/etc/pam.d/sudo</code> versus <code>/etc/pam.d/sudo-i</code>? No other file in <code>/etc/pam.d</code> references such a file.
+** sudo's source code allows sudo to identify itself to PAM as either <code>sudo</code> or <code>sudo-i</code> depending on how sudo is being used. See https://github.com/sudo-project/sudo/blob/17aa7688c955e58adffdfb0300d485a2b859b128/plugins/sudoers/auth/pam.c#L220. Theoretically it might be possible to patch this location in sudo to make it identify itself to PAM in a special manner when running a NOPASSWD command.
+** Bug report filed against sudo: https://github.com/sudo-project/sudo/issues/415
+* Useful to add? https://github.com/linux-pam/linux-pam/issues/842
 
-=== security-misc - faillock - stop reset after reboot ===
-* should not be reset after reboot
-* the faillock status file is configureable already, see man pam_faillock
-* Requires pam config modifications to make work right, working proof-of-concept config determined and shared in chat.
+<pre>
+`/etc/pam.d/sudo`
 
-=== security-misc - faillock - stop reset after 24 hours ===
-* should not be reset after 24 hours
-* no need to automatically reset at all
-* user should always have a chance to learn about failed login attempts
-* this can (likely?) be configured in our already existing configuration file in security-misc
-* Lockout reset is preventable, tally reset cannot be configured out and the largest possible delay between resets that can be set is arbitrarily limited to 7 days.
+```
+#%PAM-1.0
+
+# Set up user limits from /etc/security/limits.conf.
+session    required   pam_limits.so
+
+@include common-auth
+@include common-account
+@include common-session-noninteractive
+```
+
+`/etc/pam.d/sudo-i`
+
+```
+#%PAM-1.0
+
+# Set up user limits from /etc/security/limits.conf.
+session    required   pam_limits.so
+
+@include common-auth
+@include common-account
+@include common-session
+```
+
+----
+
+`/etc/sudoers.d/upgrade-passwordless`
+
+```
+%sudo ALL=NOPASSWD: /usr/bin/apt-get-update-plus dist-upgrade
+```
+</pre>
+
+** May be useful, but I don't believe it is necessarily useful right now. Would like to wait for now.
 
 == desktop-config-dist rd.live.image ==
 * FYI: this is now fixed in git. no more patch for live-build required.
@@ -42,6 +69,7 @@ TODO
 * for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
 * set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
 * these include <code>--error-on=any</code> and more
+* Added.
 
 == live-build - investigate options ==
 * because it contains options and todo
@@ -63,6 +91,7 @@ TODO
 
 ## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
    #--bootappend-live PARAMETER|"PARAMETERS"
+   # arraybolt3: Cannot be done via a package as the bootloader config for the ISO is set directly by live-build. Instead, source grub.d scripts from security-misc at build time and use variables from there to set the bootappend value.
 
 ## Probably not needed.
    #--checksums md5|sha1|sha224|sha256|sha384|sha512|none
@@ -85,14 +114,16 @@ TODO
 
 ## TODO: should we keep as is (Debian default) for better compatibility or set to
 ##       $SHORT_VMNAME / $VMNAME (already defined in help-steps/variables) to avoid conflicts with Debian (dual-boot)?
-   ## --hdd-label LABEL
-   ## --image-name NAME
-   ## --iso-application NAME
-   ## --iso-publisher NAME
-   ## --iso-volume NAME
+   # --hdd-label LABEL
+   # --image-name NAME
+   # --iso-application NAME
+   # --iso-publisher NAME
+   # --iso-volume NAME
+   # arraybolt3: all are now set
 
 ## Not applicable?
-   ## --hdd-size SIZE
+   # --hdd-size SIZE
+   # arraybolt3: for ISO build, not applicable
 
 ## TODO: source not needed
    # --source
@@ -104,21 +135,24 @@ TODO
 
 ## already existing variable
   # --linux-packages "$BUILD_KERNEL_PKGS"
-  # arraybolt3: set to install linux-image and linux-headers. May be set differently once integration with derivative-maker is done.
+  # arraybolt3: set.
 
 ## already existing variable
 ## usability feature
 ## we want kernel headers installed by default (required for tirdad compilation (has a dependency); virtualbox guest utils (lacks dependency))
 ## probably
-   ## --linux-packages "$BUILD_HEADER_PKGS"
+   # --linux-packages "$BUILD_HEADER_PKGS"
+   # arraybolt3: set.
 
 ## We can probably set this because we cache using <code>${REPO_PROXY}</code>? Double caching not useful?
 ## This option might have side effects.
    # --cache-packages false
+   # arraybolt3: set `--cache false`.
 
    ## TODO: Does this work? Is our apt-cache-ng (already existing variable ${REPO_PROXY}) functional?
    # --apt-ftp-proxy "${REPO_PROXY}"
    # --apt-http-proxy "${REPO_PROXY}"
+   # arraybolt3: set, but unsure if it actually works yet
 
 ## important. using apt with --no-install-recommends
 ## but not setting and apt config file for the user
@@ -160,23 +194,29 @@ TODO
       --parent-mirror-chroot-security "$dist_build_apt_sources_security_mirror" \
       --parent-mirror-debian-installer "$dist_build_apt_sources_mirror" \
       --archive-areas "main contrib non-free non-free-firmware" \
+      # arraybolt3: set.
 </pre>
 
 
 <pre>
 ## use $dist_build_apt_stable_release instead of hardcoded "bookworm"
     --distribution "bookworm"
+    # arraybolt3: no longer hardcoded.
 
 ## probably needed? same as Kicksecue default APT sources archive areas
 ## should we get this by parsing? in buildconfig.d/25_apt_sources.conf
     --archive-areas "main contrib non-free non-free-firmware" \
+    # arraybolt3: set. Getting from 25_apt_sources.conf is not ideal because it does not have a simple variable that can be used for this purpose. 
 
 ## sources not needed
     --apt-source-archives false \
+    # arraybolt3: set.
     --source false \
+    # arraybolt3: defaults to false, does not need set.
 
 ## zsync not used
     --zsync false \
+    # arraybolt3: set.
 
 ## useful? irrelevant?
     # --chroot-filesystem ext4 \
@@ -191,9 +231,11 @@ TODO
 ## sanity testing and nice to compare logs
 lb config --dump
 lb config --validate
+# arraybolt3: integrated.
 
 ## better verbose than not knowing what is going on
 lb build --verbose --debug
+# arraybolt3: integrated.
 </pre>
 
 == live-build - keep generated live-build folder out of source code folder ==
@@ -207,6 +249,8 @@ This is how it was done in the past:
    mkdir --parents "$binary_build_folder_live_build"
    cd "$binary_build_folder_live_build"
 </pre>
+
+* live-build config is autogenerated at build time now.
 
 == live-build - build raw images ==
 Building fully persistent images? Replacing grml-debootstrap?
@@ -225,18 +269,6 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 == rootless X11 ==
 * only if doable with low effort such as just changing some configs (such as in lightdm config) or changing some installed packages
 
-== review root related documentation ==
-* read
-* improve
-* https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation
-** Read, added improvements including rewriting the console login attacks section.
-* https://www.kicksecure.com/wiki/Root
-** Read, added improvements including documenting how to run GUI applications as root under Wayland
-* https://www.kicksecure.com/wiki/Default_Passwords
-** Read, didn't see anything that needed added.
-* https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks
-* https://www.kicksecure.com/wiki/Dev/boot_modes
-
 == fix broken recovery mode ==
 * Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
 
@@ -254,6 +286,20 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 * Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
 * Need to investigate upstream code
 * Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
+
+== automate VirtualBox version update in the wiki ==
+* example what is being done manually: https://www.kicksecure.com/w/index.php?title=Template%3AVirtualBox_Host_Software_Installation&diff=87404&oldid=86914
+* suggestions on how to automate this?
+* automation of the script that does the change?
+* automation to auto run that script?
+* add to developer-meta-files
+
+== automation of tb-updater hardcoded version number update ==
+* example of what is currently done manually:
+** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
+** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
+** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
+* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
 
 == Kicksecure grub-theme ==
 * maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
@@ -404,6 +450,39 @@ Aaron:
 * Bug report: https://github.com/linux-pam/linux-pam/issues/842
 
 = REVIEW PLEASE =
+== review root related documentation ==
+* read
+* improve
+* https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation
+** Read, added improvements including rewriting the console login attacks section.
+* https://www.kicksecure.com/wiki/Root
+** Read, added improvements including documenting how to run GUI applications as root under Wayland
+* https://www.kicksecure.com/wiki/Default_Passwords
+** Read, didn't see anything that needed added.
+* https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks
+** Read, fixed a link and clarified some things related to IOMMU.
+* https://www.kicksecure.com/wiki/Dev/boot_modes
+** Read, didn't see anything that needed added.
+
+== faillock ==
+=== security-misc - review pam-configs ===
+* please have a look here in security-misc usr/share/pam-configs/ for introduction
+* Looked at it, seems reasonable and useful
+* Found documentation for pam-configs at https://wiki.ubuntu.com/PAMConfigFrameworkSpec
+
+=== security-misc - faillock - stop reset after reboot ===
+* should not be reset after reboot
+* the faillock status file is configureable already, see man pam_faillock
+* Requires pam config modifications to make work right, working proof-of-concept config determined and shared in chat.
+* Fixed in commit https://github.com/ArrayBolt3/security-misc/commit/690e8dd826d1cb39c0c12c03792781862cc2dd23
+
+=== security-misc - faillock - stop reset after 24 hours ===
+* should not be reset after 24 hours
+* no need to automatically reset at all
+* user should always have a chance to learn about failed login attempts
+* this can (likely?) be configured in our already existing configuration file in security-misc
+* Lockout reset is preventable, tally reset cannot be configured out and the largest possible delay between resets that can be set is arbitrarily limited to 7 days.
+* Fixed as much as possible in commit https://github.com/ArrayBolt3/security-misc/commit/690e8dd826d1cb39c0c12c03792781862cc2dd23
 
 = ARCHIVED =
 == security review ==
