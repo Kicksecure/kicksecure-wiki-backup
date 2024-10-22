@@ -421,6 +421,122 @@ It is tempting to answer all of these questions with "yes". But there is a catch
 
 Unfortunately, some answered must be answered with "no" for the user to remain secure.
 
+== TPM Encryption Comparison Table ==
+
+{| class="wikitable"
+! '''Security Feature'''
+! '''FDE Password Only'''
+! '''FDE Password + USB Keyfile'''
+! '''FDE USB Keyfile Only'''
+! '''FDE TPM Transparent Encryption'''
+! '''FDE Password + TPM'''
+|-
+
+! Cannot bruteforce weak user passwords?
+| {{No}}, susceptible to bruteforce if the password is weak.
+| {{Yes}}, keyfile adds significant entropy.
+| {{Yes}}, keyfile adds significant entropy.
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Secure if using a strong password?
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+| {{No}}, due to "Warm" Cold Boot Attacks.
+| style="background-color: {{Yellow}}"| In theory, yes, but no such implementations exist in practice.
+
+There are currently no implementations that truly combine a strong user-provided password with the unsealed key from the TPM.
+
+This has significant disadvantages compared to FDE Password + USB Keyfile. <ref>
+Relying solely on TPM with a PIN or password is not the same as deriving a cryptographic key from both the password and the TPM. If the TPM is compromised - through physical tampering - the encryption is broken, even if the password is strong. This creates a single point of failure, allowing attackers to bypass password protections entirely once the TPM is compromised.
+
+Users of FDE Password + USB Keyfile benefit from enhanced security because the complete key is genuinely derived from both the user-provided password and the USB keyfile. This means that both components are required for decryption, adding significant entropy and making it much harder for an attacker to compromise the system. Unlike setups relying solely on TPM, this approach eliminates a single point of failure, requiring an attacker to break both the password and the physical key, which provides more robust protection.
+</ref>
+|-
+
+! No TPM-Specific Risks or Vulnerabilities (Backdoors, Attack Surface, Data Loss)?
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+| {{No}}, TPM introduces potential attack surface, is proprietary (non-freedom software), and is not as time-tested.
+| {{No}} (See left.)
+|-
+
+! Not vulnerable to "Warm" Cold Boot Attacks (as defined above)?
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+| {{No}} (Unless using [[Dev/confidential_computing|confidential computing]], which isn't really available with Freedom Software yet.)
+| {{Yes}} (Due to additional password required at pre-boot authentication.)
+|-
+
+! Not vulnerable to "Normal" Cold Boot Attacks (as defined above)?
+| {{No}}
+| {{No}}
+| {{No}}
+| {{No}}
+| {{No}}
+|-
+
+! Not vulnerable to [https://xkcd.com/538/ 5$ wrench attack]?
+| {{No}}
+| {{No}}
+| {{No}}
+| {{No}}
+| {{No}}
+|-
+
+! Unattended server boot without needing to enter a pre-boot authentication password?
+| {{No}}
+| {{No}}
+| Where would the keyfile be stored?
+| {{Yes}}
+| {{No}}, requires user password for boot.
+|-
+
+! Secure against sniffing of encryption passwords using (hidden) cameras or laser microphones?
+| {{No}}
+| {{Yes}}
+| {{Yes}}
+| Depends:
+
+* Server: Yes, because the user typically logs in over SSH.
+* Desktop: No, because the user must type the login manager password.
+| {{Yes}}
+|-
+
+! Encryption Key Binding to Specific Hardware (TPM)?
+| {{No}}
+| {{No}}
+| {{No}}
+| {{Yes}}, key bound to device's hardware through TPM.
+| {{Yes}} (Same as left.)
+|-
+
+! Protection Against Key File Being Moved to Another Device?
+| {{No}}
+| {{No}}, Keyfile can be copied
+| {{No}}, Keyfile can be copied
+| {{Yes}}, Keyfile tied to hardware. Discrete TPM (on motherboard) or External TPM Security Key both prevent simple copying, but discrete TPM is integrated while the external security key is removable.
+| {{Yes}} (Same as left.)
+|-
+
+! Supports Multi-Factor Authentication (Password + External Device)
+| {{No}} (password only)
+| {{Yes}}, password plus USB key
+| {{No}} (USB key only)
+| {{No}}, then it no longer fulfills the definition of TPM transparent encryption.
+| style="background-color: {{Yellow}}"| In theory, yes.
+
+TPM can be combined with password and potentially other factors for multi-factor authentication - in theory - though support might require manual setup and maybe even development.
+
+At time of writing, no Linux distribution installer is known to support setting up true key derivation that combines both a password and TPM during installation.
+|-
+
+|}
+
 = Advice for Solid-state Drives and USB Storage =
 
 {{mbox

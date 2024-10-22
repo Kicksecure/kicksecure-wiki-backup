@@ -62,8 +62,40 @@ session    required   pam_limits.so
 * port to live-build
 * make use of Debian's dracut branch for live-build
 * add live-build git submodule to derivative-maker (as long all our changes aren't upstramed)
+* Ensure <code>--remote-derivative-packages</code> still works
+* Test building Kicksecure on top of Kicksecure
 * WIP config repo for building Kicksecure with live-build: https://github.com/ArrayBolt3/kicksecure-live-build
 * Fork of live-build used: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+
+== live-build - fork of live-build ==
+* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
+
+== live-build - post-build cleanup code ==
+* todo
+
+== live-build - start using chroot-localrepos ==
+* chroot-localrepos is still set to absolutely nothing
+
+== live-build - boot-time scripts hanlding ==
+* boot-time scripts aren't marked as executable
+* the boot-time scripts are an implementation detail of the live-build config (used to set the default shell to ZSH and change the username from "Debian live user" to "Kicksecure live user")
+* should be done by to /packages/
+
+== live-build - bootappend-live needs to be autodetected ==
+* todo
+
+== live-build - distribution needs to not be hardcoded in any files ==
+* todo
+
+== live-build path may be being set in a non-ideal fashion ==
+* $source_code_folder_dist/live-build for the git sub module (our fork) (pristine source code)
+* $dist_binary_build_folder/live-build should be used for the "config" folder (which will contain binaries after running live-build) (can be safely deleted and re-created using derivative-maker)
+
+== live-build - Retry button in derivative-maker doesn't work ==
+* low priority, move to backlog please
+
+== live-build - source code integration into derivative maker ==
+* assume at in derivative-maker/live-build
 
 == live-build - use derivative-maker variable APT_OPTIONS ==
 * for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
@@ -75,6 +107,17 @@ session    required   pam_limits.so
 * because it contains options and todo
 * (originally from build-steps.d/1350_create-iso-config)
 * not all comments might be needed. some of my comments might be superfluous / obvious.
+
+new (commented):
+
+<pre>
+## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
+   #--bootappend-live PARAMETER|"PARAMETERS"
+   # arraybolt3: Cannot be done via a package as the bootloader config for the ISO is set directly by live-build. Instead, source grub.d scripts from security-misc at build time and use variables from there to set the bootappend value.
+   # Patrick: Not only security-misc is setting grub configuration. Also other packages do or might in the future. Therefore all of /packages/ folder needs parsing.
+</pre>
+
+old:
 
 <pre>
    ## folder derivative-maker/live-build can be re-created using:
@@ -89,9 +132,6 @@ session    required   pam_limits.so
    #--backports true|false
    # arraybolt3: Left unset, seems to work.
 
-## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
-   #--bootappend-live PARAMETER|"PARAMETERS"
-   # arraybolt3: Cannot be done via a package as the bootloader config for the ISO is set directly by live-build. Instead, source grub.d scripts from security-misc at build time and use variables from there to set the bootappend value.
 
 ## Probably not needed.
    #--checksums md5|sha1|sha224|sha256|sha384|sha512|none
@@ -268,9 +308,6 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 
 == rootless X11 ==
 * only if doable with low effort such as just changing some configs (such as in lightdm config) or changing some installed packages
-
-== fix broken recovery mode ==
-* Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
 
 == audio ==
 === audio generally ===
@@ -450,6 +487,11 @@ Aaron:
 * Bug report: https://github.com/linux-pam/linux-pam/issues/842
 
 = REVIEW PLEASE =
+== fix broken recovery mode ==
+* Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
+* Turns out the default kernel in the latest ISO has a broken recovery mode. However, the next kernel update thereafter works without issues. This will therefore resolve itself during regular updates, and the next ISO build should have it fixed.
+
+= ARCHIVED =
 == review root related documentation ==
 * read
 * improve
@@ -484,7 +526,6 @@ Aaron:
 * Lockout reset is preventable, tally reset cannot be configured out and the largest possible delay between resets that can be set is arbitrarily limited to 7 days.
 * Fixed as much as possible in commit https://github.com/ArrayBolt3/security-misc/commit/690e8dd826d1cb39c0c12c03792781862cc2dd23
 
-= ARCHIVED =
 == security review ==
 * as discussed
 * done, notes shared in chat
