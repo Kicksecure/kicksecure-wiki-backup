@@ -52,56 +52,68 @@ session    required   pam_limits.so
 ```
 </pre>
 
-** May be useful, but I don't believe it is necessarily useful right now. Would like to wait for now.
+* May be useful, but I don't believe it is necessarily useful right now. Would like to wait for now.
+** Patrick: Agreed because this bug seems to be a sudo bug instead and was reported against sudo.
+* Ticket can be archived.
 
-== desktop-config-dist rd.live.image ==
-* FYI: this is now fixed in git. no more patch for live-build required.
+== desktop-config-dist - livecheck - rd.live.image ==
+* FYI: this is now fixed in git. no more patch for live-build required. livecheck should now work out of the box (no matter if old or new live-build kernel parameters)
+* FYI only. Ticket can be archived.
+* arraybolt3: I haven't archived this yet since it doesn't seem to actually be working in my ISO builds and I'm not sure why.
 
 == ISO - port to live-build ==
-* check derivative-maker source code git history: previously there was a port to live-build. Useful to resurrect it?
+* check derivative-maker source code git history: previously there was a port to live-build. Useful to resurrect it? [DONE]
 * port to live-build
-* make use of Debian's dracut branch for live-build
-* add live-build git submodule to derivative-maker (as long all our changes aren't upstramed)
+* make use of Debian's dracut branch for live-build [DONE]
+* add live-build git submodule to derivative-maker (as long all our changes aren't upstreamed)
 * Ensure <code>--remote-derivative-packages</code> still works
-* Test building Kicksecure on top of Kicksecure
-* WIP config repo for building Kicksecure with live-build: https://github.com/ArrayBolt3/kicksecure-live-build
-* Fork of live-build used: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+** Supporting code written, TODO test this
+* Test building Kicksecure on top of Kicksecure [DONE]
+* live-config-dist fork needed for installer to work with live-build ISO (WIP): https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/live-build
+** TODO don't duplicate config data in sources-final here
+* live-build fork: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+** All changes submitted upstream, TODO work with upstream to get these polished and merged
+* derivative-maker fork with live-build support (WIP): https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
+** Must invoke with <code>--target iso-lb</code> to build with live-build, TODO must merge into normal ISO target
 
-== live-build - fork of live-build ==
-* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
-
-== live-build - post-build cleanup code ==
-* todo
-
-== live-build - start using chroot-localrepos ==
-* chroot-localrepos is still set to absolutely nothing
-
-== live-build - boot-time scripts hanlding ==
+== live-build - boot-time scripts handling ==
 * boot-time scripts aren't marked as executable
 * the boot-time scripts are an implementation detail of the live-build config (used to set the default shell to ZSH and change the username from "Debian live user" to "Kicksecure live user")
 * should be done by to /packages/
+** arraybolt3: This cannot be done by /packages/ because these scripts are installed by live-build and are not vendored as a package. This is the recommended way of doing things in live-build, see https://live-team.pages.debian.net/live-manual/html/live-manual/customizing-contents.en.html#customizing-contents section "9.2.3 Boot-time hooks"
+** Patrick:
+*** Where is the source code for these scripts?
+**** arraybolt3: Integrated in <code>derivative-maker/build-steps.d/2800_create-lb-iso</code>.
+*** Can we avoid using some of these scripts? Is this a missing live-build feature? If it is what I vaguely remember before, these could be disabled with a symlink to /dev/null inside the configuration folder.
+**** arraybolt3: The scripts are custom-written for the ISO, and have two purposes - one of them renames "Debian live user" to "Kicksecure live user", the other one changes the default shell in the ISO live environment from bash to zsh.
+*** Switching default shell from bash to zsh is already implemented in dist-base-files debian/dist-base-files.postinst. It also supports configuration, simplifies customized builds / forks. Doing this in dist-base-files as well as on the live-build level, adds extra complexity, which should be avoided.
+**** arraybolt3: Doing this in a package requires shipping files under <code>/lib/live/config</code>. This is because the live session user on the ISO is actually created ''at ISO boot time'', not at build time. As a result the user's default shell and most of the user configuration is controlled by live-build boot-time hooks, which are located in <code>/lib/live/config</code>. Technically this is doable, but it diverges from the documented method described in live-build's manual.
 
-== live-build - bootappend-live needs to be autodetected ==
-* todo
+== live-build - avoid scripting at calamares level - avoid /etc/calamares/modules/shellprocess_useradd.conf ==
+* Can this be done at /packages/ level instead please?
+** Very difficult. live-build ISOs generate the user account on the ISO at boot time, meaning that after an initial Calamares installation, the installed system has no usable user account. Creating one requires either using the Calamares <code>users</code> module (which as previously discussed is undesirable) or requires a hook similar to what is implemented with <code>shellprocess_useradd.conf.</code>
+* Already implemented in dist-base-files debian/dist-base-files.postinst
+** This should not be implemented here. This method of implementation is fundamentally incompatible with live-build, and the only reason it hasn't caused issues is because the logic disables itself when not running under Qubes or derivative-maker, and when live-build is running it obscures the use of derivative-maker from the package.
+* Better to keep it there due to planned changes. (User "user" will no longer be a member of group "sudo" and a new user "admin" will be introduced.) Otherwise having two places to maintain this would complicate things.
+** Can it be moved to live-config-dist and maintained there going forward?
 
-== live-build - distribution needs to not be hardcoded in any files ==
-* todo
+== live-build - avoid live-build specific boot splash ==
+* https://github.com/ArrayBolt3/derivative-maker/blob/arraybolt3/live-build/live-build-data/splash.svg
+* Avoidable? Can be done in /packages/ instead please?
+** Difficult to avoid, the splash screen is dynamically modified by live-build at build time, and is sourced from live-build's configuration directory at build time (live-build does not use packages installed under the chroot to find this). The entirety of the bootloader configuration is done without use of packages installed in the built system as I understand it.
+* there are later tasks for GRUB boot menu styling
+** This has to be dealt with now because otherwise we risk causing confusion to end-users. The default GRUB splash on live-build ISOs uses a strange construction hat logo, and states that the ISO is specifically Debian. Not changing this screen could even be legally problematic as the name "Debian" is a trademark. (https://www.debian.org/trademark) This GRUB screen is also specific to live-build and should not be used for installed systems. Debian uses separate GRUB screens for installed systems and live-build ISOs.
+* live-config-dist uses to add "Live ISO" to grub boot menu in https://github.com/Kicksecure/live-config-dist/blob/master/etc/default/grub.d/40_live-config-dist.cfg - possible to do the same with live-build?
+** This file should probably be deleted once live-build becomes the default ISO build mechanism. Similar to <code>dist-base-files.postinst</code>, this is a way of doing things that fundamentally doesn't work with live-build.
+* Figure out what unicode is in the splash screen SVG and remove it if at all possible
 
-== live-build path may be being set in a non-ideal fashion ==
+== live-build - path may be being set in a non-ideal fashion ==
 * $source_code_folder_dist/live-build for the git sub module (our fork) (pristine source code)
 * $dist_binary_build_folder/live-build should be used for the "config" folder (which will contain binaries after running live-build) (can be safely deleted and re-created using derivative-maker)
-
-== live-build - Retry button in derivative-maker doesn't work ==
-* low priority, move to backlog please
+** arraybolt3: currently using <code>$dist_binary_build_folder/kicksecure-live-build</code> for this, change to use <code>live-build</code> name instead
 
 == live-build - source code integration into derivative maker ==
 * assume at in derivative-maker/live-build
-
-== live-build - use derivative-maker variable APT_OPTIONS ==
-* for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
-* set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
-* these include <code>--error-on=any</code> and more
-* Added.
 
 == live-build - investigate options ==
 * because it contains options and todo
@@ -115,6 +127,7 @@ new (commented):
    #--bootappend-live PARAMETER|"PARAMETERS"
    # arraybolt3: Cannot be done via a package as the bootloader config for the ISO is set directly by live-build. Instead, source grub.d scripts from security-misc at build time and use variables from there to set the bootappend value.
    # Patrick: Not only security-misc is setting grub configuration. Also other packages do or might in the future. Therefore all of /packages/ folder needs parsing.
+   # arraybolt3: TODO need to fix this
 </pre>
 
 old:
@@ -150,7 +163,8 @@ old:
    # --architecture "$dist_build_target_arch"
    # arraybolt3: Note that for cross builds to work, this must be paired with "--bootstrap-qemu-arch" if building for a foreign architecture like arm64. Needs testing.
 
-   ## --distribution "$dist_build_apt_stable_release"
+   # --distribution "$dist_build_apt_stable_release"
+   # arraybolt3: set.
 
 ## TODO: should we keep as is (Debian default) for better compatibility or set to
 ##       $SHORT_VMNAME / $VMNAME (already defined in help-steps/variables) to avoid conflicts with Debian (dual-boot)?
@@ -278,20 +292,6 @@ lb build --verbose --debug
 # arraybolt3: integrated.
 </pre>
 
-== live-build - keep generated live-build folder out of source code folder ==
-* treat "lb config" as pristine/source code
-* place live-build folder in ~/derivative_binary folder (use already existing variable <code>binary_build_folder_dist</code>)
-* reason: live-build mixes config and binaries inside the same folder
-
-This is how it was done in the past:
-
-<pre>
-   mkdir --parents "$binary_build_folder_live_build"
-   cd "$binary_build_folder_live_build"
-</pre>
-
-* live-build config is autogenerated at build time now.
-
 == live-build - build raw images ==
 Building fully persistent images? Replacing grml-debootstrap?
 
@@ -305,9 +305,6 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 == live-check - run once only ==
 * to avoid log spam (passwordless root)
 * create a done file in folder <code>/run/user/$USER</code> so the livecheck script does not run sudo over and over again
-
-== rootless X11 ==
-* only if doable with low effort such as just changing some configs (such as in lightdm config) or changing some installed packages
 
 == audio ==
 === audio generally ===
@@ -326,7 +323,7 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 
 == automate VirtualBox version update in the wiki ==
 * example what is being done manually: https://www.kicksecure.com/w/index.php?title=Template%3AVirtualBox_Host_Software_Installation&diff=87404&oldid=86914
-* suggestions on how to automate this?
+* suggestions on how to automate this? using mediawiki-shell
 * automation of the script that does the change?
 * automation to auto run that script?
 * add to developer-meta-files
@@ -337,6 +334,11 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 ** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
 ** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
 * post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
+
+== calamares - change to BTRFS by default - including subvolumes ==
+* change to BTRFS by default
+* make use of subvolumes
+* https://forums.kicksecure.com/t/use-btrfs-as-the-default-journaling-file-system/626
 
 == Kicksecure grub-theme ==
 * maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
@@ -381,7 +383,7 @@ https://forums.kicksecure.com/t/meta-packages-kicksecure-desktop-versus-kicksecu
 
 == Tor 0.4.8.9 broken in combination with vanguards ==
 * https://gitlab.torproject.org/tpo/core/tor/-/issues/40892
-* write a script to use git bisect to auto test which commit introduced this issue
+* write a script to use git bisect to auto test which commit introduced this issue maybe based on https://forums.whonix.org/t/vanguards-additional-protections-for-tor-onion-services/8064/64
 * if not done by upstream yet
 * if doable with reasonable effort
 
@@ -487,6 +489,30 @@ Aaron:
 * Bug report: https://github.com/linux-pam/linux-pam/issues/842
 
 = REVIEW PLEASE =
+== live-build - fork of live-build ==
+* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
+* Fork publicized at https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
+
+== live-build - use derivative-maker variable APT_OPTIONS ==
+* for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
+* set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
+* these include <code>--error-on=any</code> and more
+* Added.
+
+== live-build - keep generated live-build folder out of source code folder ==
+* treat "lb config" as pristine/source code
+* place live-build folder in ~/derivative_binary folder (use already existing variable <code>binary_build_folder_dist</code>)
+* reason: live-build mixes config and binaries inside the same folder
+
+This is how it was done in the past:
+
+<pre>
+   mkdir --parents "$binary_build_folder_live_build"
+   cd "$binary_build_folder_live_build"
+</pre>
+
+* live-build config is autogenerated at build time now.
+
 == fix broken recovery mode ==
 * Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
 * Turns out the default kernel in the latest ISO has a broken recovery mode. However, the next kernel update thereafter works without issues. This will therefore resolve itself during regular updates, and the next ISO build should have it fixed.
@@ -1082,6 +1108,10 @@ Might verbose log reveal the typing fingerprint of the user?
 * All relevant issues should be solved by https://github.com/Whonix/kloak/pull/1
 
 = backlog - one day =
+== rootless X11 ==
+* only if doable with low effort such as just changing some configs (such as in lightdm config) or changing some installed packages
+* Would require switching away from LightDM or enabling rootless X11 support in LightDM, thus moving to backlog.
+
 == power9 RAM encryption research ==
 * todo
 
@@ -1093,6 +1123,9 @@ Might verbose log reveal the typing fingerprint of the user?
 
 == dracut add support for undeclared CDLABEL ==
 as discussed
+
+== live-build - Retry button in derivative-maker doesn't work ==
+* low priority, move to backlog please
 
 = Footnotes =
 <references />
