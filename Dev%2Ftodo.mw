@@ -10,56 +10,11 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== pam_faillock ticket ==
-* What runs <code>/etc/pam.d/sudo</code> versus <code>/etc/pam.d/sudo-i</code>? No other file in <code>/etc/pam.d</code> references such a file.
-** sudo's source code allows sudo to identify itself to PAM as either <code>sudo</code> or <code>sudo-i</code> depending on how sudo is being used. See https://github.com/sudo-project/sudo/blob/17aa7688c955e58adffdfb0300d485a2b859b128/plugins/sudoers/auth/pam.c#L220. Theoretically it might be possible to patch this location in sudo to make it identify itself to PAM in a special manner when running a NOPASSWD command.
-** Bug report filed against sudo: https://github.com/sudo-project/sudo/issues/415
-* Useful to add? https://github.com/linux-pam/linux-pam/issues/842
-
-<pre>
-`/etc/pam.d/sudo`
-
-```
-#%PAM-1.0
-
-# Set up user limits from /etc/security/limits.conf.
-session    required   pam_limits.so
-
-@include common-auth
-@include common-account
-@include common-session-noninteractive
-```
-
-`/etc/pam.d/sudo-i`
-
-```
-#%PAM-1.0
-
-# Set up user limits from /etc/security/limits.conf.
-session    required   pam_limits.so
-
-@include common-auth
-@include common-account
-@include common-session
-```
-
-----
-
-`/etc/sudoers.d/upgrade-passwordless`
-
-```
-%sudo ALL=NOPASSWD: /usr/bin/apt-get-update-plus dist-upgrade
-```
-</pre>
-
-* May be useful, but I don't believe it is necessarily useful right now. Would like to wait for now.
-** Patrick: Agreed because this bug seems to be a sudo bug instead and was reported against sudo.
-* Ticket can be archived.
-
 == desktop-config-dist - livecheck - rd.live.image ==
 * FYI: this is now fixed in git. no more patch for live-build required. livecheck should now work out of the box (no matter if old or new live-build kernel parameters)
 * FYI only. Ticket can be archived.
 * arraybolt3: I haven't archived this yet since it doesn't seem to actually be working in my ISO builds and I'm not sure why.
+* Patrick: Fixed yet again.w
 
 == ISO - port to live-build ==
 * check derivative-maker source code git history: previously there was a port to live-build. Useful to resurrect it? [DONE]
@@ -70,37 +25,40 @@ session    required   pam_limits.so
 ** Supporting code written, TODO test this
 * Test building Kicksecure on top of Kicksecure [DONE]
 * live-config-dist fork needed for installer to work with live-build ISO (WIP): https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/live-build
-** TODO don't duplicate config data in sources-final here
+* dist-base-files fork needed for proper user account generation (WIP): https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/live-build
+* anon-apt-sources-list fork needed to avoid a naming conflict with live-build: https://github.com/ArrayBolt3/anon-apt-sources-list/tree/arraybolt3/live-build
 * live-build fork: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
 ** All changes submitted upstream, TODO work with upstream to get these polished and merged
 * derivative-maker fork with live-build support (WIP): https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
-** Must invoke with <code>--target iso-lb</code> to build with live-build, TODO must merge into normal ISO target
+** TODO test VM builds, remote repository builds, etc
+* Notes from ISO package and file audit:
 
-== livecheck - FYI - rd.live.image kernel parameter detection broken==
-* fixed in git
-* FYI only
-* please archive this ticket
-
-== live-build - boot-time scripts handling ==
-* boot-time scripts aren't marked as executable
-* the boot-time scripts are an implementation detail of the live-build config (used to set the default shell to ZSH and change the username from "Debian live user" to "Kicksecure live user")
-* should be done by to /packages/
-** arraybolt3: This cannot be done by /packages/ because these scripts are installed by live-build and are not vendored as a package. This is the recommended way of doing things in live-build, see https://live-team.pages.debian.net/live-manual/html/live-manual/customizing-contents.en.html#customizing-contents section "9.2.3 Boot-time hooks"
-** Patrick:
-*** Where is the source code for these scripts?
-**** arraybolt3: Integrated in <code>derivative-maker/build-steps.d/2800_create-lb-iso</code>.
-*** Can we avoid using some of these scripts? Is this a missing live-build feature? If it is what I vaguely remember before, these could be disabled with a symlink to /dev/null inside the configuration folder.
-**** arraybolt3: The scripts are custom-written for the ISO, and have two purposes - one of them renames "Debian live user" to "Kicksecure live user", the other one changes the default shell in the ISO live environment from bash to zsh.
-*** Switching default shell from bash to zsh is already implemented in dist-base-files debian/dist-base-files.postinst. It also supports configuration, simplifies customized builds / forks. Doing this in dist-base-files as well as on the live-build level, adds extra complexity, which should be avoided.
-**** arraybolt3: Doing this in a package requires shipping files under <code>/lib/live/config</code>. This is because the live session user on the ISO is actually created ''at ISO boot time'', not at build time. As a result the user's default shell and most of the user configuration is controlled by live-build boot-time hooks, which are located in <code>/lib/live/config</code>. Technically this is doable, but it diverges from the documented method described in live-build's manual.
-
-== live-build - avoid scripting at calamares level - avoid /etc/calamares/modules/shellprocess_useradd.conf ==
-* Can this be done at /packages/ level instead please?
-** Very difficult. live-build ISOs generate the user account on the ISO at boot time, meaning that after an initial Calamares installation, the installed system has no usable user account. Creating one requires either using the Calamares <code>users</code> module (which as previously discussed is undesirable) or requires a hook similar to what is implemented with <code>shellprocess_useradd.conf.</code>
-* Already implemented in dist-base-files debian/dist-base-files.postinst
-** This should not be implemented here. This method of implementation is fundamentally incompatible with live-build, and the only reason it hasn't caused issues is because the logic disables itself when not running under Qubes or derivative-maker, and when live-build is running it obscures the use of derivative-maker from the package.
-* Better to keep it there due to planned changes. (User "user" will no longer be a member of group "sudo" and a new user "admin" will be introduced.) Otherwise having two places to maintain this would complicate things.
-** Can it be moved to live-config-dist and maintained there going forward?
+<pre>
+Check EFI bootloader, make sure weirdness isn't too bad there
+what is /etc/apt/apt.conf.d/00recommends doing on new ISO?
+Calamares should be uninstalling itself fully, did live-config-dist get left
+  behind on new ISO?
+check /etc/dracut.conf.d/50-reproducible.conf in new iso
+bits of initramfs-tools are being left behind on new ISO beyond what is normal
+check /etc/kernel-img.conf from old ISO
+check /etc/udev/rules.d/70-persistent-cd.rules on new ISO
+/root/localrepos should NOT be left around on the new ISO!!!
+Why is /usr/bin/grub-ntldr-img missing on new ISO?
+Check /usr/bin/grub-ntldr-img on new ISO
+Why is signed grub EFI not installed on new ISO? test secure boot support
+Why is shim not installed on the new ISO? test secure boot support
+/usr/sbin/grub-bios-setup is missing on new ISO, probably it's part of grub-pc
+/usr/sbin/update-secureboot-policy is missing on new ISO, part of shim or
+  signed grub?
+/usr/sbin/upgrade-from-grub-legacy is missing on new ISO, probably part of
+  grub-pc
+grub-live is missing on new ISO, should it even be there?
+/var/lib/anon-dist looks incomplete on new ISO
+/var/lib/canary looks incomplete on new ISO
+eatmydata is missing from new ISO
+/var/lib/security-misc/skip_install_check should not be present on installed
+  system!
+</pre>
 
 == live-build - avoid live-build specific boot splash ==
 * https://github.com/ArrayBolt3/derivative-maker/blob/arraybolt3/live-build/live-build-data/splash.svg
@@ -109,37 +67,222 @@ session    required   pam_limits.so
 * there are later tasks for GRUB boot menu styling
 ** This has to be dealt with now because otherwise we risk causing confusion to end-users. The default GRUB splash on live-build ISOs uses a strange construction hat logo, and states that the ISO is specifically Debian. Not changing this screen could even be legally problematic as the name "Debian" is a trademark. (https://www.debian.org/trademark) This GRUB screen is also specific to live-build and should not be used for installed systems. Debian uses separate GRUB screens for installed systems and live-build ISOs.
 * live-config-dist uses to add "Live ISO" to grub boot menu in https://github.com/Kicksecure/live-config-dist/blob/master/etc/default/grub.d/40_live-config-dist.cfg - possible to do the same with live-build?
-** This file should probably be deleted once live-build becomes the default ISO build mechanism. Similar to <code>dist-base-files.postinst</code>, this is a way of doing things that fundamentally doesn't work with live-build.
+** This file should probably be deleted once live-build becomes the default ISO build mechanism.
 * Figure out what unicode is in the splash screen SVG and remove it if at all possible
-
-== live-build - path may be being set in a non-ideal fashion ==
-* $source_code_folder_dist/live-build for the git sub module (our fork) (pristine source code)
-* $dist_binary_build_folder/live-build should be used for the "config" folder (which will contain binaries after running live-build) (can be safely deleted and re-created using derivative-maker)
-** arraybolt3: currently using <code>$dist_binary_build_folder/kicksecure-live-build</code> for this, change to use <code>live-build</code> name instead
 
 == live-build - source code integration into derivative maker ==
 * assume at in derivative-maker/live-build
+
+== live-build - build raw images ==
+Building fully persistent images? Replacing grml-debootstrap?
+
+<pre>
+--system normal
+--binary-image hdd
+</pre>
+
+Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
+
+== live-check - run once only ==
+* to avoid log spam (passwordless root)
+* create a done file in folder <code>/run/user/$USER</code> so the livecheck script does not run sudo over and over again
+
+== audio ==
+=== audio generally ===
+* https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/40
+* please read, comment if something useful to share
+
+=== VirtualBox Intel HD Audio and PipeWire Incompatibility / Audio broken after increasing ram to 5 GB / No sound after latest updates - PipeWire Bug? ===
+* https://forums.whonix.org/t/virtualbox-intel-hd-audio-and-pipewire-incompatibility-audio-broken-after-increasing-ram-to-5-gb-no-sound-after-latest-updates-pipewire-bug/18211
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1081965
+* please investigate if doable with reasonable effort
+* Tried switching between Pulseaudio and Pipewire on a booted VM, discovered I could "initialize" the speakers with Pulseaudio and then Pipewire would work thereafter
+* Virtually certain this is an upstream bug, was able to reproduce with both Ubuntu 24.04 and Arch Linux.
+* Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
+* Need to investigate upstream code
+* Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
+
+== automation of tb-updater hardcoded version number update ==
+* example of what is currently done manually:
+** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
+** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
+** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
+* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
+* On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
+
+== Kicksecure grub-theme ==
+* maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
+* add to https://github.com/Kicksecure/kicksecure-base-files
+
+== Whonix grub-theme ==
+* similar to above
+* add to https://github.com/Whonix/whonix-base-files
+* possible make a slightly different theme for [[Whonix-Host]], [[Whonix-Gateway]] and [[Whonix-Workstation]]?
+** https://github.com/Whonix/anon-gw-base-files
+** https://github.com/Whonix/anon-ws-base-files
+
+== review and refactor meta packages ==
+
+* https://github.com/Kicksecure/kicksecure-meta-packages
+* https://github.com/Whonix/whonix-meta-packages
+* please review, discuss
+* purpose of this task is to address and (maybe required) refactoring, bug fixes in preparation for the future, maintainability, next task below
+
+== Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
+* https://github.com/Kicksecure/security-misc/issues/187
+* This is in preparation for the next task.
+
+== Kicksecure Firewall ==
+https://forums.kicksecure.com/t/kicksecure-firewall/378/10
+
+== Meta Packages, Kicksecure, Whonix - Desktop versus Server ==
+https://forums.kicksecure.com/t/meta-packages-kicksecure-desktop-versus-kicksecure-server/415
+
+== Secure Mount Options for better Security Hardening ==
+* review discussions, wiki
+* comment
+* improve the solutions research
+* https://www.kicksecure.com/wiki/Dev/remount-secure
+* https://www.kicksecure.com/wiki/Noexec
+* https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707
+
+== wipe video RAM ==
+* add wipe video RAM support to [[ram-wipe]]
+* maybe based on https://wiki.archlinux.org/title/Swap_on_video_RAM
+* if doable with reasonable effort
+
+== Tor 0.4.8.9 broken in combination with vanguards ==
+* https://gitlab.torproject.org/tpo/core/tor/-/issues/40892
+* write a script to use git bisect to auto test which commit introduced this issue maybe based on https://forums.whonix.org/t/vanguards-additional-protections-for-tor-onion-services/8064/64
+* if not done by upstream yet
+* if doable with reasonable effort
+
+== Implement live mode with 90overlayfs ==
+* context: [[grub-live]]
+* https://github.com/Kicksecure/grub-live
+* https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/11_linux_live
+* stop using 90overlay-root
+* port grub-live to 90overlayfs
+* This does not work in Bookworm, but does work in Trixie.
+* Once Trixie is released and we're upgrading Kicksecure to it, switch modules. See https://github.com/dracutdevs/dracut/issues/1565#issuecomment-2378133277
+
+== VirtualBox serial console ==
+* {{CodeSelect|inline=true|code=
+sudo apt install serial-console-enable
+}}
+* [[Recovery#Serial_Console|Serial Console]]
+* causes bug (spam of journal)
+* https://forums.whonix.org/t/serial-console-in-virtualbox/8021/13
+* fixable? upstream bug report?
+
+== KVM related ==
+=== KVM - 3D Graphics Acceleration - SPICE - Testing - drm ===
+	
+* please test: https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
+* please mention your configuration (still using SPICE), quote Patrick and report here: https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
+* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
+* test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
+
+=== KVM - 3D Graphics Acceleration - Performance Test - Display SDL ===
+	
+* https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
+* test SDL
+* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
+* test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
+	
+=== KVM - 3D Graphics Acceleration - Performance Test - Display GDK ===
+	
+* https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
+* test GTK
+* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
+* test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
+
+== apparmor.d review ==
+* https://github.com/roddhjav/apparmor.d
+* https://forums.whonix.org/t/apparmor-d-full-set-of-apparmor-profiles-1500-profiles/17389
+** review
+* https://github.com/roddhjav/apparmor.d/issues?q=is%3Aissue+author%3Aadrelanos
+** check ticket status
+* lightweight security review
+** conceivable or too much effort?
+
+= WAITING ON =
+== kloak - add Qubes support ==
+* review to understand the history:
+** https://github.com/QubesOS/qubes-issues/issues/1850
+* [https://github.com/QubesOS/qubes-issues/issues/8534 enable qvm-service gui-agent-virtual-input-device for Whonix-Workstation App Qubes by default]
+** https://github.com/QubesOS/qubes-gui-agent-linux/pull/194
+** https://github.com/QubesOS/qubes-app-linux-input-proxy/pull/30
+* notify https://github.com/vmonaco/kloak/issues/74
+
+Aaron:
+
+* Final implementation needs orchestration, asked for advice from Qubes OS devs at https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
+* May also implement as part of GUI daemon, see https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
+
+== kloak - Qubes support - consider using Qubes API for orchestration ==
+* https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
+* Waiting on response from Qubes OS devs
+
+== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
+* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
+* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
+* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
+* Prototype implemented and mostly working, draft PR at https://github.com/QubesOS/qubes-gui-daemon/pull/149
+* Waiting on response from Qubes OS devs
+* Got response and review, currently working out final implementation and doing testing
+
+== live-build - local repository support ==
+* add support to build from local repository
+* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+
+== live-build - add mmdebstrap support ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031932
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031929
+* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/370
+
+== live-build - use APT with error-on-any ==
+* use option <code>apt --error-on=any</code> for all invocations of apt-get (update)
+* only needed for apt-get update, otherwise superfluous but non-issue
+* this is a security feature
+* this is to prevent inconsistent images that succeeded connecting to the "normal" repository but failed to connect to the security repository
+* can be implemented using already existing live-build option <code>--apt-options OPTION|"OPTIONS"</code>?
+* Requires a patch to live-build. Using <code>--apt-options</code> results in a build failure with <code>E: Command line option --error-on=any is not understood in combination with the other options</code>
+* Patch written, submitted upstream as https://salsa.debian.org/live-team/live-build/-/merge_requests/371. New configuration option now used in my branch of live-build.
+
+== security-misc - investigate PAM ==
+* there is /etc/pam.d/sudo-i for interactive and /etc/pam.d/sudo
+* pam has concepts of common-session-noninteractive vs common-session (non-interactive)
+* how could we on the PAM level notice if faillock is used interactively or non-interactively?
+* if non-interactive, skip faillock
+* if interactive, do not skip faillock
+* Bug report: https://github.com/linux-pam/linux-pam/issues/842
+
+= REVIEW PLEASE =
+== calamares - change to BTRFS by default - including subvolumes ==
+* change to BTRFS by default
+* make use of subvolumes
+* https://forums.kicksecure.com/t/use-btrfs-as-the-default-journaling-file-system/626
+* Added <code>btrfs-progs</code> to <code>kicksecure-recommended-cli</code>: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/btrfs-support (necessary to avoid installation failures)
+* Added BTRFS support to <code>live-config-dist</code>: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/btrfs-support
+* Note that Calamares installs BTRFS with subvolumes on the root filesystem by default, so no special work was needed to make that happen.
 
 == live-build - investigate options ==
 * because it contains options and todo
 * (originally from build-steps.d/1350_create-iso-config)
 * not all comments might be needed. some of my comments might be superfluous / obvious.
 
-new (commented):
-
-<pre>
-## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
-   #--bootappend-live PARAMETER|"PARAMETERS"
-   # arraybolt3: Cannot be done via a package as the bootloader config for the ISO is set directly by live-build. Instead, source grub.d scripts from security-misc at build time and use variables from there to set the bootappend value.
-   # Patrick: Not only security-misc is setting grub configuration. Also other packages do or might in the future. Therefore all of /packages/ folder needs parsing.
-   # arraybolt3: TODO need to fix this
-</pre>
-
 old:
 
 <pre>
    ## folder derivative-maker/live-build can be re-created using:
    ## 2. help-steps/live-config
+   
+   ## Should not be done at live-build level if avoidable? Better done in package live-config-dist as /etc/default/grub.d drop-in
+   #--bootappend-live PARAMETER|"PARAMETERS"
+   # arraybolt3: Cannot be done via a package as the bootloader config for the ISO is set directly by live-build. Instead, source grub.d scripts from security-misc at build time and use variables from there to set the bootappend value.
+   # Patrick: Not only security-misc is setting grub configuration. Also other packages do or might in the future. Therefore all of /packages/ folder needs parsing.
+   # arraybolt3: We now use grub-mkconfig and config file parsing to automatically detect the proper GRUB kernel parameters.
 
    ## TODO: cleaner to not have these? better for reproducible builds?
    #--apt-indices false
@@ -297,34 +440,41 @@ lb build --verbose --debug
 # arraybolt3: integrated.
 </pre>
 
-== live-build - build raw images ==
-Building fully persistent images? Replacing grml-debootstrap?
+* Reviewed and integrated.
 
-<pre>
---system normal
---binary-image hdd
-</pre>
+== live-build - path may be being set in a non-ideal fashion ==
+* $source_code_folder_dist/live-build for the git sub module (our fork) (pristine source code)
+* $dist_binary_build_folder/live-build should be used for the "config" folder (which will contain binaries after running live-build) (can be safely deleted and re-created using derivative-maker)
+** arraybolt3: currently using <code>$dist_binary_build_folder/kicksecure-live-build</code> for this, change to use <code>live-build</code> name instead
+** Done.
 
-Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
+== live-build - boot-time scripts handling ==
+* boot-time scripts aren't marked as executable
+* the boot-time scripts are an implementation detail of the live-build config (used to set the default shell to ZSH and change the username from "Debian live user" to "Kicksecure live user")
+* should be done by to /packages/
+** arraybolt3: This cannot be done by /packages/ because these scripts are installed by live-build and are not vendored as a package. This is the recommended way of doing things in live-build, see https://live-team.pages.debian.net/live-manual/html/live-manual/customizing-contents.en.html#customizing-contents section "9.2.3 Boot-time hooks"
+** Patrick:
+*** Where is the source code for these scripts?
+**** arraybolt3: Integrated in <code>derivative-maker/build-steps.d/2800_create-lb-iso</code>.
+*** Can we avoid using some of these scripts? Is this a missing live-build feature? If it is what I vaguely remember before, these could be disabled with a symlink to /dev/null inside the configuration folder.
+**** arraybolt3: The scripts are custom-written for the ISO, and have two purposes - one of them renames "Debian live user" to "Kicksecure live user", the other one changes the default shell in the ISO live environment from bash to zsh.
+*** Switching default shell from bash to zsh is already implemented in dist-base-files debian/dist-base-files.postinst. It also supports configuration, simplifies customized builds / forks. Doing this in dist-base-files as well as on the live-build level, adds extra complexity, which should be avoided.
+**** arraybolt3: Doing this in a package requires shipping files under <code>/lib/live/config</code>. This is because the live session user on the ISO is actually created ''at ISO boot time'', not at build time. As a result the user's default shell and most of the user configuration is controlled by live-build boot-time hooks, which are located in <code>/lib/live/config</code>. Technically this is doable, but it diverges from the documented method described in live-build's manual.
+* All extra boot-time scripts have been made obsolete and are thus removed.
 
-== live-check - run once only ==
-* to avoid log spam (passwordless root)
-* create a done file in folder <code>/run/user/$USER</code> so the livecheck script does not run sudo over and over again
+== live-build - avoid scripting at calamares level - avoid /etc/calamares/modules/shellprocess_useradd.conf ==
+* Can this be done at /packages/ level instead please?
+** Very difficult. live-build ISOs generate the user account on the ISO at boot time, meaning that after an initial Calamares installation, the installed system has no usable user account. Creating one requires either using the Calamares <code>users</code> module (which as previously discussed is undesirable) or requires a hook similar to what is implemented with <code>shellprocess_useradd.conf.</code>
+* Already implemented in dist-base-files debian/dist-base-files.postinst
+** This should not be implemented here. This method of implementation is fundamentally incompatible with live-build, and the only reason it hasn't caused issues is because the logic disables itself when not running under Qubes or derivative-maker, and when live-build is running it obscures the use of derivative-maker from the package.
+* Better to keep it there due to planned changes. (User "user" will no longer be a member of group "sudo" and a new user "admin" will be introduced.) Otherwise having two places to maintain this would complicate things.
+** Can it be moved to live-config-dist and maintained there going forward?
+* shellprocess_useradd.conf removed, user creation managed by dist-base-files as before.
 
-== audio ==
-=== audio generally ===
-* https://forums.whonix.org/t/port-from-pulseaudio-to-pipewire-for-audio-support/16879/40
-* please read, comment if something useful to share
-
-=== VirtualBox Intel HD Audio and PipeWire Incompatibility / Audio broken after increasing ram to 5 GB / No sound after latest updates - PipeWire Bug? ===
-* https://forums.whonix.org/t/virtualbox-intel-hd-audio-and-pipewire-incompatibility-audio-broken-after-increasing-ram-to-5-gb-no-sound-after-latest-updates-pipewire-bug/18211
-* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1081965
-* please investigate if doable with reasonable effort
-* Tried switching between Pulseaudio and Pipewire on a booted VM, discovered I could "initialize" the speakers with Pulseaudio and then Pipewire would work thereafter
-* Virtually certain this is an upstream bug, was able to reproduce with both Ubuntu 24.04 and Arch Linux.
-* Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
-* Need to investigate upstream code
-* Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
+== live-build - fork of live-build ==
+* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
+* Fork publicized at https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+* Synced with upstream as of 2024-10-25, includes the merge of Dracut support to master.
 
 == automate VirtualBox version update in the wiki ==
 * example what is being done manually: https://www.kicksecure.com/w/index.php?title=Template%3AVirtualBox_Host_Software_Installation&diff=87404&oldid=86914
@@ -333,178 +483,80 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 * automation to auto run that script?
 * add to developer-meta-files
 * Prototype code: https://github.com/ArrayBolt3/auto-version-update
-
-== automation of tb-updater hardcoded version number update ==
-* example of what is currently done manually:
-** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
-** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
-** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
-* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
-* On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
-
-== calamares - change to BTRFS by default - including subvolumes ==
-* change to BTRFS by default
-* make use of subvolumes
-* https://forums.kicksecure.com/t/use-btrfs-as-the-default-journaling-file-system/626
-
-== Kicksecure grub-theme ==
-* maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
-* add to https://github.com/Kicksecure/kicksecure-base-files
-
-== Whonix grub-theme ==
-* similar to above
-* add to https://github.com/Whonix/whonix-base-files
-* possible make a slightly different theme for [[Whonix-Host]], [[Whonix-Gateway]] and [[Whonix-Workstation]]?
-** https://github.com/Whonix/anon-gw-base-files
-** https://github.com/Whonix/anon-ws-base-files
-
-== review and refactor meta packages ==
-
-* https://github.com/Kicksecure/kicksecure-meta-packages
-* https://github.com/Whonix/whonix-meta-packages
-* please review, discuss
-* purpose of this task is to address and (maybe required) refactoring, bug fixes in preparation for the future, maintainability, next task below
-
-== Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
-* https://github.com/Kicksecure/security-misc/issues/187
-* This is in preparation for the next task.
-
-== Kicksecure Firewall ==
-https://forums.kicksecure.com/t/kicksecure-firewall/378/10
-
-== Meta Packages, Kicksecure, Whonix - Desktop versus Server ==
-https://forums.kicksecure.com/t/meta-packages-kicksecure-desktop-versus-kicksecure-server/415
-
-== Secure Mount Options for better Security Hardening ==
-* review discussions, wiki
-* comment
-* improve the solutions research
-* https://www.kicksecure.com/wiki/Dev/remount-secure
-* https://www.kicksecure.com/wiki/Noexec
-* https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707
-
-== wipe video RAM ==
-* add wipe video RAM support to [[ram-wipe]]
-* maybe based on https://wiki.archlinux.org/title/Swap_on_video_RAM
-* if doable with reasonable effort
-
-== Tor 0.4.8.9 broken in combination with vanguards ==
-* https://gitlab.torproject.org/tpo/core/tor/-/issues/40892
-* write a script to use git bisect to auto test which commit introduced this issue maybe based on https://forums.whonix.org/t/vanguards-additional-protections-for-tor-onion-services/8064/64
-* if not done by upstream yet
-* if doable with reasonable effort
-
-== Implement live mode with 90overlayfs ==
-* context: [[grub-live]]
-* https://github.com/Kicksecure/grub-live
-* https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/11_linux_live
-* stop using 90overlay-root
-* port grub-live to 90overlayfs
-* This does not work in Bookworm, but does work in Trixie.
-* Once Trixie is released and we're upgrading Kicksecure to it, switch modules. See https://github.com/dracutdevs/dracut/issues/1565#issuecomment-2378133277
-
-== VirtualBox serial console ==
-* {{CodeSelect|inline=true|code=
-sudo apt install serial-console-enable
-}}
-* [[Recovery#Serial_Console|Serial Console]]
-* causes bug (spam of journal)
-* https://forums.whonix.org/t/serial-console-in-virtualbox/8021/13
-* fixable? upstream bug report?
-
-== KVM related ==
-=== KVM - 3D Graphics Acceleration - SPICE - Testing - drm ===
-	
-* please test: https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
-* please mention your configuration (still using SPICE), quote Patrick and report here: https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
-* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
-* test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
-
-=== KVM - 3D Graphics Acceleration - Performance Test - Display SDL ===
-	
-* https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
-* test SDL
-* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
-* test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
-	
-=== KVM - 3D Graphics Acceleration - Performance Test - Display GDK ===
-	
-* https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
-* test GTK
-* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
-* test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
-
-== apparmor.d review ==
-* https://github.com/roddhjav/apparmor.d
-* https://forums.whonix.org/t/apparmor-d-full-set-of-apparmor-profiles-1500-profiles/17389
-** review
-* https://github.com/roddhjav/apparmor.d/issues?q=is%3Aissue+author%3Aadrelanos
-** check ticket status
-* lightweight security review
-** conceivable or too much effort?
-
-= WAITING ON =
-== kloak - add Qubes support ==
-* review to understand the history:
-** https://github.com/QubesOS/qubes-issues/issues/1850
-* [https://github.com/QubesOS/qubes-issues/issues/8534 enable qvm-service gui-agent-virtual-input-device for Whonix-Workstation App Qubes by default]
-** https://github.com/QubesOS/qubes-gui-agent-linux/pull/194
-** https://github.com/QubesOS/qubes-app-linux-input-proxy/pull/30
-* notify https://github.com/vmonaco/kloak/issues/74
-
-Aaron:
-
-* Final implementation needs orchestration, asked for advice from Qubes OS devs at https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
-* May also implement as part of GUI daemon, see https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
-
-== kloak - Qubes support - consider using Qubes API for orchestration ==
-* https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2374908358
-* Waiting on response from Qubes OS devs
-
-== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
-* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
-* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
-* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
-* Prototype implemented and mostly working, draft PR at https://github.com/QubesOS/qubes-gui-daemon/pull/149
-* Waiting on response from Qubes OS devs
-* Got response and review, currently working out final implementation and doing testing
-
-== live-build - local repository support ==
-* add support to build from local repository
-* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
-
-== live-build - add mmdebstrap support ==
-* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031932
-* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031929
-* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/370
-
-== live-build - use APT with error-on-any ==
-* use option <code>apt --error-on=any</code> for all invocations of apt-get (update)
-* only needed for apt-get update, otherwise superfluous but non-issue
-* this is a security feature
-* this is to prevent inconsistent images that succeeded connecting to the "normal" repository but failed to connect to the security repository
-* can be implemented using already existing live-build option <code>--apt-options OPTION|"OPTIONS"</code>?
-* Requires a patch to live-build. Using <code>--apt-options</code> results in a build failure with <code>E: Command line option --error-on=any is not understood in combination with the other options</code>
-* Patch written, submitted upstream as https://salsa.debian.org/live-team/live-build/-/merge_requests/371. New configuration option now used in my branch of live-build.
-
-== security-misc - investigate PAM ==
-* there is /etc/pam.d/sudo-i for interactive and /etc/pam.d/sudo
-* pam has concepts of common-session-noninteractive vs common-session (non-interactive)
-* how could we on the PAM level notice if faillock is used interactively or non-interactively?
-* if non-interactive, skip faillock
-* if interactive, do not skip faillock
-* Bug report: https://github.com/linux-pam/linux-pam/issues/842
-
-= REVIEW PLEASE =
-== live-build - fork of live-build ==
-* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
-* Fork publicized at https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
+* Final code, ready for review: https://github.com/ArrayBolt3/developer-meta-files/commit/d053175dd27beb6eee8ad853a35efb57928e4f04
 
 == live-build - use derivative-maker variable APT_OPTIONS ==
 * for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
 * set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
 * these include <code>--error-on=any</code> and more
 * Added.
+
+= ARCHIVED =
+== livecheck - FYI - rd.live.image kernel parameter detection broken==
+* fixed in git
+* FYI only
+* please archive this ticket
+
+== live-build - upstream pull requests ==
+* Please check, continue working with upstream.
+* Updated fork to reflect new changes to master, commented on the localrepo merge request.
+* All three live-build patches are listed in "WAITING ON", indicating that work on them is ongoing. I will make sure to monitor activity there regularly and respond quickly.
+* Patrick: This was about:
+
+<pre>
+Merge blocked: 1 check failed
+Merge request must be rebased, because a fast-forward merge is not possible.
+</pre>
+
+== pam_faillock ticket ==
+* What runs <code>/etc/pam.d/sudo</code> versus <code>/etc/pam.d/sudo-i</code>? No other file in <code>/etc/pam.d</code> references such a file.
+** sudo's source code allows sudo to identify itself to PAM as either <code>sudo</code> or <code>sudo-i</code> depending on how sudo is being used. See https://github.com/sudo-project/sudo/blob/17aa7688c955e58adffdfb0300d485a2b859b128/plugins/sudoers/auth/pam.c#L220. Theoretically it might be possible to patch this location in sudo to make it identify itself to PAM in a special manner when running a NOPASSWD command.
+** Bug report filed against sudo: https://github.com/sudo-project/sudo/issues/415
+* Useful to add? https://github.com/linux-pam/linux-pam/issues/842
+
+<pre>
+`/etc/pam.d/sudo`
+
+```
+#%PAM-1.0
+
+# Set up user limits from /etc/security/limits.conf.
+session    required   pam_limits.so
+
+@include common-auth
+@include common-account
+@include common-session-noninteractive
+```
+
+`/etc/pam.d/sudo-i`
+
+```
+#%PAM-1.0
+
+# Set up user limits from /etc/security/limits.conf.
+session    required   pam_limits.so
+
+@include common-auth
+@include common-account
+@include common-session
+```
+
+----
+
+`/etc/sudoers.d/upgrade-passwordless`
+
+```
+%sudo ALL=NOPASSWD: /usr/bin/apt-get-update-plus dist-upgrade
+```
+</pre>
+
+* May be useful, but I don't believe it is necessarily useful right now. Would like to wait for now.
+** Patrick: Agreed because this bug seems to be a sudo bug instead and was reported against sudo.
+* Ticket can be archived.
+
+== fix broken recovery mode ==
+* Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
+* Turns out the default kernel in the latest ISO has a broken recovery mode. However, the next kernel update thereafter works without issues. This will therefore resolve itself during regular updates, and the next ISO build should have it fixed.
 
 == live-build - keep generated live-build folder out of source code folder ==
 * treat "lb config" as pristine/source code
@@ -520,11 +572,6 @@ This is how it was done in the past:
 
 * live-build config is autogenerated at build time now.
 
-== fix broken recovery mode ==
-* Recent Kicksecure ISOs seem to simply hang during boot when booted in recovery mode. Investigate.
-* Turns out the default kernel in the latest ISO has a broken recovery mode. However, the next kernel update thereafter works without issues. This will therefore resolve itself during regular updates, and the next ISO build should have it fixed.
-
-= ARCHIVED =
 == review root related documentation ==
 * read
 * improve
