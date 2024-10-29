@@ -10,65 +10,9 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== desktop-config-dist - livecheck - rd.live.image ==
-* FYI: this is now fixed in git. no more patch for live-build required. livecheck should now work out of the box (no matter if old or new live-build kernel parameters)
-* FYI only. Ticket can be archived.
-* arraybolt3: I haven't archived this yet since it doesn't seem to actually be working in my ISO builds and I'm not sure why.
-* Patrick: Fixed yet again.w
-
-== ISO - port to live-build ==
-* check derivative-maker source code git history: previously there was a port to live-build. Useful to resurrect it? [DONE]
-* port to live-build
-* make use of Debian's dracut branch for live-build [DONE]
-* add live-build git submodule to derivative-maker (as long all our changes aren't upstreamed)
-* Ensure <code>--remote-derivative-packages</code> still works
-** Supporting code written, TODO test this
-* Test building Kicksecure on top of Kicksecure [DONE]
-* live-config-dist fork needed for installer to work with live-build ISO (WIP): https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/live-build
-* dist-base-files fork needed for proper user account generation (WIP): https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/live-build
-* anon-apt-sources-list fork needed to avoid a naming conflict with live-build: https://github.com/ArrayBolt3/anon-apt-sources-list/tree/arraybolt3/live-build
-* live-build fork: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
-** All changes submitted upstream, TODO work with upstream to get these polished and merged
-* derivative-maker fork with live-build support (WIP): https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
-** TODO test VM builds, remote repository builds, etc
-* Notes from ISO package and file audit:
-
-<pre>
-Check EFI bootloader, make sure weirdness isn't too bad there
-what is /etc/apt/apt.conf.d/00recommends doing on new ISO?
-Calamares should be uninstalling itself fully, did live-config-dist get left
-  behind on new ISO?
-check /etc/dracut.conf.d/50-reproducible.conf in new iso
-bits of initramfs-tools are being left behind on new ISO beyond what is normal
-check /etc/kernel-img.conf from old ISO
-check /etc/udev/rules.d/70-persistent-cd.rules on new ISO
-/root/localrepos should NOT be left around on the new ISO!!!
-Why is /usr/bin/grub-ntldr-img missing on new ISO?
-Check /usr/bin/grub-ntldr-img on new ISO
-Why is signed grub EFI not installed on new ISO? test secure boot support
-Why is shim not installed on the new ISO? test secure boot support
-/usr/sbin/grub-bios-setup is missing on new ISO, probably it's part of grub-pc
-/usr/sbin/update-secureboot-policy is missing on new ISO, part of shim or
-  signed grub?
-/usr/sbin/upgrade-from-grub-legacy is missing on new ISO, probably part of
-  grub-pc
-grub-live is missing on new ISO, should it even be there?
-/var/lib/anon-dist looks incomplete on new ISO
-/var/lib/canary looks incomplete on new ISO
-eatmydata is missing from new ISO
-/var/lib/security-misc/skip_install_check should not be present on installed
-  system!
-</pre>
-
-== live-build - avoid live-build specific boot splash ==
-* https://github.com/ArrayBolt3/derivative-maker/blob/arraybolt3/live-build/live-build-data/splash.svg
-* Avoidable? Can be done in /packages/ instead please?
-** Difficult to avoid, the splash screen is dynamically modified by live-build at build time, and is sourced from live-build's configuration directory at build time (live-build does not use packages installed under the chroot to find this). The entirety of the bootloader configuration is done without use of packages installed in the built system as I understand it.
-* there are later tasks for GRUB boot menu styling
-** This has to be dealt with now because otherwise we risk causing confusion to end-users. The default GRUB splash on live-build ISOs uses a strange construction hat logo, and states that the ISO is specifically Debian. Not changing this screen could even be legally problematic as the name "Debian" is a trademark. (https://www.debian.org/trademark) This GRUB screen is also specific to live-build and should not be used for installed systems. Debian uses separate GRUB screens for installed systems and live-build ISOs.
-* live-config-dist uses to add "Live ISO" to grub boot menu in https://github.com/Kicksecure/live-config-dist/blob/master/etc/default/grub.d/40_live-config-dist.cfg - possible to do the same with live-build?
-** This file should probably be deleted once live-build becomes the default ISO build mechanism.
-* Figure out what unicode is in the splash screen SVG and remove it if at all possible
+== report TCP ISN specification issue ==
+* TCP ISN is an issue in the spec
+* Could you please report this upstream in to the spec, if possible?
 
 == live-build - source code integration into derivative maker ==
 * assume at in derivative-maker/live-build
@@ -259,13 +203,36 @@ Aaron:
 * Bug report: https://github.com/linux-pam/linux-pam/issues/842
 
 = REVIEW PLEASE =
-== calamares - change to BTRFS by default - including subvolumes ==
-* change to BTRFS by default
-* make use of subvolumes
-* https://forums.kicksecure.com/t/use-btrfs-as-the-default-journaling-file-system/626
-* Added <code>btrfs-progs</code> to <code>kicksecure-recommended-cli</code>: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/btrfs-support (necessary to avoid installation failures)
-* Added BTRFS support to <code>live-config-dist</code>: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/btrfs-support
-* Note that Calamares installs BTRFS with subvolumes on the root filesystem by default, so no special work was needed to make that happen.
+== review kloak RPM specfile ==
+* https://github.com/Whonix/kloak/pull/2
+* please review for non-maliciousness only
+* Reviewed, all contents appear normal, useful, and non-malicious. However, the systemd unit for kloak is not enabled by default due to the lack of a systemd preset file. This may be something we want to resolve later.
+
+== ISO - port to live-build ==
+* check derivative-maker source code git history: previously there was a port to live-build. Useful to resurrect it? [DONE]
+* port to live-build
+* make use of Debian's dracut branch for live-build [DONE]
+* add live-build git submodule to derivative-maker (as long all our changes aren't upstreamed)
+* Ensure <code>--remote-derivative-packages</code> still works [DONE]
+* Test building Kicksecure on top of Kicksecure [DONE]
+* live-config-dist fork needed for installer to work with live-build ISO: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/live-build
+* dist-base-files fork needed for proper user account generation: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/live-build
+* anon-apt-sources-list fork needed to avoid a naming conflict with live-build: https://github.com/ArrayBolt3/anon-apt-sources-list/tree/arraybolt3/live-build
+* live-build fork: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+** All changes submitted upstream, TODO work with upstream to get these polished and merged
+* derivative-maker fork with live-build support: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
+* PR: https://github.com/Kicksecure/derivative-maker/pull/2
+
+== live-build - avoid live-build specific boot splash ==
+* https://github.com/ArrayBolt3/derivative-maker/blob/arraybolt3/live-build/live-build-data/splash.svg
+* Avoidable? Can be done in /packages/ instead please?
+** Difficult to avoid, the splash screen is dynamically modified by live-build at build time, and is sourced from live-build's configuration directory at build time (live-build does not use packages installed under the chroot to find this). The entirety of the bootloader configuration is done without use of packages installed in the built system as I understand it.
+* there are later tasks for GRUB boot menu styling
+** This has to be dealt with now because otherwise we risk causing confusion to end-users. The default GRUB splash on live-build ISOs uses a strange construction hat logo, and states that the ISO is specifically Debian. Not changing this screen could even be legally problematic as the name "Debian" is a trademark. (https://www.debian.org/trademark) This GRUB screen is also specific to live-build and should not be used for installed systems. Debian uses separate GRUB screens for installed systems and live-build ISOs.
+* live-config-dist uses to add "Live ISO" to grub boot menu in https://github.com/Kicksecure/live-config-dist/blob/master/etc/default/grub.d/40_live-config-dist.cfg - possible to do the same with live-build?
+** This file should probably be deleted once live-build becomes the default ISO build mechanism.
+* Figure out what unicode is in the splash screen SVG and remove it if at all possible
+** Fixed, it was a non-breaking space.
 
 == live-build - investigate options ==
 * because it contains options and todo
@@ -442,6 +409,42 @@ lb build --verbose --debug
 
 * Reviewed and integrated.
 
+== live-build - fork of live-build ==
+* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
+* Fork publicized at https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+* Synced with upstream as of 2024-10-25, includes the merge of Dracut support to master.
+
+== live-build - use derivative-maker variable APT_OPTIONS ==
+* for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
+* set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
+* these include <code>--error-on=any</code> and more
+* Added.
+
+= ARCHIVED =
+== desktop-config-dist - livecheck - rd.live.image ==
+* FYI: this is now fixed in git. no more patch for live-build required. livecheck should now work out of the box (no matter if old or new live-build kernel parameters)
+* FYI only. Ticket can be archived.
+* arraybolt3: I haven't archived this yet since it doesn't seem to actually be working in my ISO builds and I'm not sure why.
+* Patrick: Fixed yet again.
+* arraybolt3: Looks good now.
+
+== automate VirtualBox version update in the wiki ==
+* example what is being done manually: https://www.kicksecure.com/w/index.php?title=Template%3AVirtualBox_Host_Software_Installation&diff=87404&oldid=86914
+* suggestions on how to automate this? using mediawiki-shell
+* automation of the script that does the change?
+* automation to auto run that script?
+* add to developer-meta-files
+* Prototype code: https://github.com/ArrayBolt3/auto-version-update
+* Final code, ready for review: https://github.com/ArrayBolt3/developer-meta-files/commit/d053175dd27beb6eee8ad853a35efb57928e4f04
+
+== calamares - change to BTRFS by default - including subvolumes ==
+* change to BTRFS by default
+* make use of subvolumes
+* https://forums.kicksecure.com/t/use-btrfs-as-the-default-journaling-file-system/626
+* Added <code>btrfs-progs</code> to <code>kicksecure-recommended-cli</code>: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/btrfs-support (necessary to avoid installation failures)
+* Added BTRFS support to <code>live-config-dist</code>: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/btrfs-support
+* Note that Calamares installs BTRFS with subvolumes on the root filesystem by default, so no special work was needed to make that happen.
+
 == live-build - path may be being set in a non-ideal fashion ==
 * $source_code_folder_dist/live-build for the git sub module (our fork) (pristine source code)
 * $dist_binary_build_folder/live-build should be used for the "config" folder (which will contain binaries after running live-build) (can be safely deleted and re-created using derivative-maker)
@@ -471,27 +474,6 @@ lb build --verbose --debug
 ** Can it be moved to live-config-dist and maintained there going forward?
 * shellprocess_useradd.conf removed, user creation managed by dist-base-files as before.
 
-== live-build - fork of live-build ==
-* please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
-* Fork publicized at https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
-* Synced with upstream as of 2024-10-25, includes the merge of Dracut support to master.
-
-== automate VirtualBox version update in the wiki ==
-* example what is being done manually: https://www.kicksecure.com/w/index.php?title=Template%3AVirtualBox_Host_Software_Installation&diff=87404&oldid=86914
-* suggestions on how to automate this? using mediawiki-shell
-* automation of the script that does the change?
-* automation to auto run that script?
-* add to developer-meta-files
-* Prototype code: https://github.com/ArrayBolt3/auto-version-update
-* Final code, ready for review: https://github.com/ArrayBolt3/developer-meta-files/commit/d053175dd27beb6eee8ad853a35efb57928e4f04
-
-== live-build - use derivative-maker variable APT_OPTIONS ==
-* for reference, see derivative-maker help-steps/variables <code>APTGETOPT</code>, <code>APTGETOPT_ALT</code>, <code>APTGETOPT_WITHOUT_APT_CACHE</code>
-* set live-build <code>APT_OPTIONS</code> to <code>APTGETOPT</code>
-* these include <code>--error-on=any</code> and more
-* Added.
-
-= ARCHIVED =
 == livecheck - FYI - rd.live.image kernel parameter detection broken==
 * fixed in git
 * FYI only
