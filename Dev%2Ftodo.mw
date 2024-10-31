@@ -10,18 +10,26 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== live-build - local repository support ==
+* add support to build from local repository
+* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+
+== live-build - use live-build to create grub.cfg GRUB configuration ==
+* Possible?
+* arraybolt3: What part of the GRUB configuration? If it's the remaining bits of the kernel command line that are being defined in derivative-maker, this is how live-build is intended to be used, by design. <code>bootappend-live</code> replaces the default kernel parameters, allowing you to override the defaults. Changing this would require creating a <code>bootappend-live-keepdefaults</code> or similar option, which may add unwanted complexity. Nevertheless, I could pursue adding such an option. Desirable?
+
+== live-build - grub.cfg GRUB configuration - loopback.cfg ==
+* add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
+* Requires fixes in live-build and Dracut to make work:
+** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. Additionally, it's failing to add the loopback ISO detection logic.
+** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it.
+
 == live-build - source code integration into derivative maker ==
 * assume at in derivative-maker/live-build
 
-== live-build - build raw images ==
-Building fully persistent images? Replacing grml-debootstrap?
-
-<pre>
---system normal
---binary-image hdd
-</pre>
-
-Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
+== review Super Grub2 Disk ==
+* see https://github.com/supergrub/supergrub/tree/master/menus/sgd
+* any cool/needed features there which would be useful to add to the ISO or non-ISO boot process?
 
 == audio ==
 === audio generally ===
@@ -45,6 +53,16 @@ Useful? Low priority? arraybolt3: this would potentially be very useful, will in
 ** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
 * post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
 * On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
+
+== Kicksecure grub-theme ==
+* maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
+* add to https://github.com/Kicksecure/kicksecure-base-files
+* With the way Debian is designed, the proper way to do this (as far as I can tell) is to pull in the <code>desktop-base</code> package, then use the alternatives system to override the Debian artwork with vendor-specific artwork. However there is a LOT more artwork than just GRUB themes that has to be overridden here. Currently working on this, I think the best package to do this in would be <code>desktop-config-dist</code> although I'm not certain.
+* Abandoned doing this with desktop-base after discussion with Patrick. Current implementation can be found here: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-theme
+* Issues with current implementation:
+** Potential aspect ratio weirdness, we may or may not care
+** Is 1920x1080 too large for the UEFI GRUB theme?
+** 1280x960 resolution works in QEMU, but does NOT work in VirtualBox. Resolution should be reduced to 1024x768 for compatibility with VirtualBox. For best results, this will require redoing the background image for the BIOS theme.
 
 == Whonix grub-theme ==
 * similar to above
@@ -81,6 +99,14 @@ https://forums.kicksecure.com/t/meta-packages-kicksecure-desktop-versus-kicksecu
 == wipe video RAM ==
 * add wipe video RAM support to [[ram-wipe]]
 * maybe based on https://wiki.archlinux.org/title/Swap_on_video_RAM
+* maybe also based on https://github.com/divestedcg/Brace/blob/master/brace/etc/profile.d/brace-env-overrides.sh
+<pre>
+# zero video RAM to prevent leakage
+# see (CC BY-SA 4.0): https://www.adlerweb.info/blog/2012/06/20/nvidia-x-org-video-ram-information-leak
+export R600_DEBUG=zerovram;
+export AMD_DEBUG=zerovram;
+export RADV_DEBUG=zerovram;
+</pre>
 * if doable with reasonable effort
 
 == Tor 0.4.8.9 broken in combination with vanguards ==
@@ -164,10 +190,6 @@ Aaron:
 * Waiting on response from Qubes OS devs
 * Got response and review, currently working out final implementation and doing testing
 
-== live-build - local repository support ==
-* add support to build from local repository
-* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
-
 == live-build - add mmdebstrap support ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031932
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031929
@@ -191,26 +213,57 @@ Aaron:
 * Bug report: https://github.com/linux-pam/linux-pam/issues/842
 
 = REVIEW PLEASE =
-== Kicksecure grub-theme ==
-* maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
-* add to https://github.com/Kicksecure/kicksecure-base-files
-* With the way Debian is designed, the proper way to do this (as far as I can tell) is to pull in the <code>desktop-base</code> package, then use the alternatives system to override the Debian artwork with vendor-specific artwork. However there is a LOT more artwork than just GRUB themes that has to be overridden here. Currently working on this, I think the best package to do this in would be <code>desktop-config-dist</code> although I'm not certain.
-* Abandoned doing this with desktop-base after discussion with Patrick. Current implementation can be found here: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-theme
+== append-once bug ==
+livecheck:
 
-== report TCP ISN specification issue ==
-* TCP ISN is an issue in the spec
-* Could you please report this upstream in to the spec, if possible?
-* Reported.
+<pre>
+      append-once "${save_file}" "<click>${click}</click>"
+      append-once "${save_file}" "<txtclick>${click}</txtclick>"
+</pre>
 
-== live-check - run once only ==
-* to avoid log spam (passwordless root)
-* create a done file in folder <code>/run/user/$USER</code> so the livecheck script does not run sudo over and over again
-* https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-fix Tested and ready for review/merge.
+Does not work. Only the first "click" gets appended. "txtclick" is missing. This is a bug in append-once.
 
-== review kloak RPM specfile ==
-* https://github.com/Whonix/kloak/pull/2
-* please review for non-maliciousness only
-* Reviewed, all contents appear normal, useful, and non-malicious. However, the systemd unit for kloak is not enabled by default due to the lack of a systemd preset file. This may be something we want to resolve later.
+(Patrick applied a workaround in livecheck for now.)
+
+Please fix append-once, if possible.
+
+* arraybolt3: Fixed by making a variant of the <code>str_replace</code> script called <code>str_match</code> and using it in lieu of grep. Also caught a bug with livecheck in general due to running lsblk too early.
+** helper-scripts change branch: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/append-once-fix
+** desktop-config-dist change branch: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-fix2
+
+== live-build - remove unicode ==
+* please remove unicode if possible from live-build/share/bootloaders/splash.svg
+* Fixed, pushed to my fork of live-build. Looks like there were two non-breaking spaces causing issues. This probably cannot be upstreamed as one assumes these were made non-breaking for a reason, and while we may not care about that reason, they probably do.
+
+== live-build - build raw images ==
+* Building fully persistent images? Replacing grml-debootstrap?
+
+<pre>
+--system normal
+--binary-image hdd
+</pre>
+
+* Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
+* Looks like this is potentially useful, but definitely needs a lot of help to make useful. To get a useful build, it was necessary to use the following configuration in auto/config:
+
+<pre>
+#!/bin/sh
+
+set -e
+
+lb config noauto \
+   --distribution bookworm \
+   --system normal \
+   --binary-image hdd \
+   --hdd-size auto \
+   --chroot-filesystem none \
+   --binary-filesystem ext4 \
+   "${@}"
+</pre>
+
+* The generated image contained no user account, no root password, and no properly configured fstab, thus it was necessary to mount the built image, chroot into it, configure fstab, add a user, and add the new user to the sudoers group.
+* The generated image also used Syslinux as the default bootloader, which is obviously strange for a desktop system. Furthermore, the kernel command line was not configured properly, and it was necessary to manually add <code>root=/dev/vda1</code> to the command line to get the system to boot. Probably should have set <code>--bootloaders grub-pc,grub-efi</code>. Unsure if <code>--bootappend-live</code> will work for setting the kernel command line, this may have to be fixed as a post-build operation (chrooting in and running <code>sudo update-grub</code> or similar).
+* Was able to make a basic, mostly-working (aside from the bootloader issues) image with IceWM as the desktop.
 
 == ISO - port to live-build ==
 * check derivative-maker source code git history: previously there was a port to live-build. Useful to resurrect it? [DONE]
@@ -226,17 +279,6 @@ Aaron:
 ** All changes submitted upstream, TODO work with upstream to get these polished and merged
 * derivative-maker fork with live-build support: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/live-build
 * PR: https://github.com/Kicksecure/derivative-maker/pull/2
-
-== live-build - avoid live-build specific boot splash ==
-* https://github.com/ArrayBolt3/derivative-maker/blob/arraybolt3/live-build/live-build-data/splash.svg
-* Avoidable? Can be done in /packages/ instead please?
-** Difficult to avoid, the splash screen is dynamically modified by live-build at build time, and is sourced from live-build's configuration directory at build time (live-build does not use packages installed under the chroot to find this). The entirety of the bootloader configuration is done without use of packages installed in the built system as I understand it.
-* there are later tasks for GRUB boot menu styling
-** This has to be dealt with now because otherwise we risk causing confusion to end-users. The default GRUB splash on live-build ISOs uses a strange construction hat logo, and states that the ISO is specifically Debian. Not changing this screen could even be legally problematic as the name "Debian" is a trademark. (https://www.debian.org/trademark) This GRUB screen is also specific to live-build and should not be used for installed systems. Debian uses separate GRUB screens for installed systems and live-build ISOs.
-* live-config-dist uses to add "Live ISO" to grub boot menu in https://github.com/Kicksecure/live-config-dist/blob/master/etc/default/grub.d/40_live-config-dist.cfg - possible to do the same with live-build?
-** This file should probably be deleted once live-build becomes the default ISO build mechanism.
-* Figure out what unicode is in the splash screen SVG and remove it if at all possible
-** Fixed, it was a non-breaking space.
 
 == live-build - investigate options ==
 * because it contains options and todo
@@ -413,6 +455,7 @@ lb build --verbose --debug
 
 * Reviewed and integrated.
 
+= ARCHIVED =
 == live-build - fork of live-build ==
 * please create fully merged live-build repository on github so Patrick can fork it and add the git submodule to derivative-maker
 * Fork publicized at https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
@@ -424,7 +467,32 @@ lb build --verbose --debug
 * these include <code>--error-on=any</code> and more
 * Added.
 
-= ARCHIVED =
+== live-build - avoid live-build specific boot splash ==
+* https://github.com/ArrayBolt3/derivative-maker/blob/arraybolt3/live-build/live-build-data/splash.svg
+* Avoidable? Can be done in /packages/ instead please?
+** Difficult to avoid, the splash screen is dynamically modified by live-build at build time, and is sourced from live-build's configuration directory at build time (live-build does not use packages installed under the chroot to find this). The entirety of the bootloader configuration is done without use of packages installed in the built system as I understand it.
+* there are later tasks for GRUB boot menu styling
+** This has to be dealt with now because otherwise we risk causing confusion to end-users. The default GRUB splash on live-build ISOs uses a strange construction hat logo, and states that the ISO is specifically Debian. Not changing this screen could even be legally problematic as the name "Debian" is a trademark. (https://www.debian.org/trademark) This GRUB screen is also specific to live-build and should not be used for installed systems. Debian uses separate GRUB screens for installed systems and live-build ISOs.
+* live-config-dist uses to add "Live ISO" to grub boot menu in https://github.com/Kicksecure/live-config-dist/blob/master/etc/default/grub.d/40_live-config-dist.cfg - possible to do the same with live-build?
+** This file should probably be deleted once live-build becomes the default ISO build mechanism.
+* Figure out what unicode is in the splash screen SVG and remove it if at all possible
+** Fixed, it was a non-breaking space.
+
+== report TCP ISN specification issue ==
+* TCP ISN is an issue in the spec
+* Could you please report this upstream in to the spec, if possible?
+* Reported.
+
+== live-check - run once only ==
+* to avoid log spam (passwordless root)
+* create a done file in folder <code>/run/user/$USER</code> so the livecheck script does not run sudo over and over again
+* https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-fix Tested and ready for review/merge.
+
+== review kloak RPM specfile ==
+* https://github.com/Whonix/kloak/pull/2
+* please review for non-maliciousness only
+* Reviewed, all contents appear normal, useful, and non-malicious. However, the systemd unit for kloak is not enabled by default due to the lack of a systemd preset file. This may be something we want to resolve later.
+
 == desktop-config-dist - livecheck - rd.live.image ==
 * FYI: this is now fixed in git. no more patch for live-build required. livecheck should now work out of the box (no matter if old or new live-build kernel parameters)
 * FYI only. Ticket can be archived.
