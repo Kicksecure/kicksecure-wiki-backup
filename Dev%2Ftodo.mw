@@ -21,15 +21,12 @@ TODO
 == live-build - grub.cfg GRUB configuration - loopback.cfg ==
 * add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
 * Requires fixes in live-build and Dracut to make work:
-** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. Additionally, it's failing to add the loopback ISO detection logic.
-** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it.
+** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. A fix for this has been integrated into my fork of live-build. MR to upstream here: https://salsa.debian.org/live-team/live-build/-/merge_requests/376
+** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it. Only appears to be a problem on Debian Bookworm, Trixie works just fine.
+** At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.
 
 == live-build - source code integration into derivative maker ==
 * assume at in derivative-maker/live-build
-
-== review Super Grub2 Disk ==
-* see https://github.com/supergrub/supergrub/tree/master/menus/sgd
-* any cool/needed features there which would be useful to add to the ISO or non-ISO boot process?
 
 == audio ==
 === audio generally ===
@@ -53,16 +50,6 @@ TODO
 ** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
 * post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
 * On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
-
-== Kicksecure grub-theme ==
-* maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
-* add to https://github.com/Kicksecure/kicksecure-base-files
-* With the way Debian is designed, the proper way to do this (as far as I can tell) is to pull in the <code>desktop-base</code> package, then use the alternatives system to override the Debian artwork with vendor-specific artwork. However there is a LOT more artwork than just GRUB themes that has to be overridden here. Currently working on this, I think the best package to do this in would be <code>desktop-config-dist</code> although I'm not certain.
-* Abandoned doing this with desktop-base after discussion with Patrick. Current implementation can be found here: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-theme
-* Issues with current implementation:
-** Potential aspect ratio weirdness, we may or may not care
-** Is 1920x1080 too large for the UEFI GRUB theme?
-** 1280x960 resolution works in QEMU, but does NOT work in VirtualBox. Resolution should be reduced to 1024x768 for compatibility with VirtualBox. For best results, this will require redoing the background image for the BIOS theme.
 
 == Whonix grub-theme ==
 * similar to above
@@ -212,7 +199,29 @@ Aaron:
 * if interactive, do not skip faillock
 * Bug report: https://github.com/linux-pam/linux-pam/issues/842
 
+== calamaers - timezone issue ==
+* https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652
+* Could not reproduce, tried one UEFI "Erase disk" installation, one BIOS "Erase disk" installation, and one BIOS "Replace partition" installation. Forum comments at https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652/4
+
 = REVIEW PLEASE =
+== Kicksecure grub-theme ==
+* maybe https://github.com/AdisonCavani/distro-grub-themes can be helpful?
+* add to https://github.com/Kicksecure/kicksecure-base-files
+* With the way Debian is designed, the proper way to do this (as far as I can tell) is to pull in the <code>desktop-base</code> package, then use the alternatives system to override the Debian artwork with vendor-specific artwork. However there is a LOT more artwork than just GRUB themes that has to be overridden here. Currently working on this, I think the best package to do this in would be <code>desktop-config-dist</code> although I'm not certain.
+* Abandoned doing this with desktop-base after discussion with Patrick. Current implementation can be found here: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-theme
+* Possible issues with current implementation:
+** Potential aspect ratio weirdness, we may or may not care. Debian uses 4x3 aspect ratio for BIOS and 16x9 aspect ratio for UEFI, I've followed that convention here.
+
+== review Super Grub2 Disk ==
+* see https://github.com/supergrub/supergrub/tree/master/menus/sgd
+* any cool/needed features there which would be useful to add to the ISO or non-ISO boot process?
+* Don't see much extra that is needed there if it works reliably. The tool appears very capable, I was able to use it to boot an installed Kicksecure system in several different ways. Also was able to loopback boot ISOs. If a user runs into a problem trying to use it for boot recovery, then we should add a task to fix the issue to this list.
+* Worthy of note, the Linux boot entries are only populated if the disk is unencrypted. Encrypted systems require the use of one of the grub.cfg extraction entries, or (in the case of BIOS systems) chainloading. Additionally, it would be recommended to always use the grub.cfg extraction methods or chainloading, as the use of a "normal" Linux boot entry works but does not enable any kernel hardening features.
+
+== confidential computing ==
+* Please read tickets from private issue tracker and update [[Dev/confidential computing]] with new contents based on that.
+* Read, added notes on tamper protection and generation of one's own Secure Boot keys.
+
 == append-once bug ==
 livecheck:
 
