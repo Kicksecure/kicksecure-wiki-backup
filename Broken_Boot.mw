@@ -141,6 +141,77 @@ Many of the boot issues mentioned in this document can be solved by chrooting in
 * After running the above commands, exit the chroot environment by running <code>exit</code>.
 * Shut down the system and remove the Kicksecure live ISO. Then power the system back on. If all goes well, Kicksecure should now boot successfully.
 
+== Boot Recovery Tools ==
+There are several tools that can be useful for fixing or working around broken boot issues. The following is not an endorsement or recommendation of any particular tool.
+
+=== Super Grub2 Disk ===
+Website: https://www.supergrubdisk.org/super-grub2-disk/
+
+Super Grub2 Disk is a highly flexible bootable GRUB-based tool that can be used for booting operating systems in a number of different ways. It is primarily useful for getting a system to boot even when the bootloader is broken or misconfigured. Unlike many recovery utilities, Super Grub2 Disk is not a Linux distribution. It is simply a GRUB bootloader paired with a number of very powerful configuration files that use GRUB's built-in scripting language.
+
+==== Installation ====
+
+Super Grub2 Disk can be downloaded from https://www.supergrubdisk.org/category/download/supergrub2diskdownload/super-grub2-disk-stable/. It is recommended to use the first download in the list of USB bootable images, as this image is bootable on both old and new systems.
+
+Once you have downloaded Super Grub2 Disk, you can verify it, unzip it, and flash it to a USB drive. The following commands can be used to do this. Note that your download location, file name, and device ID may differ from those shown here, thus you should adjust these commands as appropriate. '''Do NOT blindly copy and paste this code into a terminal!'''
+
+{{CodeSelect|code=
+cd ~/Downloads
+sha256sum supergrub2-2.06s4-multiarch-USB.img.zip
+# Compare the checksum displayed in your terminal with the file's
+# checksum listed in the SHA256SUMS section of the download page
+# If it looks right, proceed
+unzip supergrub2-2.06s4-multiarch-USB.img.zip
+# Replace "sdX" with your USB drive's device ID
+sudo dd if=./supergrub2-2.06s4-multiarch-USB.img of=/dev/sdX bs=4M
+sync
+}}
+
+Super Grub2 Disk is now installed.
+
+==== Usage ====
+
+Insert your Super Grub2 Disk USB drive into the computer you wish to boot, then boot the system from the USB drive. You will be shown the Super Grub2 Disk user interface.
+
+[[File:Super Grub2 Disk.png|thumb|The Super Grub2 Disk user interface.]]
+
+To find available operating systems on the computer, use the arrow keys to select "Detect and show boot methods", then press Enter and wait for OS autodetection to complete. You will be shown a list of boot options.
+
+The Super Grub2 Disk boot menu provides a large number of options for loading operating systems in various different ways. This guide will cover four of the provided methods. Which method to use depends on what hardware you are using and how badly the system is broken.
+
+* Direct Linux boot
+** The direct Linux boot options are listed under the <code>Linux</code> and <code>Linux from /boot partition</code> sections. These options will load the selected Linux kernel and its corresponding initramfs, point the kernel at the correct drive to boot from, and then boot it. The drive to boot from is automatically detected by parsing the <code>/etc/fstab</code> file from the Linux installation.
+** This option is mainly useful if your system's boot data is entirely broken or missing. It does not rely on the installed system's boot configuration at all, so it can work to boot the system when nothing else will. However, you should usually '''not''' use this boot method, as it will not enable the large number of security options Kicksecure enables via Linux command line options. This leaves you more open to malware and other security threats.
+** This boot method only works on unencrypted systems. In order to know which partition Linux should use as the root partition, it has to parse the <code>/etc/fstab</code> file from the installed system. This is impossible when the system is encrypted.
+** To boot an OS using direct Linux boot, select one of the displayed kernels in the appropriate section, and press Enter. Usually the kernels will be named something like <code>/vmlinuz-6.1.0-26-amd64</code>. There are also <code>( recovery )</code> and <code>( single )</code> options underneath each kernel. The <code>( recovery )</code> option will work to boot into recovery mode on systems such as Ubuntu. For other operating systems (including Kicksecure), the <code>( single )</code> option can be used to boot into rescue mode. See [[Recovery]].
+* GRUB configuration chaining
+** The GRUB configuration chaining options are listed under the <code>Entries from...</code> and <code>grub.cfg - (GRUB2 configuration files)</code> sections. These options will load boot entries from the installed system's GRUB configuration files, allowing you to boot one of these entries.
+** This option is recommended for most use cases. All of Kicksecure's kernel command line options will be enabled, since the GRUB configuration where these settings are embedded will be used. This greatly improves security on Kicksecure.
+** This boot method works on both BIOS and UEFI systems, regardless of whether they are encrypted or unencrypted. However, it only works if the installed system has a working GRUB configuration. If your bootloader is corrupted or damaged but your GRUB configuration is still intact, this will work, but if your GRUB configuration is damaged or incorrect, this may not work.
+** To boot an OS using GRUB configuration chaining, select the desired boot option underneath one of the <code>Entries from...</code> headers. For Kicksecure, the entry to use will usually be <code>Kicksecure GNU/Linux</code> or <code>LIVE mode USER (For daily activities.) GNU/Linux</code>. Alternatively, find the desired grub.cfg file under the <code>grub.cfg - (GRUB2 configuration files)</code> section, select it, and press Enter. If you are shown another boot menu, select your desired boot option.
+* BIOS chainloading
+** The BIOS chainloading options are listed under the <code>Disks and Partitions (Chainload)</code> section. These options will load and execute whatever happens to be in the boot sector of the selected device or partition. Assuming the selected device or partition has a bootloader installed, this will run that bootloader.
+** This option is only really useful if your system's BIOS settings are misconfigured. The system needs to have a bootloader installed and configured properly for this option to work. If Kicksecure installed successfully but the system reports "No operating system found" upon reboot, this option may be useful to work around the problem.
+** This boot method only works on BIOS systems. The boot process on UEFI systems works in a fundamentally different way that doesn't involve boot sectors. Super Grub2 Disk will display an error message if you try to use BIOS chainloading on a UEFI system. This boot method works with both encrypted and unencrypted systems.
+** To boot an OS using BIOS chainloading, navigate to the <code>Disks and Partitions (Chainload)</code> section, select your desired device or partition, and press Enter. The bootloader from that device or partition will run. This will either immediately boot an OS, or, in the case of Kicksecure, display a list of boot options. Note that to boot Kicksecure with BIOS chainloading, you must select either the "boot" partition, or the device containing the "boot" partition. Attempting to chainload the "rootfs" partition will result in an "invalid signature" error message.
+* UEFI chainloading
+** The UEFI chainloading options are listed under the <code>EFI files on EFI partitions</code> section. These options will execute a UEFI executable of your choice. Usually this executable will be a UEFI bootloader of some sort.
+** All of the caveats of BIOS chainloading apply.
+** This boot method only works on UEFI systems. It is essentially the UEFI equivalent of BIOS chainloading, although it works in a very different manner under the hood. This boot method works with both encrypted and unencrypted systems.
+** To boot an OS using UEFI chainloading, navigate to the <code>EFI files on EFI partitions</code> section. You will be shown a list of EFI system partition directories, and the EFI executables available underneath them. Find the directory that corresponds to the OS you wish to load (for instance, <code>/efi/Kicksecure</code>), then select the <code>shimx64.efi</code> file from the list of files in that directory. If <code>shimx64.efi</code> does not exist, select <code>grubx64.efi</code> instead. If ''that'' doesn't exist either, you're either using a non-GRUB bootloader, or your bootloader is misconfigured somehow, in which case you should probably try using one of the other boot methods. As a last resort, you can try booting the <code>/efi/boot/bootx64.efi</code> file if it exists. Do not attempt to boot from any files named <code>mmx64.efi</code><ref><code>mmx64.efi</code> is the MokManager utility, usually used for configuring Secure Boot settings. This tool doesn't do anything useful if booted manually in most instances. The only times it is useful are when you are configuring a Secure Boot key for signing self-compiled kernel modules. When that happens, MokManager should automatically be booted into when necessary.</ref> or <code>fbx64.efi</code><ref><code>fbx64.efi</code> is the fallback bootloader, usually copied to <code>bootx64.efi</code>. It will rebuild your UEFI boot variables using any <code>bootx64.csv</code> files it can find in your system's EFI system partitions. This can be useful for boot recovery, but generally the system will boot this automatically if it becomes necessary.</ref> unless you know what you're doing.
+
+==== Booting ISO Files ====
+
+In addition to the above features, Super Grub2 Disk can be used to boot ISO files that are compatible with loopback booting. When properly set up, loopback booting allows you to boot an ISO file directly, rather than having to flash it to a storage device first. This is done in GRUB by mounting the ISO file as a device, then loading the loopback.cfg file from it. This file contains configuration settings that are then be used to load the kernel and initramfs from the ISO. The kernel is passed a command line parameter that allows the initramfs to find the ISO, attach it as a device, and boot the rest of the OS from it. For further details, see https://www.supergrubdisk.org/wiki/Loopback.cfg.
+
+Not all ISO files can be booted this way. In particular, Kicksecure's ISO does not currently support loopback boot. Much of the work needed to get loopback boot working has been done, but it is still a work in progress and not ready for general use. Windows ISOs also cannot be booted in this way.
+
+Super Grub2 Disk provides a partition with a directory called "BOOTISOS". You can save ISO files here in order to boot them with Super Grub2 Disk. By default, this partition is much too small to contain most ISO files. To fix this, use the GParted program to resize the Super Grub2 Disk USB drive's second partition so that it uses the full space available on the USB drive. You can install GParted on Kicksecure by running <code>sudo apt install gparted</code>. You will also need the fatresize tool, which GParted will use under the hood to resize the filesystem. This can be installed by running <code>sudo apt install fatresize</code>.
+
+Once the partition is large enough to contain your ISO files, simply mount it and copy your desired ISO files to the BOOTISOS directory on the drive. Note that the ISO storage partition is formatted with the fat32 filesystem, meaning it will not support ISO files larger than 4 GiB in size.
+
+To boot one of these ISOs, boot the Super Grub2 Disk drive, and select "Detect and show boot methods". All loopback bootable ISO files saved in this the "BOOTISOS" directory will be detected and displayed in the <code>Bootable ISOs (in /boot-isos or /boot/boot-isos)</code> section. Select the ISO you wish to boot, and press Enter.
+
 === Getting Help ===
 
 If you are not comfortable attempting to repair your system by yourself, you can ask for help via Kicksecure's support forum at https://forums.kicksecure.com/.
@@ -154,6 +225,9 @@ The following Wiki pages may have useful information:
 * [[Troubleshooting#Hardware_Issues|Troubleshooting Hardware Issues]]
 * [[Recovery|Recovery wiki page]]
 
+= Footnotes =
 {{reflist|close=1}}
+
 {{Footer}}
+
 [[Category:Documentation]]
