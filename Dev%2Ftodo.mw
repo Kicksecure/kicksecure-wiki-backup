@@ -10,24 +10,48 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== continuous documentation effort - FYI only ==
-* Patrick liked the new super grub disk additions to [[Broken Boot]]. If something else comes to mind, please continue improving the wiki.
+== test and review archive.today CLI frontend ==
+* archive.today is interesting because it is an independent third-part
+* candidate: wabarc/archive.is (supports CAPTCHA avoidance through cookie)
+* https://github.com/wabarc/archive.is?tab=readme-ov-file#archivetoday-is-unavailable
+** test for functionality first in a throwaway VM
+** test functionality and CAPTCHA avoidance
+** test archive.today onion (might help with CAPTCHA avoidance), will help with IP restrictions
+*** <code><nowiki>http://archiveiya74codqgiixo33q62qlrqtkgmcitqx5u2oeqnmn5bpcbiyd.onion</nowiki></code>
+** review for malicious content
+** create a github fork from reviewed version (just pressing fork button, no other changes, unless required)
 
-== live-build - local repository support ==
-* add support to build from local repository
-* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+== mediawiki-shell self-introduction ==
 
-== wiki link archiving ==
-* mediawiki-shell already has code for downloading all wiki pages to the disk in mediawiki markup format, as well as parsing all local wiki text pages for links
-* todo: implement and execute archival of all links using archive.today CLI, create a list of links and archived links (extendible format originallink, archive.today, archivebox, ...)
-* todo: mass edit the wiki to add the archived links. should we use a wiki template such as [[Template:ArchiveLink]]
+* Please look around in mediawiki-shell source code folder to get an idea about all its already existing functionality. This will be handy for follow-up tasks below.
 
-== live-build - grub.cfg GRUB configuration - loopback.cfg ==
-* add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
-* Requires fixes in live-build and Dracut to make work:
-** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. A fix for this has been integrated into my fork of live-build. MR to upstream here: https://salsa.debian.org/live-team/live-build/-/merge_requests/376
-** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it. Only appears to be a problem on Debian Bookworm, Trixie works just fine.
-** At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.
+== archive.today link archiving ==
+* mediawiki-shell already has code for downloading all wiki pages to the disk in mediawiki markup format, as well as parsing all local wiki text pages for links <code>tool</code>:
+** <code>mw-specific-backup-kicksecure</code>
+** <code>mw-specific-backup-whonix</code>
+** <code>git_mediawiki_backup_folder</code> variable: todo
+
+<pre>
+   TMPFOLDER=/tmp/mediawiki-shell-temp \
+   wiki_backup_folder="$git_mediawiki_backup_folder" \
+   wiki_namespace_list_extra="274 500" \
+   "$tool"
+</pre>
+
+* (FYI: this is used server-side to keep updating https://github.com/Kicksecure/kicksecure-wiki-backup / https://github.com/Whonix/whonix-wiki-backup)
+* todo: implement and execute archival of all links using archive.today CLI, create a list of links and archived links (extendible format original-link, archive.today, archivebox, ...)
+* todo: mass edit the wiki to add the archived links.
+** Should we use a wiki template such as [[Template:Archive_link]]?
+** Or only append the archive.today link behind the link?
+** To be kept in mind: if archive.today goes down one day, we might need to mass wiki edit to remove these links.
+
+== mediawiki bot setup ==
+* will be required for mediawiki mass editing
+* https://www.kicksecure.com/wiki/Special:BotPasswords
+* https://www.kicksecure.com/wiki/Special:BotPasswords/botname
+* https://www.whonix.org/wiki/Special:BotPasswords
+* https://www.whonix.org/wiki/Special:BotPasswords/botname
+* note: replace <code>botname</code> with actual name of bot
 
 == calamares - make 3.3.11 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
@@ -59,9 +83,40 @@ TODO
 * On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
 * From chat with Patrick: "so in /usr/bin/dm-packaging-helper-script there could be a functional which shows the "git diff" before auto-committing, because then I can still stop it, should it look weird"
 
+== document boot-repair ==
+* Add to [[Broken Boot]]
+
+== investigate porting from sudo to doas ==
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482
+* can our /etc/sudoers.d snippets be ported to doas? is doas powerful enough for our requirements based on our already existing /etc/sudoers.d snippets?
+* could we have a system that no longer requires sudo or would we end up with a system that comes with both, sudo and doas? ("double" attack surface)
+* use ReplaceText as a wiki search engine to find our current uses of sudo because these would need to be ported to doas
+** https://www.kicksecure.com/wiki/Special:ReplaceText
+** https://www.whonix.org/wiki/Special:ReplaceText
+** search terms:
+** <code>sudo</code>
+** <code>lxsudo</code>
+* issue: doas does not support <code>.d</code> drop-in folder. We could implement the functionality maybe in security-misc using a dpkg trigger. Pseudo code:
+
+<pre>
+#!/bin/sh
+cat /etc/doas.d/*.conf /usr/local/etc/doas.d/*.conf > /etc/doas.conf
+</pre>
+
+* <code>/etc/doas.conf</code> would require a header pointing out it is auto-generated.
+
+<pre>
+## Do not edit this file!
+## Please create and add modifications to the following file instead:
+## /usr/local/etc/torrc.d/50_user.conf
+
+## This file was auto generated by '$BASH_SOURCE' at APT package installation time (a dpkg trigger).
+</pre>
+
 == Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
 * https://github.com/Kicksecure/security-misc/issues/187
 * This is in preparation for the next task.
+* Discussion on how best to do this posted at https://forums.kicksecure.com/t/splitting-security-misc-into-shared-desktop-and-server-packages/674
 
 == Kicksecure Firewall ==
 https://forums.kicksecure.com/t/kicksecure-firewall/378/10
@@ -191,7 +246,9 @@ Aaron:
 * how could we on the PAM level notice if faillock is used interactively or non-interactively?
 * if non-interactive, skip faillock
 * if interactive, do not skip faillock
-* Bug report: https://github.com/linux-pam/linux-pam/issues/842
+* Bug reports:
+** https://github.com/linux-pam/linux-pam/issues/842
+** https://github.com/sudo-project/sudo/issues/415
 
 == calamaers - timezone issue ==
 * https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652
@@ -217,35 +274,59 @@ Aaron:
 * possible to translate https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652/6 into a calamares unit test so it would show a better error message?
 * Feature request made for allowing distros to deny certain filesystems from being used for certain mountpoints: https://github.com/calamares/calamares/issues/2397
 
+== live-build - local repository support ==
+* add support to build from local repository
+* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+
+== live-build - grub.cfg GRUB configuration - loopback.cfg ==
+* add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
+* Requires fixes in live-build and Dracut to make work:
+** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. A fix for this has been integrated into my fork of live-build. MR to upstream here: https://salsa.debian.org/live-team/live-build/-/merge_requests/376
+** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it. Only appears to be a problem on Debian Bookworm, Trixie works just fine.
+*** Task is on hold until we migrate to Trixie.
+** (Side note: At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.)
+
 = REVIEW PLEASE =
-== live-build - build failing ==
-* either live-build lb-dracut branch is not fully merged or forked live-build isn't installed by derivative-maker
-* forked live-build wasn't being installed previously. Code for automatic installation written and tested, present at https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/lb-autoinstall
+== refactor dm-unicode-check ==
+* https://github.com/Kicksecure/developer-meta-files/blob/master/usr/bin/dm-check-unicode#L47
+* 1 line per entry for white list
+* Done, branch is at https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/dm-check-unicode-enhance
 
-== archive.today CLI ==
-* since archive.org might go offline permanently, a quick replacement is required
-* archive.today alternative domain names: archive.is, archive.ph (for search terms)
-* todo: find a functional archive.today CLI tool
-* todo: fork it, check if the code is static (does not load tons of other libraries) and is non-malicious
-* arraybolt3: archive.today officially does not support automated archival of pages, see https://blog.archive.today/post/678411898279067648/hello-i-am-developing-an-application-that. They use CAPTCHAs to prevent automated tools from working, so it is unlikely such a tool exists, and even if it did, its use would potentially harm archive.today, and the tool would not function properly in the long run.
+= ARCHIVED =
+== check live-build_installation function in derivative-maker ==
+* todo
+* Spot-checked, looked fine to me. Comment about improper live-build installation due to dependency packages mentioned to Patrick.
 
-== audit grub profile pf2 files ==
+== build raw VM images - base images - consider porting from grml-debootstrap to live-build ==
+* Building fully persistent images? Replacing grml-debootstrap?
+
 <pre>
-56e5b1371b1963b993b723fd011facb0185e3e9ad7ce1e9a0246cc8aa2446901bff3fe7e5a95457b8509d6a1e008c62be7ede28f0d6026937dee97118acd8555  ./kicksecure/kicksecure-base-files/boot/grub/themes/kicksecure/terminus-12.pf2
-78cdac20f63f0aa10d1e9962c09bec823f015d5a3b21c1311e24bee6a7aaedba021395055fba0574e092c1e305602ebd85836cf0b330beb122873d6f4853f8d7  ./kicksecure/kicksecure-base-files/boot/grub/themes/kicksecure/terminus-16.pf2
-91a8b5ace4f353a7e769d3f7eb443dec70cef65d050991ae00b078d988754148d7cce917196f16b1466511d585f86dbc7f9d3cbd0414f0d02c20f749a6bc2108  ./kicksecure/kicksecure-base-files/boot/grub/themes/kicksecure/terminus-18.pf2
-9ba34ef5dd010c86675f4f1021e9c0ce42413539263d77d9f19db8030c9afcf689048e604003e737f42e051b0928ccd50da85273cdfacf7871573695c4ab01c1  ./kicksecure/kicksecure-base-files/boot/grub/themes/kicksecure/ubuntu_regular_20.pf2
-d275ea5ad9c5940fc4441fd59e435a25aa2a13fe6d19c64517fb5b9f62f559d21e3fa1a95944f9bf2970ecfccbf13a5a28cae9cfdd35a1d29fd2fb781a35bcac  ./kicksecure/kicksecure-base-files/boot/grub/themes/kicksecure/ubuntu_regular_17.pf2
-f16dcfb5b58c30425f2c51168961aad55678174d85513c218fac51ce421177fd2f16791ec89deab7045477a6426818d7ff13dcfd9a519b6e318bf4335415a615  ./kicksecure/kicksecure-base-files/boot/grub/themes/kicksecure/terminus-14.pf2
+--system normal
+--binary-image hdd
 </pre>
 
+* Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
+* Looks like this is potentially useful, but definitely needs a lot of help to make useful. To get a useful build, it was necessary to use the following configuration in auto/config:
 
-* Files from upstream deleted, replaced with a Makefile that generates pf2 fonts from the Inter and Terminus fonts in the Debian archives at package build time. Also split out common GRUB theme code into dist-base-files.
-* Repos modified:
-** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/grub-theme
-** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-theme-fix
-** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/grub-theme-fix
-** anon-ws-base-files: https://github.com/ArrayBolt3/anon-ws-base-files/tree/arraybolt3/grub-theme-fix
+<pre>
+#!/bin/sh
+
+set -e
+
+lb config noauto \
+   --distribution bookworm \
+   --system normal \
+   --binary-image hdd \
+   --hdd-size auto \
+   --chroot-filesystem none \
+   --binary-filesystem ext4 \
+   "${@}"
+</pre>
+
+* The generated image contained no user account, no root password, and no properly configured fstab, thus it was necessary to mount the built image, chroot into it, configure fstab, add a user, and add the new user to the sudoers group.
+* The generated image also used Syslinux as the default bootloader, which is obviously strange for a desktop system. Furthermore, the kernel command line was not configured properly, and it was necessary to manually add <code>root=/dev/vda1</code> to the command line to get the system to boot. Probably should have set <code>--bootloaders grub-pc,grub-efi</code>. Unsure if <code>--bootappend-live</code> will work for setting the kernel command line, this may have to be fixed as a post-build operation (chrooting in and running <code>sudo update-grub</code> or similar).
+* Was able to make a basic, mostly-working (aside from the bootloader issues) image with IceWM as the desktop.
+* Patrick, paraphrased Aaron: While it might be doable to create fully persistent (VM) raw images using live-build, porting from grml-debootstrap to live-build is probably not worth it.
 
 == refactor dm-packaging-helper-script ==
 * Enhance readability and maintainability, document all functions and features
@@ -280,37 +361,28 @@ new (bug):
 
 * Bug fixed, forgot to set <code>package_header_written='y'</code> after writing the package header in <code>pkg_git_packages_git_log_writer</code>.
 
-== live-build - build raw images ==
-* Building fully persistent images? Replacing grml-debootstrap?
+== audit grub profile pf2 files ==
+* Files from upstream deleted, replaced with a Makefile that generates pf2 fonts from the Inter and Terminus fonts in the Debian archives at package build time. Also split out common GRUB theme code into dist-base-files.
+* Repos modified:
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/grub-theme
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-theme-fix
+** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/grub-theme-fix
+** anon-ws-base-files: https://github.com/ArrayBolt3/anon-ws-base-files/tree/arraybolt3/grub-theme-fix
 
-<pre>
---system normal
---binary-image hdd
-</pre>
+== live-build - build failing ==
+* either live-build lb-dracut branch is not fully merged or forked live-build isn't installed by derivative-maker
+* forked live-build wasn't being installed previously. Code for automatic installation written and tested, present at https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/lb-autoinstall
 
-* Useful? Low priority? arraybolt3: this would potentially be very useful, will investigate.
-* Looks like this is potentially useful, but definitely needs a lot of help to make useful. To get a useful build, it was necessary to use the following configuration in auto/config:
+== archive.today CLI ==
+* since archive.org might go offline permanently, a quick replacement is required
+* archive.today alternative domain names: archive.is, archive.ph (for search terms)
+* todo: find a functional archive.today CLI tool
+* todo: fork it, check if the code is static (does not load tons of other libraries) and is non-malicious
+* arraybolt3: archive.today officially does not support automated archival of pages, see https://blog.archive.today/post/678411898279067648/hello-i-am-developing-an-application-that. They use CAPTCHAs to prevent automated tools from working, so it is unlikely such a tool exists, and even if it did, its use would potentially harm archive.today, and the tool would not function properly in the long run.
 
-<pre>
-#!/bin/sh
+== continuous documentation effort - FYI only ==
+* Patrick liked the new super grub disk additions to [[Broken Boot]]. If something else comes to mind, please continue improving the wiki.
 
-set -e
-
-lb config noauto \
-   --distribution bookworm \
-   --system normal \
-   --binary-image hdd \
-   --hdd-size auto \
-   --chroot-filesystem none \
-   --binary-filesystem ext4 \
-   "${@}"
-</pre>
-
-* The generated image contained no user account, no root password, and no properly configured fstab, thus it was necessary to mount the built image, chroot into it, configure fstab, add a user, and add the new user to the sudoers group.
-* The generated image also used Syslinux as the default bootloader, which is obviously strange for a desktop system. Furthermore, the kernel command line was not configured properly, and it was necessary to manually add <code>root=/dev/vda1</code> to the command line to get the system to boot. Probably should have set <code>--bootloaders grub-pc,grub-efi</code>. Unsure if <code>--bootappend-live</code> will work for setting the kernel command line, this may have to be fixed as a post-build operation (chrooting in and running <code>sudo update-grub</code> or similar).
-* Was able to make a basic, mostly-working (aside from the bootloader issues) image with IceWM as the desktop.
-
-= ARCHIVED =
 == live build cdlabel change ==
 * <code>CDLABEL=Kicksecure_17</code>
 * <code>--iso-volume 'Kicksecure 17' \\</code>
