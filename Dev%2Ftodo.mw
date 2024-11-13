@@ -10,11 +10,63 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== live-build - build failing due to fasttrack not using apt-cacher-ng syntax ==
+* https://github.com/Whonix/derivative-maker/actions/runs/11794583611
+
+<pre>
+[2024-11-12 10:17:17] lb bootstrap_archives --verbose --debug
+D: Reading configuration file config/common
+D: Reading configuration file config/bootstrap
+D: Reading configuration file config/chroot
+D: Reading configuration file config/binary
+D: Reading configuration file config/source
+P: Configuring file /etc/apt/sources.list
+D: Executing: apt-get -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 -o Dpkg::Options::=--force-confnew --yes --allow-remove-essential -o APT::Color=false update
+Ign:1 https://fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+Get:2 http://HTTPS///deb.debian.org/debian bookworm InRelease [151 kB]
+Get:3 http://HTTPS///deb.debian.org/debian-security bookworm-security InRelease [48.0 kB]
+Get:4 http://HTTPS///deb.debian.org/debian bookworm-updates InRelease [55.4 kB]
+Get:5 http://HTTPS///deb.debian.org/debian bookworm-backports InRelease [59.0 kB]
+Get:6 http://HTTPS///deb.debian.org/debian bookworm/non-free amd64 Packages [97.3 kB]
+Get:7 http://HTTPS///deb.debian.org/debian bookworm/contrib amd64 Packages [54.1 kB]
+Get:8 http://HTTPS///deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
+Get:9 http://HTTPS///deb.debian.org/debian bookworm/non-free-firmware amd64 Packages [6236 B]
+Get:10 http://HTTPS///deb.debian.org/debian-security bookworm-security/contrib amd64 Packages [644 B]
+Get:11 http://HTTPS///deb.debian.org/debian-security bookworm-security/main amd64 Packages [204 kB]
+Get:12 http://HTTPS///deb.debian.org/debian-security bookworm-security/non-free-firmware amd64 Packages [688 B]
+Get:13 http://HTTPS///deb.debian.org/debian bookworm-updates/main amd64 Packages [2468 B]
+Get:14 http://HTTPS///deb.debian.org/debian bookworm-updates/non-free-firmware amd64 Packages [616 B]
+Get:15 http://HTTPS///deb.debian.org/debian bookworm-updates/non-free amd64 Packages [12.8 kB]
+Get:16 http://HTTPS///deb.debian.org/debian bookworm-updates/contrib amd64 Packages [768 B]
+Get:17 http://HTTPS///deb.debian.org/debian bookworm-backports/non-free amd64 Packages [11.1 kB]
+Get:18 http://HTTPS///deb.debian.org/debian bookworm-backports/non-free-firmware amd64 Packages [3852 B]
+Get:19 http://HTTPS///deb.debian.org/debian bookworm-backports/main amd64 Packages [255 kB]
+Get:20 http://HTTPS///deb.debian.org/debian bookworm-backports/contrib amd64 Packages [5624 B]
+Ign:1 https://fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+Ign:1 https://fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+Ign:1 https://fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+Ign:1 https://fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+Err:1 https://fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+  Invalid response from proxy: HTTP/1.0 403 CONNECT denied (ask the admin to allow HTTPS tunnels)     [IP: 127.0.0.1 3142]
+Fetched 9757 kB in 31s (314 kB/s)
+Reading package lists...
+E: Failed to fetch https://fasttrack.debian.net/debian-fasttrack/dists/bookworm-fasttrack/InRelease  Invalid response from proxy: HTTP/1.0 403 CONNECT denied (ask the admin to allow HTTPS tunnels)     [IP: 127.0.0.1 3142]
+E: Some index files failed to download. They have been ignored, or old ones used instead.
+E: An unexpected failure occurred, exiting...
+</pre>
+
+* Fixed, also fixed a related bug with the kicksecure.com URL. Fix is present at https://github.com/arrayBolt3/derivative-maker
+
+== Qubes graphical-session.target missing bug ==
+* Which source code file does enable systemd graphical-session.target target on Debian?
+* https://github.com/QubesOS/qubes-issues/issues/9576
+
 == test and review archive.today CLI frontend ==
 * archive.today is interesting because it is an independent third-part
 * candidate: wabarc/archive.is (supports CAPTCHA avoidance through cookie)
 * https://github.com/wabarc/archive.is?tab=readme-ov-file#archivetoday-is-unavailable
 ** test for functionality first in a throwaway VM
+*** Builds with Go 1.22 from bookworm-backports (<code>sudo apt install -t bookworm-backports golang</code>), to build you must go into the cmd/archive.is directory first, then <code>go build</code>
 ** test functionality and CAPTCHA avoidance
 ** test archive.today onion (might help with CAPTCHA avoidance), will help with IP restrictions
 *** <code><nowiki>http://archiveiya74codqgiixo33q62qlrqtkgmcitqx5u2oeqnmn5bpcbiyd.onion</nowiki></code>
@@ -53,11 +105,94 @@ TODO
 * https://www.whonix.org/wiki/Special:BotPasswords/botname
 * note: replace <code>botname</code> with actual name of bot
 
+== research archivebox and alternatives ==
+* installation source issue
+** nice but optional, because might be unavailable: signed releases available? available from packages.debian.org?
+* predictable links issue
+** web.archive.org is nice because using our [https://github.com/Kicksecure/mediawiki-link-to-archive mediawiki-link-to-archive] MediaWiki extension, each link gets appended with an archive symbol linking to <code>https://web.archive.org/archive/<original-link></code>.
+** investigate if archivebox (or alternative) has such a feature
+** post a feature request if not
+** if such a feature does not exist, then mass wiki editing will be required to append links to our self-hosted archivebox (or alternative)
+* public archive issue
+** Ideally, the archive would not be "our archive" but a public archive.
+** That does not mean, that we want to host a public archivebox archive that anyone can use. That would unfortunately be problematic (disk space, legal issues).
+** We're already offering various downloadable backups on the [[Offline Documentation]] wiki page (including rsync access).
+** For archived links it would be good if these could be offered in a backup format available to the public. I.e. someone could use rsync and download all links that we archived.
+** With archivebox that might be problematic because links might be unpredictable. Archivebox has a search function but it relies on a database, which we probably cannot share as is.
+* design:
+** Keep archive box web interface accessible to admins and bots only. (security)
+** Keep archived links accessible to anyone.
+** After wiki backup (already existing on the server) using mediawiki-shell, have a script that can parse the wiki for new links and add them to archivebox.
+*** Needs support for a list of domains to avoid arching (since archiving might be broken).
+*** Due to some links being offline, often, need to probably fail open if some links are not archiveable.
+
 == calamares - make 3.3.11 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
 * Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.11?
 ** Maintainer uploaded 3.3.11 to Sid on November 7: https://tracker.debian.org/news/1583270/accepted-calamares-3311-1-source-into-unstable/ Should migrate into Testing relatively soon.
 * Backport 3.3.11 after it is available in Trixie
+
+== investigate porting from sudo to doas ==
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482
+* can our /etc/sudoers.d snippets be ported to doas? is doas powerful enough for our requirements based on our already existing /etc/sudoers.d snippets?
+* could we have a system that no longer requires sudo or would we end up with a system that comes with both, sudo and doas? ("double" attack surface)
+* use ReplaceText as a wiki search engine to find our current uses of sudo because these would need to be ported to doas
+** https://www.kicksecure.com/wiki/Special:ReplaceText
+** https://www.whonix.org/wiki/Special:ReplaceText
+** search terms:
+** <code>sudo</code>
+** <code>lxsudo</code>
+
+== review and harden our /etc/sudoers.d snippets ==
+* review
+* harden, if there is something to harden
+
+== review and harden our pkexec policykit polkit policy files ==
+* review
+* harden, if there is something to harden
+
+<pre>
+./packages/kicksecure/anon-connection-wizard/usr/share/polkit-1/actions/com.kicksecure.anon-connection-wizard.policy
+./packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy
+</pre>
+
+== doas - submit a pwfeedback feature request ==
+* todo
+
+== doas - submit a /usr/local/etc/doas.d /etc/doas.d drop-in configuration feature request ==
+* todo
+* parse only configuration files ending with <code>.conf</code> (to avoid parsing editor backup files ending with "~", ".bak", ".dpkg-old" or similar)
+
+== create /usr/local/etc/doas.d /etc/doas.d parser and /etc/doas.conf configuration file creator ==
+* parse /usr/local/etc/doas.d
+* parse /etc/doas.d
+* parse only configuration files ending with <code>.conf</code>
+* do not overwrite a file that does not contain our auto generated configuration file (could be user custom file)
+** echo a warning in that case
+* atomic, create variable then use sponge
+* add to security-misc
+* add a dpkg trigger
+* <code>/etc/doas.conf</code> would require a header pointing out it is auto-generated.
+
+<pre>
+## Do not edit this file!
+## Please create and add modifications to the following file instead:
+## /usr/local/etc/torrc.d/50_user.conf
+
+## This file was auto generated by '$BASH_SOURCE' at APT package installation time (a dpkg trigger).
+</pre>
+
+== doas - add to security-misc permission hardener whitelist ==
+* todo
+
+== uwt torsocks TORSOCKS_LOG_LEVEL ==
+* check if package uwt /etc/sudoers.d/uwt is still required
+* https://forums.whonix.org/t/disable-torsocks-warning-spam/19084
+* if still an issue, please send a pull request to upstream making TORSOCKS_LOG_LEVEL configurable in /etc/tor/torsocks.conf
+
+== doas - create /etc/doas.d configuration snippets ==
+* add /etc/doas.d configuration snippets to the various packages needing these
+* if possible, pending discussion in https://forums.whonix.org/t/replace-sudo-with-doas/17482/19 for review of sudoers.d snippets by upstream
 
 == audio ==
 === audio generally ===
@@ -74,44 +209,8 @@ TODO
 * Need to investigate upstream code
 * Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
 
-== automation of tb-updater hardcoded version number update ==
-* example of what is currently done manually:
-** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
-** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
-** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
-* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
-* On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
-* From chat with Patrick: "so in /usr/bin/dm-packaging-helper-script there could be a functional which shows the "git diff" before auto-committing, because then I can still stop it, should it look weird"
-
 == document boot-repair ==
 * Add to [[Broken Boot]]
-
-== investigate porting from sudo to doas ==
-* https://forums.whonix.org/t/replace-sudo-with-doas/17482
-* can our /etc/sudoers.d snippets be ported to doas? is doas powerful enough for our requirements based on our already existing /etc/sudoers.d snippets?
-* could we have a system that no longer requires sudo or would we end up with a system that comes with both, sudo and doas? ("double" attack surface)
-* use ReplaceText as a wiki search engine to find our current uses of sudo because these would need to be ported to doas
-** https://www.kicksecure.com/wiki/Special:ReplaceText
-** https://www.whonix.org/wiki/Special:ReplaceText
-** search terms:
-** <code>sudo</code>
-** <code>lxsudo</code>
-* issue: doas does not support <code>.d</code> drop-in folder. We could implement the functionality maybe in security-misc using a dpkg trigger. Pseudo code:
-
-<pre>
-#!/bin/sh
-cat /etc/doas.d/*.conf /usr/local/etc/doas.d/*.conf > /etc/doas.conf
-</pre>
-
-* <code>/etc/doas.conf</code> would require a header pointing out it is auto-generated.
-
-<pre>
-## Do not edit this file!
-## Please create and add modifications to the following file instead:
-## /usr/local/etc/torrc.d/50_user.conf
-
-## This file was auto generated by '$BASH_SOURCE' at APT package installation time (a dpkg trigger).
-</pre>
 
 == Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
 * https://github.com/Kicksecure/security-misc/issues/187
@@ -287,12 +386,29 @@ Aaron:
 ** (Side note: At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.)
 
 = REVIEW PLEASE =
+== automation of tb-updater hardcoded version number update ==
+* example of what is currently done manually:
+** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
+** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
+** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
+* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
+* On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
+* From chat with Patrick: "so in /usr/bin/dm-packaging-helper-script there could be a functional which shows the "git diff" before auto-committing, because then I can still stop it, should it look weird"
+* Implemented. https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/tor-browser-version-update
+
+= ARCHIVED =
+== investigate doas ==
+* determine if it's a suitable replacement for sudo in Kicksecure
+** will using it resolve https://github.com/sudo-project/sudo/issues/415? It has to allow nopasswd exceptions to be distinguished from normal authentication in PAM
+*** Yes, it will. I tested running a nopass command with doas and it did NOT reset the faillock counter. I checked the doas source code, and it looks like this is because doas nopass exceptions don't go through PAM at all (though I didn't thoroughly check the code so I'm not entirely sure of this).
+* estimate work required to port to it
+* Research and time estimate recorded at https://forums.whonix.org/t/replace-sudo-with-doas/17482/18.
+
 == refactor dm-unicode-check ==
 * https://github.com/Kicksecure/developer-meta-files/blob/master/usr/bin/dm-check-unicode#L47
 * 1 line per entry for white list
 * Done, branch is at https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/dm-check-unicode-enhance
 
-= ARCHIVED =
 == check live-build_installation function in derivative-maker ==
 * todo
 * Spot-checked, looked fine to me. Comment about improper live-build installation due to dependency packages mentioned to Patrick.
