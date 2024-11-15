@@ -73,30 +73,20 @@ E: An unexpected failure occurred, exiting...
 + error_reason='message: ERROR: Live build binary stage failed!
 </pre>
 
-== live-build - lb-binary should not run apt-get update ==
-* todo
+* This is the result of apt-cacher-ng HTTPS tunneling not being enabled on the CI server. Our sources.list files from repository-dist and anon-apt-sources-list are causing the problem.
+* There is no practical, upstreamable way to only insert the sources.list files into the system after all apt commands have run. At best, it might be possible to insert our sources.list files immediately after sqaushfs-tools is installed but immediately before the squashfs is generated, then immediately delete them as soon as the squashfs was done being generated (as further apt commands are run after this point). This would be extremely hacky and would mandate that we keep our own live-build fork indefinitely, as such a change could not be practically upstreamed.
+* Enabling apt-cacher-ng HTTPS tunneling is undesirable, as it could result in the wrong packages being used in the ISO build.
+* One option might be to simply not install the sources.list files on the ISO at all, but rather have a script in the live session generate them, and have Calamares and debian-installer create them when appropriate. This goes against the design we want, but at this point it may be the only good solution.
 
 == Qubes graphical-session.target missing bug ==
 * Which source code file does enable systemd graphical-session.target target on Debian?
 * https://github.com/QubesOS/qubes-issues/issues/9576
 
-== test and review archive.today CLI frontend ==
-* archive.today is interesting because it is an independent third-part
-* candidate: wabarc/archive.is (supports CAPTCHA avoidance through cookie)
-* https://github.com/wabarc/archive.is?tab=readme-ov-file#archivetoday-is-unavailable
-** test for functionality first in a throwaway VM
-*** Builds with Go 1.22 from bookworm-backports (<code>sudo apt install -t bookworm-backports golang</code>), to build you must go into the cmd/archive.is directory first, then <code>go build</code>
-** test functionality and CAPTCHA avoidance
-*** Searching appears to work without a CAPTCHA avoidance cookie, archiving requires the cookie.
-*** Takes about a minute or two for a small page to be archived, then an additional five to ten minutes before that URL will show up when searched for using <code>./archive.is -p https://url</code> in searches.
-*** Tor is supported, but it's unclear how to make that support work, and research was inconclusive, filed a feature request to fix this at https://github.com/wabarc/archive.is/issues/58
-** test archive.today onion (might help with CAPTCHA avoidance), will help with IP restrictions
-*** <code><nowiki>http://archiveiya74codqgiixo33q62qlrqtkgmcitqx5u2oeqnmn5bpcbiyd.onion</nowiki></code>
-*** TODO, need to figure out how to properly trigger the use of Tor first.
-** review for malicious content
-*** Reviewed main package code, no malicious content found. Code looked mostly straightforward, though it made use of some advanced Go techniques. The code does however have a number of dependencies, at least three of which are written by this tool's author and one of which is relatively obscure judging from the Github star count, so I want to review those too (and potentially their sub-dependencies as well).
-** create a github fork from reviewed version (just pressing fork button, no other changes, unless required)
-*** No fork created yet as I'm not yet ready to declare this safe, however the commit I have and am reviewing is f6bc92ea8a399df64d4772de73ecf695e48ac16b
+== implement archive.today CLI frontend ==
+* Use https://github.com/wabarc/archive.is/blob/main/cmd/archive.is/is.go as general guidelines
+* Use as few dependencies as possible
+** Currently using only the Python standard library and Requests.
+** Current state of implementation: CLI parsing works, searching for URLs works, archiving not yet implemented, Tor support not yet implemented.
 
 == mediawiki-shell self-introduction ==
 
@@ -410,7 +400,23 @@ Aaron:
 *** Task is on hold until we migrate to Trixie.
 ** (Side note: At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.)
 
+== live-build - lb-binary should not run apt-get update ==
+* todo
+* Bug filed at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1087470
+* Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
+
 = REVIEW PLEASE =
+== automation of tb-updater hardcoded version number update ==
+* example of what is currently done manually:
+** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
+** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
+** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
+* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
+* On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
+* From chat with Patrick: "so in /usr/bin/dm-packaging-helper-script there could be a functional which shows the "git diff" before auto-committing, because then I can still stop it, should it look weird"
+* Implemented. https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/tor-browser-version-update
+
+= ARCHIVED =
 == live-build - build failing due to fasttrack not using apt-cacher-ng syntax ==
 * https://github.com/Whonix/derivative-maker/actions/runs/11794583611
 
@@ -458,17 +464,25 @@ E: An unexpected failure occurred, exiting...
 
 * Fixed, also fixed a related bug with the kicksecure.com URL. Fix is present at https://github.com/arrayBolt3/derivative-maker
 
-== automation of tb-updater hardcoded version number update ==
-* example of what is currently done manually:
-** https://github.com/Kicksecure/tb-updater/commit/f1f48f57021502b7c0d17b7ce50929860e72244f
-** https://github.com/Kicksecure/tb-updater/commit/9d790396a7439ceb6b8c494c790be6f80a304430
-** notify forums https://forums.whonix.org/t/tor-browser-integration/11912/118
-* post in forums can probably one day be avoided when there is packages.kicksecure.com which makes version numbers, changelogs more easily accessible including a "news blog" of recent changes
-* On the surface, making this fully automated would likely require making commits to code in an automated fashion. This is a bit worrying to me since it requires a machine to have access to a non-password-protected, trusted GPG key that is used to automatically sign commits. This would potentially be a valuable target for an attacker, and could potentially introduce supply-chain attacks. Would it be sufficient to make this able to alert a sufficiently trusted person that it's time to update the version numbers? This could be combined with a tool that will update the version number to whatever is appropriate with a single command, allowing an administrator to simply run the command, verify the diff is correct, then commit and push.
-* From chat with Patrick: "so in /usr/bin/dm-packaging-helper-script there could be a functional which shows the "git diff" before auto-committing, because then I can still stop it, should it look weird"
-* Implemented. https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/tor-browser-version-update
+== test and review archive.today CLI frontend ==
+* archive.today is interesting because it is an independent third-part
+* candidate: wabarc/archive.is (supports CAPTCHA avoidance through cookie)
+* https://github.com/wabarc/archive.is?tab=readme-ov-file#archivetoday-is-unavailable
+** test for functionality first in a throwaway VM
+*** Builds with Go 1.22 from bookworm-backports (<code>sudo apt install -t bookworm-backports golang</code>), to build you must go into the cmd/archive.is directory first, then <code>go build</code>
+** test functionality and CAPTCHA avoidance
+*** Searching appears to work without a CAPTCHA avoidance cookie, archiving requires the cookie.
+*** Takes about a minute or two for a small page to be archived, then an additional five to ten minutes before that URL will show up when searched for using <code>./archive.is -p https://url</code> in searches.
+*** Tor is supported, but it's unclear how to make that support work, and research was inconclusive, filed a feature request to fix this at https://github.com/wabarc/archive.is/issues/58
+** test archive.today onion (might help with CAPTCHA avoidance), will help with IP restrictions
+*** <code><nowiki>http://archiveiya74codqgiixo33q62qlrqtkgmcitqx5u2oeqnmn5bpcbiyd.onion</nowiki></code>
+*** TODO, need to figure out how to properly trigger the use of Tor first.
+** review for malicious content
+*** Reviewed main package code, no malicious content found. Code looked mostly straightforward, though it made use of some advanced Go techniques. The code does however have a number of dependencies, at least three of which are written by this tool's author and one of which is relatively obscure judging from the Github star count, so I want to review those too (and potentially their sub-dependencies as well).
+** create a github fork from reviewed version (just pressing fork button, no other changes, unless required)
+*** No fork created yet as I'm not yet ready to declare this safe, however the commit I have and am reviewing is f6bc92ea8a399df64d4772de73ecf695e48ac16b
+* After initial investigation, we believe it will be safer and better to implement our own CLI frontend for this, using the Go code from wabarc's tool as inspiration.
 
-= ARCHIVED =
 == investigate doas ==
 * determine if it's a suitable replacement for sudo in Kicksecure
 ** will using it resolve https://github.com/sudo-project/sudo/issues/415? It has to allow nopasswd exceptions to be distinguished from normal authentication in PAM
