@@ -10,72 +10,68 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== review kloak makefile pull request ==
-* https://github.com/Whonix/kloak/pull/5
-
 == Qubes graphical-session.target missing bug ==
 * Which source code file does enable systemd graphical-session.target target on Debian?
 * https://github.com/QubesOS/qubes-issues/issues/9576
 
-== mediawiki-shell self-introduction ==
-* Please look around in mediawiki-shell source code folder to get an idea about all its already existing functionality. This will be handy for follow-up tasks below.
+== tbb version parser hardening ==
+* '''todo:''' discuss
+* The local version parser function `tbbversion_installed` could be moved to <code>/usr/bin/update-torbrowser</code> for now as it is considered low risk.
+* The remote version parser function `tbbversion` requires hardening:
+** Out of scope: `tbbversion` taking too much time (can be easily handled from <code>update-torbrowser</code> by using standard Linux program <code>timeout</code>).
+** Currently has good error handling, but errors have not been reported yet. We could give up on good error handling except for distinguishing between exit 0 (ok) and exit 1 (error).
+** Needs to be written as securely as possible:
+*** Attack surface currently includes at least: `jq`, `bash`, `/usr/libexec/msgcollector/striphtml`.
+*** Remote version file cannot be verified (only through HTTPS or onion).
+*** '''todo research:''' Will upstream provide signed version files? How does Tor Browser internally verify the version file? Can we use the same mechanism?
+*** Version parser should be moved into its own standalone script.
+*** Should it be rewritten in Python for better security?
+*** The new version parser could be confined using AppArmor.
+*** The version parser would either accept an input file and output file, with no other console output:
+**** If the version parser gets exploited but is still contained by AppArmor, malicious advice could still be outputted to the console. Therefore, error codes should instead be communicated through exit codes:
+***** Exit 1: General, not specifically handled/expected error.
+***** Exit 2: Input file does not exist.
+***** Exit 3: `jq` failed.
+***** Etc.
+*** String length sanity checking with <code>if [ "$actual_string_length" -gt "$max_string_length" ]; then</code> makes a lot of sense but should not be done within the version parser:
+**** If `jq` is compromised, the string length check could be omitted. Therefore, string length checking should be handled externally.
+**** Assumption: If string length is kept minimal, exploitation might be difficult or even impossible.
+**** Version number is currently <code>14.0.2</code>. Maximum string length is 20 characters. Since version numbers are short and reasonable, the maximum string length could be further reduced.
+**** If the version parser is compromised, outputting <code>evilevil</code> instead of <code>14.0.2</code> might be insufficient to exploit <code>update-torbrowser</code>. However, allowing the parser to output a 10 MB file increases risk significantly.
+**** A robust design could involve the version parser accepting an input file and generating an output file, with no console output allowed:
+***** File-based input/output design allows <code>update-torbrowser</code> to safely check file size. If too large, it can be rejected as either a bug or an exploitation attempt.
+**** Separation between version parser (AppArmor'ed) + file size checker (AppArmor'ed) + tb-updater might be overkill?
+**** Should be placed into /usr/libexec/tb-updater?
+** Should Tor Project and ARM64 version parsers be different?
 
-== add date and time detection to archive.today frontend ==
-* This is necessary for the next task.
-* If a link has been archived once in the past, but is severely outdated, we should probably request that archive.today rearchive it. This requires that we know when archive.today archived each page.
-* (It might be worthwhile to detect when a link was added to the Wiki and use that as a deciding factor as to whether or not we should archive the link again. Might be doable by using the archive.today backups from Github.)
+* After discussion with Patrick, this is the solution I wrote:
+** Parsing of untrusted input is entrusted to a dedicated Python script that is heavily confined using AppArmor.
+** The original <code>tbbversion</code> function is still necessary to sanitize the output from this script.
+** The script reads an input file, writes an output file, and gives an exit code indicating if the operation was successful. Console output to stderr ''is'' generated for debugging purposes, but is discarded by <code>tbbversion</code>.
+** The exit codes are:
+*** 0: Success.
+*** 1: Invalid arguments.
+*** 2: File I/O issues (file doesn't exist or cannot be read from/written to)
+*** 3: Parse failure (invalid or malicious input)
+** <code>tbbversion</code> runs a battery of checks against the returned value, ensuring it is small, contains only ASCII chars, non-empty, and looks like a valid version number. Once the full battery of tests passes, the value is considered trusted and is passed to <code>tbbversion</code>'s caller.
+** Callers source <code>/usr/libexec/tb-updater/version-validator</code>, set environment variables, and call <code>tbbversion</code> to do Tor Browser version parsing. This is identical to the previously existing API, with two exceptions:
+*** <code>tbbversion</code> is now part of a script called <code>version-validator</code>. <code>version-parser</code> is now the confined Python script that does the real parsing. Thus scripts that rely on <code>tbbversion</code> need to be changed to source the correct script.
+*** <code>tbbversion</code> supports Tor Browser ARM64 JSON from SourceForge. An environment variable <code>tbb_version_parse_as_arm64</code> must be set to <code>y</code> to attempt to parse this JSON format.
+** Code changes to tb-updater: https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/json-parse-hardening
+** Code changes to developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/json-parse-hardening
+** '''NOTE:''' I do not feel this has been tested well enough to merge yet. I've done quite a bit of debugging, but haven't created and followed a test plan yet.
 
-== archive.today link archiving ==
-* mediawiki-shell already has code for downloading all wiki pages to the disk in mediawiki markup format, as well as parsing all local wiki text pages for links <code>tool</code>:
-** <code>mw-specific-backup-kicksecure</code>
-** <code>mw-specific-backup-whonix</code>
-** <code>git_mediawiki_backup_folder</code> variable: todo
-
-<pre>
-   TMPFOLDER=/tmp/mediawiki-shell-temp \
-   wiki_backup_folder="$git_mediawiki_backup_folder" \
-   wiki_namespace_list_extra="274 500" \
-   "$tool"
-</pre>
-
-* (FYI: this is used server-side to keep updating https://github.com/Kicksecure/kicksecure-wiki-backup / https://github.com/Whonix/whonix-wiki-backup)
-* todo: implement and execute archival of all links using archive.today CLI, create a list of links and archived links (extendible format original-link, archive.today, archivebox, ...)
-* <s>todo: mass edit the wiki to add the archived links.</s>
-** Should we use a wiki template such as [[Template:Archive_link]]?
-*** This might require a custom plugin, but I believe it should work. Archive.today works with links such as <code>https://archive.today/https://google.com</code> - clicking a link such as this will take you to a search page showing all of the archived copies archive.today has of that particular link so far. The user is then free to choose which version to look at
-*** Custom mediawiki extension already existing: https://github.com/Kicksecure/mediawiki-link-to-archive
-**** Moved to separate task.
-**** It's already adding the web archive links.
-**** Could be extended to add the archive.today links.
-** <s>Or only append the archive.today link behind the link?</s>
-*** <s>Requires lots of manual work. The code I had that was rendering a fairly nice-looking archive "button" was something along the lines of <code>[https://www.freedos.org/books/cprogramming/part5/ C Programming for DOS tutorial, part 5] [[Image:Archive-today-favicon.png|frameless|16px|link=https://archive.ph/https://archive.ph/https://www.freedos.org/books/cprogramming/part5/|text-top|Link to archive.today version]]</code>. Using a plugin to automate that would be very valuable. Additionally, by doing this, we don't have to automatically archive every link someone adds (which CAPTCHAs make nearly impossible). People can simply archive the links as they add them, and people who find an unarchived link can archive it right then and there.</s>
-** <s>To be kept in mind: if archive.today goes down one day, we might need to mass wiki edit to remove these links.</s>
-*** <s>Use of a plugin like what we're using for the archive.org links should hopefully make that easy.</s>
-
-Plan #2:
-
-* Current implementation plan for archiving:
-** 1. Download all wiki pages from Kicksecure and Whonix wikis
-** 2. Get all links from them
-** 3. For each link, check if already in log file. If found, skip. If not continue.
-** 4. search the link on archive.today
-*** If found:
-**** ok, skip
-*** If not found:
-**** Archive it
-** When a CAPTCHA page is hit, stop and wait for the user to provide a new CAPTCHA cookie
-** Needs a hardcoded list of excluded domain names. Some domains unfortunately can not be archived. Either failing or only unusable archived results. For example, archive.ph probably cannot archive web archive lins.
-
-update #2:
-
-* no need to automatically re-archive links, can actually worsen the quality
-
-== add archive.ph support to mediawiki-link-to-archive mediawiki extension ==
-* Custom mediawiki extension already existing: https://github.com/Kicksecure/mediawiki-link-to-archive
-* It's already adding the web archive links.
-* Please add archive.ph links.
-* Based on archive.ph supporting <code><nowiki>https://archive.today/https://google.com</nowiki></code> format.
-* No testing required. (Because setting up a mediawiki test environment can be quite involved.)
+== url_to_unixtime review and hardening ==
+* https://github.com/Kicksecure/sdwdate/blob/master/usr/bin/url_to_unixtime
+* (mostly) out of scope? validation of command line inputs
+* out of scope: timeout - this is enforced on sdwdate level and does not need to be implemented at the url_to_unixtime level
+* todo: check if minimum + maximum string lengths are properly enforced
+* already has a dedicated AppArmor profile:
+** https://github.com/Kicksecure/sdwdate/blob/master/etc/apparmor.d/usr.bin.url_to_unixtime
+** https://github.com/Kicksecure/sdwdate/blob/master/etc/apparmor.d/abstractions/url_to_unixtime
+* threat model:
+** remote code execution
+** outputting too short/long/non-numeric strings or malicious binary data that could confuse/exploit sdwdate
 
 == research archivebox and alternatives ==
 * installation source issue
@@ -117,6 +113,7 @@ update #2:
 ** search terms:
 ** <code>sudo</code>
 ** <code>lxsudo</code>
+* Ensure sudoers.d config files used in Kicksecure and Whonix on Qubes OS can be ported to doas
 
 == review and harden our /etc/sudoers.d snippets ==
 * review
@@ -365,7 +362,67 @@ Aaron:
 * Bug filed at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1087470
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
+== review kloak makefile pull request ==
+* https://github.com/Whonix/kloak/pull/5
+* Review complete, nothing malicious found, some quality and functionality issues were found for which I suggested several changes.
+
 = REVIEW PLEASE =
+== archive.today link archiving ==
+* mediawiki-shell already has code for downloading all wiki pages to the disk in mediawiki markup format, as well as parsing all local wiki text pages for links <code>tool</code>:
+** <code>mw-specific-backup-kicksecure</code>
+** <code>mw-specific-backup-whonix</code>
+** <code>git_mediawiki_backup_folder</code> variable: todo
+
+<pre>
+   TMPFOLDER=/tmp/mediawiki-shell-temp \
+   wiki_backup_folder="$git_mediawiki_backup_folder" \
+   wiki_namespace_list_extra="274 500" \
+   "$tool"
+</pre>
+
+* (FYI: this is used server-side to keep updating https://github.com/Kicksecure/kicksecure-wiki-backup / https://github.com/Whonix/whonix-wiki-backup)
+* todo: implement and execute archival of all links using archive.today CLI, create a list of links and archived links (extendible format original-link, archive.today, archivebox, ...)
+* <s>todo: mass edit the wiki to add the archived links.</s>
+** Should we use a wiki template such as [[Template:Archive_link]]?
+*** This might require a custom plugin, but I believe it should work. Archive.today works with links such as <code>https://archive.today/https://google.com</code> - clicking a link such as this will take you to a search page showing all of the archived copies archive.today has of that particular link so far. The user is then free to choose which version to look at
+*** Custom mediawiki extension already existing: https://github.com/Kicksecure/mediawiki-link-to-archive
+**** Moved to separate task.
+**** It's already adding the web archive links.
+**** Could be extended to add the archive.today links.
+** <s>Or only append the archive.today link behind the link?</s>
+*** <s>Requires lots of manual work. The code I had that was rendering a fairly nice-looking archive "button" was something along the lines of <code>[https://www.freedos.org/books/cprogramming/part5/ C Programming for DOS tutorial, part 5] [[Image:Archive-today-favicon.png|frameless|16px|link=https://archive.ph/https://archive.ph/https://www.freedos.org/books/cprogramming/part5/|text-top|Link to archive.today version]]</code>. Using a plugin to automate that would be very valuable. Additionally, by doing this, we don't have to automatically archive every link someone adds (which CAPTCHAs make nearly impossible). People can simply archive the links as they add them, and people who find an unarchived link can archive it right then and there.</s>
+** <s>To be kept in mind: if archive.today goes down one day, we might need to mass wiki edit to remove these links.</s>
+*** <s>Use of a plugin like what we're using for the archive.org links should hopefully make that easy.</s>
+
+Plan #2:
+
+* Current implementation plan for archiving:
+** 1. Download all wiki pages from Kicksecure and Whonix wikis
+** 2. Get all links from them
+** 3. For each link, check if already in log file. If found, skip. If not continue.
+** 4. search the link on archive.today
+*** If found:
+**** ok, skip
+*** If not found:
+**** Archive it
+** When a CAPTCHA page is hit, stop and wait for the user to provide a new CAPTCHA cookie
+** Needs a hardcoded list of excluded domain names. Some domains unfortunately can not be archived. Either failing or only unusable archived results. For example, archive.ph probably cannot archive web archive links.
+
+update #2:
+
+* no need to automatically re-archive links, can actually worsen the quality
+
+* Tentatively finished archiver tool here: https://github.com/ArrayBolt3/mediawiki-shell/tree/arraybolt3/wiki-link-archiver Currently running this, it seems to be working well.
+
+= ARCHIVED =
+== mediawiki-shell self-introduction ==
+* Please look around in mediawiki-shell source code folder to get an idea about all its already existing functionality. This will be handy for follow-up tasks below.
+* Done, got a good idea of the way it works and what features were needed for implementing the archiver.
+
+== add py-archive-today to helper-scripts ==
+* please add py-archive-today to helper-scripts as archive.today
+* Done, https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/archive-today
+
 == automation of tb-updater hardcoded version number update - #2 == 
 * please integrate with tb-updater
 ** has code to perform securely download tbb version number using upstream provided version file
@@ -374,11 +431,17 @@ Aaron:
 ** there should only be 1 code path for download/parsing of tbb version in 1 repository
 ** Done, modified branch is at https://github.com/ArrayBolt3/developer-meta-files/tree/arraybolt3/tbb-version-detection-v2
 
-== add py-archive-today to helper-scripts ==
-* please add py-archive-today to helper-scripts as archive.today
-* Done, https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/archive-today
+== add archive.ph support to mediawiki-link-to-archive mediawiki extension ==
+* Custom mediawiki extension already existing: https://github.com/Kicksecure/mediawiki-link-to-archive
+* It's already adding the web archive links.
+* Please add archive.ph links.
+* Based on archive.ph supporting <code><nowiki>https://archive.today/https://google.com</nowiki></code> format.
+* No testing required. (Because setting up a mediawiki test environment can be quite involved.)
+* Branch with archive.today support here: https://github.com/ArrayBolt3/mediawiki-link-to-archive/tree/arraybolt3/archive-today
+** Untested, however I did lint the code using <code>php -l</code>.
+** See TODOs in code, this will not be usable as-is since an image needs added to the server and a CSS class may need to change.
+** The intended result of the code is that an archive.today link icon will be added to every normal link, immediately after the archive.org icon. Onion links and archive.org links should ''not'' have an archive.today link icon added after them, whereas links to archive.today should have ''only'' an archive.today link icon added after them (with similar behavior to the existing link buttons for archive.org links and onion links).
 
-= ARCHIVED =
 == implement archive.today CLI frontend ==
 * Use https://github.com/wabarc/archive.is/blob/main/cmd/archive.is/is.go as general guidelines
 * Use as few dependencies as possible
@@ -1704,6 +1767,12 @@ Might verbose log reveal the typing fingerprint of the user?
 * All relevant issues should be solved by https://github.com/Whonix/kloak/pull/1
 
 = backlog - one day =
+== add date and time detection to archive.today frontend ==
+* This is necessary for the next task.
+* If a link has been archived once in the past, but is severely outdated, we should probably request that archive.today rearchive it. This requires that we know when archive.today archived each page.
+* (It might be worthwhile to detect when a link was added to the Wiki and use that as a deciding factor as to whether or not we should archive the link again. Might be doable by using the archive.today backups from Github.)
+* We decided to not attempt re-archiving already archived content, thus this is no longer needed for now.
+
 == mediawiki bot setup ==
 * no wiki mass editing required for now
 * will be required for mediawiki mass editing
