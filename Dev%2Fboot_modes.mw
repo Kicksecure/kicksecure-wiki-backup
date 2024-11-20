@@ -1,154 +1,124 @@
 {{Header}}
 {{title|title=
-Multiple Boot Modes for Better Security: an Implementation of Untrusted Root
+Role-Based Boot Modes (user versus admin) for Enhanced Security
 }}
 {{#seo:
-|description=Persistent User / Live user / Persistent Secureadmin / Persistent Superadmin / Persistent Recovery Mode
+|description=Persistent User / Live user / Persistent Admin / Persistent Recovery Mode
 }}
 [[File:Grub-boot-icon.jpg|300px|thumb]]
 {{intro|
-GRUB boot menu options Persistent User / Live user / Persistent Secureadmin / Persistent Superadmin / Persistent Recovery Mode and their use cases.
+GRUB boot menu options Persistent User / Live user / Persistent Admin / Persistent Recovery Mode and their use cases.
 }}
-
 {{mbox
 |icon=fa-solid fa-exclamation cs-yellow
 |text=This is a concept still in development. Waiting for implementation. Help welcome!
 }}
-
 = Introduction =
 
-The page discusses different boot modes in the {{project_name_long}} operating system, aimed at improving security by implementing role-based boot options. It describes modes like "Persistent User" for daily activities, "SecureAdmin" for software installation with limited root privileges, and "SuperAdmin" for full system control. The goal is to isolate user activities and reduce security risks by restricting what each boot mode can access and modify. The page also explains potential opt-outs for users who prefer traditional root access.
+This page discusses different boot modes in the {{project_name_long}} operating system, aimed at improving security through role-based boot options. It describes modes like "Persistent User" for daily activities and "Persistent Admin" for updates, software installation, and full system control. The goal is to isolate user activities and reduce security risks by restricting what each boot mode can access and modify. The page also explains potential opt-outs for users who prefer traditional root access.
 
-These schemes are generic. They work for both, hosts and VMs. Both, {{project_name_long}} and derivatives of {{project_name_long}} such as (non-Qubes) {{whonix}}.
+These schemes are generic and work for both hosts and VMs. This applies to {{project_name_long}} and derivatives of {{project_name_long}}, such as (non-Qubes) {{whonix}}.
 
 = Development Goals =
 {{Anchor|Goals}}
 
-These goals were and are the driving direction for our boot modes implementation.
+These goals guide the boot modes implementation:
 
-* [[Login spoofing|defeat login spoofing]]
+* [[Login spoofing|Defeat login spoofing]]
 * [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]]
 * [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]]
+* [[Noexec]]
+* [[Verified Boot]]
 
 = Grub Default Boot Menu Entries =
 
-These are the default grub boot menu entries that we offer:
+The default GRUB boot menu entries are:
 
 * <code>PERSISTENT mode USER (For daily activities.)</code>
 * <code>LIVE mode USER (For daily activities.)</code>
-* <code>PERSISTENT mode SECUREADMIN (For software installation.)</code>
-* <code>PERSISTENT mode SUPERADMIN (Be very cautious!)</code>
-* <code>Recovery PERSISTENT mode SUPERADMIN (Be very cautious!)</code>
+* <code>PERSISTENT mode ADMIN (For software installation.)</code>
+* <code>Recovery PERSISTENT mode ADMIN</code>
 
-= boot modes considered too unimportant to be added to grub default boot menu =
+= Boot Modes Considered Too Unimportant to Be Added to GRUB Default Boot Menu =
 
-'''We currently don’t see good use cases to include these modes as default. But we could be convinced otherwise by user feedback in the future.'''
+'''Currently, we don’t see good use cases to include these modes as default, but user feedback could change this in the future.'''
 
-* <code>LIVE mode SECUREADMIN</code>
-* <code>LIVE mode SUPERADMIN</code>
-* <code>Recovery LIVE mode SUPERADMIN</code>
+* <code>LIVE mode ADMIN</code>
+* <code>Recovery LIVE mode ADMIN</code>
 
-'''DIY methods to include these and other entries intro the GRUB boot menu'''
+'''DIY Methods to Include These and Other Entries in the GRUB Boot Menu'''
 
-{{IconSet|h2|A}} If anyone cares about these, there could be files in <code>/etc/grub.d/</code> folder that add such entries but these files could be non-executable by default. Thereby <code>update-grub</code> would ignore them. To opt-in into such modes, users could just run <code>sudo chmod +x /etc/grub.d/somenumber_name-of-boot-mode</code>.
+{{IconSet|h2|A}} Files in the <code>/etc/grub.d/</code> folder could add these entries, but they could be non-executable by default. To opt-in, users could run <code>sudo chmod +x /etc/grub.d/somenumber_name-of-boot-mode</code>.
 
-{{IconSet|h2|B}} Also users who really want something special/custom would be able to add whatever they want to <code>/etc/grub.d/</code> folder / grub boot menu.
+{{IconSet|h2|B}} Users wanting custom entries can add them directly to the <code>/etc/grub.d/</code> folder or GRUB boot menu.
 
-{{IconSet|h2|C}} Also by using grub boot menu editing (key <code>e</code>) at grub boot menu, kernel parameters can be adjusted and any combination would be possible.
+{{IconSet|h2|C}} Using GRUB boot menu editing (key <code>e</code>) at boot, kernel parameters can be adjusted for any combination.
 
 = Use Cases for the Different Boot Modes =
 
-These are common use cases that we tailored the available boot modes towards.
+Common use cases tailored to the available boot modes:
 
-* <code>PERSISTENT mode USER (For daily activities.)</code>: Useful for browsing, e-mail, chat, etc. or just letting an already set up and installed server run. Even upgrading through <code>upgrade-nonroot</code>.
-* <code>LIVE mode USER (For daily activities.)</code>: Same as above but without persistence.
-* <code>PERSISTENT mode SECUREADMIN (For software installation.)</code>: users could run <code>sudo apt install whatever-software-package</code>, then reboot into USER. Editing <code>/etc/apt/sources.list.d</code> [https://github.com/{{project_name_short}}/apparmor-profile-everything/blob/master/etc/apparmor.d/abstractions/dangerous-files among many other things] prohibited for better security.
-* <code>PERSISTENT mode SUPERADMIN (Be very cautious!)</code>: users could add foreign sources to <code>/etc/apt/sources.list.d</code> or do anything (full freedom), then (optional but advisable) reboot to SECUREADMIN mode, install packages from third party repositories.
-* <code>Recovery PERSISTENT mode SUPERADMIN (Be very cautious!)</code>: The usual recovery mode.
+* <code>PERSISTENT mode USER (For daily activities.)</code>: Ideal for browsing, email, chat, or running a pre-configured server. Includes upgrading through <code>upgrade-nonroot</code>.
+* <code>LIVE mode USER (For daily activities.)</code>: Similar to Persistent User but without persistence.
+* <code>PERSISTENT mode ADMIN (For administrative tasks.)</code>: Allows running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER mode afterward.
+* <code>Recovery PERSISTENT mode ADMIN</code>: Standard recovery mode.
 
-= opt-out to get same behavior as old {{project_name_short}} =
+= Opt-Out to Get the Same Behavior as Old {{project_name_short}} =
+Users who wish "the old {{project_name_short}}" "with unrestricted sudo for user <code>user</code>" back, who don't want to see any of the new options [A], [B], [C] could delete these <code>/etc/grub.d</code> grub menu entries by running <code>sudo chmod -x /etc/grub.d/somenumber_name-of-boot-mode</code>. (There could be a script to simplify that.)
 
-Users who don’t like (any, multiple or all) of the new options...
+Users preferring the traditional {{project_name_short}} behavior with unrestricted <code>sudo</code> for <code>user</code> can remove the new options:
 
 * <code>PERSISTENT mode USER (For daily activities.)</code> [A]
 * <code>LIVE mode USER (For daily activities.)</code> [B]
-* <code>PERSISTENT mode SECUREADMIN (For software installation.)</code> [C]
+* <code>PERSISTENT mode ADMIN (For administrative tasks.)</code> [C]
 
-and who want "the old {{project_name_short}}" "with unrestricted sudo" (<code>PERSISTENT mode SUPERADMIN</code>) back, who don't want to see any of the new options [A], [B], [C]... These could just make these <code>/etc/grub.d</code> folder / grub menu entries gone by running <code>sudo chmod -x /etc/grub.d/somenumber_name-of-boot-mode</code>. (There could be a script to simplify that.)
+= /etc/grub.d File Names =
 
-= /etc/grub.d file names =
-
-Information for working on the <code>/etc/grub.d</code> file
+Details about <code>/etc/grub.d</code> files:
 
 <pre>
 filename                                     purpose
 ---------------------------------------      -----------------------------
 /etc/grub.d/10_linux                         PERSISTENT mode USER
 /etc/grub.d/11_linux_live                    LIVE mode USER
-/etc/grub.d/12_linux_secureadmin             PERSISTENT mode SECUREADMIN
-/etc/grub.d/13_linux_secureadmin_live        LIVE mode SECUREADMIN
-/etc/grub.d/14_linux_superadmin              PERSISTENT mode SUPERADMIN
-/etc/grub.d/15_linux_superadmin_live         LIVE mode SUPERADMIN
-/etc/grub.d/16_linux_recovery_mode           PERSISTENT mode SUPERADMIN
-/etc/grub.d/17_linux_recovery_mode_live      Recovery LIVE mode SUPERADMIN
+/etc/grub.d/12_linux_admin                   PERSISTENT mode ADMIN
+/etc/grub.d/13_linux_admin_live              LIVE mode ADMIN
+/etc/grub.d/16_linux_recovery_mode           PERSISTENT mode ADMIN
+/etc/grub.d/17_linux_recovery_mode_live      Recovery LIVE mode ADMIN
 </pre>
 
-Should stay in lexical order below files named <code>/etc/grub.d/20_</code> because that is already used by an existing script.
+Files should remain in lexical order below <code>/etc/grub.d/20_</code> to avoid conflicts with existing scripts.
 
-Note: some files will not be created in the first iteration (and not sure ever) - those listed in chapter <code>Boot modes considered too unimportant to be added to grub default boot menu:</code> in my post above.
-
-= Terminology =
-
-* <code>secure admin mode</code> vs user <code>secureadmin</code> vs <code>secureroot</code>: When booting into <code>secure admin mode</code>, the user will be logged in as user <code>secureadmin</code>. In <code>secureadmin mode</code>, when running <code>sudo something</code> the command will effectively run as <code>secureroot</code> (untrusted root).
-* <code>super admin mode</code> vs user <code>super admin</code> vs <code>superroot</code>: When booting into <code>super admin mode</code>, the user will be logged in as user <code>superadmin</code>. In <code>super admin mode</code>, when running <code>sudo something</code> the command will effectively run as <code>superroot</code> (unrestricted root).
-* <code>untrusted root</code>: A command running as <code>root</code> but with restrictions applied by apparmor-profile-everything.
-* <code>unrestricted root</code>: When running <code>sudo something</code>, the behavior will be the same as on most Linux distributions such as Debian where <code>root</code> can do everything that <code>root</code> can usually do on such Linux distributions.
-
-= Capabilities of secureroot vs superroot =
-
-<code>secureroot</code> will be untrusted root, therefore restricted but can still:
-
-* install packages
-* change most system settings
-
-<code>secureroot</code> cannot by design:
-
-* change anything that could lead to <code>superroot</code>
-* change the running kernel
-* replace bootloader (only if APT does this due to an upgrade)
-* uninstall certain packages required to enforce the separation of <code>secureroot</code> and <code>superroot</code> such as for example apparmor-profile-apparmor
-
-<code>superroot</code> by design will be able to do everything.
+Note: Some files may not be created initially (or at all), as outlined in the "Boot Modes Considered Too Unimportant to Be Added to GRUB Default Boot Menu" section.
 
 = Server Support =
 
-grub boot menu isn’t easily accessible for many/most servers. How would these various boot modes be available for servers? No solution yet. See forum discussion: https://forums.whonix.org/t/multiple-boot-modes-for-better-security-persistent-user-live-user-persistent-admin-persistent-superadmin-persistent-recovery-mode/7708/50
+GRUB boot menus aren’t easily accessible on many servers. A solution for making these boot modes available on servers is yet to be determined. See the forum discussion: https://forums.whonix.org/t/multiple-boot-modes-for-better-security-persistent-user-live-user-persistent-admin-persistent-superadmin-persistent-recovery-mode/7708/50
 
 = Implementation =
 
+Outdated:
+
 * https://github.com/{{project_name_short}}/apparmor-profile-everything/tree/master/etc/grub.d
-* https://github.com/{{project_name_short}}/apparmor-profile-everything
 
-= Project Status Update =
+= Prior Versions =
 
-Since apparmor-profile-everything development turned out more complex than anticipated and stalled, this concept could be initially implemented without apparmor-profile-everything. Therefore only with boot modes "USER" and "SUPERADMIN". Skipping "SECUREADMIN".
+[https://www.kicksecure.com/w/index.php?title=Dev/boot_modes&oldid=87353 Older concept version still containing "SUPERADMIN" and "SECUREADMIN".]
 
 = Tickets =
-* [https://github.com/QubesOS/qubes-issues/issues/9519 create user admin by default and add user admin to group sudo by default]
+* [https://github.com/QubesOS/qubes-issues/issues/9519 Create user admin by default and add user admin to group sudo by default]
 * [https://github.com/QubesOS/qubes-issues/issues/9512 Selective sudo Access Enabling in VMs Without qubes-core-agent-passwordless-root via qvm-service]
 
 = Related =
 
-* [https://github.com/{{project_name_short}}/apparmor-profile-everything AppArmor for everything. APT, systemd, init, all systemd units, all applications. Mandatory Access Control. Security Hardening.]
-* [https://forums.whonix.org/t/disable-newly-all-installed-services-by-default/9381/2 disable newly (all) installed services by default]
+* [https://forums.whonix.org/t/disable-newly-all-installed-services-by-default/9381/2 Disable newly (all) installed services by default]
 * [[Verified Boot]]
-* [https://forums.whonix.org/t/untrusted-root-improve-security-by-restricting-root/7998 Untrusted Root - improve Security by Restricting Root]
-* forum discussion, [https://forums.whonix.org/t/apparmor-for-complete-system-including-init-pid1-systemd-everything-full-system-mac-policy/8339 AppArmor for Complete System - Including init, PID1, Systemd, Everything! - Full System MAC policy]
+* <s>Forum discussion: [https://forums.whonix.org/t/apparmor-for-complete-system-including-init-pid1-systemd-everything-full-system-mac-policy/8339 AppArmor for Complete System - Including init, PID1, Systemd, Everything! - Full System MAC policy]</s>
+* <s>[https://github.com/{{project_name_short}}/apparmor-profile-everything AppArmor for everything: APT, systemd, init, all systemd units, all applications. Mandatory Access Control. Security Hardening.]</s>
+* <s>[https://forums.whonix.org/t/untrusted-root-improve-security-by-restricting-root/7998 Untrusted Root - Improve Security by Restricting Root]</s>
 
-= Footnotes=
+= Footnotes =
 <references/>
-
 {{Footer}}
-
 [[Category: Design]]
 [[Category: Development]]
