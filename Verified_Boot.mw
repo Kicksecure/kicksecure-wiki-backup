@@ -132,7 +132,7 @@ Many user-freedom restrictions are enforced using verified boot, locked bootload
 = Verified Boot Compatibility with Rooted Phones =
 Yes, verified boot can be compatible with rooted devices.
 
-Verified boot with root support and even with user-locked bootloader would be possible if support for that is built-in into the boot process (bootloader, recovery image). But how to modify the system partition without breaking verified boot? Modern root solutions such as for example Magisk support "systemless" root, via file system overlays.
+Verified boot with root support and even with user-locked bootloader would be possible if support for that is built-in into the boot process (bootloader, recovery image). But how to modify the system partition without breaking verified boot? Modern root solutions such as for example Magisk support "systemless" root, via file system overlays. It's called "systemless" because Android has a partition <code>/system</code> that remains unmodified when using "systemless".
 
 Verified boot would be compatible with root if an approach similar to such as for example Magisk is using built into the bootloader / recovery image prior signing it.
 
@@ -216,6 +216,118 @@ GrapheneOS is not aimed at power users or hobbyists aiming to tinker with their 
 
 = Verified Boot Security =
 https://source.android.com/docs/security/features/verifiedboot/verified-boot
+
+= Verified Boot Discussion =
+Does verified boot necessarily require an immutable (read-only) image? Does verified boot make any sense with read-write?
+
+Can verified boot be useful for a general-purpose operating system?
+
+The main problem when attempting to combine verified boot with full read-write access is that the user (or malware) can modify any file in <code>/etc</code> or <code>/usr</code>.
+
+Let's consider running a tool that can show modified files in <code>/etc</code> and <code>/usr</code>, <code>debsums -ce</code>. Sample output might include:
+
+<pre>
+/etc/xdg/Thunar/uca.xml
+</pre>
+
+This means that configuration file <code>/etc/xdg/Thunar/uca.xml</code> has been modified for some reason. Users have many legitimate reasons to modify files. However, malware might also modify files. Malware might drop a startup unit in <code>/etc/systemd/system/</code>, but so might the user.
+
+On top of that, it would need to be ensured that there aren't any new files or deleted files that could be planted by malware for the purpose of a persistent backdoor. For example, a drop-in into <code>/etc/profile.d</code> or a systemd unit file or drop-in. These can serve many legitimate purposes but can also be abused by malware.
+
+The main problem with verified boot without immutability is that both the user and an adversary can change pretty much anything on the hard drive.
+
+Potential misconception:
+
+<blockquote>
+Verified boot makes sure the code that is booted is safe, and then from that point on its job is done.
+</blockquote>
+
+Quote https://source.android.com/docs/security/features/verifiedboot/verified-boot
+
+<blockquote>
+verification is a continuous process happening as data is loaded into memory
+</blockquote>
+
+One concept to implement verified boot is an immutable, minimal root image. That, however, is mostly suitable for specialized appliances. The disadvantage is a lot of lost user functionality and freedom. It would be a hard and dictatorial decision about what goes into the root image. It would kind of force some specific technology on the user (for example, going all in on Flatpak).
+
+Freedom to modify in-place and security are at odds with each other. Anything that is secured by verified boot becomes immutable.
+
+Is it possible to at least get the compromise of non-persistence from verified boot? Yes, but then one ends up with things like "I rebooted and now all the software I installed is gone." Verified boot with reset after reboot would be similar to live mode. So even if full <code>apt-get install</code> access was permitted, that would be gone after reboot.
+
+Can user-installed packages using <code>apt-get install</code> persist + verified boot?
+<code>debsums</code> alike functionality? <ref>
+<code>debsums -ce</code>
+
+<code>debsums</code> is not secure yet. It uses insecure checksums. But that might be fixable with an alternative implementation.
+</ref> One would have to trust everything in the apt repository to make that safe, which might be an acceptable assumption, and somehow prevent the user from adding additional repositories or installing deb packages that they built themselves.
+
+Some problems when considering a mutable (read-write) verified boot are:
+
+* Just how mutable? Should systemd units be mutable or immutable? If immutable, many packages won't be installable. If mutable, setting up a persistent backdoor becomes easy. If "live-immutable," software will break after a reboot.
+* Verified boot with mutability will be too easy to bypass. If someone leaves, for instance, <code>/usr/local/bin</code> mutable because "of course it should be mutable, that's where user-installed software goes," malware might plant a malicious executable there that will now be persistent and override calls to an executable in an immutable <code>/usr/bin</code>.
+* System updates? Verify and copy files to the "fake-immutable" base filesystem after a successful update? What if a non-persistent compromise manages to compromise the updater so it copies malicious files to the base partition?
+
+With a real immutable filesystem, updates become hard. It would require system image updates rather than apt packages for the base system, but somehow maintain compatibility with apt packages too.
+
+For real immutability, we would need to invent A/B updates for Debian. Vanilla OS is doing A/B updates with Debian Sid.
+
+So verified boot can only always be specialized operating systems, not general-purpose operating systems? As in "This is a nice verified boot image, start the browser, reboot, any potential malware compromise will self-heal."
+
+Suppose there is this minimal immutable base image... And then a chroot where the user can do anything? We might not get too much from that. It requires an entire ecosystem. And the Debian ecosystem doesn't really have verified boot on the radar.
+
+The approach Fedora Silverblue takes, only they also allow Flatpak and root fs modification via <code>rpm-ostree</code> (security impact?).
+
+With a read-write (rw) image and verified boot, at best maybe what one could get is a simple factory reset in the boot menu. The user could choose factory reset, which resets all changes in the root image. Nice, but not that great of a feature.
+
+One cannot do <code>dm-verity</code> on a "normal" filesystem. Only on images, block devices. Any changes and it breaks. Quote:
+
+> Device-Mapper’s “verity” target provides transparent integrity checking of block devices using a cryptographic digest provided by the kernel crypto API. This target is read-only.
+
+One ends up with a read-only filesystem.
+
+To allow this to be mutable, one needs to have some way of applying changes to it, which requires some way of automatically signing those changes, which exposes a key to malware should it infect the system.
+
+Quote <code>systemd-sysext</code>:
+
+<blockquote>
+Files and directories contained in the extension images outside of the /usr/ and /opt/ hierarchies are not merged, and hence have no effect when included in a system extension image. In particular, files in the /etc/ and /var/ included in a system extension image will not appear in the respective hierarchies after activation.
+</blockquote>
+
+Or <code>systemd-confext</code> for <code>/etc</code>.
+
+How useful would it be to have verified boot for Kicksecure ISO? Since it's read-only anyhow.
+
+It's hard to modify an ISO read/write. There is no public software available to really mount an ISO read/write. But it's possible in theory. The ISO should be considered read-write for attackers but read-only for the public. There is Open Source <code>growisofs</code>. Also, other attacks are conceivable such as repacking the ISO, which is documented in the Debian wiki and much easier than ISO. (TODO: repacking link)
+
+Suppose someone writes the ISO to USB. Then the live session is compromised. By clever ISO read/write editing, the ISO compromise is made persistent. Would verified boot be able to come to the rescue here?
+
+The machine needs to have the proper keys somewhere to verify the ISO image and detect if it is compromised. In practical terms, one might need to rely on Microsoft's keys. This means the attacker must not be able to access a leaked Microsoft key.
+
+This approach doesn’t benefit a Linux distribution much since they must use their own key to verify the filesystem image. That image is created by the distribution, so it must be signed with their Microsoft's key.
+
+The main issue is that an EFI executable, such as shim, cannot have two signatures. Either the distribution signs it, and the user uses the distribution's key in the BIOS (EFI), or the user manages their own keys (which is even less realistic), or the distribution relies on the Microsoft key (e.g., the default Debian shim).
+
+Microsoft would likely be willing to sign a new Linux distribution shim. The Linux distribution "just" need to fork shim and then go through the shim review process. Many distributions have managed to get their shims signed, though the requirements for doing so are strict (e.g., key storage must be physically secure and require biometric authentication).
+
+The root of trust ultimately resides with Microsoft. There isn’t a single universal shim. Even large distributions like Pop!_OS lack Secure Boot; only major distributions (e.g., Ubuntu, Debian, Fedora, openSUSE) have implemented it.
+
+{{project_name_short}} is Secure Boot compatible, thanks to Debian's shim, but this relies on appearing as Debian. If {{project_name_short}} needs our own key for signing verified boot images, we would lose this compatibility. The "only one signature allowed on an EFI binary" restriction is preventing that.
+
+One solution could be selling certified hardware with the project-specific key while removing the Microsoft key. But that is likely unrealistic. Another approach could involve a single ISO with two bootloaders, or separate ISOs for Microsoft-key-compatible and project-specific-key-compatible boot options. However, this adds complexity.
+
+A potential compromise could be a fallback mechanism with two shims: one based on the Microsoft key and another on the project-specific key. The system could transparently switch to the secondary shim if the primary fails. But implementing this is a significant challenge.
+
+When machines certified for other distributions (e.g., Ubuntu) are preinstalled, they include an Ubuntu-specific key from Canonical alongside the Microsoft key. However, relying on Secure Boot for verified boot while keeping compatibility with the Microsoft key poses challenges.
+
+It’s possible to design a process where the Microsoft shim loads the kernel, the kernel then determines compatibility with the project-specific key, and the system reboots into a secondary bootloader signed by the project. But this approach requires additional firmware capabilities.
+
+Another consideration is whether removing the Microsoft key is beneficial. While it would lock systems to the Linux distribution's key for Secure Boot, this might restrict compatibility further than Microsoft’s own Secure Boot implementation. A firmware option to enable or disable Microsoft or project-specific keys could address this.
+
+Measured Boot, an alternative to Secure Boot, avoids the Microsoft key issue. While Secure Boot prevents unauthorized code from running, Measured Boot provides tamper evidence, which may be sufficient for many use cases. However, implementing this requires firmware support and careful design.
+
+A feasible workflow might involve Secure Boot launching shim (signed by Microsoft), shim launching a measured boot utility (e.g., <code>stboot</code>), and <code>stboot</code> verifying the kernel and root filesystem. This would provide a chain of trust extending from firmware to userland. However, integrating <code>stboot</code> into this process is complex.
+
+Ultimately, projects relying on their own key for signing or implementing Secure Boot independently of Microsoft face significant technical and logistical hurdles. While it’s possible to use external storage for managing measurements, this increases user complexity and introduces new risks.
 
 = {{project_name_short}} Verified Boot Development Ideas =
 == Verified VM Boot Sequence without Secure Boot ==

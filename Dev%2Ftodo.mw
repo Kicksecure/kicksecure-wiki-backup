@@ -10,69 +10,49 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== live-build - mmdebstrap should use security.debian.org repository ==
-<pre>
-[2024-11-18 13:51:27] lb bootstrap_debootstrap --verbose --debug
-D: Reading configuration file config/common
-D: Reading configuration file config/bootstrap
-D: Reading configuration file config/chroot
-D: Reading configuration file config/binary
-D: Reading configuration file config/source
-P: Begin bootstrapping system...
-P: If the following stage fails, the most likely cause of the problem is with your mirror configuration or a caching proxy.
-P: Running mmdebstrap...
-I: the option --force-check-gpg is a no-op. It only exists for compatibility with some debootstrap wrappers.
-I: automatically chosen mode: root
-I: chroot architecture amd64 is equal to the host's architecture
-I: finding correct signed-by value...
-I: automatically chosen format: directory
-W: Download is performed unsandboxed as root as file /home/user/derivative-binary/17.2.5.4/live-build/chroot/var/lib/apt/lists/partial couldn't be accessed by user _apt
-I: running apt-get update...
-Get:1 http://HTTPS///deb.debian.org/debian bookworm InRelease [151 kB]
-Get:2 http://HTTPS///deb.debian.org/debian bookworm/non-free-firmware amd64 Packages [6236 B]
-Get:3 http://HTTPS///deb.debian.org/debian bookworm/main amd64 Packages [8789 kB]
-Get:4 http://HTTPS///deb.debian.org/debian bookworm/non-free amd64 Packages [97.3 kB]
-Get:5 http://HTTPS///deb.debian.org/debian bookworm/contrib amd64 Packages [54.1 kB]
-</pre>
+== apt-get - recommends can no longer get installed after installation with --no-install-recommends - bug report ==
+`apt install --no-install-recommends diffoscope`
 
-* bug: Debian security repository is not being used.
-* Using Debian security repository is however a security feature and reason why using mmdebstrap. To bootstrap from more than 1 repository (Debian "normal" + Debian security) repository.
+User story: Good, I did not want these recommends. And I didn't get these. Great. But... Now I noticed that i cannot figure it out or something and want these dependencies anyhow.
 
-== research archivebox and alternatives ==
-* installation source issue
-** nice but optional, because might be unavailable: signed releases available? available from packages.debian.org?
-*** A Docker image is available, but Docker has supposedly had severe security issues related to image verification in the past: https://titanous.com/posts/docker-insecurity
-*** There's also a package available via <code>pip</code> but it seems to make signing of releases optional and GPG support is very limited, so just because the package is on PyPI doesn't mean it's signed.
-*** No signed release visible on releases page. 
-* predictable links issue
-** web.archive.org is nice because using our [https://github.com/Kicksecure/mediawiki-link-to-archive mediawiki-link-to-archive] MediaWiki extension, each link gets appended with an archive symbol linking to <code><nowiki>https://web.archive.org/archive/<original-link></nowiki></code>.
-** investigate if archivebox (or alternative) has such a feature
-** post a feature request if not
-** if such a feature does not exist, then mass wiki editing will be required to append links to our self-hosted archivebox (or alternative)
-*** wiki mass editing is best avoided. Either we would use a different self-hosted archival tool or perhaps contribute such a feature upstream, if feasible?
-**** A URL-encoded URL can be passed as a search query, similar to how archive.today allows searching for archives of a site with <code>https://archive.today/https://google.com</code>. This takes a bit more effort due to the URL encoding being mandatory, but it is doable it appears.
-**** Feature request for archive.org style links (originally filed by the primary ArchiveBox author, commented on by me): https://github.com/ArchiveBox/ArchiveBox/issues/1085
-* public archive issue
-** Ideally, the archive would not be "our archive" but a public archive.
-** That does not mean, that we want to host a public archivebox archive that anyone can use. That would unfortunately be problematic (disk space, legal issues).
-** We're already offering various downloadable backups on the [[Offline Documentation]] wiki page (including rsync access).
-** For archived links it would be good if these could be offered in a backup format available to the public. I.e. someone could use rsync and download all links that we archived.
-** With archivebox that might be problematic because links might be unpredictable. Archivebox has a search function but it relies on server functionality, server database (?), which we probably cannot share as is.
-*** Should we nuke admin credentials so we can share the database with the public for backup purposes?
-**** ArchiveBox actually has explicit support for publishing an archive as a static website. See https://github.com/ArchiveBox/ArchiveBox/wiki/Publishing-Your-Archive. Assuming this doesn't save any sensitive data, this would be a pretty easy way of doing this.
-* design:
-** Keep archive box web interface accessible to admins and bots only. (security)
-** Keep link archival accessible to admin and bots only. (legal)
-** Keep archived links reading accessible to the public.
-** After wiki backup (already existing on the server) using mediawiki-shell, have a script that can parse the wiki for new links and add them to archivebox.
-*** Needs support for a list of domains to avoid archiving (since archiving might be broken).
-*** Due to some links being offline, often, need to probably fail open if some links are not archiveable.
+`apt install diffoscope`
+
+* expected result: `Recommends:` get installed now
+* actual result: not happening
+
+`sudo apt satisfy diffoscope` or even `sudo apt install --install-recommends diffoscope` does not install the `Recommends:`.
+
+The only way to get the dependency is `apt remove` followed by `apt install`.
+
+== grub boot menu - regression - mini symbol stuck bug ==
+* the Kicksecure lock (or in case of Whonix the hat symbol) on the left next to the first boot menu entry looks confusing. This is because when selecting a different boot menu entry, that symbol will stay where it is.
+* simple solution: remove that symbol without replacement
+* harder solution: when pressing arrow down, move the highlight (different color for selected boot menu entry) as well as the mini symbol
 
 == calamares - make 3.3.11 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
 * Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.11?
 ** Maintainer uploaded 3.3.11 to Sid on November 7: https://tracker.debian.org/news/1583270/accepted-calamares-3311-1-source-into-unstable/ Should migrate into Testing relatively soon.
 * Backport 3.3.11 after it is available in Trixie
+
+== calamares - implement - Allow distros to restrict what filesystems can be used in manual partitioning ==
+* https://github.com/calamares/calamares/issues/2397
+
+== umask research ==
+* please research, find solutions for umask
+* this is in preparation of 
+* https://forums.whonix.org/t/change-default-umask/7416
+* https://github.com/Kicksecure/security-misc/pull/18
+* https://github.com/Kicksecure/security-misc/issues/185
+
+== Qubes umask ticket ==
+* /etc/sudoers.d/umask
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
+
+== Qubes doas ticket ==
+* feature request doas support for Qubes
+* ask if Qubes would accept doas configuration snippets
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
 
 == investigate porting from sudo to doas ==
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482
@@ -225,16 +205,10 @@ sudo apt install serial-console-enable
 * lightweight security review
 ** conceivable or too much effort?
 
-= WAITING ON =
-== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
-* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
-* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
-* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
-* Prototype implemented and mostly working, draft PR at https://github.com/QubesOS/qubes-gui-daemon/pull/149
-* Waiting on response from Qubes OS devs
-* Got response and review, currently working out final implementation and doing testing
-* Main code has now been merged, still waiting on https://github.com/QubesOS/qubes-core-admin-client/pull/309 to be merged.
+== apt-get - implement --restrict-install-recommends proof of concept ==
+* todo
 
+= WAITING ON =
 == live-build - add mmdebstrap support ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031932
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031929
@@ -259,15 +233,6 @@ sudo apt install serial-console-enable
 ** https://github.com/linux-pam/linux-pam/issues/842
 ** https://github.com/sudo-project/sudo/issues/415
 
-== calamaers - timezone issue ==
-* https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652
-* Could not reproduce, tried one UEFI "Erase disk" installation, one BIOS "Erase disk" installation, and one BIOS "Replace partition" installation. Forum comments at https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652/4
-
-== start discussion about Weak-Depends on debian-devel mailing list ==
-* as discussed
-* see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=942303
-* Discussion at https://lists.debian.org/debian-devel/2024/11/msg00018.html
-
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
 
@@ -278,10 +243,6 @@ sudo apt install serial-console-enable
 * goal: merge as much as doable/possible without breaking networking
 * enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
 * Waiting for planned fixes to land in PRs.
-
-== calamares - file system unit test ==
-* possible to translate https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652/6 into a calamares unit test so it would show a better error message?
-* Feature request made for allowing distros to deny certain filesystems from being used for certain mountpoints: https://github.com/calamares/calamares/issues/2397
 
 == live-build - local repository support ==
 * add support to build from local repository
@@ -300,13 +261,84 @@ sudo apt install serial-console-enable
 * Bug filed at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1087470
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
+= REVIEW PLEASE =
+== start discussion about Weak-Depends on debian-devel mailing list ==
+* as discussed
+* see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=942303
+* Discussion at https://lists.debian.org/debian-devel/2024/11/msg00018.html
+* Discussion seems to have halted, the idea that seemed the most promising was allowing the user to specify what packages they wanted to install the recommends of, while leaving other packages out.
+* Should a task be added for implementing a proof of concept for this?
+
+== calamares - timezone issue ==
+* https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652
+* Could not reproduce, tried one UEFI "Erase disk" installation, one BIOS "Erase disk" installation, and one BIOS "Replace partition" installation. Forum comments at https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652/4
+* Turned out to be the result of attempting to install Kicksecure onto a FAT32 partition.
+
+== calamares - file system unit test ==
+* possible to translate https://forums.kicksecure.com/t/kicksecure-installation-cannot-set-timezone-link-creation-failed-target-usr-share-timezone-link-name-etc-localtime/652/6 into a calamares unit test so it would show a better error message?
+* Feature request made for allowing distros to deny certain filesystems from being used for certain mountpoints: https://github.com/calamares/calamares/issues/2397
+* Should a task be added for implementing the functionality in this feature request?
+
 == review kloak makefile pull request ==
 * https://github.com/Whonix/kloak/pull/5
 * Review complete, nothing malicious found, some quality and functionality issues were found for which I suggested several changes.
+* All issues fixed, approved PR.
 
-= REVIEW PLEASE =
+== live-build - mmdebstrap should use security.debian.org repository ==
+* bug: Debian security repository is not being used.
+* Using Debian security repository is however a security feature and reason why using mmdebstrap. To bootstrap from more than 1 repository (Debian "normal" + Debian security) repository.
+* Issue should be resolved with the following changes:
+** live-build changes: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads (same branch as before, Kicksecure's fork will need to be updated to match it)
+** derivative-maker changes: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/mmdebstrap-enhance (this '''will''' break the ISO build if merged without updating live-build)
+
+== research archivebox and alternatives ==
+* installation source issue
+** nice but optional, because might be unavailable: signed releases available? available from packages.debian.org?
+*** A Docker image is available, but Docker has supposedly had severe security issues related to image verification in the past: https://titanous.com/posts/docker-insecurity
+*** There's also a package available via <code>pip</code> but it seems to make signing of releases optional and GPG support is very limited, so just because the package is on PyPI doesn't mean it's signed.
+*** No signed release visible on releases page. 
+* predictable links issue
+** web.archive.org is nice because using our [https://github.com/Kicksecure/mediawiki-link-to-archive mediawiki-link-to-archive] MediaWiki extension, each link gets appended with an archive symbol linking to <code><nowiki>https://web.archive.org/archive/<original-link></nowiki></code>.
+** investigate if archivebox (or alternative) has such a feature
+** post a feature request if not
+** if such a feature does not exist, then mass wiki editing will be required to append links to our self-hosted archivebox (or alternative)
+*** wiki mass editing is best avoided. Either we would use a different self-hosted archival tool or perhaps contribute such a feature upstream, if feasible?
+**** A URL-encoded URL can be passed as a search query, similar to how archive.today allows searching for archives of a site with <code>https://archive.today/https://google.com</code>. This takes a bit more effort due to the URL encoding being mandatory, but it is doable it appears.
+**** Feature request for archive.org style links (originally filed by the primary ArchiveBox author, commented on by me): https://github.com/ArchiveBox/ArchiveBox/issues/1085
+**** The feature already exists and is usable upstream: https://github.com/ArchiveBox/ArchiveBox/issues/1085#issuecomment-2487121890
+* public archive issue
+** Ideally, the archive would not be "our archive" but a public archive.
+** That does not mean, that we want to host a public archivebox archive that anyone can use. That would unfortunately be problematic (disk space, legal issues).
+** We're already offering various downloadable backups on the [[Offline Documentation]] wiki page (including rsync access).
+** For archived links it would be good if these could be offered in a backup format available to the public. I.e. someone could use rsync and download all links that we archived.
+** With archivebox that might be problematic because links might be unpredictable. Archivebox has a search function but it relies on server functionality, server database (?), which we probably cannot share as is.
+*** Should we nuke admin credentials so we can share the database with the public for backup purposes?
+**** ArchiveBox actually has explicit support for publishing an archive as a static website. See https://github.com/ArchiveBox/ArchiveBox/wiki/Publishing-Your-Archive. Assuming this doesn't save any sensitive data, this would be a pretty easy way of doing this.
+* design:
+** Keep archive box web interface accessible to admins and bots only. (security)
+** Keep link archival accessible to admin and bots only. (legal)
+** Keep archived links reading accessible to the public.
+** After wiki backup (already existing on the server) using mediawiki-shell, have a script that can parse the wiki for new links and add them to archivebox.
+*** Needs support for a list of domains to avoid archiving (since archiving might be broken).
+*** Due to some links being offline, often, need to probably fail open if some links are not archiveable.
 
 = ARCHIVED =
+== salsa debian - salsa signing key setup ==
+* https://salsa.debian.org/ArrayBolt3/live-build/-/commits/arraybolt3/lb-dracut?ref_type=heads
+* please upload your gpg public key to salsa.debian.org, if that is acceptable.
+* similar to github.com
+* so we get "verified" marks everywhere
+* Done.
+
+== kloak - Qubes support - implement kloak within qubes-gui-daemon ==
+* https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2377325699
+* Ensure code is modular and can be easily broken out into a separate library or executable if requested by Qubes devs
+* Use common code between standalone version and Qubes version to keep differences as small as possible (perhaps create libkloak?)
+* Prototype implemented and mostly working, draft PR at https://github.com/QubesOS/qubes-gui-daemon/pull/149
+* Waiting on response from Qubes OS devs
+* Got response and review, currently working out final implementation and doing testing
+* All code has now been merged.
+
 == Implement live mode with 90overlayfs ==
 * context: [[grub-live]]
 * https://github.com/Kicksecure/grub-live
