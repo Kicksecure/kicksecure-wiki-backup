@@ -10,33 +10,21 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== apt-get - recommends can no longer get installed after installation with --no-install-recommends - bug report ==
-`apt install --no-install-recommends diffoscope`
+== python perl etc pitfalls ==
+* please study https://www.qualys.com/2024/11/19/needrestart/needrestart.txt
 
-User story: Good, I did not want these recommends. And I didn't get these. Great. But... Now I noticed that i cannot figure it out or something and want these dependencies anyhow.
+== rewrite from perl to python ==
+* todo
 
-`apt install diffoscope`
-
-* expected result: `Recommends:` get installed now
-* actual result: not happening
-
-`sudo apt satisfy diffoscope` or even `sudo apt install --install-recommends diffoscope` does not install the `Recommends:`.
-
-The only way to get the dependency is `apt remove` followed by `apt install`.
-
-== grub boot menu - regression - mini symbol stuck bug ==
-* the Kicksecure lock (or in case of Whonix the hat symbol) on the left next to the first boot menu entry looks confusing. This is because when selecting a different boot menu entry, that symbol will stay where it is.
-* simple solution: remove that symbol without replacement
-* harder solution: when pressing arrow down, move the highlight (different color for selected boot menu entry) as well as the mini symbol
+== fix sudoers.d related issues ==
+* todo
 
 == calamares - make 3.3.11 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
 * Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.11?
 ** Maintainer uploaded 3.3.11 to Sid on November 7: https://tracker.debian.org/news/1583270/accepted-calamares-3311-1-source-into-unstable/ Should migrate into Testing relatively soon.
+** Hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.11 after it is available in Trixie
-
-== calamares - implement - Allow distros to restrict what filesystems can be used in manual partitioning ==
-* https://github.com/calamares/calamares/issues/2397
 
 == umask research ==
 * please research, find solutions for umask
@@ -44,6 +32,21 @@ The only way to get the dependency is `apt remove` followed by `apt install`.
 * https://forums.whonix.org/t/change-default-umask/7416
 * https://github.com/Kicksecure/security-misc/pull/18
 * https://github.com/Kicksecure/security-misc/issues/185
+
+pam_umask.so debug umask=027
+
+run a script, if root, do nothing, otherwise set umask 
+
+        [success=2 default=ignore]      pam_succeed_if.so debug uid eq 0
+        [success=1 default=ignore]      pam_succeed_if.so debug use_uid uid eq 0
+        
+        replace with pam_exec?
+
+* Research recorded at https://github.com/Kicksecure/security-misc/issues/185#issuecomment-2492614076, still discussing if this is something we want to do or not.
+
+== live-build - permission lockdown still functional test ==
+
+* https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation#access_rights_restrictions
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -127,6 +130,10 @@ The only way to get the dependency is `apt remove` followed by `apt install`.
 * Need to investigate upstream code
 * Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
 
+== live-build - test lb config --dm-verity ==
+* Does the ISO still function if build with <code>lb config --dm-verity</code>?
+* Does it break apt-get install pkg-name? It might not break it due to overlayfs.
+
 == Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
 * https://github.com/Kicksecure/security-misc/issues/187
 * This is in preparation for the next task.
@@ -209,6 +216,10 @@ sudo apt install serial-console-enable
 * todo
 
 = WAITING ON =
+== calamares - implement - Allow distros to restrict what filesystems can be used in manual partitioning ==
+* https://github.com/calamares/calamares/issues/2397
+* PR here: https://github.com/calamares/calamares/pull/2400 Awaiting full review from devs.
+
 == live-build - add mmdebstrap support ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031932
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1031929
@@ -262,6 +273,34 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== apt-get - recommends can no longer get installed after installation with --no-install-recommends - bug report ==
+`apt install --no-install-recommends diffoscope`
+
+User story: Good, I did not want these recommends. And I didn't get these. Great. But... Now I noticed that i cannot figure it out or something and want these dependencies anyhow.
+
+`apt install diffoscope`
+
+* expected result: `Recommends:` get installed now
+* actual result: not happening
+
+`sudo apt satisfy diffoscope` or even `sudo apt install --install-recommends diffoscope` does not install the `Recommends:`.
+
+The only way to get the dependency is `apt remove` followed by `apt install`.
+
+* Turns out there is already a feature request for this: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=894976 Would be willing to try and implement.
+* Patrick: now documented here: https://www.kicksecure.com/wiki/Install_Software#--no-install-recommends
+
+== grub boot menu - regression - mini symbol stuck bug ==
+* the Kicksecure lock (or in case of Whonix the hat symbol) on the left next to the first boot menu entry looks confusing. This is because when selecting a different boot menu entry, that symbol will stay where it is.
+* simple solution: remove that symbol without replacement
+* harder solution: when pressing arrow down, move the highlight (different color for selected boot menu entry) as well as the mini symbol
+* Ended up going with the simple solution, because I didn't think the UX of the harder solution would make sense. In a multiboot scenario, having the Kicksecure icon show up next to an OS other than Kicksecure would potentially be weird.
+* Modified branches:
+** Kicksecure: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/no-grub-theme-icon
+** Whonix-Gateway: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/no-grub-theme-icon
+** Whonix-Workstation: https://github.com/ArrayBolt3/anon-ws-base-files/tree/arraybolt3/no-grub-theme-icon
+** Note: I only tested the Kicksecure changes so far (they work fine on both BIOS and UEFI systems). The Whonix-Gateway and Whonix-Workstation changes are not tested, though they are functionally identical to the Kicksecure changes and as such should work.
+
 == start discussion about Weak-Depends on debian-devel mailing list ==
 * as discussed
 * see https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=942303
