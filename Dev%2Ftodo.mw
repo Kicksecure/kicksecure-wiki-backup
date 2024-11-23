@@ -43,18 +43,10 @@ run a script, if root, do nothing, otherwise set umask
         replace with pam_exec?
 
 * Research recorded at https://github.com/Kicksecure/security-misc/issues/185#issuecomment-2492614076, still discussing if this is something we want to do or not.
-
-== live-build - permission lockdown still functional test ==
-
-* https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation#access_rights_restrictions
+* TODO: Investigate how ssh opens a session and how to set umask there
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
-* https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
-
-== Qubes doas ticket ==
-* feature request doas support for Qubes
-* ask if Qubes would accept doas configuration snippets
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
 
 == investigate porting from sudo to doas ==
@@ -80,6 +72,17 @@ run a script, if root, do nothing, otherwise set umask
 <pre>
 ./packages/kicksecure/anon-connection-wizard/usr/share/polkit-1/actions/com.kicksecure.anon-connection-wizard.policy
 ./packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy
+</pre>
+
+== doas - send pull requests to Qubes ==
+* [[Dev/todo#Qubes_doas_ticket|Qubes doas ticket]] might be unlikely to get rejected. But replies could take a while.
+* Please send a pull requests. Since it is only 2 packages, 3 files the wasted effort if this gets rejected might be low enough?
+
+<pre>
+qubes-core-agent: /etc/sudoers.d/qt_x11_no_mitshm
+qubes-core-agent: /etc/sudoers.d/umask
+
+qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
 </pre>
 
 == doas - submit a pwfeedback feature request ==
@@ -129,6 +132,12 @@ run a script, if root, do nothing, otherwise set umask
 * Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
 * Need to investigate upstream code
 * Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
+
+== immutable /usr /etc without overlay ==
+* Try to boot Kicksecure with read-only (immutable) /usr /etc.
+* There should be no overlay. "Real" read-only. Not similar to live mode with non-persistent overlay.
+* In case of issues, try with Debian, as there might be Kicksecure specific issues.
+* This task is in preparation for [[Dev/boot_modes]].
 
 == live-build - test lb config --dm-verity ==
 * Does the ISO still function if build with <code>lb config --dm-verity</code>?
@@ -203,6 +212,12 @@ sudo apt install serial-console-enable
 * test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
 * test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
 
+== sandbox-app-launcher ==
+* [[sandbox-app-launcher]]
+* review
+* promising? worth bringing back to life, polishing?
+* at odds with apparmor.d?
+
 == apparmor.d review ==
 * https://github.com/roddhjav/apparmor.d
 * https://forums.whonix.org/t/apparmor-d-full-set-of-apparmor-profiles-1500-profiles/17389
@@ -216,6 +231,12 @@ sudo apt install serial-console-enable
 * todo
 
 = WAITING ON =
+== Qubes doas ticket ==
+* feature request doas support for Qubes
+* ask if Qubes would accept doas configuration snippets
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
+* Ticket filed as an enhancement request: https://github.com/QubesOS/qubes-issues/issues/9599
+
 == calamares - implement - Allow distros to restrict what filesystems can be used in manual partitioning ==
 * https://github.com/calamares/calamares/issues/2397
 * PR here: https://github.com/calamares/calamares/pull/2400 Awaiting full review from devs.
@@ -273,6 +294,47 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== research archivebox and alternatives ==
+* installation source issue
+** nice but optional, because might be unavailable: signed releases available? available from packages.debian.org?
+*** A Docker image is available, but Docker has supposedly had severe security issues related to image verification in the past: https://titanous.com/posts/docker-insecurity
+*** There's also a package available via <code>pip</code> but it seems to make signing of releases optional and GPG support is very limited, so just because the package is on PyPI doesn't mean it's signed.
+*** No signed release visible on releases page. 
+* predictable links issue
+** web.archive.org is nice because using our [https://github.com/Kicksecure/mediawiki-link-to-archive mediawiki-link-to-archive] MediaWiki extension, each link gets appended with an archive symbol linking to <code><nowiki>https://web.archive.org/archive/<original-link></nowiki></code>.
+** investigate if archivebox (or alternative) has such a feature
+** post a feature request if not
+** if such a feature does not exist, then mass wiki editing will be required to append links to our self-hosted archivebox (or alternative)
+*** wiki mass editing is best avoided. Either we would use a different self-hosted archival tool or perhaps contribute such a feature upstream, if feasible?
+**** A URL-encoded URL can be passed as a search query, similar to how archive.today allows searching for archives of a site with <code>https://archive.today/https://google.com</code>. This takes a bit more effort due to the URL encoding being mandatory, but it is doable it appears.
+**** Feature request for archive.org style links (originally filed by the primary ArchiveBox author, commented on by me): https://github.com/ArchiveBox/ArchiveBox/issues/1085
+**** The feature already exists and is usable upstream: https://github.com/ArchiveBox/ArchiveBox/issues/1085#issuecomment-2487121890
+* public archive issue
+** Ideally, the archive would not be "our archive" but a public archive.
+** That does not mean, that we want to host a public archivebox archive that anyone can use. That would unfortunately be problematic (disk space, legal issues).
+** We're already offering various downloadable backups on the [[Offline Documentation]] wiki page (including rsync access).
+** For archived links it would be good if these could be offered in a backup format available to the public. I.e. someone could use rsync and download all links that we archived.
+** With archivebox that might be problematic because links might be unpredictable. Archivebox has a search function but it relies on server functionality, server database (?), which we probably cannot share as is.
+*** Should we nuke admin credentials so we can share the database with the public for backup purposes?
+**** ArchiveBox actually has explicit support for publishing an archive as a static website. See https://github.com/ArchiveBox/ArchiveBox/wiki/Publishing-Your-Archive. Assuming this doesn't save any sensitive data, this would be a pretty easy way of doing this.
+* design:
+** Keep archive box web interface accessible to admins and bots only. (security)
+** Keep link archival accessible to admin and bots only. (legal)
+** Keep archived links reading accessible to the public.
+** After wiki backup (already existing on the server) using mediawiki-shell, have a script that can parse the wiki for new links and add them to archivebox.
+*** Needs support for a list of domains to avoid archiving (since archiving might be broken).
+*** Due to some links being offline, often, need to probably fail open if some links are not archiveable.
+
+= ARCHIVED =
+== live-build - permission lockdown still functional test ==
+
+* https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation#access_rights_restrictions
+* Kicksecure installations from post-live-build media and pre-live-build media behave the same way in this regard.
+** Initial user account <code>user</code> has home directory <code>/home/user</code> with permissions 750 (read/write/execute for owner, read/execute for group, nothing for other)
+** User account created with <code>adduser</code> with name <code>user2</code> has home directory <code>/home/user2</code> with permissions 700 (read/write/execute for owner, nothing for group, nothing for other)
+** User account created with <code>useradd</code> with name <code>user3</code> has no home directory. Created home directory manually with <code>sudo mkdir /home/user3; sudo chown user3:user3 /home/user3</code>, permissions on directory are 755. Installing a package thereafter (such as <code>git</code>) '''does not''' change the permissions on <code>/home/user3</code> to something more secure, despite what the linked documentation implies.
+** It's possible that permission lockdown is broken, however if so, it is not the result of live-build, assuming my tests were sufficient to diagnose this.
+
 == apt-get - recommends can no longer get installed after installation with --no-install-recommends - bug report ==
 `apt install --no-install-recommends diffoscope`
 
@@ -330,38 +392,6 @@ The only way to get the dependency is `apt remove` followed by `apt install`.
 ** live-build changes: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads (same branch as before, Kicksecure's fork will need to be updated to match it)
 ** derivative-maker changes: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/mmdebstrap-enhance (this '''will''' break the ISO build if merged without updating live-build)
 
-== research archivebox and alternatives ==
-* installation source issue
-** nice but optional, because might be unavailable: signed releases available? available from packages.debian.org?
-*** A Docker image is available, but Docker has supposedly had severe security issues related to image verification in the past: https://titanous.com/posts/docker-insecurity
-*** There's also a package available via <code>pip</code> but it seems to make signing of releases optional and GPG support is very limited, so just because the package is on PyPI doesn't mean it's signed.
-*** No signed release visible on releases page. 
-* predictable links issue
-** web.archive.org is nice because using our [https://github.com/Kicksecure/mediawiki-link-to-archive mediawiki-link-to-archive] MediaWiki extension, each link gets appended with an archive symbol linking to <code><nowiki>https://web.archive.org/archive/<original-link></nowiki></code>.
-** investigate if archivebox (or alternative) has such a feature
-** post a feature request if not
-** if such a feature does not exist, then mass wiki editing will be required to append links to our self-hosted archivebox (or alternative)
-*** wiki mass editing is best avoided. Either we would use a different self-hosted archival tool or perhaps contribute such a feature upstream, if feasible?
-**** A URL-encoded URL can be passed as a search query, similar to how archive.today allows searching for archives of a site with <code>https://archive.today/https://google.com</code>. This takes a bit more effort due to the URL encoding being mandatory, but it is doable it appears.
-**** Feature request for archive.org style links (originally filed by the primary ArchiveBox author, commented on by me): https://github.com/ArchiveBox/ArchiveBox/issues/1085
-**** The feature already exists and is usable upstream: https://github.com/ArchiveBox/ArchiveBox/issues/1085#issuecomment-2487121890
-* public archive issue
-** Ideally, the archive would not be "our archive" but a public archive.
-** That does not mean, that we want to host a public archivebox archive that anyone can use. That would unfortunately be problematic (disk space, legal issues).
-** We're already offering various downloadable backups on the [[Offline Documentation]] wiki page (including rsync access).
-** For archived links it would be good if these could be offered in a backup format available to the public. I.e. someone could use rsync and download all links that we archived.
-** With archivebox that might be problematic because links might be unpredictable. Archivebox has a search function but it relies on server functionality, server database (?), which we probably cannot share as is.
-*** Should we nuke admin credentials so we can share the database with the public for backup purposes?
-**** ArchiveBox actually has explicit support for publishing an archive as a static website. See https://github.com/ArchiveBox/ArchiveBox/wiki/Publishing-Your-Archive. Assuming this doesn't save any sensitive data, this would be a pretty easy way of doing this.
-* design:
-** Keep archive box web interface accessible to admins and bots only. (security)
-** Keep link archival accessible to admin and bots only. (legal)
-** Keep archived links reading accessible to the public.
-** After wiki backup (already existing on the server) using mediawiki-shell, have a script that can parse the wiki for new links and add them to archivebox.
-*** Needs support for a list of domains to avoid archiving (since archiving might be broken).
-*** Due to some links being offline, often, need to probably fail open if some links are not archiveable.
-
-= ARCHIVED =
 == salsa debian - salsa signing key setup ==
 * https://salsa.debian.org/ArrayBolt3/live-build/-/commits/arraybolt3/lb-dracut?ref_type=heads
 * please upload your gpg public key to salsa.debian.org, if that is acceptable.
