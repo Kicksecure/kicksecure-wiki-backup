@@ -229,6 +229,8 @@ verification is a continuous process happening as data is loaded into memory
 
 This means if malware manages to modify the file move program /usr/bin/mv despite immutability, then dm-verity would notice this the next time the user or system is attempting to execute that command.
 
+* https://tgrush.bearblog.dev/android-verified-boot/
+
 = Verified Boot Discussion =
 
 == Does Verified Boot Require an Immutable Image? ==
@@ -258,12 +260,12 @@ debsums -ce
 One concept to implement verified boot is an immutable, minimal system partition. That, however, is mostly suitable for specialized appliances (such as routers). The disadvantage is a lot of lost user functionality and freedom. It would be a hard and dictatorial decision about what goes into the system partition, which couldn't be modified by the user without building from source code. A long running process that can maybe be speed up and simplified.
 
 == Compromises Between Mutability, Functionality and Security ==
-It would kind of force some specific technology on the user (for example, going all in on Flatpak for application installation).
+Using a minimal system partition would force some specific technology on the user (for example, going all in on Flatpak for application installation).
 
 Freedom to modify in-place and security are at odds with each other. Anything that is secured by verified boot becomes immutable.
 
 === Non-Persistence in Verified Boot ===
-Is it possible to at least get the compromise of non-persistence from verified boot? Yes, but then one ends up with things like "I rebooted and now all the software I installed is gone." Verified boot with reset after reboot would be similar to live mode. So even if full <code>apt-get install</code> access was permitted, that would be gone after reboot.
+Is it possible to at least get the compromise of non-persistence from verified boot? Maybe, but then one ends up with things like "I rebooted and now all the software I installed is gone." Verified boot with reset after reboot would be similar to live mode. So even if full <code>apt-get install</code> access was permitted, that would be gone after reboot.
 
 === Persistence of User-Installed Packages ===
 Can user-installed packages using <code>apt-get install</code> persist + verified boot?
@@ -276,8 +278,8 @@ Can user-installed packages using <code>apt-get install</code> persist + verifie
 == Mutability in Verified Boot Systems ==
 Some verified boot in combination with mutable (read-write) issue:
 
-* Just how mutable? Should systemd units be mutable or immutable? If immutable, many packages won't be installable. If mutable, setting up a persistent backdoor becomes easy. If "live-immutable," software will break after a reboot.
-* Verified boot with mutability will be too easy to bypass. If someone leaves, for instance, <code>/usr/local/bin</code> mutable because "of course it should be mutable, that's where user-installed software goes," malware might plant a malicious executable there that will now be persistent and override calls to an executable in an immutable <code>/usr/bin</code>.
+* Just how mutable? Should systemd units be mutable or immutable? If immutable, many packages won't be installable. If mutable, setting up a persistent backdoor becomes easy. If "live-immutable," software will break after a reboot because the system partition gets reset to vendor defaults.
+* Verified boot with mutability will be too easy to bypass. If someone leaves, for instance, <code>/usr/local/bin</code> mutable because "of course it should be mutable, that's where user-installed software goes", malware might plant a malicious executable there that will now be persistent and override calls to an executable in an immutable <code>/usr/bin</code>.
 * System updates? Verify and copy files to the "fake-immutable" base filesystem after a successful update? What if a non-persistent compromise manages to compromise the updater so it copies malicious files to the base partition?
 
 === Challenges with Immutable Filesystems ===
@@ -286,10 +288,22 @@ With a real immutable filesystem, updates become hard. It would require system i
 For real immutability, we would need to invent A/B updates for Debian. Vanilla OS is doing A/B updates with Debian Sid.
 
 == Verified Boot for Specialized Operating Systems ==
-So verified boot can only always be specialized operating systems, not general-purpose operating systems? As in "This is a nice verified boot image, start the browser, reboot, any potential malware compromise will self-heal."
+So verified boot can only always be specialized operating systems, not general-purpose operating systems? 
+
+Specialized operating systems for example:
+
+* "This is a nice verified boot image, start the browser, reboot, any potential malware compromise will self-heal."
 
 == Minimal Immutable Base Images in combination with chroot ==
-Suppose there is this minimal immutable base image... And then a chroot where the user can do anything? We might not get too much from that. It requires an entire ecosystem. And the Debian ecosystem doesn't really have verified boot on the radar.
+Suppose there is this minimal immutable base image... And then a chroot where the user can do anything? We might not significant security benefits from that, because for example the browser binary installed inside the chroot would not be covered by verified boot.
+
+todo: https://www.perplexity.ai/search/android-apps-from-play-store-c-uy8M.d48SDSFZGstvSYFVw
+
+It requires an entire ecosystem.
+
+Android app store has apps that fit into this. Debian doesn't.
+
+And the Freedom Software Linux distribution ecosystem doesn't really have verified boot on the radar.
 
 === Approaches from Other Distributions ===
 The approach Fedora Silverblue takes, only they also allow Flatpak and root fs modification via <code>rpm-ostree</code>. TODO: security impact?
