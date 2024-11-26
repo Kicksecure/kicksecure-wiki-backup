@@ -76,6 +76,11 @@ Nexus and Pixel lines support Verified Boot with user-controlled keys
 | Cypherpunk Security
 |-
 
+! Synonym 3
+| Feudal Security
+| Sovereign Security
+|-
+
 ! Empowers
 | Corporates
 | Individuals
@@ -309,7 +314,7 @@ And the Freedom Software Linux distribution ecosystem doesn't really have verifi
 The approach Fedora Silverblue takes, only they also allow Flatpak and root fs modification via <code>rpm-ostree</code>. TODO: security impact?
 
 == Factory Reset and Verified Boot ==
-With a read-write (rw) image and verified boot, at best maybe what one could get is a simple factory reset in the boot menu. The user could choose factory reset, which resets all changes in the root image. Nice, but not that great of a feature.
+With a read-write (rw) image and verified boot, at best maybe what one could get is a simple factory reset in the boot menu. The user could choose factory reset, which resets all changes in the root image. Nice, but not that great of a security feature.
 
 === Challenges of Using dm-verity ===
 One cannot do <code>dm-verity</code> on a "normal" filesystem. Only on images, block devices. Any changes and it breaks. Quote dm-verity man page:
@@ -319,6 +324,8 @@ Device-Mapper’s “verity” target provides transparent integrity checking of
 </blockquote>
 
 One ends up with a read-only filesystem.
+
+todo: use fs-verity for that?
 
 === Allowing Mutability with dm-verity ===
 To allow this to be mutable, one needs to have some way of applying changes to it, which requires some way of automatically signing those changes, which might exposes the key to malware should it infect the system.
@@ -362,7 +369,10 @@ Microsoft would likely be willing to sign a new Linux distribution shim. The Lin
 
 This is nice to have for Secure Boot compatibility, which is a lesser goal of at least having a bootable Linux distribution without the user having to disable Secure Boot in their BIOS. {{project_name_short}} is Secure Boot compatible, thanks to Debian's shim, but this relies on appearing as Debian.
 
-It's however not much of a security feature, since attackers with access to (leaked) Microsoft keys can bypass it. The root of trust ultimately resides with Microsoft.
+It's however not much of a security feature, since:
+
+* The root of trust ultimately resides with Microsoft. Attackers with access to (leaked) Microsoft keys can bypass it. 
+* Attackers can also boot anything signed by Microsoft (any other Linux distribution's shim).
 
 If {{project_name_short}} would provide ISO with our our own key for signed verified boot images, we would lose compatibility to boot on standard hardware with Secure Boot and Microsoft's default key. The "only one signature allowed on an EFI binary" restriction is preventing that. {{project_name_short}} might need to maintain two different ISO's.
 
@@ -380,7 +390,9 @@ A potential compromise could be a fallback mechanism with two shims: one based o
 When machines certified for other distributions (e.g., Ubuntu) are preinstalled, they include an Ubuntu-specific key from Canonical alongside the Microsoft key. However, relying on Secure Boot for verified boot while keeping compatibility with the Microsoft key poses challenges.
 
 === Measured Boot vs Secure Boot ===
-It’s possible to design a process where the Microsoft shim loads the kernel, the kernel then determines compatibility with the project-specific key, and the system reboots into a secondary bootloader signed by the project. But this approach requires additional firmware capabilities. TODO: effectively can be compromised with Microsoft leaked key?
+It’s possible to design a process where the Microsoft shim loads the kernel, the kernel then determines compatibility with the project-specific key, and the system reboots into a secondary bootloader signed by the project. But this approach requires additional firmware capabilities. Effectively can be compromised with Microsoft leaked key?
+
+Yes. That's where measured boot comes in.
 
 Another consideration is whether removing the Microsoft key is beneficial. While it would lock systems to the Linux distribution's key for Secure Boot, this might restrict compatibility further than Microsoft’s own Secure Boot implementation. A firmware option to enable or disable Microsoft or project-specific keys could address this.
 
@@ -505,11 +517,10 @@ This idea integrates well with [[Dev/boot modes|Role-Based Boot Modes (user vers
 ** Based on dpkg trigger or shutdown, a new dm-verity has tree will be created, that will be used next time booting into user mode.
 
 == Status ==
-* Help welcome to implement this.
-* https://forums.whonix.org/t/no-longer-add-virtual-dvd-drive-to-vm-by-default/9337 needs to be undone or considered. Could auto-add a DVD drive as long as needed.
+* Help welcome to implement [[Verified_Boot#Verified_Boot_for_User_but_not_for_Admin|Verified Boot for User but not for Admin]].
+* [[Dev/boot modes|Role-Based Boot Modes (user versus admin) for Enhanced Security]] (and maybe [[noexec]]) will be implemented first.
 
 = Other Distributions implementing Verified Boot =
-* https://docs.clip-os.org/clipos/boot_integrity.html
 * https://source.android.com/security/verifiedboot/
 * https://www.chromium.org/chromium-os/chromiumos-design-docs/verified-boot
 * https://blogs.oracle.com/solaris/post/solaris-verified-boot
@@ -518,6 +529,11 @@ This idea integrates well with [[Dev/boot modes|Role-Based Boot Modes (user vers
 * https://fedoraproject.org/wiki/Changes/FsVerityRPM
 * https://0pointer.net/blog/brave-new-trusted-boot-world.html
 * https://0pointer.net/blog/fitting-everything-together.html
+
+{{quotation
+|quote=No default keys are supported (e.g., Microsoft keys) thus you will need to generate you own Secure Boot signing keys and use them during the build process. Those keys must then be enrolled in hardware.
+|context=https://docs.clip-os.org/clipos/boot_integrity.html
+}}
 
 = Immutable Linux Distributions =
 * https://vanillaos.org/
