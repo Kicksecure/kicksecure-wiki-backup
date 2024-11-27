@@ -17,10 +17,6 @@ TODO
 ** Hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.11 after it is available in Trixie
 
-== review rads ==
-* https://github.com/Kicksecure/rads
-* [[RAM Adjusted Desktop Starter]]
-
 == umask research ==
 * please research, find solutions for umask
 * this is in preparation of 
@@ -44,13 +40,6 @@ run a script, if root, do nothing, otherwise set umask
 * /etc/sudoers.d/umask
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
 
-== investigate absence of sudo doas pkexec ==
-* SUIDs are a security issue.
-* How realistic would it be to implement all sudoers / pkexec exceptions using Linux capabilities, file permissions or similar?
-* Long term goal should be to have no application running as root / no user reachable SUIDs. 
-* Maybe doas, pkexec should only be reachable from user <code>admin</code>.
-* If too complex, might be far future work and meanwhile we'll go doas (+ pkexec).
-
 == investigate porting from sudo to doas ==
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482
 * can our /etc/sudoers.d snippets be ported to doas? is doas powerful enough for our requirements based on our already existing /etc/sudoers.d snippets?
@@ -62,6 +51,7 @@ run a script, if root, do nothing, otherwise set umask
 ** <code>sudo</code>
 ** <code>lxsudo</code>
 * Ensure sudoers.d config files used in Kicksecure and Whonix on Qubes OS can be ported to doas
+* Did an audit of all uses of sudo in kickseure and whonix codebases, and how difficult they should be to port to doas. Results:  https://gist.github.com/ArrayBolt3/6699ec4c631fec28e1f4c0a2e657fcd7
 
 == review and harden our /etc/sudoers.d snippets ==
 * review
@@ -301,6 +291,25 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== review rads ==
+* https://github.com/Kicksecure/rads
+* [[RAM Adjusted Desktop Starter]]
+* Issues, both minor:
+** rads_minimum_ram is set to 480 in the config file with rationale given, but defaults to 500 in rads itself, which could be problematic
+** rads_no_swtich_vt is typo'd both in the variable itself and in the config file
+* Very unlikely to be the source of the distro morphing bug reported earlier, the user had a working display manager at that point and was observing auth failures in their logs.
+
+== investigate absence of sudo doas pkexec ==
+* SUIDs are a security issue.
+* How realistic would it be to implement all sudoers / pkexec exceptions using Linux capabilities, file permissions or similar?
+* Long term goal should be to have no application running as root / no user reachable SUIDs. 
+* Maybe doas, pkexec should only be reachable from user <code>admin</code>.
+* If too complex, might be far future work and meanwhile we'll go doas (+ pkexec).
+* Looks very complex but potentially doable, see https://man7.org/linux/man-pages/man7/capabilities.7.html. However, some sort of privilege escalation framework will still be needed for running things such as <code>apt</code> and requiring a password for that purpose.
+* Applications that depend on checking for a root UID can be "fooled" into thinking they have root but really only having a limited set of capabilities
+* May interact poorly with Debian, experimentation will be needed to find out
+* Limiting access to sudo or doas can be done without having to go into an all-capabilities environment, a systemd unit could be used to ensure that the SUID bits on those applications are absent in user mode and present in admin mode
+* Probably better to start with doas, will likely hit less hurdles attempting that.
 
 = ARCHIVED =
 == rewrite from perl to python ==
