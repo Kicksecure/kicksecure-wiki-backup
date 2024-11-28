@@ -17,6 +17,40 @@ TODO
 ** Hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.11 after it is available in Trixie
 
+== review and harden our pkexec policykit polkit policy files ==
+* review
+* harden, if there is something to harden
+
+<pre>
+./packages/kicksecure/anon-connection-wizard/usr/share/polkit-1/actions/com.kicksecure.anon-connection-wizard.policy
+./packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy
+</pre>
+
+* Reviewed, shared results with Patrick.
+* update 1: Please fix.
+
+== review and harden repository dist policykit polit policy file ==
+/usr/lib/python3/dist-packages/repository_dist_wizard/repository_dist_wizard.py
+
+                command = ['pkexec', 'repository-dist', '--enable'] + repository
+
+Ok?
+
+== grep review harden pkexec ==
+* please grep all source code for pkexec and review
+
+== FYI - systemcheck test ==
+After each build, please do a test.
+
+{{CodeSelect|code=
+systemcheck --verbose
+}}
+
+This catches major issues such as localhost issue.
+
+== Protection_Against_Physical_Attacks wiki page revision ==
+* please improve [[Protection_Against_Physical_Attacks]]
+
 == umask research ==
 * please research, find solutions for umask
 * this is in preparation of 
@@ -52,19 +86,6 @@ run a script, if root, do nothing, otherwise set umask
 ** <code>lxsudo</code>
 * Ensure sudoers.d config files used in Kicksecure and Whonix on Qubes OS can be ported to doas
 * Did an audit of all uses of sudo in kickseure and whonix codebases, and how difficult they should be to port to doas. Results:  https://gist.github.com/ArrayBolt3/6699ec4c631fec28e1f4c0a2e657fcd7
-
-== review and harden our /etc/sudoers.d snippets ==
-* review
-* harden, if there is something to harden
-
-== review and harden our pkexec policykit polkit policy files ==
-* review
-* harden, if there is something to harden
-
-<pre>
-./packages/kicksecure/anon-connection-wizard/usr/share/polkit-1/actions/com.kicksecure.anon-connection-wizard.policy
-./packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy
-</pre>
 
 == doas - send pull requests to Qubes ==
 * [[Dev/todo#Qubes_doas_ticket|Qubes doas ticket]] might be unlikely to get rejected. But replies could take a while.
@@ -291,14 +312,36 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== review rads ==
-* https://github.com/Kicksecure/rads
-* [[RAM Adjusted Desktop Starter]]
-* Issues, both minor:
-** rads_minimum_ram is set to 480 in the config file with rationale given, but defaults to 500 in rads itself, which could be problematic
-** rads_no_swtich_vt is typo'd both in the variable itself and in the config file
-* Very unlikely to be the source of the distro morphing bug reported earlier, the user had a working display manager at that point and was observing auth failures in their logs.
+== installed ISO - fix localhost ==
+After installing from the ISO using calamres:
 
+<pre>
+[user ~]% setsid -- sudo -- /usr/bin/test -x /usr/bin/test          
+[user ~]% sudo: unable to resolve host localhost.localdomain: Name or service not known
+</pre>
+
+This causes an issue with systemcheck.
+
+/etc/hosts is empty. But should be same as on Kicksecure Xfce for VirtualBox. Where it is:
+
+<pre>
+[user ~]% cat /etc/hosts
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+ff02::1         ip6-allnodes
+ff02::2         ip6-allrouters
+
+[user ~]% cat /etc/hostname 
+localhost
+</pre>
+
+If this was to change, it would need to be changed in Kicksecure for VirtualBox (and KVM) too. Would need to be changed in derivative-maker.
+
+Probably best to set ISO /etc/hostname and /etc/hosts to the same value as Kicksecure for VirtualBox (derivative-maker) or what would be the canonical name?
+
+* Fixed. https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/network-config Uses same values for /etc/hosts and /etc/hostname as for VirtualBox builds, these values originally came from grml-debootstrap and the <code>$dist_build_hostname</code> variable.
+
+= ARCHIVED =
 == investigate absence of sudo doas pkexec ==
 * SUIDs are a security issue.
 * How realistic would it be to implement all sudoers / pkexec exceptions using Linux capabilities, file permissions or similar?
@@ -310,8 +353,24 @@ sudo apt install serial-console-enable
 * May interact poorly with Debian, experimentation will be needed to find out
 * Limiting access to sudo or doas can be done without having to go into an all-capabilities environment, a systemd unit could be used to ensure that the SUID bits on those applications are absent in user mode and present in admin mode
 * Probably better to start with doas, will likely hit less hurdles attempting that.
+* After further research, this looks very difficult or impossible to do with Debian. The capabilities system does not provide substantial additional security when used alongside "legacy" (i.e. user account based) privilege management, and using it on its own requires both executable files and systemd unit configuration to be configured to use capabilities properly. Most of Debian's applications are probably not configured to work this way, so we would need to ship ''extensive'' permission modifications in permission-hardener, as well as replace many, many systemd units for things such as display managers, servers, or anything else that ran as a systemd system unit and needed privileges to do its job properly. This does not seem practical, therefore I would highly recommend we stick with porting to doas.
+* I tried searching for distros that use capabilities in lieu of root access - Google was very unhelpful, and Perplexity.ai just told me there weren't any distros like that.
 
-= ARCHIVED =
+== review rads ==
+* https://github.com/Kicksecure/rads
+* [[RAM Adjusted Desktop Starter]]
+* Issues, both minor:
+** rads_minimum_ram is set to 480 in the config file with rationale given, but defaults to 500 in rads itself, which could be problematic
+** rads_no_swtich_vt is typo'd both in the variable itself and in the config file
+* Very unlikely to be the source of the distro morphing bug reported earlier, the user had a working display manager at that point and was observing auth failures in their logs.
+* update, Patrick: fixed
+
+
+== review and harden our /etc/sudoers.d snippets ==
+* review
+* harden, if there is something to harden
+* Done, hardening code merged
+
 == rewrite from perl to python ==
 * todo
 * After auditing, I don't believe most of our uses of Perl need to be replaced. <code>str_replace</code> and <code>str_match</code> seemed potentially important to port however.
