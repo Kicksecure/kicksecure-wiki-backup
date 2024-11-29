@@ -17,58 +17,8 @@ TODO
 ** Hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.11 after it is available in Trixie
 
-== review and harden our pkexec policykit polkit policy files ==
-* review
-* harden, if there is something to harden
-
-<pre>
-./packages/kicksecure/anon-connection-wizard/usr/share/polkit-1/actions/com.kicksecure.anon-connection-wizard.policy
-./packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy
-</pre>
-
-* Reviewed, shared results with Patrick.
-* update 1: Please fix.
-
-== review and harden repository dist policykit polit policy file ==
-/usr/lib/python3/dist-packages/repository_dist_wizard/repository_dist_wizard.py
-
-                command = ['pkexec', 'repository-dist', '--enable'] + repository
-
-Ok?
-
-== grep review harden pkexec ==
-* please grep all source code for pkexec and review
-
-== FYI - systemcheck test ==
-After each build, please do a test.
-
-{{CodeSelect|code=
-systemcheck --verbose
-}}
-
-This catches major issues such as localhost issue.
-
-== Protection_Against_Physical_Attacks wiki page revision ==
-* please improve [[Protection_Against_Physical_Attacks]]
-
-== umask research ==
-* please research, find solutions for umask
-* this is in preparation of 
-* https://forums.whonix.org/t/change-default-umask/7416
-* https://github.com/Kicksecure/security-misc/pull/18
-* https://github.com/Kicksecure/security-misc/issues/185
-
-pam_umask.so debug umask=027
-
-run a script, if root, do nothing, otherwise set umask 
-
-        [success=2 default=ignore]      pam_succeed_if.so debug uid eq 0
-        [success=1 default=ignore]      pam_succeed_if.so debug use_uid uid eq 0
-        
-        replace with pam_exec?
-
-* Research recorded at https://github.com/Kicksecure/security-misc/issues/185#issuecomment-2492614076, still discussing if this is something we want to do or not.
-* TODO: Investigate how ssh opens a session and how to set umask there
+== live-build - test arm64 cross-build support ==
+* as discussed
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -145,12 +95,6 @@ qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
 * Suggest switching to AC97 audio (even Arch Linux defaults to this under Virtualbox).
 * Need to investigate upstream code
 * Could not get any meaningful hints from pipewire, wireplumber, and pipewire-pulse logs. Pulseaudio shows an "alsa woke us up to write new data to the device but there was actually nothing to write" error in its logs. At this point this is likely to be a bug in VirtualBox or the snd-hda-intel kernel driver.
-
-== immutable /usr /etc without overlay ==
-* Try to boot Kicksecure with read-only (immutable) /usr /etc.
-* There should be no overlay. "Real" read-only. Not similar to live mode with non-persistent overlay.
-* In case of issues, try with Debian, as there might be Kicksecure specific issues.
-* This task is in preparation for [[Dev/boot_modes]].
 
 == live-build - test lb config --dm-verity ==
 * Does the ISO still function if build with <code>lb config --dm-verity</code>?
@@ -312,6 +256,56 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== immutable /usr /etc without overlay ==
+* Try to boot Kicksecure with read-only (immutable) /usr /etc.
+* There should be no overlay. "Real" read-only. Not similar to live mode with non-persistent overlay.
+* In case of issues, try with Debian, as there might be Kicksecure specific issues.
+* This task is in preparation for [[Dev/boot_modes]].
+** Kicksecure booted but failed to reach a graphical desktop environment. Console login was impossible because PAM faillock errors out when it can't write to the tally file.
+** Debian booted but failed to reach a graphical desktop environment. Console login worked, but neither <code>systemctl restart lightdm</code> nor <code>startx</code> were able to reach a login screen or desktop environment.
+
+== implement umask hardening ==
+* as discussed
+* PR: https://github.com/Kicksecure/security-misc/pull/282
+
+= ARCHIVED =
+== grep review harden pkexec ==
+* please grep all source code for pkexec and review
+* Checked, everything that hasn't been reviewed in other tasks looks safe.
+
+== review and harden repository dist policykit polit policy file ==
+/usr/lib/python3/dist-packages/repository_dist_wizard/repository_dist_wizard.py
+
+                command = ['pkexec', 'repository-dist', '--enable'] + repository
+
+Ok?
+
+* Checked, this doesn't look like a threat to me, except in situations where the system is already badly compromised. Shared the one possible scenario with Patrick.
+
+== umask research ==
+* please research, find solutions for umask
+* this is in preparation of 
+* https://forums.whonix.org/t/change-default-umask/7416
+* https://github.com/Kicksecure/security-misc/pull/18
+* https://github.com/Kicksecure/security-misc/issues/185
+
+pam_umask.so debug umask=027
+
+run a script, if root, do nothing, otherwise set umask 
+
+        [success=2 default=ignore]      pam_succeed_if.so debug uid eq 0
+        [success=1 default=ignore]      pam_succeed_if.so debug use_uid uid eq 0
+        
+        replace with pam_exec?
+
+* Research recorded at https://github.com/Kicksecure/security-misc/issues/185#issuecomment-2492614076, still discussing if this is something we want to do or not.
+* Investigate how ssh opens a session and how to set umask there
+** Answer: The default umask set by OpenSSH is whatever umask it is launched with but with world and group write permissions disabled (so newly created files don't end up world-writable or group-writable by accident). If the user is entering an interactive SSH session, a login shell is launched, otherwise the command the user specifies is run using the user's default shell and a <code>-c</code> argument. If we want to configure the umask for all commands, we will have to set it via a shell launch script that runs even on non-login shells (i.e. bashrc or zshrc). If only login shells need configured, a profile script should suffice. There does not appear to be a configuration setting in OpenSSH for setting a umask outside of these mechanisms, the umask override for disabling world write and group write bits is hardcoded.
+
+== Protection_Against_Physical_Attacks wiki page revision ==
+* please improve [[Protection_Against_Physical_Attacks]]
+* Done, did not document advanced GRUB password configuration because it requires writing a grub.cfg file by hand, and that would be best documented elsewhere.
+
 == installed ISO - fix localhost ==
 After installing from the ISO using calamres:
 
@@ -341,7 +335,32 @@ Probably best to set ISO /etc/hostname and /etc/hosts to the same value as Kicks
 
 * Fixed. https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/network-config Uses same values for /etc/hosts and /etc/hostname as for VirtualBox builds, these values originally came from grml-debootstrap and the <code>$dist_build_hostname</code> variable.
 
-= ARCHIVED =
+== review and harden our pkexec policykit polkit policy files ==
+* review
+* harden, if there is something to harden
+
+<pre>
+./packages/kicksecure/anon-connection-wizard/usr/share/polkit-1/actions/com.kicksecure.anon-connection-wizard.policy
+./packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy
+</pre>
+
+* Reviewed, shared results with Patrick.
+* update 1: Please fix.
+* Fixes:
+** anon-connection-wizard: https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/pkexec
+** tor-control-panel: https://github.com/ArrayBolt3/tor-control-panel/tree/arraybolt3/pkexec (needed changes to remain compatible with anon-connection-wizard changes)
+
+== FYI - systemcheck test ==
+After each build, please do a test.
+
+{{CodeSelect|code=
+systemcheck --verbose
+}}
+
+This catches major issues such as localhost issue.
+
+* Will keep that in mind, my last build after fixing the localhost issue seems to pass this check.
+
 == investigate absence of sudo doas pkexec ==
 * SUIDs are a security issue.
 * How realistic would it be to implement all sudoers / pkexec exceptions using Linux capabilities, file permissions or similar?
