@@ -17,8 +17,72 @@ TODO
 ** Hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.11 after it is available in Trixie
 
-== live-build - test arm64 cross-build support ==
-* as discussed
+== consider installing by default on ISO ==
+<pre>
+      packages_to_be_installed+=" mokutil "
+      packages_to_be_installed+=" keyutils "
+      packages_to_be_installed+=" efibootmgr "
+</pre>
+
+* mokutil is already installed.
+* How about the others?
+* Note: architecture specific.
+
+== multi architecture support ==
+* the following code can be removed from build-steps.d/1200_prepare-build-machine?
+* required by grml-debootstrap for arm64 builds?
+* please add support for other architectures to build-steps.d/2800_create-lb-iso
+* just only mostly generic code. theoretical support only. no actual builds test needed for all architectures at this time.
+
+<pre>
+      ## The following grub packages are (partially) build dependencies by Debian live-build.
+      ## Certainly required for amd64 ISO images booted with shim and grub.
+      if [ "${host_architecture}" = "amd64" ]; then
+         ## These packages are all available for the amd64 platform.
+         ## "grub-mkrescue will automatically include every platform it finds." [1]
+         ## [1] https://lists.gnu.org/archive/html/grub-devel/2014-03/msg00009.html
+         ## Install them all for best compatibility and reproducible builds.
+         ## Some might be unnecessary and waste a bit space.
+         ## Maybe this can be optimized later.
+         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
+         packages_to_be_installed+=" grub-efi-amd64-signed "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+         packages_to_be_installed+=" shim-helpers-amd64-signed "
+      elif [ "${host_architecture}" = "i386" ]; then
+         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
+         packages_to_be_installed+=" grub-efi-ia32-signed "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+         packages_to_be_installed+=" shim-helpers-i386-signed "
+      elif [ "${host_architecture}" = "ppc64el" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "ppc64" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "sparc64" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "arm64" ]; then
+         packages_to_be_installed+=" grub-efi-arm64-bin "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+      elif [ "${host_architecture}" = "riscv64" ]; then
+         packages_to_be_installed+=" grub-efi-riscv64-bin  "
+      else
+         true "${red}${bold}WARNING:${reset} ${under}The ISO to be build might be unbootable!${eunder}
+- This is because bootloader support is not implemented when building on this
+  systems's host_architecture.
+- Either the build script does not know how to install the required grub '-bin'
+  package for this architecture or the package is simply unavailable.
+- Therefore ISO cross builds are unsupported. Patches welcome.
+  Might be possible to implement this by running image-to-iso using qemu.
+- There is also a small chance that host_architecture detection failed. (Using multiarch, wine?)"
+      fi
+</pre>
+
+== review /usr/bin/passwordless-root ==
+* usability misc - /usr/bin/passwordless-root
+
+== passwordless-root ==
+* todo: review
+* [[Root#passwordless-root|passwordless-root]]
+* [https://github.com/Kicksecure/usability-misc/blob/master/usr/bin/passwordless-root <code>/usr/bin/passwordless-root</code>]
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -47,13 +111,6 @@ qubes-core-agent: /etc/sudoers.d/umask
 
 qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
 </pre>
-
-== doas - submit a pwfeedback feature request ==
-* todo
-
-== doas - submit a /usr/local/etc/doas.d /etc/doas.d drop-in configuration feature request ==
-* todo
-* parse only configuration files ending with <code>.conf</code> (to avoid parsing editor backup files ending with "~", ".bak", ".dpkg-old" or similar)
 
 == create /usr/local/etc/doas.d /etc/doas.d parser and /etc/doas.conf configuration file creator ==
 * parse /usr/local/etc/doas.d
@@ -256,6 +313,24 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== doas - submit a pwfeedback feature request ==
+* todo
+* Request sent via email, see https://marc.info/?l=openbsd-tech&m=173284374231855&w=2
+* Rejected by upstream.
+
+== doas - submit a /usr/local/etc/doas.d /etc/doas.d drop-in configuration feature request ==
+* todo
+* parse only configuration files ending with <code>.conf</code> (to avoid parsing editor backup files ending with "~", ".bak", ".dpkg-old" or similar)
+* Request sent via email, see https://marc.info/?l=openbsd-tech&m=173284374231855&w=2
+* Rejected by upstream, response to the suggestion was borderline hostile.
+
+== live-build - test arm64 cross-build support ==
+* as discussed
+* Changes were required to derivative-maker to support cross-building and arm64 ISO builds, also had to fix a couple bugs in live-build to make things work.
+** Live-build changes: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+** derivative-maker changes: https://github.com/ArrayBolt3/derivative-maker/tree/master
+*** Native arm64 builds have NOT yet been tested
+
 == immutable /usr /etc without overlay ==
 * Try to boot Kicksecure with read-only (immutable) /usr /etc.
 * There should be no overlay. "Real" read-only. Not similar to live mode with non-persistent overlay.
