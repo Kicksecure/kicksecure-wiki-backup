@@ -1,0 +1,256 @@
+{{Header}}
+{{title|title=
+Comparison of secureblue with Kicksecure and Development Notes
+}}
+{{#seo:
+|description=Comparison of some of Secureblue and Kicksecure security enhancements, hardening techniques, and unique development features. Explore detailed differences, overlapping features, and future improvement notes for both security-focused operating systems.
+}}
+{{intro|
+Secureblue and Kicksecure are both hardened operating systems prioritizing security. This wiki page provides a side-by-side comparison of some of their security features, development decisions, and the rationale behind various implementations. Explore how each system addresses security challenges. This guide serves as a resource for developers, security enthusiasts, and users seeking insight into cutting-edge OS security practices.
+}}
+
+<u>Quick, preliminary analysis version 0.1</u>, only based on quote [https://github.com/secureblue/secureblue secureblue GitHub repository] README.md as of Nov 30, 2024, commit hash [https://github.com/secureblue/secureblue/blob/e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83/docs/README.md e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83] and related, linked files.
+
+<blockquote>
+= Hardening =
+</blockquote>
+
+<blockquote>
+* Installing and enabling [https://github.com/GrapheneOS/hardened_malloc hardened_malloc] globally, including for flatpaks. <ref>[https://github.com/rusty-snake/fedora-extras Thanks to rusty-snake's spec]</ref>
+</blockquote>
+
+Kicksecure is no longer using hardened_malloc for reasons elaborated in chapter [[Hardened_Malloc#Deprecation_in_Kicksecure|Hardened Malloc, Deprecation in Kicksecure]].
+
+<blockquote>
+* Installing [https://github.com/secureblue/hardened-chromium hardened-chromium], which is inspired by [https://github.com/GrapheneOS/Vanadium Vanadium]. <ref>[https://grapheneos.org/usage#web-browsing Why chromium?]</ref> <ref>[https://forum.vivaldi.net/post/669805 Why not flatpak chromium?]</ref>
+</blockquote>
+
+Unavailable in Kicksecure at time of writing. See [[Dev/Default Browser|Kicksecure Default Browser - Development Considerations]] for general considerations and and chapter [[Dev/Default_Browser#hardened-chromium|hardened-chromium]] specifically.
+
+<blockquote>
+* Setting numerous hardened sysctl values <ref>[https://github.com/secureblue/secureblue/blob/live/files/system/etc/sysctl.d/hardening.conf details]</ref>
+</blockquote>
+
+secureblue <code>/etc/sysctl.d/hardening.conf</code> file as of commit [https://github.com/secureblue/secureblue/blob/a6b58f042b0e9e9036a6d68a5b202eed96a1a892/files/system/etc/sysctl.d/hardening.conf a6b58f042b0e9e9036a6d68a5b202eed96a1a892] was inspired by, more or less copied and pasted from Kicksecure as can be seen from the following comment found in that file.
+
+<pre>
+## Prevent kernel info leaks in console during boot.
+## https://phabricator.whonix.org/T950
+kernel.printk = 3 3 3 3
+</pre>
+
+Therefore, Kicksecure has mostly the same settings. These can be found in package [https://github.com/Kicksecure/security-misc security-misc], specifically in folder [https://github.com/Kicksecure/security-misc/tree/master/usr/lib/sysctl.d <code>/usr/lib/sysctl.d</code>].
+
+If there are any differences, these can be discovered during ticket [https://github.com/Kicksecure/security-misc/issues/283 review secureblue sysctl].
+
+Kicksecure might have more complete sysctl settings as per:
+
+{{quotation
+|quote=This section is inspired by the Kernel Self Protection Project (KSPP). It attempts to implement all recommended Linux kernel settings by the KSPP and many more sources.
+
+https://kspp.github.io/Recommended_Settings</br>
+https://github.com/KSPP/kspp.github.io
+|context=security-misc readme
+}}
+
+<blockquote>
+* Remove SUID-root from [https://github.com/secureblue/secureblue/blob/live/files/scripts/removesuid.sh numerous binaries] and replace functionality [https://github.com/secureblue/secureblue/blob/live/files/system/usr/bin/setcapsforunsuidbinaries using capabilities]
+</blockquote>
+
+Kicksecure has [[SUID Disabler and Permission Hardener]].
+
+<blockquote>
+* Disable Xwayland by default (for GNOME, Plasma, and Sway images)
+</blockquote>
+
+TODO Kicksecure:
+
+* [https://forums.whonix.org/t/port-to-wayland/17380 port to Wayland]
+* https://github.com/Kicksecure/security-misc/issues/168
+
+At this point, Kicksecure (and Whonix) runs primarily inside VMs. GNOME and KDE are unsuitable for Kicksecure.
+
+* GNOME due to security and privacy concerns elaborated on [[Dev/GNOME]].
+* In the past [https://forums.whonix.org/t/user-poll-xfce-vs-kde-kde-deprecation-considered/6235 KDE was Whonix's default desktop environment but then ported to Xfce due to performance issues]. See also [[Dev/KDE]].
+
+No desktop environment suitable for Kicksecure that is already using Wayland has been identified for Kicksecure yet.
+
+<blockquote>
+* Mitigation of [https://github.com/Aishou/wayland-keylogger LD_PRELOAD attacks] via `ujust toggle-bash-environment-lockdown`
+</blockquote>
+
+TODO Kicksecure: research
+
+<blockquote>
+* Disabling coredumps
+</blockquote>
+
+Implemented in security-misc.
+
+<blockquote>
+* Disabling all ports and services for firewalld
+</blockquote>
+
+No open ports for Kicksecure by default.
+
+<blockquote>
+* Adds per-network MAC randomization
+</blockquote>
+
+TODO Kicksecure: https://github.com/Kicksecure/security-misc/issues/184
+
+See also [[MAC Address]].
+
+<blockquote>
+* Blacklisting numerous unused kernel modules to reduce attack surface <ref>[https://github.com/secureblue/secureblue/blob/live/files/system/etc/modprobe.d/blacklist.conf details]</ref>
+</blockquote>
+
+secureblue [https://github.com/secureblue/secureblue/commits/live/files/system/etc/modprobe.d/blacklist.conf <code>/etc/modprobe.d/blacklist.conf</code>] as of git commit [https://github.com/secureblue/secureblue/blob/c8eff2ca0bc9f7f2db9e1e172dc70942e6983912/files/system/etc/modprobe.d/blacklist.conf c8eff2ca0bc9f7f2db9e1e172dc70942e6983912]
+
+looks similar, might be inspired/forked from Kicksecure [https://github.com/Kicksecure/security-misc/tree/master/etc/modprobe.d <code>/etc/modprobe.d</code>] files but probably adjusted for secureblue. <ref>
+For example, if secureblue does not provide an ISO with squashfs, then secureblue can disable the module.
+
+<pre>
+install squashfs /bin/false
+</pre>
+</ref>
+
+<blockquote>
+* Enabling only the [https://flathub.org/apps/collection/verified/1 flathub-verified] remote by default
+</blockquote>
+
+Quote [[Install_Software#Kicksecure_Flathub_Repository_Default_Settings|Kicksecure Flathub Repository Default Settings]]:
+
+"Kicksecure mitigates the issues described in chapter [[#Flathub_Package_Sources_Security|Flathub Package Sources Security]] related to unverified applications and non-freedom software by using Flatpak's subset option with the <code>verified_floss</code> parameter, which means that only Flatpaks can be installed that are both <code>verified</code> apps and <code>floss</code> (Freedom Software)."
+
+<blockquote>
+* Sets numerous hardening kernel arguments (Inspired by [https://madaidans-insecurities.github.io/guides/linux-hardening.html Madaidan's Hardening Guide]) <ref>[https://github.com/secureblue/secureblue/blob/live/KARGS.md details]</ref>
+</blockquote>
+
+Kicksecure has the same because Madaidan contributed to Kicksecure. Also see KSPP as mentioned above.
+
+<blockquote>
+* Require wheel user authentication via polkit for `rpm-ostree install` <ref>[https://github.com/rohanssrao/silverblue-privesc why?]</ref>
+</blockquote>
+
+Not directly appreciable to Kicksecure. User documentation: [[root]]. Future enhancements: [[Dev/boot modes|Role-Based Boot Modes (user versus admin) for Enhanced Security]].
+
+<blockquote>
+* Brute force protection by locking user accounts for 24 hours after 50 failed login attempts, hardened password encryption and password quality suggestions
+</blockquote>
+
+{{quotation
+|quote=User accounts are locked after 50 failed login attempts using <code>pam_faillock</code>.
+
+https://kspp.github.io/Recommended_Settings</br>
+https://github.com/KSPP/kspp.github.io
+|context=security-misc readme
+}}
+
+* Developer documentation: [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]]
+* User documentation: [[Default Passwords]] and [[Passwords]]
+
+<blockquote>
+* Installing usbguard and providing `ujust` commands to automatically configure it
+</blockquote>
+
+TODO Kicksecure:
+
+* https://forums.whonix.org/t/usbguard-on-kicksecure-to-prevent-hardware-keyloggers-badusb/11988
+* https://github.com/Kicksecure/security-misc/pull/166
+
+<blockquote>
+* Installing bubblejail for additional sandboxing tooling
+</blockquote>
+
+TODO Kicksecure: [[sandbox-app-launcher]]
+
+<blockquote>
+* Set opportunistic DNSSEC and DNSOverTLS for systemd-resolved
+</blockquote>
+
+Kicksecure does not use systemd-resolved by default.
+
+systemd-resolved and other tools would require further research. This and systemd-resolved is mentioned here: [[DNS Security]]
+
+TODO Kicksecure: [https://forums.whonix.org/t/use-dnscrypt-by-default-in-kicksecure-not-whonix/8117/1 Use DNSCrypt by default in Kicksecure?]
+
+<blockquote>
+* Configure chronyd to use Network Time Security (NTS) <ref>[https://github.com/GrapheneOS/infrastructure/blob/main/chrony.conf using chrony config from GrapheneOS]</ref>
+</blockquote>
+
+Kicksecure uses [[sdwdate]].
+
+<blockquote>
+* Disable KDE GHNS by default <ref>[https://blog.davidedmundson.co.uk/blog/kde-store-content why?]</ref>
+</blockquote>
+
+Probably useful for secureblue but not essential for KDE since it not using GNOME by default.
+
+user documentation: [[Other Desktop Environments]]
+
+<blockquote>
+* Disable install & usage of GNOME user extensions by default
+</blockquote>
+
+Probably useful for secureblue but not essential for Kicksecure since it not using GNOME by default.
+
+user documentation: [[Other Desktop Environments]]
+
+<blockquote>
+* Use HTTPS for all rpm mirrors
+</blockquote>
+
+Kicksecure uses <code>tor+https</code> for APT as configured in [https://github.com/Kicksecure/anon-apt-sources-list anon-apt-sources-list] and documented on the [[About]] wiki page.
+
+<blockquote>
+* Set all default container policies to `reject`, `signedBy`, or `sigstoreSigned`
+</blockquote>
+
+Not applicable to Kicksecure since it is not a container focused operating system at time of writing. Probably useful for secureblue if using [https://github.com/containers/image containers' images].
+
+<blockquote>
+* Disable a variety of services by default (including cups, geoclue, passim, and others)
+</blockquote>
+
+Kicksecure does not install these by default and comes with [https://github.com/Kicksecure/security-misc?tab=readme-ov-file#application-specific-hardening Application-specific hardening].
+
+<blockquote>
+* Removal of the unmaintained and suid-root fuse2 by default
+</blockquote>
+
+Kicksecure has [[SUID Disabler and Permission Hardener]].
+
+<blockquote>
+* (Non-userns variants) Disabling unprivileged user namespaces
+</blockquote>
+
+Disabling unprivileged user namespaces breaks flatpak, AppImages and Firefox's sandbox. Therefore reverted, not implemented.
+
+* https://forums.kicksecure.com/t/unprivileged-user-namespaces-kernel-unprivileged-userns-clone-can-not-run-flatpak-apps-appimages-after-kicksecure-update/592/
+* https://github.com/Kicksecure/security-misc/issues/274
+
+<blockquote>
+* (Non-userns variants) Replacing bubblewrap with suid-root bubblewrap so flatpak can be used without unprivileged user namespaces
+</blockquote>
+
+SUID is also a risk. (Hence, [[SUID Disabler and Permission Hardener]] exists.)
+
+{{quotation
+|quote=This mode is not recommended, and some Flatpak apps and features will not work.
+
+[...]
+
+This is a security trade-off. Disallowing unprivileged use of user namespaces reduces the kernel's attack surface, which mitigates some attacks; but it also disallows some sandboxing techniques, which prevents other attacks from being mitigated. Making <code>bwrap</code> or <code>flatpak-bwrap</code> setuid root also carries some risk: an attacker might be able to exploit vulnerabilities in <code>bwrap</code> to achieve root privilege escalation.
+|context=flatpak wiki, chapter [https://github.com/flatpak/flatpak/wiki/User-namespace-requirements#setuid-bubblewrap Setuid bubblewrap]
+}}
+
+Therefore Kicksecure does not use suid-root bubblewrap.
+
+= See Also =
+* https://www.kicksecure.com/#security
+* [[About]]
+
+= Footnotes =
+<references />
+{{Footer}}
