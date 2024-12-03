@@ -15,13 +15,17 @@ TODO
 * cause of bug could be in rads or security-misc
 * Unable to reproduce bug, request for more information at https://forums.kicksecure.com/t/kicksecure-inside-lmde-5/46/13
 * More information received, need to retry this one more time
+* Tested, finally managed to partially reproduce. Issue appears to be in SDDM. Debugging ongoing.
 
-== calamares - make 3.3.11 available in Bookworm ==
+== swap-file-creator improvements ==
+* https://forums.kicksecure.com/t/enhanced-heuristics-for-determining-the-swap-file-size-in-swap-file-creator/749/2
+
+== calamares - make 3.3.12 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
-* Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.11?
-** Maintainer uploaded 3.3.11 to Sid on November 7: https://tracker.debian.org/news/1583270/accepted-calamares-3311-1-source-into-unstable/ Should migrate into Testing relatively soon.
-** Hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
-* Backport 3.3.11 after it is available in Trixie
+* Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.12?
+** Maintainer uploaded 3.3.12 to Sid, should migrate to Testing relatively soon.
+** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
+* Backport 3.3.12 after it is available in Trixie
 
 == consider installing by default on ISO ==
 <pre>
@@ -34,54 +38,6 @@ TODO
 * How about the others?
 * Note: architecture specific. AMD64 vs PPC etc.
 * These packages don't really cause any harm if installed on a BIOS machine, and both amd64 and arm64 UEFI machines may benefit from them. I don't see any reason why not to include them by default.
-
-== multi architecture support ==
-* the following code can be removed from build-steps.d/1200_prepare-build-machine?
-* required by grml-debootstrap for arm64 builds?
-* please add support for other architectures to build-steps.d/2800_create-lb-iso
-* just only mostly generic code. theoretical support only. no actual builds test needed for all architectures at this time.
-
-<pre>
-      ## The following grub packages are (partially) build dependencies by Debian live-build.
-      ## Certainly required for amd64 ISO images booted with shim and grub.
-      if [ "${host_architecture}" = "amd64" ]; then
-         ## These packages are all available for the amd64 platform.
-         ## "grub-mkrescue will automatically include every platform it finds." [1]
-         ## [1] https://lists.gnu.org/archive/html/grub-devel/2014-03/msg00009.html
-         ## Install them all for best compatibility and reproducible builds.
-         ## Some might be unnecessary and waste a bit space.
-         ## Maybe this can be optimized later.
-         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
-         packages_to_be_installed+=" grub-efi-amd64-signed "
-         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
-         packages_to_be_installed+=" shim-helpers-amd64-signed "
-      elif [ "${host_architecture}" = "i386" ]; then
-         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
-         packages_to_be_installed+=" grub-efi-ia32-signed "
-         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
-         packages_to_be_installed+=" shim-helpers-i386-signed "
-      elif [ "${host_architecture}" = "ppc64el" ]; then
-         packages_to_be_installed+=" grub-ieee1275-bin  "
-      elif [ "${host_architecture}" = "ppc64" ]; then
-         packages_to_be_installed+=" grub-ieee1275-bin  "
-      elif [ "${host_architecture}" = "sparc64" ]; then
-         packages_to_be_installed+=" grub-ieee1275-bin  "
-      elif [ "${host_architecture}" = "arm64" ]; then
-         packages_to_be_installed+=" grub-efi-arm64-bin "
-         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
-      elif [ "${host_architecture}" = "riscv64" ]; then
-         packages_to_be_installed+=" grub-efi-riscv64-bin  "
-      else
-         true "${red}${bold}WARNING:${reset} ${under}The ISO to be build might be unbootable!${eunder}
-- This is because bootloader support is not implemented when building on this
-  systems's host_architecture.
-- Either the build script does not know how to install the required grub '-bin'
-  package for this architecture or the package is simply unavailable.
-- Therefore ISO cross builds are unsupported. Patches welcome.
-  Might be possible to implement this by running image-to-iso using qemu.
-- There is also a small chance that host_architecture detection failed. (Using multiarch, wine?)"
-      fi
-</pre>
 
 == ISO - changed files issues ==
 (annoted)
@@ -340,6 +296,56 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== multi architecture support ==
+* the following code can be removed from build-steps.d/1200_prepare-build-machine?
+* required by grml-debootstrap for arm64 builds?
+* please add support for other architectures to build-steps.d/2800_create-lb-iso
+* just only mostly generic code. theoretical support only. no actual builds test needed for all architectures at this time.
+
+<pre>
+      ## The following grub packages are (partially) build dependencies by Debian live-build.
+      ## Certainly required for amd64 ISO images booted with shim and grub.
+      if [ "${host_architecture}" = "amd64" ]; then
+         ## These packages are all available for the amd64 platform.
+         ## "grub-mkrescue will automatically include every platform it finds." [1]
+         ## [1] https://lists.gnu.org/archive/html/grub-devel/2014-03/msg00009.html
+         ## Install them all for best compatibility and reproducible builds.
+         ## Some might be unnecessary and waste a bit space.
+         ## Maybe this can be optimized later.
+         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
+         packages_to_be_installed+=" grub-efi-amd64-signed "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+         packages_to_be_installed+=" shim-helpers-amd64-signed "
+      elif [ "${host_architecture}" = "i386" ]; then
+         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
+         packages_to_be_installed+=" grub-efi-ia32-signed "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+         packages_to_be_installed+=" shim-helpers-i386-signed "
+      elif [ "${host_architecture}" = "ppc64el" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "ppc64" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "sparc64" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "arm64" ]; then
+         packages_to_be_installed+=" grub-efi-arm64-bin "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+      elif [ "${host_architecture}" = "riscv64" ]; then
+         packages_to_be_installed+=" grub-efi-riscv64-bin  "
+      else
+         true "${red}${bold}WARNING:${reset} ${under}The ISO to be build might be unbootable!${eunder}
+- This is because bootloader support is not implemented when building on this
+  systems's host_architecture.
+- Either the build script does not know how to install the required grub '-bin'
+  package for this architecture or the package is simply unavailable.
+- Therefore ISO cross builds are unsupported. Patches welcome.
+  Might be possible to implement this by running image-to-iso using qemu.
+- There is also a small chance that host_architecture detection failed. (Using multiarch, wine?)"
+      fi
+</pre>
+
+* Better multi-arch support now at https://github.com/ArrayBolt3/derivative-maker/tree/master
+* I tested amd64 and arm64 builds to reduce the risk of breaking things, but I did not test other architectures
 
 = ARCHIVED =
 https://www.kicksecure.com/w/index.php?title=Dev/todo/archived
