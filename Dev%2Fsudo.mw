@@ -1,0 +1,139 @@
+{{Header}}
+{{title|title=
+sudo / doas / sudoless
+}}
+{{#seo:
+|description=sudo replacement development considerations - doas / sudoless
+}}
+{{devwiki}}
+{{intro|
+sudo replacement development considerations - doas / sudoless
+}}
+
+= Changes =
+* based on https://forums.whonix.org/t/replace-sudo-with-doas/17482/18
+* removed commented out
+* removed resolved cases
+
+= List =
+
+== <code>kicksecure/desktop-config-dist/etc/sudoers.d/desktop-config-dist</code> ==
+* <u>doas:</u>
+** Should be translatable to doas. <code>nopasswd</code> exceptions for specific commands with specific argument sets, for specific users and groups.
+*** <code>%sudo ALL=NOPASSWD: /bin/lsblk --noheadings --raw --output RO</code>
+** Translates to:
+*** <code>permit nopass :sudo cmd /bin/lsblk args --noheadings --raw --output RO</code>
+* <u>sudoless:</u>
+** A systemd unit running as root (with limited capabilities as future hardening) would gather the information and write it into a file. The desktop systray the would no longer need to run <code>lsblk</code> itself.
+
+== <code>kicksecure/live-config-dist/etc/sudoers.d/live-config-dist</code> ==
+* <u>doas:</u>
+** More commands with <code>nopasswd</code> exceptions.
+* <u>sudoless:</u>
+** TODO: Unclear. Perhaps the ISO should be booted into admin mode by default?
+
+== <code>kicksecure/sdwdate/etc/sudoers.d/sdwdate</code> ==
+* <u>doas:</u>
+** This one's a problem. Whereas the previous files provide <code>nopasswd</code> exceptions to specific users and groups, this file allows *anyone* to run <code>/usr/sbin/sdwdate-clock-jump</code> as root. doas lacks the ability to express a universal exception such as this, you can only grant exceptions to specific users or groups. The only files that actually attempt to use <code>sdwdate-clock-jump</code> via sudo are:
+*** <code>kicksecure/sdwdate-gui/usr/lib/python3/dist-packages/sdwdate_gui/sdwdate_gui.py</code>
+*** <code>kicksecure/sdwdate-gui/usr/lib/python3/dist-packages/sdwdate_gui/sdwdate_gui_qubes.py</code>
+*** <code>kicksecure/sdwdate-gui/etc/qubes-rpc/whonix.GatewayCommand</code>
+** It's likely that all of these can be coped with by using doas's configuration by simply determining the users or groups these run as, and adding them to the configuration file. Adding the <code>users</code> group to the config would also be advisable as Debian's <code>adduser</code> tool will automatically add new "standard" user accounts to this group. Unfortunately <code>useradd</code> doesn't do this, but the end-user can probably resolve this themselves if they so choose.
+*** <code>ALL ALL=NOPASSWD: /usr/sbin/sdwdate-clock-jump</code>
+** Translates roughly to:
+*** <code>permit nopass :users cmd /usr/sbin/sdwdate-clock-jump</code>
+* <u>sudoless:</u>
+** Use capabilities?
+** OR don't allow user to set the clock? Tell users to boot into admin mode instead?
+
+== <code>kicksecure/sdwdate-gui/etc/sudoers.d/sdwdate-gui</code> ==
+* <u>doas:</u>
+** User-specific <code>nopasswd</code> exceptions for specific commands. Easy to translate.
+* <u>sudoless:</u>
+** Same as above.
+
+== <code>kicksecure/security-misc/etc/sudoers.d/security-misc</code> ==
+* <u>doas:</u>
+** One user-specific and one group-specific <code>nopasswd</code> exception, easily translatable.
+* <u>sudoless:</u>
+** Could be re-implemented using a <code>.done</code> file and systemd unit files.
+
+== <code>kicksecure/setup-dist/etc/sudoers.d/setup-dist</code> ==
+* <u>doas:</u>
+** Simple group-specific <code>nopasswd</code> exception, easily translatable.
+* <u>sudoless:</u>
+** setup-dist does not do much anymore anyhow. The done file could be moved to user home location.
+
+== <code>kicksecure/systemcheck/etc/sudoers.d/systemcheck</code> ==
+* <u>doas:</u>
+** Complex, but looks doable. Many user-specific <code>nopasswd</code> exceptions, however some of these are targeted to allow the user to execute a command as another user *other than root*. Thankfully doas supports this.
+*** <code>user ALL=(sdwdate) NOPASSWD: /usr/libexec/helper-scripts/onion-time-pre-script</code>
+** Translates to:
+*** <code>permit nopass user as sdwdate cmd /usr/libexec/helper-scripts/onion-time-pre-script</code>
+* <u>sudoless:</u>
+** Only user "admin" would be able to run systemcheck.
+
+== <code>kicksecure/tb-starter/etc/sudoers.d/tb-starter</code> ==
+* <u>doas:</u>
+** A user-specific <code>nopasswd</code> exception with some environment variable allowances. Can be handled using techniques mentioned earlier.
+* <u>sudoless:</u>
+** Could be re-implemented using systemd unit files and/or Debian maintainer scripts.
+
+== <code>kicksecure/tb-updater/etc/sudoers.d/tpo-downloader</code> ==
+* <u>doas:</u>
+** More user- and group-specific <code>nopasswd</code> exceptions. Easily translatable.
+* <u>sudoless:</u>
+** Same as above.
+
+== <code>kicksecure/usability-misc/etc/sudoers.d/upgrade-passwordless</code> ==
+* <u>doas:</u>
+** Group-specific <code>nopasswd</code> exception, easily translatable.
+* <u>sudoless:</u>
+** Only user admin should be able to run upgrade-nonroot.
+
+== <code>whonix/anon-gw-anonymizer-config/etc/sudoers.d/anonymizer-config-gateway</code> ==
+* <u>doas:</u>
+** More user-specific <code>nopasswd</code> exceptions. Easily translatable.
+* <u>sudoless:</u>
+** Whonix issue only. Not a Kicksecure issue. Perhaps Whonix-Gateway could always boot into admin mode or not have user/admin mode split package (yet to be named) installed by default.
+
+== <code>/etc/sudoers.d/qt_x11_no_mitshm</code> ==
+* <u>doas:</u>
+** Specifies an environment variable to be preserved that affects all utilities on the system that leverage Qt. Depending on how exactly this rule is used, this could be trivial to translate, or it could be slightly tricky.
+*** <code>Defaults env_keep += "QT_X11_NO_MITSHM"</code>
+** Translates to (roughly):
+*** <code>permit setenv { QT_X11_NO_MITSHM } :sudo</code>
+* <u>sudoless:</u>
+** Only user "admin".
+
+== <code>/etc/sudoers.d/qubes</code> ==
+* <u>doas:</u>
+** This looks like a generic account-wide <code>nopasswd</code> exception for the <code>qubes</code> group. There's some SELinux stuff going on with it that can't be ported, but since Kicksecure is based on Debian, I don't expect this to be a problem (I don't believe SELinux is even *used* in Whonix or other Debian-based Qubes).
+* <u>sudoless:</u>
+** Not an issue since also not an issue for doas.
+
+== <code>/etc/sudoers.d/qubes-input-trigger</code> ==
+* <u>doas:</u>
+** Contains several <code>NOPASSWD</code> exceptions for starting various Qubes input-related services as root. There are four sets of nine services each, each set is handled by one line of sudoers config, which covers all nine services with the help of a regex match. We don't get regex matching in doas, so this would have to be replaced with 36 lines of doas configuration. Not great, but not horrible.
+*** <code>user ALL=(root) NOPASSWD:/bin/systemctl --no-block start qubes-input-sender-keyboard@event[0-9].service</code>
+** Translates to:
+*** <code>permit nopass user as root cmd /bin/systemctl args --no-block start qubes-input-sender-keyboard@event0.service</code>, plus eight more lines with <code>event1.service</code>, <code>event2.service</code>, etc.
+* <u>sudoless:</u>
+** TODO
+
+== <code>/etc/sudoers.d/umask</code> ==
+* <u>doas:</u>
+** Trouble. This one changes umask settings for sudo commands in general. doas handles umask configuration entirely on its own and does not allow the end-user to configure it. Thus this cannot be translated. Depending on what doas's umask settings are and how vital this configuration is, this may or may not be a blocker.
+* <u>sudoless:</u>
+** TODO
+
+== pkexec ==
+* <u>sudoless:</u>
+** List of affected applications found in https://forums.whonix.org/t/cannot-use-pkexec/8129:
+*** gdebi -> use admin
+*** synaptic -> use admin?
+*** partition manager -> use admin
+*** xfce auto mounter -> TODO
+** Only user admin should be able to use pkexec?
+
+{{Footer}}

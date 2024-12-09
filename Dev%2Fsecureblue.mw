@@ -11,8 +11,10 @@ Secureblue and Kicksecure are both hardened operating systems prioritizing secur
 
 <u>Quick, preliminary analysis version 0.1</u>, only based on quote [https://github.com/secureblue/secureblue secureblue GitHub repository] README.md as of Nov 30, 2024, commit hash [https://github.com/secureblue/secureblue/blob/e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83/docs/README.md e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83] and related, linked files.
 
-<blockquote>
 = Hardening =
+
+<blockquote>
+Hardening
 </blockquote>
 
 <blockquote>
@@ -57,7 +59,7 @@ https://github.com/KSPP/kspp.github.io
 * Remove SUID-root from [https://github.com/secureblue/secureblue/blob/live/files/scripts/removesuid.sh numerous binaries] and replace functionality [https://github.com/secureblue/secureblue/blob/live/files/system/usr/bin/setcapsforunsuidbinaries using capabilities]
 </blockquote>
 
-Kicksecure has [[SUID Disabler and Permission Hardener]].
+Kicksecure has [[SUID Disabler and Permission Hardener]]. See also chapter [[#capabilities|capabilities]].
 
 <blockquote>
 * Disable Xwayland by default (for GNOME, Plasma, and Sway images)
@@ -246,6 +248,84 @@ This is a security trade-off. Disallowing unprivileged use of user namespaces re
 }}
 
 Therefore Kicksecure does not use suid-root bubblewrap.
+
+= capabilities =
+<blockquote>
+* Remove SUID-root from [https://github.com/secureblue/secureblue/blob/live/files/scripts/removesuid.sh numerous binaries] and replace functionality [https://github.com/secureblue/secureblue/blob/live/files/system/usr/bin/setcapsforunsuidbinaries using capabilities]
+</blockquote>
+
+Kicksecure has [[SUID Disabler and Permission Hardener]]. As for capabilities, these can be useful but adding capabilities, while sometimes useful, can also add attack surface.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_dac_read_search,cap_audit_write=ep" "/usr/bin/chage"
+</pre>
+</blockquote>
+
+Kicksecure prefers not re-adding capabilities for chage.
+
+{{quotation
+|quote=
+These tools probably are used much nowadays on Linux desktop single user computers. If you need any of this, you are better off using root.
+
+* <code>chage</code> [https://manpages.debian.org/chage man] (change user password expiry information)
+|context=[[SUID_Disabler_and_Permission_Hardener#SUID_SGID_Hardening_Issues|Kicksecure, SUID Disabler and Permission Hardener, SUID SGID Hardening Issues]]
+}}
+
+No user has reported yet that they need the ability to use <code>chage</code>. For the benefit of security hardening, <code>chage</code> remains non-functional in Kicksecure (lower attack surface) for non-root user.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_chown,cap_dac_override,cap_fowner,cap_audit_write=ep" "/usr/bin/chfn"
+</pre>
+</blockquote>
+
+Same as above.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_dac_read_search,cap_audit_write=ep" "/usr/sbin/unix_chkpwd"
+</pre>
+</blockquote>
+
+Same as above.
+
+<code>cap_dac_read_search</code> is dangerous.
+
+{{quotation
+|quote=CAP_DAC_READ_SEARCH
+
+* Bypass file read permission checks and directory read and execute permission checks;
+|context=https://man7.org/linux/man-pages/man7/capabilities.7.html
+}}
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_dac_read_search=ep" "/usr/libexec/openssh/ssh-keysign"
+</pre>
+</blockquote>
+
+TODO: Kicksecure: While <code>cap_dac_read_search</code> is still dangerous, it's better than SUID.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_sys_admin=ep" "/usr/bin/fusermount3"
+</pre>
+</blockquote>
+
+* Kicksecure whitelists <code>fusermount</code> SUID, which is dangerous. (Optional user opt-in: [[SUID_Disabler_and_Permission_Hardener#Disable_All_SUID_Binaries|Disable All SUID Binaries]]) In the future, when [[Dev/boot modes]] has been implemented, <code>fusermount</code> might only be accessible for user "admin".
+* secureblue sets <code>fusermount</code> <code>cap_sys_admin</code> is dangerous. [https://lwn.net/Articles/486306/ CAP_SYS_ADMIN: the new root]
+* Most other Linux desktop distributions: Neither SUID nor capabilities hardening.
+
+= sudoless =
+{{quotation
+|quote=v4.2.0 - secureblue goes sudoless!
+
+In a continuing effort to minimize and eventually eliminate suid-root binaries, <code>sudo</code>, <code>su</code>, and <code>pkexec</code> have all been removed from the images. As noted at the end of this section of the postinstall readme, polkit prompts and manual polkit invokations via <code>run0</code> can be used to accomplish the same functionality without suid-root, notably even for non-wheel users (by prompting for the wheel user's password). In addition, suid-root has been removed from numerous other binaries that don't require it.
+|context=https://github.com/secureblue/secureblue/releases/tag/v4.2.0
+}}
+
+TODO: document
 
 = See Also =
 * https://www.kicksecure.com/#security

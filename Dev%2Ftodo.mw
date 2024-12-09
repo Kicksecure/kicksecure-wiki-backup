@@ -28,19 +28,7 @@ TODO
 ** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.12 after it is available in Trixie
 
-== derivative-maker git tag following ==
-* to empower reviewers to follow changes from one tag to another
-* as discussed
-* TODO: a generic script to reviews any (nested) git submodules going from one tag (or commit) to another
-* TODO: document this on [[Dev/git]]
-
-== ISO - fwupd ==
-* Add fwupd
-* fwupd-signed
-* note: architecture specific?
-
 == machine-id research ==
-
 * in preparation for the next task
 * please read prior discussions
 * https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
@@ -51,6 +39,8 @@ TODO
 ** ./packages/kicksecure/dist-base-files/var/lib/dbus/machine-id
 ** ./packages/kicksecure/dist-base-files/etc/machine-id
 * but maybe needs to be moved back to anon-base-files when porting to Debian trixie? (hard to migrate within the same release codename)
+* The machine-id files should not be shipped by a package. They are intended to be generated, not hardcoded, thus Debian's code is probably not going to cope well when a package ships these files. Case in point, live-build deleting them to avoid machines with duplicate IDs in the wild, when we want machines with duplicate IDs in the wild.
+* Calamares is designed to write the machine-id files at instalation time. It has a dedicated module for this purpose. However, it does not permit specifying a hardcoded machine-id other than a literal "uninitialized" value or an empty file. So we will have to resort to using a shellprocess for Whonix-Host that will detect when Whonix is in use, and overwrite the machine-id files with a static machine-id. Calamares is the proper location to do this at IMO, since it's designed for this, systemd's docs suggest using the installer for this, and I fear we could run into problems trying to do this on first boot with a systemd unit.
 
 == ISO - changed files issues ==
 (annoted)
@@ -83,6 +73,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
+
+== boot modes wiki page review ==
+* [[Dev/boot_modes]] has been updated
+* Please review.
+* Ideas for chapter [[Dev/boot_modes#Server_Support|Server Support]], and
+* chapter [[Dev/boot_modes#Todo|Todo]]?
+* Related to upcoming tasks run0, sudoless, doas.
+
+== investigate sudoless ==
+* https://github.com/secureblue/secureblue/releases/tag/v4.2.0
+* https://www.kicksecure.com/wiki/Dev/secureblue#sudoless
+* Could we go sudoless by default?
+* <code>sudo</code> no longer readable/executable by user <code>user</code> should be equally good or better as sudoless? sudo SUID issues would not be a problem if user <code>user</code> cannot execute sudo anymore? Only user admin would be allowed to execute <code>sudo</code>.
+* In case going "sudoless" (actually similar to sudoless), it would not even be required to port to either run0 or doas?
+* This would require finding solutions for existing sudoers.d exceptions. This is can be drafted on the [[Dev/sudo]] wiki page.
 
 == investigate porting from sudo to doas ==
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482
@@ -152,10 +157,11 @@ qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
 == live-build - test lb config --dm-verity ==
 * Does the ISO still function if build with <code>lb config --dm-verity</code>?
 * Does it break apt-get install pkg-name? It might not break it due to overlayfs.
-
-== recovery mode disabling ==
-* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
-* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
+* Lacks live-build support when used with dracut:
+** <code>lb config</code> won't even run if you try to enable verity and dracut at the same time, unless you override live-build by commenting that sanity check out
+** The ISO won't build initially because the dm-verity building code is trying to find the live filesystem in the wrong location
+** dracut isn't configured to include systemd-veritysetup-generator, needed for verifying the root FS in the first place
+** No kernel command line options are added to the ISO for verity setup
 
 == user admin split ==
 * [[Dev/boot modes]]
@@ -260,6 +266,7 @@ sudo apt install serial-console-enable
 * https://github.com/calamares/calamares/issues/2321
 * please follow-up
 * Followed up on Matrix, will follow up again soon on Github if I don't get a response.
+* Was informed by Adriaan de Groot that the code is still unfinished, and also on his radar.
 
 == lightdm ssdm ==
 * bug report: https://forums.kicksecure.com/t/kicksecure-inside-lmde-5/46/11
@@ -341,13 +348,44 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== derivative-maker git tag following ==
+* to empower reviewers to follow changes from one tag to another
+* as discussed
+* TODO: a generic script to reviews any (nested) git submodules going from one tag (or commit) to another
+** This turned out to be nearly impossible and definitely impractical.
+* TODO: document this on [[Dev/git]]
+* Discovered <code>git diff --submodule=diff</code>, which is useful
+* Created sample script that provides difftool-like features with meld, and shared it with Patrick.
+* Sent feature request / offer to contribute for <code>git difftool --submodule=diff</code> support in Git: https://lore.kernel.org/git/20241208030222.60e7ac70@kf-ir16/T/#u
+* Found PatchViewer tool and documented use under [[Dev/git]]
+
+== recovery mode disabling ==
+* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
+* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
+* Done, but bootloader password still needs implemented. https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/no-recovery-mode
+
+= ARCHIVED =
+== investigate run0 ==
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/28
+* https://www.freedesktop.org/software/systemd/man/256/run0.html
+* as alternative to doas
+* does run0 abolish the need for [[Dev/boot modes]]?
+** It does not, in fact its presence may make implementing the user/admin split difficult since it means systemd is providing a "backdoor" for running programs as root even without SUID bits being used.
+*** Can be disabled using polkit config, change all auth options to <code>no</code> in the <code>org.freedesktop.systemd1.manage-units</code> section of <code>/usr/share/polkit-1/actions/org.freedesktop.systemd1.policy</code>
+* Posted reasons to avoid use at https://forums.whonix.org/t/replace-sudo-with-doas/17482/29
+
 == grub-live debian control best practices ==
 * please review, improve
 * https://github.com/Kicksecure/grub-live/blob/master/debian/control
 * Should grub-live <code>Depends: grub-live-dracut | grub-live-initramfs-tools</code>?
 ** The existing setup seems fine to me. It is unfortunate that Debian lacks the ability to specify a group of packages in a dependency declaration, as the existing structure seems like an awful lot of work to depend on either dracut, or live-boot + live-tools. But, it works, and it seems to me like the best way to do this given Debian's limitations and structure.
 
-= ARCHIVED =
+== ISO - fwupd ==
+* Add fwupd
+* fwupd-signed
+* note: architecture specific? (As it turns out, yes.)
+* Done: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
 == ISO - GRUB unicode.pf2 error message ==
 <pre>
 error: `/grub2/fonts/unicode.pf2' not found
@@ -451,6 +489,9 @@ error: `/grub2/fonts/unicode.pf2' not found
 [[Dev/todo/archived]]
 
 = backlog - one day =
+== bootloader password ==
+* https://forums.kicksecure.com/t/harden-grub-bootloader-using-bootloader-password/723
+
 == vm-config-dist re-installs same version ==
 
 * Why a freshly built ova image attempts to upgrade vm-config-dist, even though it is already the latest version?
