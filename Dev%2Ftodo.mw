@@ -28,20 +28,6 @@ TODO
 ** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.12 after it is available in Trixie
 
-== machine-id research ==
-* in preparation for the next task
-* please read prior discussions
-* https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
-* https://forums.whonix.org/t/revisit-handling-of-var-lib-dbus-machine-id/18827
-* https://forums.whonix.org/t/anonymize-etc-machine-id/7721
-* https://gitlab.tails.boum.org/tails/tails/-/issues/7100
-* nowadays implemented in dist-base-files
-** ./packages/kicksecure/dist-base-files/var/lib/dbus/machine-id
-** ./packages/kicksecure/dist-base-files/etc/machine-id
-* but maybe needs to be moved back to anon-base-files when porting to Debian trixie? (hard to migrate within the same release codename)
-* The machine-id files should not be shipped by a package. They are intended to be generated, not hardcoded, thus Debian's code is probably not going to cope well when a package ships these files. Case in point, live-build deleting them to avoid machines with duplicate IDs in the wild, when we want machines with duplicate IDs in the wild.
-* Calamares is designed to write the machine-id files at instalation time. It has a dedicated module for this purpose. However, it does not permit specifying a hardcoded machine-id other than a literal "uninitialized" value or an empty file. So we will have to resort to using a shellprocess for Whonix-Host that will detect when Whonix is in use, and overwrite the machine-id files with a static machine-id. Calamares is the proper location to do this at IMO, since it's designed for this, systemd's docs suggest using the installer for this, and I fear we could run into problems trying to do this on first boot with a systemd unit.
-
 == ISO - changed files issues ==
 (annoted)
 
@@ -74,13 +60,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * /etc/sudoers.d/umask
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
 
-== boot modes wiki page review ==
-* [[Dev/boot_modes]] has been updated
-* Please review.
-* Ideas for chapter [[Dev/boot_modes#Server_Support|Server Support]], and
-* chapter [[Dev/boot_modes#Todo|Todo]]?
-* Related to upcoming tasks run0, sudoless, doas.
-
 == investigate sudoless ==
 * https://github.com/secureblue/secureblue/releases/tag/v4.2.0
 * https://www.kicksecure.com/wiki/Dev/secureblue#sudoless
@@ -88,6 +67,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * <code>sudo</code> no longer readable/executable by user <code>user</code> should be equally good or better as sudoless? sudo SUID issues would not be a problem if user <code>user</code> cannot execute sudo anymore? Only user admin would be allowed to execute <code>sudo</code>.
 * In case going "sudoless" (actually similar to sudoless), it would not even be required to port to either run0 or doas?
 * This would require finding solutions for existing sudoers.d exceptions. This is can be drafted on the [[Dev/sudo]] wiki page.
+* Sudoless desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/sudoless Ready for merge whenever desirable.
+* '''WIP''' Persistent admin mode:
+** Currently missing separate user account support!
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sudoless Adds an admin mode boot entry.
+*** This may be the wrong package to put this in, do we want a new package for this?
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sudoless Actually implements the permissions changes for user and admin modes.
 
 == investigate porting from sudo to doas ==
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482
@@ -348,6 +333,32 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== boot modes wiki page review ==
+* [[Dev/boot_modes]] has been updated
+* Please review.
+* Ideas for chapter [[Dev/boot_modes#Server_Support|Server Support]], and
+* chapter [[Dev/boot_modes#Todo|Todo]]?
+* Related to upcoming tasks run0, sudoless, doas.
+* I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
+* Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
+* Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
+* We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
+* We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
+
+== machine-id research ==
+* in preparation for the next task
+* please read prior discussions
+* https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
+* https://forums.whonix.org/t/revisit-handling-of-var-lib-dbus-machine-id/18827
+* https://forums.whonix.org/t/anonymize-etc-machine-id/7721
+* https://gitlab.tails.boum.org/tails/tails/-/issues/7100
+* nowadays implemented in dist-base-files
+** ./packages/kicksecure/dist-base-files/var/lib/dbus/machine-id
+** ./packages/kicksecure/dist-base-files/etc/machine-id
+* but maybe needs to be moved back to anon-base-files when porting to Debian trixie? (hard to migrate within the same release codename)
+* The machine-id files should not be shipped by a package. They are intended to be generated, not hardcoded, thus Debian's code is probably not going to cope well when a package ships these files. Case in point, live-build deleting them to avoid machines with duplicate IDs in the wild, when we want machines with duplicate IDs in the wild.
+* Calamares is designed to write the machine-id files at instalation time. It has a dedicated module for this purpose. However, it does not permit specifying a hardcoded machine-id other than a literal "uninitialized" value or an empty file. So we will have to resort to using a shellprocess for Whonix-Host that will detect when Whonix is in use, and overwrite the machine-id files with a static machine-id. Calamares is the proper location to do this at IMO, since it's designed for this, systemd's docs suggest using the installer for this, and I fear we could run into problems trying to do this on first boot with a systemd unit.
+
 == derivative-maker git tag following ==
 * to empower reviewers to follow changes from one tag to another
 * as discussed
