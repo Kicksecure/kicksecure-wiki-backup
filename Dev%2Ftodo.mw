@@ -10,6 +10,34 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== ISO - GRUB boot menu - add timeout to live boot menu ==
+* todo
+
+== ISO - GRUB boot menu - utilities option does nothing ==
+* tested where: inside Qubes OS VM
+* is memtest missing on the ISO?
+** Yes, it is. Adding it should fix this issue.
+* note: increase RAM in Qubes VM to avoid dropping to CLI (no GUI). Full instructions are here: [[Qubes#ISO|Qubes, ISO]]
+
+== ISO - GRUB boot options text - add version number ==
+<pre>
+Kicksecure Live ISO 17.2.8.1 GNU/Linux
+</pre>
+
+<pre>
+${dist_build_type_short_pretty} Live ISO ${dist_build_version} GNU/Linux
+</pre>
+
+* remove: built
+* remove: linux
+* remove: live-build
+* remove: live-config
+* possible to use live-build-data/grub-config/splash.svg as a template, copy it to temporary folder (as usual? derivative-binary?) and adjust?
+* reason: dist_build_version is the most important if user post screenshots with this. everything else adds confusion?
+
+== test SysRq keys under LXQt Wayland ==
+* ensure SysRq+unraw, SysRq+k behave as expected in context of [[Login spoofing]]
+
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -27,34 +55,6 @@ TODO
 ** Maintainer uploaded 3.3.12 to Sid, should migrate to Testing relatively soon.
 ** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.12 after it is available in Trixie
-
-== ISO - changed files issues ==
-(annoted)
-
-<pre>
-+ debsums --silent
-debsums: changed file /usr/sbin/sources-media (from calamares-settings-debian package) - issue for future verified boot
-debsums: missing file /var/lib/dbus/machine-id (from dist-base-files package) - issue for Whonix-Host, non-ideal for Kicksecure but not a blocker
-</pre>
-
-<pre>
-+ debsums --config --silent
-debsums: changed file /etc/calamares/modules/unpackfs.conf (from calamares-settings-debian package) - issue for future verified boot
-debsums: changed file /etc/cryptsetup-initramfs/conf-hook (from cryptsetup-initramfs package) - issue for future verified boot
-debsums: changed file /etc/machine-id (from dist-base-files package) - issue for Whonix-Host, non-ideal for Kicksecure but not a blocker
-</pre>
-
-* All of these are modified by live-build itself:
-** <code>/usr/sbin/sources-media</code> is modified by <code>live-build/share/hooks/normal/5050-dracut.hook.chroot</code> so that it points to the proper location of the on-ISO apt repo when dracut is in use (the location is different when initramfs-tools is used). The need for this could potentially be removed by modifying the <code>sources-media</code> script to autodetect the correct location, though this requires upstream to be receptive to the idea.
-*** Please discuss upstream. Since there is already some sort of dm-verity support in upstream live-build (scripts/build/binary_dm-verity), upstream might be receiptive.
-** <code>/var/lib/dbus/machine-id</code> is deleted by <code>live-build/share/hooks/normal/8020-remove-dbus-machine-id.hook.chroot</code>, which has a note in it as follows: "This removes dbus machine id that cache that makes each system unique." This seems important and I can't think of an obvious way to avoid needing to do this. My Kicksecure VMs appear to have machine IDs, but it's unclear how they're being generated originally, so it may be worth enabling the machineid module in our Calamares configuration to ensure that the machine ID is properly generated.
-*** See also: https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
-*** TODO: Discuss.
-** <code>/etc/calamares/modules/unpackfs.conf</code> is modified by <code>live-build/share/hooks/normal/5050-dracut.hook.chroot</code> so that it points to the proper location of the on-ISO squashfs containing the operating system. Again, the location is different when initramfs-tools is used. This is a "hardcoded" configuration file, there isn't a way to add autodetection logic here. It might be possible to make a pull request to Calamares that would allow it to skip squashfses that didn't exist?
-*** Yes, please discuss upstream.
-** <code>/etc/cryptsetup-initramfs/conf-hook</code> is modified by <code>live-build/share/hooks/normal/1010-enable-cryptsetup.hook.chroot</code>, where it is used to enable cryptsetup in initramfs-tools. Assuming this isn't legacy configuration, this seems important and I can't think of an obvious way to avoid needing to do this. Might be worth testing to see if this is still necessary though.
-*** Yes, please.
-** <code>/etc/machine-id</code> is deleted by <code>live-build/share/hooks/normal/8020-remove-dbus-machine-id.hook.chroot</code>. Has a very similar note to the other machine ID deletion hook. Same concerns apply.
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -247,6 +247,47 @@ sudo apt install serial-console-enable
 * todo
 
 = WAITING ON =
+== ISO - btrfs versus grub-live bug - real fix ==
+* todo
+* report bug upstream
+* systemd bug report: https://github.com/systemd/systemd/issues/35540
+* fix in dracut
+** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
+** Might use kernel parameters using systemd features that may be available in trixie?
+
+== ISO - changed files issues ==
+(annoted)
+
+<pre>
++ debsums --silent
+debsums: changed file /usr/sbin/sources-media (from calamares-settings-debian package) - issue for future verified boot
+debsums: missing file /var/lib/dbus/machine-id (from dist-base-files package) - issue for Whonix-Host, non-ideal for Kicksecure but not a blocker
+</pre>
+
+<pre>
++ debsums --config --silent
+debsums: changed file /etc/calamares/modules/unpackfs.conf (from calamares-settings-debian package) - issue for future verified boot
+debsums: changed file /etc/cryptsetup-initramfs/conf-hook (from cryptsetup-initramfs package) - issue for future verified boot
+debsums: changed file /etc/machine-id (from dist-base-files package) - issue for Whonix-Host, non-ideal for Kicksecure but not a blocker
+</pre>
+
+* All of these are modified by live-build itself:
+** <code>/usr/sbin/sources-media</code> is modified by <code>live-build/share/hooks/normal/5050-dracut.hook.chroot</code> so that it points to the proper location of the on-ISO apt repo when dracut is in use (the location is different when initramfs-tools is used). The need for this could potentially be removed by modifying the <code>sources-media</code> script to autodetect the correct location, though this requires upstream to be receptive to the idea.
+*** Please discuss upstream. Since there is already some sort of dm-verity support in upstream live-build (scripts/build/binary_dm-verity), upstream might be receiptive.
+**** Feature request filed: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1089618
+** <code>/var/lib/dbus/machine-id</code> is deleted by <code>live-build/share/hooks/normal/8020-remove-dbus-machine-id.hook.chroot</code>, which has a note in it as follows: "This removes dbus machine id that cache that makes each system unique." This seems important and I can't think of an obvious way to avoid needing to do this. My Kicksecure VMs appear to have machine IDs, but it's unclear how they're being generated originally, so it may be worth enabling the machineid module in our Calamares configuration to ensure that the machine ID is properly generated.
+*** See also: https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
+*** TODO: Discuss.
+**** Proposal for fixing this made.
+** <code>/etc/calamares/modules/unpackfs.conf</code> is modified by <code>live-build/share/hooks/normal/5050-dracut.hook.chroot</code> so that it points to the proper location of the on-ISO squashfs containing the operating system. Again, the location is different when initramfs-tools is used. This is a "hardcoded" configuration file, there isn't a way to add autodetection logic here. It might be possible to make a pull request to Calamares that would allow it to skip squashfses that didn't exist?
+*** Yes, please discuss upstream.
+**** Feature request filed: https://github.com/calamares/calamares/issues/2409
+** <code>/etc/cryptsetup-initramfs/conf-hook</code> is modified by <code>live-build/share/hooks/normal/1010-enable-cryptsetup.hook.chroot</code>, where it is used to enable cryptsetup in initramfs-tools. Assuming this isn't legacy configuration, this seems important and I can't think of an obvious way to avoid needing to do this. Might be worth testing to see if this is still necessary though.
+*** Yes, please.
+**** Bug report made: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1089624
+** <code>/etc/machine-id</code> is deleted by <code>live-build/share/hooks/normal/8020-remove-dbus-machine-id.hook.chroot</code>. Has a very similar note to the other machine ID deletion hook. Same concerns apply.
+*** Proposal for fixing this made.
+
 == ISO - Finish Module Action Follow-Up ==
 * https://github.com/calamares/calamares/issues/2321
 * please follow-up
@@ -333,6 +374,28 @@ sudo apt install serial-console-enable
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== ISO - GRUB boot menu cosmetic efi related error messages ==
+* tested where: inside Qubes OS VM
+* difficult to see unless recorded on video
+
+<pre>
+error: file `/boot/grub/i386-pc/efi_gop.mod' not found.
+error: file `/boot/grub/i386-pc/efi_uga.mod' not found.
+</pre>
+
+* Debian bug for the core image? Got some search results:
+
+<pre>
+site:debian.org error: file `/boot/grub/i386-pc/efi_gop.mod' not found.
+</pre>
+
+* Maybe live-build fails to install a grub package?
+* Side effect of no longer installing Debian-Installer?
+** This is the result of fixing the missing font bug. If the unicode.pf2 font can be loaded, GRUB sets a static display resolution of 800x600 and attempts to load four different video drivers, two of which are the efi_gop.mod and efi_uga.mod drivers, and the other two of which are video_bochs and video_cirrus. If the font load fails, it allows the resolution to be automatically detected, and loads a driver called all_video. We're now ending up with the codepath involving the efi_gop and efi_uga drivers always hit since the font is now always found.
+** Coincidentally, I noticed a bug where VMs with virtio graphics would not get a fancy graphical prompt, presumably because virtio is handled by the all_video driver and not the other four drivers.
+** I think it would be best to just unconditionally use the all_video driver and autodetect resolution. The existing logic doesn't make sense to me, and because the font didn't even exist in the expected spot previously, we'd just be going back to the codepath we were hitting previously.
+** Modified GRUB config: https://github.com/ArrayBolt3/derivative-maker/commit/e9bbb350379c42de0887a573b798b369bcde510d
+
 == boot modes wiki page review ==
 * [[Dev/boot_modes]] has been updated
 * Please review.
@@ -340,10 +403,14 @@ sudo apt install serial-console-enable
 * chapter [[Dev/boot_modes#Todo|Todo]]?
 * Related to upcoming tasks run0, sudoless, doas.
 * I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
+** Patrick: The "classic" option would be confusing in the boot menu.
 * Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
+** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
 * Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
 * We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
+** Patrick: Yes.
 * We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
+** Patrick: Yes.
 
 == machine-id research ==
 * in preparation for the next task
@@ -358,6 +425,18 @@ sudo apt install serial-console-enable
 * but maybe needs to be moved back to anon-base-files when porting to Debian trixie? (hard to migrate within the same release codename)
 * The machine-id files should not be shipped by a package. They are intended to be generated, not hardcoded, thus Debian's code is probably not going to cope well when a package ships these files. Case in point, live-build deleting them to avoid machines with duplicate IDs in the wild, when we want machines with duplicate IDs in the wild.
 * Calamares is designed to write the machine-id files at instalation time. It has a dedicated module for this purpose. However, it does not permit specifying a hardcoded machine-id other than a literal "uninitialized" value or an empty file. So we will have to resort to using a shellprocess for Whonix-Host that will detect when Whonix is in use, and overwrite the machine-id files with a static machine-id. Calamares is the proper location to do this at IMO, since it's designed for this, systemd's docs suggest using the installer for this, and I fear we could run into problems trying to do this on first boot with a systemd unit.
+** Patrick: Please implement.
+
+== recovery mode disabling ==
+* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
+* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
+* Done, but bootloader password still needs implemented. https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/no-recovery-mode
+
+= ARCHIVED =
+== ISO - btrfs versus grub-live bug - hotfix ==
+* bug: btrfs is persistent in grub-live mode, while it should not be
+* hotfix: please disable btrfs
+* Hotfixed and merged into Kicksecure.
 
 == derivative-maker git tag following ==
 * to empower reviewers to follow changes from one tag to another
@@ -370,12 +449,6 @@ sudo apt install serial-console-enable
 * Sent feature request / offer to contribute for <code>git difftool --submodule=diff</code> support in Git: https://lore.kernel.org/git/20241208030222.60e7ac70@kf-ir16/T/#u
 * Found PatchViewer tool and documented use under [[Dev/git]]
 
-== recovery mode disabling ==
-* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
-* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
-* Done, but bootloader password still needs implemented. https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/no-recovery-mode
-
-= ARCHIVED =
 == investigate run0 ==
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482/28
 * https://www.freedesktop.org/software/systemd/man/256/run0.html
