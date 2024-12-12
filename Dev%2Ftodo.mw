@@ -10,33 +10,12 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== ISO - GRUB boot menu - add timeout to live boot menu ==
-* todo
-
-== ISO - GRUB boot menu - utilities option does nothing ==
-* tested where: inside Qubes OS VM
-* is memtest missing on the ISO?
-** Yes, it is. Adding it should fix this issue.
-* note: increase RAM in Qubes VM to avoid dropping to CLI (no GUI). Full instructions are here: [[Qubes#ISO|Qubes, ISO]]
-
-== ISO - GRUB boot options text - add version number ==
-<pre>
-Kicksecure Live ISO 17.2.8.1 GNU/Linux
-</pre>
-
-<pre>
-${dist_build_type_short_pretty} Live ISO ${dist_build_version} GNU/Linux
-</pre>
-
-* remove: built
-* remove: linux
-* remove: live-build
-* remove: live-config
-* possible to use live-build-data/grub-config/splash.svg as a template, copy it to temporary folder (as usual? derivative-binary?) and adjust?
-* reason: dist_build_version is the most important if user post screenshots with this. everything else adds confusion?
-
-== test SysRq keys under LXQt Wayland ==
-* ensure SysRq+unraw, SysRq+k behave as expected in context of [[Login spoofing]]
+== ISO - GRUB - failing to boot after installation ==
+* version 17.2.8.2
+* environment VirtualBox, EFI, Secure Boot
+* ISO is booting
+* after installation, does not boot
+* Secure Boot issue: functional after disabling Secure Boot
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -49,12 +28,40 @@ ${dist_build_type_short_pretty} Live ISO ${dist_build_version} GNU/Linux
 * contact people involved previously, if that makes sense
 * suggest prospective developers
 
+== ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
+* Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
+* Investigate how to fix this, potentially make an upstream feature request or patch if needed
+
+== ISO - GRUB - cosmetic GRUB error message ==
+* environment: VirtualBox + EFI + Secure Boot (might be reproducible elsewhere too)
+
+<pre>
+error: prohibited by secure boot policy
+</pre>
+
 == calamares - make 3.3.12 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
 * Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.12?
 ** Maintainer uploaded 3.3.12 to Sid, should migrate to Testing relatively soon.
 ** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.12 after it is available in Trixie
+
+== boot modes wiki page review ==
+* [[Dev/boot_modes]] has been updated
+* Please review.
+* Ideas for chapter [[Dev/boot_modes#Server_Support|Server Support]], and
+* chapter [[Dev/boot_modes#Todo|Todo]]?
+* Related to upcoming tasks run0, sudoless, doas.
+* I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
+** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-admin-split package uninstallable: dummy-dependency user-admin-split
+* Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
+** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
+* Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
+** Patrick: This would mean to boot the server always into admin mode? In that case, perhaps better to go back to "classic"?
+* We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
+** Patrick: Yes.
+* We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
+** Patrick: Yes.
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -220,6 +227,22 @@ sudo apt install serial-console-enable
 * test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
 * test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
 
+== machine-id research ==
+* in preparation for the next task
+* please read prior discussions
+* https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
+* https://forums.whonix.org/t/revisit-handling-of-var-lib-dbus-machine-id/18827
+* https://forums.whonix.org/t/anonymize-etc-machine-id/7721
+* https://gitlab.tails.boum.org/tails/tails/-/issues/7100
+* nowadays implemented in dist-base-files
+** ./packages/kicksecure/dist-base-files/var/lib/dbus/machine-id
+** ./packages/kicksecure/dist-base-files/etc/machine-id
+* but maybe needs to be moved back to anon-base-files when porting to Debian trixie? (hard to migrate within the same release codename)
+* The machine-id files should not be shipped by a package. They are intended to be generated, not hardcoded, thus Debian's code is probably not going to cope well when a package ships these files. Case in point, live-build deleting them to avoid machines with duplicate IDs in the wild, when we want machines with duplicate IDs in the wild.
+* Calamares is designed to write the machine-id files at instalation time. It has a dedicated module for this purpose. However, it does not permit specifying a hardcoded machine-id other than a literal "uninitialized" value or an empty file. So we will have to resort to using a shellprocess for Whonix-Host that will detect when Whonix is in use, and overwrite the machine-id files with a static machine-id. Calamares is the proper location to do this at IMO, since it's designed for this, systemd's docs suggest using the installer for this, and I fear we could run into problems trying to do this on first boot with a systemd unit.
+** Patrick: Please implement.
+** Patrick: Note, Whonix VMs are built using grml-debootstrap. While using a package to handle these files might be the wrong way. Whonix VMs still need these.
+
 == check out bubblejail ==
 * https://github.com/igo95862/bubblejail
 * in preparation for next task
@@ -247,6 +270,10 @@ sudo apt install serial-console-enable
 * todo
 
 = WAITING ON =
+== test SysRq keys under LXQt Wayland ==
+* ensure SysRq+unraw, SysRq+k behave as expected in context of [[Login spoofing]]
+* Has issues, wlroots bug reported at https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3930
+
 == ISO - btrfs versus grub-live bug - real fix ==
 * todo
 * report bug upstream
@@ -374,6 +401,45 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+
+
+= ARCHIVED =
+== recovery mode disabling ==
+* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
+* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
+* Done, but bootloader password still needs implemented. https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/no-recovery-mode
+
+== ISO - GRUB boot menu - add timeout to live boot menu ==
+* todo
+* Done: https://github.com/ArrayBolt3/derivative-maker
+* Requires live-build changes from https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads for all changes to work.
+
+== ISO - GRUB boot menu - utilities option does nothing ==
+* tested where: inside Qubes OS VM
+* is memtest missing on the ISO?
+** Yes, it is. Adding it should fix this issue.
+* Done: https://github.com/ArrayBolt3/derivative-maker
+* Requires live-build changes from https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads for all changes to work.
+* note: increase RAM in Qubes VM to avoid dropping to CLI (no GUI). Full instructions are here: [[Qubes#ISO|Qubes, ISO]]
+
+== ISO - GRUB boot options text - add version number ==
+<pre>
+Kicksecure Live ISO 17.2.8.1 GNU/Linux
+</pre>
+
+<pre>
+${dist_build_type_short_pretty} Live ISO ${dist_build_version} GNU/Linux
+</pre>
+
+* remove: built
+* remove: linux
+* remove: live-build
+* remove: live-config
+* possible to use live-build-data/grub-config/splash.svg as a template, copy it to temporary folder (as usual? derivative-binary?) and adjust?
+* reason: dist_build_version is the most important if user post screenshots with this. everything else adds confusion?
+* Done: https://github.com/ArrayBolt3/derivative-maker
+* Requires live-build changes from https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads for all changes to work.
+
 == ISO - GRUB boot menu cosmetic efi related error messages ==
 * tested where: inside Qubes OS VM
 * difficult to see unless recorded on video
@@ -394,45 +460,7 @@ site:debian.org error: file `/boot/grub/i386-pc/efi_gop.mod' not found.
 ** This is the result of fixing the missing font bug. If the unicode.pf2 font can be loaded, GRUB sets a static display resolution of 800x600 and attempts to load four different video drivers, two of which are the efi_gop.mod and efi_uga.mod drivers, and the other two of which are video_bochs and video_cirrus. If the font load fails, it allows the resolution to be automatically detected, and loads a driver called all_video. We're now ending up with the codepath involving the efi_gop and efi_uga drivers always hit since the font is now always found.
 ** Coincidentally, I noticed a bug where VMs with virtio graphics would not get a fancy graphical prompt, presumably because virtio is handled by the all_video driver and not the other four drivers.
 ** I think it would be best to just unconditionally use the all_video driver and autodetect resolution. The existing logic doesn't make sense to me, and because the font didn't even exist in the expected spot previously, we'd just be going back to the codepath we were hitting previously.
-** Modified GRUB config: https://github.com/ArrayBolt3/derivative-maker/commit/e9bbb350379c42de0887a573b798b369bcde510d
-
-== boot modes wiki page review ==
-* [[Dev/boot_modes]] has been updated
-* Please review.
-* Ideas for chapter [[Dev/boot_modes#Server_Support|Server Support]], and
-* chapter [[Dev/boot_modes#Todo|Todo]]?
-* Related to upcoming tasks run0, sudoless, doas.
-* I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
-** Patrick: The "classic" option would be confusing in the boot menu.
-* Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
-** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
-* Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
-* We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
-** Patrick: Yes.
-* We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
-** Patrick: Yes.
-
-== machine-id research ==
-* in preparation for the next task
-* please read prior discussions
-* https://www.whonix.org/wiki/Protocol-Leak-Protection_and_Fingerprinting-Protection#Identifiers_Design_Goals
-* https://forums.whonix.org/t/revisit-handling-of-var-lib-dbus-machine-id/18827
-* https://forums.whonix.org/t/anonymize-etc-machine-id/7721
-* https://gitlab.tails.boum.org/tails/tails/-/issues/7100
-* nowadays implemented in dist-base-files
-** ./packages/kicksecure/dist-base-files/var/lib/dbus/machine-id
-** ./packages/kicksecure/dist-base-files/etc/machine-id
-* but maybe needs to be moved back to anon-base-files when porting to Debian trixie? (hard to migrate within the same release codename)
-* The machine-id files should not be shipped by a package. They are intended to be generated, not hardcoded, thus Debian's code is probably not going to cope well when a package ships these files. Case in point, live-build deleting them to avoid machines with duplicate IDs in the wild, when we want machines with duplicate IDs in the wild.
-* Calamares is designed to write the machine-id files at instalation time. It has a dedicated module for this purpose. However, it does not permit specifying a hardcoded machine-id other than a literal "uninitialized" value or an empty file. So we will have to resort to using a shellprocess for Whonix-Host that will detect when Whonix is in use, and overwrite the machine-id files with a static machine-id. Calamares is the proper location to do this at IMO, since it's designed for this, systemd's docs suggest using the installer for this, and I fear we could run into problems trying to do this on first boot with a systemd unit.
-** Patrick: Please implement.
-
-== recovery mode disabling ==
-* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
-* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
-* Done, but bootloader password still needs implemented. https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/no-recovery-mode
-
-= ARCHIVED =
+** After experimentation, this didn't work well at all. Went back to old GRUB config code from upstream with a note that it does not work. Fixing this will require more study to see how to get GRUB to not show cosmetic errors like this.
 == ISO - btrfs versus grub-live bug - hotfix ==
 * bug: btrfs is persistent in grub-live mode, while it should not be
 * hotfix: please disable btrfs
