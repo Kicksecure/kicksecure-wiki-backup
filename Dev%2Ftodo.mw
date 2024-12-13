@@ -10,13 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== ISO - GRUB - failing to boot after installation ==
-* version 17.2.8.2
-* environment VirtualBox, EFI, Secure Boot
-* ISO is booting
-* after installation, does not boot
-* Secure Boot issue: functional after disabling Secure Boot
-
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -27,17 +20,12 @@ TODO
 *** Likely worth trying to resurrect
 * contact people involved previously, if that makes sense
 * suggest prospective developers
+* Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
 == ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
 * Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
 * Investigate how to fix this, potentially make an upstream feature request or patch if needed
-
-== ISO - GRUB - cosmetic GRUB error message ==
-* environment: VirtualBox + EFI + Secure Boot (might be reproducible elsewhere too)
-
-<pre>
-error: prohibited by secure boot policy
-</pre>
+* Errors include loadfont issues, Secure Boot loading issues
 
 == calamares - make 3.3.12 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
@@ -54,14 +42,26 @@ error: prohibited by secure boot policy
 * Related to upcoming tasks run0, sudoless, doas.
 * I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
 ** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-admin-split package uninstallable: dummy-dependency user-admin-split
+*** Aaron: Sounds good.
 * Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
 ** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
 * Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
 ** Patrick: This would mean to boot the server always into admin mode? In that case, perhaps better to go back to "classic"?
+*** Aaron: Yes, and that's included in the dummy-dependency user-admin-split plan, so that's what we can do. Perhaps kicksecure-host-cli should use "classic" mode by default and kicksecure-host-xfce should use "user-admin-split" by default?
 * We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
 ** Patrick: Yes.
 * We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
 ** Patrick: Yes.
+
+== investigate dracut-config-rescue ==
+* https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487/8
+* https://packages.debian.org/bookworm/dracut-config-rescue
+<pre>
+cat /etc/dracut.conf.d/20-rescue.conf
+dracut_rescue_image="yes"
+</pre>
+* related to https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724?
+* TODO: good to keep or should be omitted?
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -75,11 +75,14 @@ error: prohibited by secure boot policy
 * In case going "sudoless" (actually similar to sudoless), it would not even be required to port to either run0 or doas?
 * This would require finding solutions for existing sudoers.d exceptions. This is can be drafted on the [[Dev/sudo]] wiki page.
 * Sudoless desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/sudoless Ready for merge whenever desirable.
+** Patrick: Was merged.
 * '''WIP''' Persistent admin mode:
 ** Currently missing separate user account support!
 ** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sudoless Adds an admin mode boot entry.
 *** This may be the wrong package to put this in, do we want a new package for this?
+**** Patrick: grub configuration looks good but requires dedicated package.
 ** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sudoless Actually implements the permissions changes for user and admin modes.
+*** Patrick: Does not really? Does not belong into security-misc. Dedicated package required.
 
 == investigate porting from sudo to doas ==
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482
@@ -270,6 +273,16 @@ sudo apt install serial-console-enable
 * todo
 
 = WAITING ON =
+== ISO - memtest86+ ==
+<pre>
+error: bad shim signature
+</pre>
+
+* Fixable?
+* Apparently requires a security review: https://github.com/rhboot/shim-review/issues/314
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1032375
+* Asked about what contributions would allow this to move forward on the debian-efi mailing list
+
 == test SysRq keys under LXQt Wayland ==
 * ensure SysRq+unraw, SysRq+k behave as expected in context of [[Login spoofing]]
 * Has issues, wlroots bug reported at https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3930
@@ -401,9 +414,34 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-
+== simple integrity check boot option ==
+* not hidden under utilities
+* simple hash check
+* probably an existing dracut feature
+* At ISO build time, a utility <code>implantisomd5</code> (from the package <code>isomd5sum</code>) must be run on the built ISO to embed the md5 sum into it.
+* Passing the kernel command line argument <code>rd.live.check</code> will trigger Dracut to run <code>isomd5check</code> to check the ISO's contents against this embedded md5 sum at boot time.
+* Could add this to derivative-maker or live-build. Willing to implement wherever is preferred.
 
 = ARCHIVED =
+== ISO - GRUB - failing to boot after installation ==
+* version 17.2.8.2
+* environment VirtualBox, EFI, Secure Boot
+* ISO is booting
+* after installation, does not boot
+* Secure Boot issue: functional after disabling Secure Boot
+* Fixed: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
+== ISO - GRUB - cosmetic GRUB error message ==
+* environment: VirtualBox + EFI + Secure Boot (might be reproducible elsewhere too)
+
+<pre>
+error: prohibited by secure boot policy
+</pre>
+
+* Turns out you can't load unsigned fonts when Secure Boot is enabled. It's possible that even the default unicode.pf2 font in GRUB is unsigned.
+* Can't find an easy way to detect Secure Boot so that we can avoid running commands that will result in errors.
+* There probably isn't an easy way to fix this, combining this into the "silence cosmetic errors" task.
+
 == recovery mode disabling ==
 * https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
 * https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
