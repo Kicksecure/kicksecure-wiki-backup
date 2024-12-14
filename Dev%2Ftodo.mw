@@ -22,6 +22,17 @@ TODO
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
+== simple integrity check boot option ==
+* not hidden under utilities
+* simple hash check
+* probably an existing dracut feature
+* At ISO build time, a utility <code>implantisomd5</code> (from the package <code>isomd5sum</code>) must be run on the built ISO to embed the md5 sum into it.
+* Passing the kernel command line argument <code>rd.live.check</code> will trigger Dracut to run <code>isomd5check</code> to check the ISO's contents against this embedded md5 sum at boot time.
+* Could add this to derivative-maker or live-build. Willing to implement wherever is preferred.
+* Patrick (from chat): best upstream
+* Code NOT READY FOR MERGE: https://salsa.debian.org/ArrayBolt3/live-build/-/commit/9ceae725b4c5f5934e01d8eed26fb7532356fe86
+** Works on Trixie, but not Bookworm, further investigation needed
+
 == ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
 * Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
 * Investigate how to fix this, potentially make an upstream feature request or patch if needed
@@ -53,15 +64,14 @@ TODO
 * We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
 ** Patrick: Yes.
 
-== investigate dracut-config-rescue ==
-* https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487/8
-* https://packages.debian.org/bookworm/dracut-config-rescue
-<pre>
-cat /etc/dracut.conf.d/20-rescue.conf
-dracut_rescue_image="yes"
-</pre>
-* related to https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724?
-* TODO: good to keep or should be omitted?
+== dracut rescue shell disablement maybe broken - VirtualBox install unattended option result in dracut rescue shell ==
+* todo
+
+== research verified boot and measured boot ==
+* https://www.kicksecure.com/wiki/Verified_Boot
+* https://www.kicksecure.com/wiki/Measured_boot
+* review, watch, improve, keep notes
+* in preparation for consultation with firmware developer
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -414,13 +424,34 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== simple integrity check boot option ==
-* not hidden under utilities
-* simple hash check
-* probably an existing dracut feature
-* At ISO build time, a utility <code>implantisomd5</code> (from the package <code>isomd5sum</code>) must be run on the built ISO to embed the md5 sum into it.
-* Passing the kernel command line argument <code>rd.live.check</code> will trigger Dracut to run <code>isomd5check</code> to check the ISO's contents against this embedded md5 sum at boot time.
-* Could add this to derivative-maker or live-build. Willing to implement wherever is preferred.
+== VirtualBox unattended installation pass-through ==
+* how does that mechanism work?
+* Short, highly simplified answer: for Debian, it finds a file on the ISO at <code>/.disk/info</code> and parses it for info. This file identifies Kicksecure ISOs as being Debian, and it's difficult to customize the contents in live-build. Needs either customization options added or downstream patches.
+* Might be worth asking the VirtualBox people if they would consider adding a feature that would allow ISOs to "opt out" of autoinstall support, so that the user can't even try to use it in autoinstall mode.
+
+== investigate dracut-config-rescue ==
+* https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487/8
+* https://packages.debian.org/bookworm/dracut-config-rescue
+<pre>
+cat /etc/dracut.conf.d/20-rescue.conf
+dracut_rescue_image="yes"
+</pre>
+* related to https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724?
+* TODO: good to keep or should be omitted?
+* There appears to be no differences between an initramfs built with <code>dracut-config-rescue</code> installed and one without it. According to the Arch Wiki (https://wiki.archlinux.org/title/Dracut), the "rescue" module is supposed to provide tools such as <code>vi</code>, <code>ping</code>, etc., which are useful in the rescue shell, but I know from experience those are NOT present in Kicksecure's initramfs images. Thus I don't think it makes any difference either way. We could remove it in order to lighten our images, I don't expect this will cause any harm.
+* Diff output between initramfs generated with <code>dracut-config-rescue</code> present (old-unpack), and initramfs generated without it (newer-unpack):
+<pre>
+root@localhost:~# diff -r -u old-unpack/ newer-unpack/
+File old-unpack/main/dev/console is a character special file while file newer-unpack/main/dev/console is a character special file
+File old-unpack/main/dev/kmsg is a character special file while file newer-unpack/main/dev/kmsg is a character special file
+File old-unpack/main/dev/null is a character special file while file newer-unpack/main/dev/null is a character special file
+File old-unpack/main/dev/random is a character special file while file newer-unpack/main/dev/random is a character special file
+File old-unpack/main/dev/urandom is a character special file while file newer-unpack/main/dev/urandom is a character special file
+diff: old-unpack/main/etc/systemd/system/initrd.target.wants/dracut-cmdline-ask.service: No such file or directory
+diff: newer-unpack/main/etc/systemd/system/initrd.target.wants/dracut-cmdline-ask.service: No such file or directory
+diff: old-unpack/main/var/lock: No such file or directory
+diff: newer-unpack/main/var/lock: No such file or directory
+</pre>
 
 = ARCHIVED =
 == ISO - GRUB - failing to boot after installation ==
