@@ -105,7 +105,7 @@ The stage are approximately (simplified):
 
 Or specifically on some Linux desktop distributions:
 
-<code>hardware trust root</code> → <code>firmware</code> → <code>shim</code> -> <code>grub</code> <code>bootloader</code> → <code>Linux kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>systemd</code> <code>init</code>
+<code>hardware trust root</code> → <code>firmware</code> → <code>shim</code> -> <code>grub</code> <code>bootloader</code> → <code>Linux kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>systemd</code> <code>init</code> and <code>userland</code>
 
 Should at any stage the digital software verification fail, then the boot process will be aborted.
 
@@ -199,7 +199,7 @@ Before discussion the technical implementation details and security it might mak
 
 It is primarily a project goal and policy decision.
 
-Technical excuses are mood. If there's a commitment pro freedom and against anti-features, then there's a way. Security needs to take the backseat if it curtails user freedom. A prison cell is more secure from car accidents but yet we don't want to live in a golden cage. If you want, you will find a way, if you don't want to, you will find reasons.
+Technical excuses are moot. If there's a commitment pro freedom and against anti-features, then there's a way. Security needs to take the backseat if it curtails user freedom. A prison cell is more secure from car accidents but yet we don't want to live in a golden cage. If you want, you will find a way, if you don't want to, you will find reasons.
 
 For example, in case of GrapheneOS non-root enforcement is a project goal and policy decision.
 
@@ -523,19 +523,21 @@ This idea integrates well with [[Dev/boot modes|Role-Based Boot Modes (user vers
 
 == Design ==
 * minimal firmware
-* infrequent firmware updates
+* infrequent firmware updates required
 * feature freeze
-* SeaBIOS
-* stage 1, 2, 3
+* SeaBIOS based?
+* stage 1 (boot block), 2, 3
 * simple reporting
-* legacy boot
-* minimal secure boot
+* legacy boot based simpler, safer?
+* keep parts using secure boot minimal
 * measured boot
-* double green light (official firmware + user)
-* vs single green light
+* double LED indicator?
+** double green light: (official firmware + user)
+** vs single green light: user customized firmware + relocked to user key
+** red light: tampering detected
 * randomart, photo image, htop, totp, stick
-* without flashkeeper?
-* the reference design
+* Any design without flashkeeper possible?
+* goal: invent "THE" reference design
 * warning fatigue, bugs versus unbootable, attackers
 ** Remote attacker versus local attacker + remote attacker
 * TPM reliability
@@ -547,8 +549,17 @@ This idea integrates well with [[Dev/boot modes|Role-Based Boot Modes (user vers
 * distribution controls key
 * user uses own keys versus usability. user realistically won't do intel boot guard fusing.
 * supply chain attacks key setup before user sets up keys
-* how does android relock bootloader implement it?
+* how does android implement relock bootloader with user custom keys?
 ** trust the android hardcoded bootloader
+** https://android.stackexchange.com/questions/238980/why-is-it-possible-to-re-lock-the-bootloader-after-installing-a-custom-rom-on-s
+** [https://source.android.com/docs/security/features/verifiedboot/device-state#user-settable-root-of-trust Android: User-settable root of trust]
+** [https://source.android.com/docs/security/features/verifiedboot/boot-flow Android: Boot Flow]
+** [https://source.android.com/static/docs/security/images/verified-boot-flow.png Android: Figure 1. Verified boot flow.]
+** Design something similar?
+*** Differences:
+**** No embedded (OEM) keys as much as possible. (With the exception, of perhaps the boot block only, which would be the handled by the firmware developer.)
+**** User-settable root of trust only.
+**** Considering user-settable root of trust as being "green" (good) and "normal".
 
 https://github.com/osresearch/safeboot/blob/master/sbin/safeboot
 
@@ -558,6 +569,15 @@ if boot guard is required, how to trust remote attestation?
 
 how android hardware based remote attestation, issues?
 
+https://github.com/chipsalliance/Caliptra
+
+Boot Guard itself isn't great. Major issues:
+
+* Key leaks risk.
+* Keys are hardcoded, which makes it an inflexible design, unfixable once deployed.
+
+https://eclypsium.com/research/trickbot-now-offers-trickboot-persist-brick-profit/
+
 = misc =
 https://blog.osfw.foundation/a-comparison-between-open-source-host-firmware-solutions-and-closed-source-uefi/
 
@@ -565,7 +585,31 @@ https://keylime.dev/blog/2024/02/07/remote-attestation-blog-part1.html?utm_sourc
 
 TPM's Endorsement Key (EK)
 
-== Status ==
+"a" real TPM. Who's TPM?
+
+Does activating the BIOS write protection jumper enforce physical write protection, or is it purely a software mechanism that blocks write operations?
+
+How do traditional floppy disk write-protect mechanisms work, and do they rely solely on hardware enforcement, or is the prevention of write operations dependent on the drive's firmware or software honoring the signal?
+
+https://en.m.wikipedia.org/wiki/Write_protection
+
+https://security.stackexchange.com/questions/265582/why-did-they-stop-adding-physical-write-protect-mechanism
+
+The thread clarifies that traditional floppy disk write-protection mechanisms were not entirely physical but relied on the disk drive to honor the setting. While the write-protect tab physically signaled the drive, it was ultimately the drive's responsibility to enforce write prevention. Similarly, modern SD card write-protect switches serve as advisory signals to software, which can choose to ignore them. This shift away from hardware-enforced write protection reflects cost-saving priorities and consumer demand, with specialized devices available for users needing robust protection. You can read the full discussion here.
+
+https://www.reddit.com/r/vintagecomputing/comments/1b9ycts/bypass_525_disks_write_protection_when_there_is/
+
+https://www.lemon64.com/forum/viewtopic.php?t=67989
+
+https://www.kb.cert.org/vuls/id/766164/
+
+https://www.techspot.com/news/61596-bios-write-protection-flaw-discovered-here-everything-you.html
+
+https://eclypsium.com/blog/firmware-security-realizations-part-3-spi-write-protections/
+
+https://watchmysys.com/blog/2017/06/cve-2017-8083-compulab-intensepc-lacks-bios-wp/
+
+= Status =
 * Help welcome to implement [[Verified_Boot#Verified_Boot_for_User_but_not_for_Admin|Verified Boot for User but not for Admin]].
 * [[Dev/boot modes|Role-Based Boot Modes (user versus admin) for Enhanced Security]] (and maybe [[noexec]]) will be implemented first.
 
