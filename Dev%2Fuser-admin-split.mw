@@ -1,0 +1,310 @@
+{{Header}}
+{{title|title=
+user-admin-split
+}}
+{{#seo:
+|description=user-admin-split - Role-Based Boot Modes - Persistent User / Live user / Persistent Admin
+}}
+[[File:Grub-boot-icon.jpg|300px|thumb]]
+{{intro|
+<code>user-admin-split</code> - Role-Based Boot Modes - Persistent User / Live user / Persistent Admin and their use cases.
+}}
+{{mbox
+|icon=fa-solid fa-exclamation cs-yellow
+|text=This is a concept still in development. Waiting for implementation. Help welcome!
+}}
+= Introduction =
+
+This page discusses different boot modes in the {{project_name_long}} operating system, aimed at improving security through role-based boot options. It describes modes like "Persistent User" for daily activities and "Persistent Admin" for updates, software installation, and full system control. The goal is to isolate user activities and reduce security risks by restricting what each boot mode can access and modify. The page also explains potential opt-outs for users who prefer traditional [[root]] access.
+
+These schemes are generic and work for both hosts and VMs. This applies to {{project_name_long}} and derivatives of {{project_name_long}}, such as {{whonix}}.
+
+= Development Goals =
+{{Anchor|Goals}}
+
+These goals guide the boot modes implementation:
+
+* [[Login spoofing|Defeat login spoofing]]
+* [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]]
+* [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]]
+* [[Noexec]]
+* [[Verified Boot]]
+
+= Grub Default Boot Menu Entries =
+
+The default GRUB boot menu entries are:
+
+* <code>PERSISTENT mode USER (For daily activities.)</code>
+* <code>LIVE mode USER (For daily activities.)</code>
+* <code>PERSISTENT mode ADMIN (For administrative tasks.)</code>
+
+= Use Cases for the Different Boot Modes =
+
+Common use cases tailored to the available boot modes:
+
+* <code>PERSISTENT mode USER (For daily activities.)</code>:
+** Ideal for browsing, email, chat, or running a pre-configured server.
+** read-only <code>/usr</code>, <code>/etc</code>.
+** read-write <code>/home</code>
+** Verified Boot: enabled. (Planned.)
+* <code>LIVE mode USER (For daily activities.)</code>: Similar to Persistent User but without persistence.
+* <code>PERSISTENT mode ADMIN (For administrative tasks.)</code>: Allows running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER mode afterward.
+** read-write <code>/usr</code>, <code>/etc</code>, <code>/home</code>
+** Verified Boot: disabled
+
+= Boot Modes Comparison Table =
+
+{| class="wikitable"
+! Feature
+! <code>[[Persistent Mode|PERSISTENT mode]] USER</code>
+! <code>[[Live Mode|LIVE mode]] USER</code>
+! <code>PERSISTENT mode ADMIN</code>
+|-
+! Description
+| For daily activities such as browsing, email, chat, or running a pre-configured server.
+| Similar to Persistent User but without persistence.
+| For administrative tasks such as running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER mode afterward.
+|-
+! File System Access: <code>/usr</code>, <code>/etc</code>
+| {{No}}, read-only
+| {{No}}, read-only
+| {{Yes}}, read-write
+|-
+! File System Access: <code>/home</code>
+| {{Yes}}, read-write
+| {{No}}, read-only
+| {{Yes}}, read-write
+|-
+! [[Verified Boot]] ('''<u>planned</u>''')
+| {{Yes}}, Enabled
+| {{Yes}}, Enabled
+| {{No}}, Disabled
+|}
+
+= Integration with Verified Boot =
+
+When booting into PERSISTENT mode ADMIN, [[Verified Boot|verified boot]] will be disabled for the purpose of updates, software installation, and system configuration. During shutdown, the checksums required for verified boot will be created.
+
+When booting into USER, verified boot will be enabled for the purpose of improved security.
+
+See also [[Verified_Boot#Verified_Boot_for_User_but_not_for_Admin|Verified Boot for User but not for Admin]].
+
+'''<u>planned</u>''': Role-Based Boot Modes (user versus admin) will be implemented first. Verified boot is an additional security feature that is planned to be implemented later.
+
+= No Access to Privilege Escalation Tools for Limited Users =
+There are conceptually two groups of users, admin users and limited users.
+
+Admin users:
+
+* <code>root</code>
+* <code>admin</code>
+
+Limited users:
+
+* <code>user</code>
+* <code>nginx</code>
+* <code>mysql</code>
+* <code>sdwdate</code>
+* <code>ntp</code>
+* Not a member of groups <code>root</code>, <code>sudo</code>, or <code>wheel</code>.
+* etc.
+
+It is planned that,
+
+* A) user "<code>user</code>" is no longer a member of group <code>sudo</code> by default, and;
+* B) limited Linux user accounts such as user "<code>user</code>" will no longer have access to any of the following Privilege Escalation Tools applications:
+** <code>sudo</code>
+** <code>su</code>
+** <code>doas</code>
+** <code>pkexec</code>
+
+This is because Privilege Escalation Tools are SUID applications, which can be a security risk for local privilege escalation (such as from <code>user</code> to root). SUID related risks are elaborated on the [[SUID Disabler and Permission Hardener]] wiki page.
+
+<u>Prerequisite Knowledge:</u>
+
+* Linux file system permission basics.
+* <code>owner</code> (<code>u</code>)
+* <code>group</code> (<code>g</code>)
+* <code>others</code> (<code>o</code>) (public)
+* <code>read</code> (<code>r</code>)
+* <code>write</code> (<code>w</code>)
+* <code>execute</code> (<code>x</code>)
+
+<u>Comparison:</u>
+
+'''Debian:''' Privilege Escalation Tools (such as <code>sudo</code> and similar programs) are, as per Debian default, owned by user <code>root</code> and group <code>root</code>. These can be <code>read</code> and <code>execute</code> by <code>owner</code>, <code>group</code>, and <code>others</code>. (<code>chmod 755</code>)
+
+{{CodeSelect|code=
+chmod-calc /usr/bin/sudo
+}}         
+
+<pre>
+Permissions for: /usr/bin/sudo
+Type: Regular File
+Owner: root
+Group: root
+Octal Permissions: 755
+File Size: 281624 bytes
+Link Count: 1
+Hidden File: No
+ACLs: none
+Extended Attributes: none
+Capabilities: None
+Immutable (chattr +i): No
+
+Category   Read   Write  Execute 
+Owner      Yes    Yes    Yes     
+Group      Yes    No     Yes     
+Public     Yes    No     Yes     
+
+Special Attributes:
+SUID: Set
+SGID: Not Set
+Sticky Bit: Not Set
+</pre>
+
+'''Kicksecure Future:''' Privilege Escalation Tools will be owned by group <code>admin</code>. <code>others</code> (which includes user <code>user</code>) will no longer have <code>read</code> or <code>execute</code> rights. (<code>chown root:admin /usr/bin/sudo</code>; <code>chmod o-rw /usr/bin/sudo</code>; same for <code>/bin/sudo</code>)
+
+<pre>
+Group: admin
+
+Category   Read   Write  Execute 
+Owner      Yes    Yes    Yes     
+Group      Yes    No     Yes     
+Public     No     No     No
+</pre>
+
+<u>Implementation Plan:</u>
+
+For this to happen, applications may no longer internally use <code>sudo</code> exceptions (e.g., <code>/etc/sudoers.d</code>). This is further detailed on the [[Dev/sudo]] page.
+
+= Opt-Out to Get the Same Behavior as Old {{project_name_short}} =
+Users who wish "the old {{project_name_short}}" "with unrestricted <code>sudo</code> for user <code>user</code>" back, who don't want the
+
+* <code>PERSISTENT mode ADMIN (For administrative tasks.)</code>
+
+boot option, could uninstall package <code>user-admin-split</code>. It could be easily removed using [[Debian_Packages#dummy-dependency|<code>dummy-dependency</code>]].
+
+{{CodeSelect|code=
+dummy-dependency --purge user-admin-split
+}}
+
+(<code>dummy-dependency</code> is being used to avoid [[Debian Packages|issues with meta package removal]].)
+
+= Boot Modes Considered Too Unimportant to Be Added to GRUB Default Boot Menu =
+
+'''Currently, we don’t see good use cases to include these modes as default, but user feedback could change this in the future.'''
+
+* <code>LIVE mode ADMIN</code>
+
+'''DIY Methods to Include These and Other Entries in the GRUB Boot Menu'''
+
+{{IconSet|h2|A}} Files in the <code>/etc/grub.d/</code> folder could add these entries, but they could be non-executable by default. To opt-in, users could run <code>sudo chmod +x /etc/grub.d/somenumber_name-of-boot-mode</code>.
+
+{{IconSet|h2|B}} Users wanting custom entries can add them directly to the <code>/etc/grub.d/</code> folder or GRUB boot menu.
+
+{{IconSet|h2|C}} Using GRUB boot menu editing (key <code>e</code>) at boot, kernel parameters can be adjusted for any combination.
+
+= /etc/grub.d File Names =
+
+Details about <code>/etc/grub.d</code> files:
+
+<pre>
+filename                                     purpose
+---------------------------------------      -----------------------------
+/etc/grub.d/10_linux                         PERSISTENT mode USER
+/etc/grub.d/11_linux_live                    LIVE mode USER
+/etc/grub.d/12_linux_admin                   PERSISTENT mode ADMIN
+</pre>
+
+Files should remain in lexical order below <code>/etc/grub.d/20_</code> to avoid conflicts with existing scripts.
+
+Note: Some files may not be created initially (or at all), as outlined in the "Boot Modes Considered Too Unimportant to Be Added to GRUB Default Boot Menu" section.
+
+= Server Support =
+
+GRUB boot menus aren’t easily accessible on many servers. A solution for making these boot modes available on servers is yet to be determined.
+
+<code>user-admin-split</code> will not be installed by default on servers. Meta package <code>kicksecure-host-xfce</code> will come with <code>user-admin-split</code>  by default but meta package <code>kicksecure-host-cli</code> won't.
+
+Future work ideas:
+
+* See the forum discussion: https://forums.whonix.org/t/multiple-boot-modes-for-better-security-persistent-user-live-user-persistent-admin-persistent-superadmin-persistent-recovery-mode/7708/50
+* A) User could create a file that requests booting into admin mode next time.
+* B) Admin mode would use a systemd unit drop-in to disable most systemd units, except SSH, etc.
+
+= Qubes Support =
+Package <code>qubes-core-agent-passwordless-root</code> will be no longer installed by default in [[Qubes|Kicksecure for Qubes]].
+
+= Todo =
+
+issues with admin mode:
+
+* systemd units running providing attack surface (think long running file downloads/uploads)
+* start menu offering Firefox etc.
+* ability to run Firefox etc. from the terminal emulator
+
+ideas:
+
+* minimal GUI
+* chroot based: complex, messy, two systems to upgrade
+* a target similar to <code>single</code> user mode but not really single user mode to avoid issues with real single user mode
+* start minimal services only when booting into admin mode
+** <code>single</code> user mode kernel parameter?
+** https://packages.debian.org/policy-rcd-declarative-deny-all
+** a global <code>ConditionKernelCommandLine=boot-role=admin</code> that applies to all systemd units?
+* Start Menu: Hide Firefox and other similar applications when booting into admin mode.
+* A systray icon could display an admin symbol to indicate the mode.
+* Add a warning:
+** When starting Firefox in admin mode, a popup message should inform the user to avoid browsing the internet unless absolutely necessary.
+* Address the challenge of reading documentation after booting into admin mode:
+** Why read documentation in admin mode?
+*** This is often necessary when performing complex sysadmin tasks.
+*** For online searches or resolving issues.
+*** Using AI assistants.
+*** Posting on forums.
+
+[[Offline Documentation]] is helpful but an insufficient solution.
+
+* Offline documentation often links extensively to upstream resources.
+* Users are encouraged to look up online documentation whenever possible (referring to upstream resources).
+
+Alternatives:
+
+* Ideally, users should perform such tasks on a separate computer.
+* These alternatives might seem impractical but are safer.
+* A less ideal, but safer option is to use a VM for such tasks.
+
+= Implementation =
+
+Outdated:
+
+* https://github.com/{{project_name_short}}/apparmor-profile-everything/tree/master/etc/grub.d
+
+= Prior Versions =
+
+[https://www.kicksecure.com/w/index.php?title=Dev/user-admin-split&oldid=87353 Older concept version still containing "SUPERADMIN" and "SECUREADMIN".]
+
+= Tickets =
+* [https://github.com/QubesOS/qubes-issues/issues/9519 Create user admin by default and add user admin to group sudo by default]
+* [https://github.com/QubesOS/qubes-issues/issues/9512 Selective sudo Access Enabling in VMs Without qubes-core-agent-passwordless-root via qvm-service]
+
+= Related =
+
+* [https://forums.whonix.org/t/disable-newly-all-installed-services-by-default/9381/2 Disable newly (all) installed services by default]
+* [[Verified Boot]]
+* <s>Forum discussion: [https://forums.whonix.org/t/apparmor-for-complete-system-including-init-pid1-systemd-everything-full-system-mac-policy/8339 AppArmor for Complete System - Including init, PID1, Systemd, Everything! - Full System MAC policy]</s>
+* <s>[https://github.com/{{project_name_short}}/apparmor-profile-everything AppArmor for everything: APT, systemd, init, all systemd units, all applications. Mandatory Access Control. Security Hardening.]</s>
+* <s>[https://forums.whonix.org/t/untrusted-root-improve-security-by-restricting-root/7998 Untrusted Root - Improve Security by Restricting Root]</s>
+
+= Attribution =
+
+{{sdebian
+|link=https://www.debian.org/doc/manuals/securing-debian-manual/ch04s10.en.html
+|text=Mounting partitions the right way
+}}
+
+<references/>
+{{Footer}}
+[[Category: Design]]
+[[Category: Development]]
