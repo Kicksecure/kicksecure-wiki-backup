@@ -32,7 +32,7 @@ Quote [https://xkcd.com/1200/ xkcd authorization]:
 
 <blockquote>Most people will consider their home directory as more important than root dirs</blockquote>
 
-<blockquote>Once a malicious program has access to my home folder, I dont care if it also has access to the admin content</blockquote>
+<blockquote>Once a malicious program has access to my home folder, I don't care if it also has access to the admin content</blockquote>
 
 This is true for most users using single user computers, using only one user account and no virtual machines. As a counter measure this is why this documentation [[Special:Search/compartmentalization|recommends compartmentalization]], that is, running different activities in different virtual machines or even on different hardware.
 
@@ -55,7 +55,7 @@ An exploit or payload might require a function which is unavailable inside the s
 
 {{project_name_short}} implements various security hardening to [[Dev/Strong_Linux_User_Account_Isolation|Enforce Strong Linux User Account Isolation]].
 
-Once proposal [[Dev/user-admin-split|Multiple Boot Modes for Better Security (an Implementation of Untrusted Root)]] has been implemented there will be a strong guidance for users to better separate their limited (everyday use) account (<code>user</code>) and administrative account (<code>admin</code>). This would result in a robust [[root#Prevent Malware from Sniffing the Root Password|Prevention of Malware Sniffing the Root Password]].
+Once proposal [[Dev/user-sysmaint-split|user-sysmaint-split - Multiple Boot Modes for Better Security]] has been implemented there will be a strong guidance for users to better separate their limited (everyday use) account (<code>user</code>) and administrative account (<code>sysmaint</code>). This would result in a robust [[root#Prevent Malware from Sniffing the Root Password|Prevention of Malware Sniffing the Root Password]].
 
 = Default Passwords =
 
@@ -275,7 +275,7 @@ Even during the times of X11, <code>root</code> login was frowned upon.
 
 Therefore for strong user isolation, logging in as <code>root</code> user is to be avoided.
 
-In an ideal world, the extra <code>admin</code> user would be unnecessary and people could simply use the <code>root</code> user. Or even better, all references to <code>root</code> would be removed and replaced with <code>admin</code>. However, this kind of education and convincing among many upstream projects for the purpose of [[Dev/Strong Linux User Account Isolation]] is totally unrealistic for organisational reasons, which are elaborated on the [[Linux User Experience versus Commercial Operating Systems]] page.
+In an ideal world, the extra <code>sysmaint</code> user would be unnecessary and people could simply use the <code>root</code> user. Or even better, all references to <code>root</code> would be removed and replaced with <code>sysmaint</code>. However, this kind of education and convincing among many upstream projects for the purpose of [[Dev/Strong Linux User Account Isolation]] is totally unrealistic for organisational reasons, which are elaborated on the [[Linux User Experience versus Commercial Operating Systems]] page.
 </ref>
 
 {{sdebian
@@ -374,8 +374,9 @@ sudo adduser user console
 
 = Advanced Users =
 == Prevent Malware from Sniffing the Root Password ==
+== Rationale for Separate sysmaint Account ==
+{{anchor|Rationale for Separate admin Account}}
 
-=== Rationale for Separate admin Account ===
 If Linux user account <code>user</code> is compromised, malware can easily steal the administrative ("<code>sudo</code>") password. <ref>
 Any graphical application can see what is typed in another graphical application, for any user.
 
@@ -388,30 +389,30 @@ One application can sniff or inject keystrokes to another one, can take snapshot
 If an application is compromised with an exploit due to a security vulnerability, it can be used as malware by the attacker. Once/if the application is not effectively confined by a mandatory access control (MAC) framework like AppArmor or firejail, it can compromise the user account where it is running and then proceed from there.
 
 See also [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sudo password sniffing]] for technical details.
-</ref> Therefore it is more secure ([[#Rationale|rationale)]] to perform administrative actions such as running <code>sudo</code> from a separate <code>admin</code> account that is less likely to get compromised, since this reduces the chances of malware sniffing the password to escalate to administrative ("root") access.
+</ref> Therefore it is more secure ([[#Rationale|rationale)]] to perform administrative actions such as running <code>sudo</code> from a separate <code>sysmaint</code> account that is less likely to get compromised, since this reduces the chances of malware sniffing the password to escalate to administrative ("root") access.
 
 The basic concept is a separation of the following users:
 
 * '''user <code>user</code>:''' Perform everyday actions such as running web browsers.
-* '''user <code>admin</code>:''' Perform administrative actions such as installing additional packages.
+* '''user <code>sysmaint</code>:''' Perform system maintenance administrative actions such as installing additional packages.
 
 Questions and answers:
 
-* Is running applications such as browser under user <code>admin</code> less secure? Yes, that defeats this concept.
+* Is running applications such as browser under user <code>sysmaint</code> less secure? Yes, that defeats this concept.
 * Is running applications such as browser under user <code>user</code> more secure? Yes, because it becomes harder for malware to perform privilege escalation attacks to gain to administrative ("root") access.
 * What is so bad about malware escalating to administrative? See [[#Rationale|rationale]].
-* Why use user <code>admin</code> and not simply the <code>root</code> user? See [[Root#Avoid_Root_Login|Avoid Root Login]].
+* Why use user <code>sysmaint</code> and not simply the <code>root</code> user? See [[Root#Avoid_Root_Login|Avoid Root Login]].
 
-This process is currently for advanced users only since it is quite cumbersome, i.e. has bad usability. The usability of this will be improved once proposal [[Dev/user-admin-split|Multiple Boot Modes for Better Security (an Implementation of Untrusted Root)]] has been implemented.
+This process is currently for advanced users only since it is quite cumbersome, i.e. has bad usability. The usability of this will be improved once proposal [[Dev/user-sysmaint-split|user-sysmaint-split - Multiple Boot Modes for Better Security]] has been implemented.
 
 === Overview of Steps ===
 To more securely perform administrative tasks that require root access, see the following overview steps below. Detailed technical steps are available further below.
 
 # Prerequisite knowledge: [[Desktop#Virtual_Consoles|how to switch to a different virtual console]], [[SysRq|usage of the SysRq key]] and [[Login spoofing|login spoofing]].
 # These instructions are ideally applied after installing the host / VM when it is still considered free of [[Malware and Firmware Trojans|malware]].
-# Create a new user account <code>admin</code>.
+# Create a new user account <code>sysmaint</code>.
 # Add it to the group <code>sudo</code>.
-# Login as user <code>admin</code>.
+# Login as user <code>sysmaint</code>.
 # Remove user <code>user</code> from group <code>sudo</code>.
 # Only then perform administrative tasks according to the instructions below.
 
@@ -424,22 +425,22 @@ This setup only needs to be completed once.
 * {{non_q_project_name_short}}: No special notice.
 * ([[Qubes|{{q_project_name_short}}]]: {{project_name_workstation_long}} Template)
 
-{{IconSet|h2|2}} '''Create a new user account <code>admin</code>.'''
+{{IconSet|h2|2}} '''Create a new user account <code>sysmaint</code>.'''
 
 {{CodeSelect|code=
-sudo adduser admin
+sudo adduser sysmaint
 }}
 
-{{IconSet|h2|3}} '''Add user <code>admin</code> to group <code>sudo</code> and <code>console</code>.'''
+{{IconSet|h2|3}} '''Add user <code>sysmaint</code> to group <code>sudo</code> and <code>console</code>.'''
 
 {{CodeSelect|code=
-sudo adduser admin sudo
+sudo adduser sysmaint sudo
 }}
 
 Allow login into [[login]] console.
 
 {{CodeSelect|code=
-sudo adduser admin console
+sudo adduser sysmaint console
 }}
 
 {{IconSet|h2|4}} '''Perform the following steps securely using <code>sudo</code>. Use <u>one</u> of the methods below.'''
@@ -486,7 +487,7 @@ This is to make these instructions compatible with most Linux distributions as w
 
 (Press <code>Alt + SysRq + k</code>)
 
-{{IconSet|h3|5}} Login as user <code>admin</code> from that non-graphical environment ([[Desktop#Virtual_Consoles|virtual console]]). <ref>
+{{IconSet|h3|5}} Login as user <code>sysmaint</code> from that non-graphical environment ([[Desktop#Virtual_Consoles|virtual console]]). <ref>
 An X Window System non-root user cannot sniff keystrokes of different (non-)root users utilizing a different virtual console (<code>tty</code>).
 </ref>
 
@@ -500,7 +501,7 @@ An X Window System non-root user cannot sniff keystrokes of different (non-)root
 sudo delgroup user sudo
 }}
 
-{{IconSet|h3|8}} Logout user <code>admin</code>.
+{{IconSet|h3|8}} Logout user <code>sysmaint</code>.
 
 {{CodeSelect|code=
 logout
@@ -521,7 +522,7 @@ X Window System runs in:
 |type=section
 |content=
 
-* Advantage: can use graphical session (X Window System) during administrative tasks using privileged user <code>admin</code>.
+* Advantage: can use graphical session (X Window System) during administrative tasks using privileged user <code>sysmaint</code>.
 * Disadvantage: cannot keep graphical session of unprivileged user <code>user</code> running. In other words, simplified, all applications run under user <code>user</code> will be terminated <ref>
 Non-simplified: applications run by user <code>user</code> in a different virtual console or run through systemd (user) services can be left running.
 </ref> and requires SysRq, which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
@@ -544,7 +545,7 @@ start menu -> log out
 
 (Press <code>Alt + SysRq + k</code>)
 
-{{IconSet|h3|5}} Login as user <code>admin</code>.
+{{IconSet|h3|5}} Login as user <code>sysmaint</code>.
 
 {{IconSet|h3|6}} Perform any necessary administrative tasks.
 
@@ -556,7 +557,7 @@ start menu -> log out
 sudo delgroup user sudo
 }}
 
-{{IconSet|h3|8}} Logout user <code>admin</code>.
+{{IconSet|h3|8}} Logout user <code>sysmaint</code>.
 
 {{IconSet|h3|9}} Re-login as user <code>user</code>.
 
@@ -579,7 +580,7 @@ Shutdown the system. Really power off. Not shutdown. Why? To defeat [[login spoo
 
 {{IconSet|h3|3}} Do not login as user <code>user</code>.
 
-{{IconSet|h3|4}} Login as user <code>admin</code>.
+{{IconSet|h3|4}} Login as user <code>sysmaint</code>.
 
 {{IconSet|h3|5}} Perform any necessary administrative tasks.
 
@@ -613,7 +614,7 @@ In {{project_name_short}}, by default:
 * [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/wheel-security-misc group <code>sudo</code> membership is required to use <code>su</code>]. <ref>
 Implemented in package [https://github.com/{{project_name_short}}/security-misc security-misc].
 </ref>
-* User <code>user</code> is a member of group <code>sudo</code>. ([[Dev/user-admin-split|This might change in a later release.]])
+* User <code>user</code> is a member of group <code>sudo</code>. ([[Dev/user-sysmaint-split|This might change in a later release.]])
 
 {{Box|text=
 To permit the <code>su</code> command from user <code>user</code>, complete the following steps.
@@ -814,14 +815,14 @@ dsudo
 == passwordless-root ==
 TODO: document
 
-After [[Dev/boot modes|Role-Based Boot Modes (user versus admin)]] has been implemented, some users may want to get back to traditional way of allowing user <code>user</code> to use <code>sudo</code>.
+After [[Dev/user-sysmaint-split|Role-Based Boot Modes (user versus sysmaint)]] has been implemented, some users may want to get back to traditional way of allowing user <code>user</code> to use <code>sudo</code>.
 
 Next version of {{project_name_long}} will come with [https://github.com/Kicksecure/usability-misc/blob/master/usr/bin/passwordless-root <code>/usr/bin/passwordless-root</code>]. A tool to easily set up passwordless <code>sudo</code> for user <code>user</code>.
 
 Platform specific:
 
-* Non-Qubes: The user must boot into admin mode first.
-* Qubes: The user needs to open a [[Root#Qubes_Root_Console|Qubes Root Console]]. <code>passwordless-root</code> can simplify [[Root#Qubes_Passwordless_Root_Access_Setup|Qubes Passwordless Root Access Setup]]
+* Non-Qubes: The computer user must boot into <code>sysmaint</code> mode first.
+* Qubes: The computer user needs to open a [[Root#Qubes_Root_Console|Qubes Root Console]]. <code>passwordless-root</code> can simplify [[Root#Qubes_Passwordless_Root_Access_Setup|Qubes Passwordless Root Access Setup]]
 
 Execution of <code>passwordless-root</code> requires root.
 

@@ -8,10 +8,10 @@ title=Login Spoofing
 }}
 [[File:Loginspoofing132.png|thumb]]
 {{intro|
-It is possible for [[Malware and Firmware Trojans|Malware]] to masquerade as a login prompt in order to steal login passwords. This page documents this advanced threat model and how to prevent malware from sniffing the root password. Using [[SysRq]] + r. (unraw)
+It is possible for [[Malware and Firmware Trojans|malware]] to masquerade as a login prompt in order to steal login passwords. This page documents this advanced threat model and how to prevent malware from sniffing the root password using [[SysRq]] + r. (unraw)
 }}
 = Introduction =
-This attack supposes an advanced [[Threat Modeling|threat model]]:
+This attack assumes an advanced [[Threat Modeling|threat model]]:
 
 # A system is configured with a limited user (user "<code>user</code>") which utilizes a graphical X Window System session that is different from the user with root/sudo permissions (user "<code>admin</code>").
 # The limited user is compromised at some point by [[Malware and Firmware Trojans|malware]].
@@ -19,32 +19,37 @@ This attack supposes an advanced [[Threat Modeling|threat model]]:
 Or:
 
 # Multiple non-root users sharing the same computer and using different virtual terminals (VT).
-# A compromised of malicious user could pretend to have logged out from the VT but actually have started a spoofed login screen.
+# A compromised or malicious user could pretend to have logged out from the VT but actually have started a spoofed login screen.
 
 <u>Note</u>: If there is only one user account which also has sudo/su access, malware can [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sniff the administrative password]] and it is unnecessary to utilize an advanced login spoofing attack.
 
 = Security Benefit of Compartmentalization =
 
-Under many threat models the compromise of the limited user account is considered catastrophic, since running malware:
+Under many threat models, the compromise of the limited user account is considered catastrophic, since running malware:
 
-* has full access to all user-accessible files
-* can view all keyboard inputs and take over login sessions
-* may present false information on the screen
-* can perform other malicious actions, see: [[Malware and Firmware Trojans#The_Importance_of_a_Malware_Free_System|The Importance of a Malware Free System]]
+* has full access to all user-accessible files,
+* can view all keyboard inputs and take over login sessions,
+* may present false information on the screen, and
+* can perform other malicious actions, see: [[Malware and Firmware Trojans#The_Importance_of_a_Malware_Free_System|The Importance of a Malware-Free System]].
 
-However, if multiple (virtual) machines are used for compartmentalization the harmful impact of malware might not be catastrophic. For instance, other goals of this configuration include prevention of root compromise to help protect the virtualizer and avoid host compromise, and similarly to avoid a hardware compromise. This is further elaborated in the rationale section of the [[Root#Rationale|Safely Use Root Commands]] wiki chapter.
+However, if multiple (virtual) machines are used for compartmentalization, the harmful impact of malware might not be catastrophic. For instance, other goals of this configuration include prevention of root compromise to help protect the virtualizer and avoid host compromise, and similarly to avoid hardware compromise. This is further elaborated in the rationale section of the [[Root#Rationale|Safely Use Root Commands]] wiki chapter.
 
-A broken X Window System can block switching to a virtual console. It logically follows that malware which has compromised the X Window System can also perform this action. In this case the <code>SysRq</code> + <code>r</code> combination can take away control from the X Window System. <ref>This is because the Linux kernel removes control of the X Window System from the console. The Linux kernel has higher privileges than the X Window System.</ref> This is a safer procedure, otherwise a compromised X Window System could just be simulating a virtual console login prompt in order to sniff an account login password with root access. ([https://en.wikipedia.org/wiki/Login_spoofing login spoofing in Wikipedia]).
+A broken X Window System can block switching to a virtual console. It logically follows that malware which has compromised the X Window System can also perform this action. In this case, the <code>SysRq</code> + <code>r</code> combination can take control away from the X Window System. <ref>This is because the Linux kernel removes control of the X Window System from the console. The Linux kernel has higher privileges than the X Window System.</ref> This is a safer procedure; otherwise, a compromised X Window System could simulate a virtual console login prompt in order to sniff an account login password with root access. ([https://en.wikipedia.org/wiki/Login_spoofing login spoofing in Wikipedia]).
 
 <code>SysRq</code> + <code>k</code> (Secure Access Key) can be used to defeat login spoofing because it will terminate all programs on that [[Desktop#Virtual_Consoles|virtual console]].
 
 [https://www.kernel.org/doc/html/v4.14/admin-guide/sysrq.html#okay-so-what-can-i-use-them-for Quote Linux Kernel Documentation]:
 
-<blockquote>Sak (Secure Access Key) is useful when you want to be sure there is no trojan program running at console which could grab your password when you would try to login. It will kill all programs on given console, thus letting you make sure that the login prompt you see is actually the one from init, not some trojan program.</blockquote>
+<blockquote>Sak (Secure Access Key) is useful when you want to be sure there is no trojan program running at console which could grab your password when you would try to login. It will kill all programs on the given console, thus letting you make sure that the login prompt you see is actually the one from init, not some trojan program.</blockquote>
 
 [https://www.kernel.org/doc/Documentation/SAK.txt Quote Linux Kernel Secure Attention Key Documentation]:
 
 <blockquote>An operating system's Secure Attention Key is a security tool which is provided as protection against trojan password capturing programs. It is an undefeatable way of killing all programs which could be masquerading as login applications. Users need to be taught to enter this key sequence before they log in to the system.</blockquote>
+
+Even if using Wayland as a replacement for the X Window System:
+
+* Secure Access Key will still be required.
+* Issues with KVM VMs: [https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3930 Graphical corruption and related issues with virtio graphics (no virgl)].
 
 Taking steps to defeat login spoofing probably only makes sense when also performing actions to [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]].
 

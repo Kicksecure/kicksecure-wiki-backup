@@ -29,21 +29,131 @@ TODO
 ** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 * Backport 3.3.12 after it is available in Trixie
 
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+
+== user-sysmaint-split and sysmaint-panel improvements ==
+* rationale:
+** A single command <code>dummy-dependency --yes --purge user-sysmaint-split</code> would be sufficient to go back to classic sudo setup. Uninstallation of <code>sysmaint-panel</code> would be unnecessary. Users could use <code>sysmaint-panel</code> even in classic sudo setup.
+** sysmaint-panel should be fully independent from user-sysmaint-split. It could also be used in classic sudo mode, where user "user" has access to sudo/pkexec.
+** easier to test sysmaint-panel
+** Qubes compatible 
+
+<pre>
+   subprocess.Popen(["/usr/libexec/helper-scripts/terminal-wrapper",
+                         "/bin/sh", "-c", "$SHELL"])
+</pre>
+
+* Is <code>/bin/sh</code> needed? <code>/usr/libexec/helper-scripts/terminal-wrapper "$SHELL"</code> works for me (manually tested).
+* https://github.com/Kicksecure/sysmaint-panel/blob/master/etc/X11/Xsession.d/15_no_sysmaint_xfce
+** remove xfce from the name, if applicable
+** move to user-sysmaint-split
+* sysmaint-panel Depends: usability-misc or is that a superfluous dependency?
+
+<pre>
+echo "[Desktop]
+Session=sysmaint-session" \
+   | sponge -- '/home/sysmaint/.dmrc'
+</pre>
+
+* needs to be run under user sysmaint to avoid permission issues
+* needs Depends: safe-rm maybe?
+* sysmaint-panel folder /usr/lib/systemd/system doesn’t seem right for a gui package. Maybe...
+** user-sysmaint-split-cli
+** user-sysmaint-split-gui
+** sysmaint-panel
+*** would be a good split?
+*** But actually we can get that down to 2 packages only. user-sysmaint-split + sysmaint-panel
+* move https://github.com/Kicksecure/sysmaint-panel/blob/master/usr/libexec/sysmaint-panel/sysmaint-session
+** to user-sysmaint-split
+** How? By making sysmaint-panel a "plugin" or "extension".
+
+<pre>
+xfwm4 &
+# Needed to prevent window ordering problems
+sleep 1;
+sysmaint-panel
+</pre>
+
+* could be changed to: if available, run sysmaint-panel. otherwise, just open a terminal. Pseudo code, untested:
+
+<pre>
+xfwm4 &
+# Needed to prevent window ordering problems
+sleep 1;
+## NOTE: bashism
+if command -v sysmaint-panel &>/dev/null ; then
+  sysmaint-panel
+else
+  /usr/libexec/helper-scripts/terminal-wrapper "$SHELL"
+fi
+</pre>
+
+* add a sysmaint-panel <code>/usr/share/desktop/sysmaint-panel.desktop</code> file
+* check file <code>help-steps/pre</code> function <code>root_check</code>
+** something similar is required for sysmaint-panel
+** if sudo cannot be executed -> show an error message, explain to boot into sysmaint, show a link
+* sysmaint-panel: honor signal sigterm
+
+== document sysmaint warnings in wiki ==
+* as discussed
+* [[sysmaint]]
+
+== review ARP related network settings ==
+* https://github.com/Kicksecure/security-misc/pull/279
+
+== review USBGuard pull request ==
+* https://github.com/Kicksecure/security-misc/pull/166
+* https://usb-ids.gowdy.us/read/UC/
+
+== investigate dracut-config-generic ==
+* VM images use dracut-config-generic because help-steps/variables has:
+
+<pre>
+[ -n "$BUILD_INITRAMFS_DRACUT" ] || BUILD_INITRAMFS_DRACUT="dracut dracut-live dracut-config-generic binutils dmsetup pigz"
+</pre>
+
+* ISO images do not have dracut-config-generic
+
+<pre>
+apt-file list dracut-config-generic 
+dracut-config-generic: /etc/dracut.conf.d/20-generic-image.conf
+cat /etc/dracut.conf.d/20-generic-image.conf
+hostonly="no"
+</pre>
+
+* TODO: Would it be useful to have this package also on the ISO? Specifically since it would be useful if this package ends up on the installed system to always have a generic initial ramdisk as well as for feature/bug parity with VM images.
+* Patrick: Seems actually already done as per:
+
+<pre>
+live-build/scripts/build/config:                        NEEDED_PACKAGES="live-config live-config-systemd systemd-sysv dracut-live dracut-config-generic dracut"
+</pre>
+
 == boot modes wiki page review ==
-* [[Dev/user-admin-split]] has been updated
+* [[Dev/user-sysmaint-split]] has been updated
 * Please review.
-* Ideas for chapter [[Dev/user-admin-split#Server_Support|Server Support]], and
-* chapter [[Dev/user-admin-split#Todo|Todo]]?
+* Ideas for chapter [[Dev/user-sysmaint-split#Server_Support|Server Support]], and
+* chapter [[Dev/user-sysmaint-split#Todo|Todo]]?
 * Related to upcoming tasks run0, sudoless, doas.
 * I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
-** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-admin-split package uninstallable: dummy-dependency user-admin-split
+** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-sysmaint-split package uninstallable: dummy-dependency user-sysmaint-split
 *** Aaron: Sounds good.
 **** Patrick: Wiki page updated.
 * Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
 ** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
 * Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
 ** Patrick: This would mean to boot the server always into admin mode? In that case, perhaps better to go back to "classic"?
-*** Aaron: Yes, and that's included in the dummy-dependency user-admin-split plan, so that's what we can do. Perhaps kicksecure-host-cli should use "classic" mode by default and kicksecure-host-xfce should use "user-admin-split" by default?
+*** Aaron: Yes, and that's included in the dummy-dependency user-sysmaint-split plan, so that's what we can do. Perhaps kicksecure-host-cli should use "classic" mode by default and kicksecure-host-xfce should use "user-sysmaint-split" by default?
 **** Patrick: Yes. Wiki page updated.
 * We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
 ** Patrick: Yes.
@@ -57,6 +167,91 @@ TODO
 * https://www.kicksecure.com/wiki/Measured_boot
 * review, watch, improve, keep notes
 * in preparation for consultation with firmware developer
+
+Update #1:
+
+Please review:
+
+* https://www.kicksecure.com/wiki/Verified_Boot#Boot_Block_versus_TPM
+* https://www.kicksecure.com/wiki/Verified_Boot#Boot_Block_Based_Attacks_Against_Measured_Boot
+* https://www.kicksecure.com/wiki/Verified_Boot#TPM_EK_-_Endorsement_Key
+
+How does android implement relock bootloader with user custom keys?
+
+* Android trusts the hardcoded android hardcoded bootloader?
+* https://android.stackexchange.com/questions/238980/why-is-it-possible-to-re-lock-the-bootloader-after-installing-a-custom-rom-on-s
+* [https://source.android.com/docs/security/features/verifiedboot/device-state#user-settable-root-of-trust Android: User-settable root of trust]
+* [https://source.android.com/docs/security/features/verifiedboot/boot-flow Android: Boot Flow]
+* [https://source.android.com/static/docs/security/images/verified-boot-flow.png Android: Figure 1. Verified boot flow.]
+* rollback protection
+* android hardware keystore (HSM)
+* theft protection
+* factory reset protection
+* watch some videos on how Android is flashed, locked, unlocked, relocked
+
+Concept improvements:
+
+* stage 0 - super simple, write firmware from USB, no display graphical output support, truly read-only
+* stage 1 - dasharo default firmware
+* stage 2
+* Verify distribution (Debian) kernel against distribution public key. Making use of EFI signatures but without using EFI.
+* Mention why not using EFI.
+* What if evil maid flashes using stage 0? -> Should break TOTP or similar mechanism.
+* stage 1 preinstalled dasharo/heads firmware is required to match usability of user-settable root of trust, re-lock bootloader with user key supported Android phones such as Google Pixel.
+* OS rollback protection
+* factory reset protection
+* Firmware rollback protection? if the user changes firmware keys on every update that might give us this "for free", but the key changes could be an expensive operation
+* Document the need for a true ROM for firmware installation in the current design
+* Create alternate design that involves no true ROM and vendor-provided firmware
+* Document shortcomings with a vendor-provided, no-true-ROM solution
+* See if adding some sort of secure, append-only storage is useful and work it in if so (hardware keystore hsm)
+* Review Google's Android docs more and pull in anything that would make either design better
+* Figure out how Heads avoids relay attacks with firmware verification, if it does
+* usability: at least as good as Android phones, if not better
+* no concept of OEM ROMs -> user chosen operating systems are the primary focus
+* compatibility with standard Linux distributions, if possible
+* windows compatibility? Probably not, unless there's an alternative enable EFI option in the firmware
+* android: users can their own key but they can also use images by distributions
+* theft protection
+** offline
+** online (remote locking)
+* compare TOTP vs challenge response based (NitroKey). Or "nothing" (Android)?
+* replay attacks
+* relay attacks
+* TPM MITM issue
+
+<pre>
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+</pre>
+
+<pre>
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the RSA key sent by the remote host is
+6e:45:f9:a8:af:38:3d:a1:a5:c7:76:1d:02:f8:77:00.
+Please contact your system administrator.
+Add correct host key in /home/hostname /.ssh/known_hosts to get rid of this message.
+Offending RSA key in /var/lib/sss/pubconf/known_hosts:4
+RSA host key for pong has changed and you have requested strict checking.
+Host key verification failed.
+</pre>
+
+* either send own hardware or TOFU
+* maybe solvable if cloud vendor reveals TPM EK fingerprint beforehand?
+* explain how others do it, compare: With Android, where companies are protecting themselves from the user, the same thing is true. The "owner" (manufacturer) can provision the system the way they want and the "attacker" (user) can't do anything about it ([[Miscellaneous_Threats_to_User_Freedom#Device_Attestation_such_as_SafetyNet|Device Attestation such as SafetyNet]])
+* remote attestation is possible without verified boot? if known, please document, if unknown answer, please mention.
+* custom kernel modules? re-invent MOK?
+* boot guard -> dasharo (3MDEB) firmware -> heads (?) -> verify Debian's kernel against Debian's key?
+* maybe the unchangeable root of trust would be well placed with boot guard, dasharo. the hopefully socially incorruptible organisation becoming the caretaker of taking care the most difficult parts.
+* key management could be done at a "simpler level". at the level of heads (or similar).
+
+== ISO - use BUILD_INITRAMFS_PKGS ==
+* todo: could you please use $BUILD_INITRAMFS_PKGS (already existing variable) instead of hardcoding dracut as initramfs generator?
 
 == Qubes umask ticket ==
 * /etc/sudoers.d/umask
@@ -152,18 +347,6 @@ qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
 ** The ISO won't build initially because the dm-verity building code is trying to find the live filesystem in the wrong location
 ** dracut isn't configured to include systemd-veritysetup-generator, needed for verifying the root FS in the first place
 ** No kernel command line options are added to the ISO for verity setup
-
-== user-admin-split ==
-* implement package user-admin-split as per [[Dev/boot modes]]
-* untested - https://github.com/Kicksecure/user-admin-split
-* Control panel app for admin mode (wip): https://github.com/ArrayBolt3/sys-maint-panel
-
-== admin-gui ==
-
-* open terminals - helper-scripts /usr/libexec/helper-scripts/terminal-wrapper
-* update software
-* reboot
-* shut down
 
 == Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
 * https://github.com/Kicksecure/security-misc/issues/187
@@ -398,14 +581,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
 
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-
 == live-build - local repository support ==
 * add support to build from local repository
 * Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
@@ -424,28 +599,25 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== dracut rescue shell disablement maybe broken - VirtualBox install unattended option result in dracut rescue shell ==
+
+= ARCHIVED =
+== user-sysmaint-split ==
+* implement package user-sysmaint-split as per [[Dev/user-sysmaint-split]]
+* Control panel app for sysmaint mode: https://github.com/ArrayBolt3/sysmaint-panel
+* Updated user-sysmaint-split with fixes, integrates with control panel app: https://github.com/ArrayBolt3/user-sysmaint-split
+* sysmaint user account lock detection: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
+* terminal-wrapper fix for better UX: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/terminal-wrapper
+
+== pam-info improvements for user-sysmaint-split ==
 * todo
-* Fixed: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads The ISO will no longer be detected as an autoinstallable Debian ISO any longer after merging this.
+* Done: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
 
-== dummy-dependency purge feature ==
-<pre>
-    dummy-dependency [remove|purge] pkgname
-</pre>
-
-* Done: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/dummy-dependency-purge
-
-== simple integrity check boot option ==
-* not hidden under utilities
-* simple hash check
-* probably an existing dracut feature
-* At ISO build time, a utility <code>implantisomd5</code> (from the package <code>isomd5sum</code>) must be run on the built ISO to embed the md5 sum into it.
-* Passing the kernel command line argument <code>rd.live.check</code> will trigger Dracut to run <code>isomd5check</code> to check the ISO's contents against this embedded md5 sum at boot time.
-* Could add this to derivative-maker or live-build. Willing to implement wherever is preferred.
-* Patrick (from chat): best upstream
-* Upstream MR: https://salsa.debian.org/live-team/live-build/-/merge_requests/392
-* live-build fork with enhancements: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
-* derivative-maker change to enable the feature: https://github.com/ArrayBolt3/derivative-maker/tree/master
+== admin-gui ==
+* open terminals - helper-scripts /usr/libexec/helper-scripts/terminal-wrapper
+* update software
+* reboot
+* shut down
+* Done: https://github.com/ArrayBolt3/sysmaint-panel
 
 == VirtualBox unattended installation pass-through ==
 * how does that mechanism work?
@@ -476,7 +648,29 @@ diff: old-unpack/main/var/lock: No such file or directory
 diff: newer-unpack/main/var/lock: No such file or directory
 </pre>
 
-= ARCHIVED =
+== dummy-dependency purge feature ==
+<pre>
+    dummy-dependency [remove|purge] pkgname
+</pre>
+
+* Done: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/dummy-dependency-purge
+
+== dracut rescue shell disablement maybe broken - VirtualBox install unattended option result in dracut rescue shell ==
+* todo
+* Fixed: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads The ISO will no longer be detected as an autoinstallable Debian ISO any longer after merging this.
+
+== simple integrity check boot option ==
+* not hidden under utilities
+* simple hash check
+* probably an existing dracut feature
+* At ISO build time, a utility <code>implantisomd5</code> (from the package <code>isomd5sum</code>) must be run on the built ISO to embed the md5 sum into it.
+* Passing the kernel command line argument <code>rd.live.check</code> will trigger Dracut to run <code>isomd5check</code> to check the ISO's contents against this embedded md5 sum at boot time.
+* Could add this to derivative-maker or live-build. Willing to implement wherever is preferred.
+* Patrick (from chat): best upstream
+* Upstream MR: https://salsa.debian.org/live-team/live-build/-/merge_requests/392
+* live-build fork with enhancements: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+* derivative-maker change to enable the feature: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
 == ISO - GRUB - failing to boot after installation ==
 * version 17.2.8.2
 * environment VirtualBox, EFI, Secure Boot
@@ -573,7 +767,7 @@ site:debian.org error: file `/boot/grub/i386-pc/efi_gop.mod' not found.
 * https://forums.whonix.org/t/replace-sudo-with-doas/17482/28
 * https://www.freedesktop.org/software/systemd/man/256/run0.html
 * as alternative to doas
-* does run0 abolish the need for [[Dev/boot modes]]?
+* does run0 abolish the need for [[Dev/user-sysmaint-split]]?
 ** It does not, in fact its presence may make implementing the user/admin split difficult since it means systemd is providing a "backdoor" for running programs as root even without SUID bits being used.
 *** Can be disabled using polkit config, change all auth options to <code>no</code> in the <code>org.freedesktop.systemd1.manage-units</code> section of <code>/usr/share/polkit-1/actions/org.freedesktop.systemd1.policy</code>
 * Posted reasons to avoid use at https://forums.whonix.org/t/replace-sudo-with-doas/17482/29
