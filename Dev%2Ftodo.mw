@@ -22,93 +22,6 @@ TODO
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== calamares - make 3.3.12 available in Bookworm ==
-* necessary to fix bugs related to the disk encryption user interface
-* Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.12?
-** Maintainer uploaded 3.3.12 to Sid, should migrate to Testing relatively soon.
-** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
-* Backport 3.3.12 after it is available in Trixie
-
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-
-== user-sysmaint-split and sysmaint-panel improvements ==
-* rationale:
-** A single command <code>dummy-dependency --yes --purge user-sysmaint-split</code> would be sufficient to go back to classic sudo setup. Uninstallation of <code>sysmaint-panel</code> would be unnecessary. Users could use <code>sysmaint-panel</code> even in classic sudo setup.
-** sysmaint-panel should be fully independent from user-sysmaint-split. It could also be used in classic sudo mode, where user "user" has access to sudo/pkexec.
-** easier to test sysmaint-panel
-** Qubes compatible 
-
-<pre>
-   subprocess.Popen(["/usr/libexec/helper-scripts/terminal-wrapper",
-                         "/bin/sh", "-c", "$SHELL"])
-</pre>
-
-* Is <code>/bin/sh</code> needed? <code>/usr/libexec/helper-scripts/terminal-wrapper "$SHELL"</code> works for me (manually tested).
-* https://github.com/Kicksecure/sysmaint-panel/blob/master/etc/X11/Xsession.d/15_no_sysmaint_xfce
-** remove xfce from the name, if applicable
-** move to user-sysmaint-split
-* sysmaint-panel Depends: usability-misc or is that a superfluous dependency?
-
-<pre>
-echo "[Desktop]
-Session=sysmaint-session" \
-   | sponge -- '/home/sysmaint/.dmrc'
-</pre>
-
-* needs to be run under user sysmaint to avoid permission issues
-* needs Depends: safe-rm maybe?
-* sysmaint-panel folder /usr/lib/systemd/system doesn’t seem right for a gui package. Maybe...
-** user-sysmaint-split-cli
-** user-sysmaint-split-gui
-** sysmaint-panel
-*** would be a good split?
-*** But actually we can get that down to 2 packages only. user-sysmaint-split + sysmaint-panel
-* move https://github.com/Kicksecure/sysmaint-panel/blob/master/usr/libexec/sysmaint-panel/sysmaint-session
-** to user-sysmaint-split
-** How? By making sysmaint-panel a "plugin" or "extension".
-
-<pre>
-xfwm4 &
-# Needed to prevent window ordering problems
-sleep 1;
-sysmaint-panel
-</pre>
-
-* could be changed to: if available, run sysmaint-panel. otherwise, just open a terminal. Pseudo code, untested:
-
-<pre>
-xfwm4 &
-# Needed to prevent window ordering problems
-sleep 1;
-## NOTE: bashism
-if command -v sysmaint-panel &>/dev/null ; then
-  sysmaint-panel
-else
-  /usr/libexec/helper-scripts/terminal-wrapper "$SHELL"
-fi
-</pre>
-
-* add a sysmaint-panel <code>/usr/share/desktop/sysmaint-panel.desktop</code> file
-* check file <code>help-steps/pre</code> function <code>root_check</code>
-** something similar is required for sysmaint-panel
-** if sudo cannot be executed -> show an error message, explain to boot into sysmaint, show a link
-* sysmaint-panel: honor signal sigterm
-
-== document sysmaint warnings in wiki ==
-* as discussed
-* [[sysmaint]]
-
 == review ARP related network settings ==
 * https://github.com/Kicksecure/security-misc/pull/279
 
@@ -460,6 +373,28 @@ sudo apt install serial-console-enable
 * todo
 
 = WAITING ON =
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+
+== calamares - make 3.3.12 available in Bookworm ==
+* necessary to fix bugs related to the disk encryption user interface
+* Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.12?
+** Maintainer uploaded 3.3.12 to Sid, should migrate to Testing relatively soon.
+** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
+** 3.3.12 was uploaded but was slightly wonky, wasn't migrating, maintainer wasn't fixing the issue yet. Got a DD friend to sponsor an NMU to fix the problem, should hopefully migrate on December 22nd if all goes well. (Thanks to Simon Quigley for sponsorship!) 
+* Backport 3.3.12 after it is available in Trixie
+
 == ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
 * Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
 * Investigate how to fix this, potentially make an upstream feature request or patch if needed
@@ -599,6 +534,76 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== document sysmaint warnings in wiki ==
+* as discussed
+* [[sysmaint]]
+* Documented. Didn't add a screenshot of the warnings from LightDM though since I didn't think they were worth the space on the page, I can add them if desirable.
+
+== user-sysmaint-split and sysmaint-panel improvements ==
+* rationale:
+** A single command <code>dummy-dependency --yes --purge user-sysmaint-split</code> would be sufficient to go back to classic sudo setup. Uninstallation of <code>sysmaint-panel</code> would be unnecessary. Users could use <code>sysmaint-panel</code> even in classic sudo setup.
+** sysmaint-panel should be fully independent from user-sysmaint-split. It could also be used in classic sudo mode, where user "user" has access to sudo/pkexec.
+** easier to test sysmaint-panel
+** Qubes compatible 
+
+<pre>
+   subprocess.Popen(["/usr/libexec/helper-scripts/terminal-wrapper",
+                         "/bin/sh", "-c", "$SHELL"])
+</pre>
+
+* Is <code>/bin/sh</code> needed? <code>/usr/libexec/helper-scripts/terminal-wrapper "$SHELL"</code> works for me (manually tested).
+* https://github.com/Kicksecure/sysmaint-panel/blob/master/etc/X11/Xsession.d/15_no_sysmaint_xfce
+** remove xfce from the name, if applicable
+** move to user-sysmaint-split
+* sysmaint-panel Depends: usability-misc or is that a superfluous dependency?
+
+<pre>
+echo "[Desktop]
+Session=sysmaint-session" \
+   | sponge -- '/home/sysmaint/.dmrc'
+</pre>
+
+* needs to be run under user sysmaint to avoid permission issues
+* needs Depends: safe-rm maybe?
+* sysmaint-panel folder /usr/lib/systemd/system doesn’t seem right for a gui package. Maybe...
+** user-sysmaint-split-cli
+** user-sysmaint-split-gui
+** sysmaint-panel
+*** would be a good split?
+*** But actually we can get that down to 2 packages only. user-sysmaint-split + sysmaint-panel
+* move https://github.com/Kicksecure/sysmaint-panel/blob/master/usr/libexec/sysmaint-panel/sysmaint-session
+** to user-sysmaint-split
+** How? By making sysmaint-panel a "plugin" or "extension".
+
+<pre>
+xfwm4 &
+# Needed to prevent window ordering problems
+sleep 1;
+sysmaint-panel
+</pre>
+
+* could be changed to: if available, run sysmaint-panel. otherwise, just open a terminal. Pseudo code, untested:
+
+<pre>
+xfwm4 &
+# Needed to prevent window ordering problems
+sleep 1;
+## NOTE: bashism
+if command -v sysmaint-panel &>/dev/null ; then
+  sysmaint-panel
+else
+  /usr/libexec/helper-scripts/terminal-wrapper "$SHELL"
+fi
+</pre>
+
+* add a sysmaint-panel <code>/usr/share/desktop/sysmaint-panel.desktop</code> file
+* check file <code>help-steps/pre</code> function <code>root_check</code>
+** something similar is required for sysmaint-panel
+** if sudo cannot be executed -> show an error message, explain to boot into sysmaint, show a link
+* sysmaint-panel: honor signal sigterm
+* https://github.com/ArrayBolt3/sysmaint-panel
+* https://github.com/ArrayBolt3/user-sysmaint-split
+* https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
 
 = ARCHIVED =
 == user-sysmaint-split ==

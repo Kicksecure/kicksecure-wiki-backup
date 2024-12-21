@@ -72,6 +72,81 @@ TODO: document topics not covered yet
 * snoopy
 * Logging off idle users
 
+= Meanings of special characters in the password field of /etc/shadow file =
+
+In case you are not using {{ project_name_long }}, it is advisable to consult your OS documentation, as special characters might be different and have different meaning depending on the openssh-server build flags passed by the package maintainer or yourself.
+
+Shadowed password file has fields delimited by <code>:</code>. The file stores user <u>passwords</u> in the <u>second field</u>, almost always hashed unless user set the password manually with a tool that doesn't hash the password.
+
+Behind the scenes, <u>shadow(5)</u> interacts with <u>crypt(3)</u> for password manipulation, <u>crypt(3)</u> generates the hashed password with always entirely printable ASCII and do not contain whitespace, '''!''', '''*''', ''':''', ''';''', and '''\''', therefore reserving them for special meaning to be used by interacting tools such as <u>passwd(5)</u> and <u>shadow(5)</u>. The usage of ''';''' and '''\''' in the shadow password field is undocumented and possibly used depending on the <u>passwd(5)</u> implementation, using them is discouraged as programs that read the hashed password such as SSH might not understand it's meaning.
+
+'''Note''': do not edit the <code>/etc/shadow</code> file directly, instead, use proper tools to interact with it such as <code>adduser</code> and <code>passwd</code>. Note that not all tools allows setting arbitrary special characters or modifying the password after creation.
+
+'''Tools with options discouraged from being used''':
+
+'''<code>usermod</code>''':
+* <code>-p,--password PASSWORD</code> expects the password to be already encrypted.
+'''<code>useradd</code>''':
+* <code>-p,--password PASSWORD</code> expects the password to be already encrypted.
+* can not modify passwords of already existing users.
+
+'''Recommended usage''':
+
+'''<code>usermod</code>''':
+* <code>-L,--lock</code> locks the password.
+* <code>-U,--unlock</code> unlocks the password.
+
+'''<code>passwd</code>''':
+* <code>-l,--lock</code> locks the password.
+* <code>-u,--unlock</code> unlocks the password.
+
+'''<code>adduser</code>''':
+* <code>--disabled-login</code> locks the password (but may also change the shell to <code>/usr/sbin/nologin</code> if <code>--system</code> is used).
+* <code>--disabled-password</code> disables the password.
+
+'''Table:''' ''<code>/etc/shadow</code>  Special Characters Comparison Table''
+
+{| class="wikitable"
+|+ Special characters in the password field
+! Symbol <!-- Special symbol -->
+! Field <!-- Which field it is in -->
+! Meaning <!-- What it indicates -->
+! Explanation <!-- Details -->
+|-
+
+| <!-- Symbol --> <code>!</code>
+| <!-- Field --> First character
+| <!-- Meaning --> Locked password
+| <!-- Explanation --> When <code>!</code> appears in the aforementioned field, the account is locked and the user cannot authenticate using a password.
+|-
+
+| <!-- Symbol --> <code>*</code>
+| <!-- Field --> First character or after <code>!</code>
+| <!-- Meaning --> Disabled password
+| <!-- Explanation --> When <code>*</code> appears in the aforementioned field, the account is disabled and the user cannot authenticate using a password.
+|-
+
+| <!-- Prefix --> <code>$PREFIX$PASS</code>
+| <!-- Field --> Last field
+| <!-- Meaning --> Hashing scheme and hashed passphrase
+| <!-- Explanation --> The example uses as an example <code>PREFIX</code> for the hashing prefix and <code>PASS</code> for the hashed passphrase. Nothing prevents a user from adding a plain-text password that follows the same syntax.
+|-
+
+|}
+
+Fields can coexist, enforcement of characters meanings are done left to right. Here are some examples:
+
+{{CodeSelect|code=
+!               # password locked
+!!              # password never set (Red Hat syntax), unlocked
+!*              # password locked and disabled
+*               # password disabled
+$PREFIX$PASS    # password set
+!$PREFIX$PASS   # password set, locked
+!*$PREFIX$PASS  # password set, locked and disabled
+*$PREFIX$PASS   # password set, disabled
+}}
+
 = Attribution =
 {{sdebian
 |link=https://www.debian.org/doc/manuals/securing-debian-manual/ch04s11.en.html#user-limits
