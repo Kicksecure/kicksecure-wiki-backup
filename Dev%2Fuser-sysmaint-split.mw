@@ -6,13 +6,13 @@ user-sysmaint-split
 |description=user-sysmaint-split - Role-Based Boot Modes - Persistent User / Live user / Persistent sysmaint (system maintenance)
 }}
 {{passwords_mininav}}
-[[File:Grub-boot-icon.jpg|300px|thumb]]
+[[File:Grub-boot-icon.jpg|250px|thumb]]
 {{intro|
 <code>user-sysmaint-split</code> - Role-Based Boot Modes - Persistent User / Live user / Persistent sysmaint (system maintenance) and their use cases.
 }}
 {{mbox
 |icon=fa-solid fa-exclamation cs-yellow
-|text=This is a concept still in development. Waiting for implementation. Help welcome!
+|text=In development.
 }}
 = Introduction =
 
@@ -57,9 +57,9 @@ Common use cases tailored to the available boot modes:
 
 {| class="wikitable"
 ! Feature
-! <code>[[Persistent Mode|PERSISTENT mode]] USER</code>
-! <code>[[Live Mode|LIVE mode]] USER</code>
-! <code>PERSISTENT mode SYSMAINT</code>
+! <code>[[Persistent Mode|{{nowrap|PERSISTENT}} mode]] USER</code>
+! <code>[[Live Mode|{{nowrap|LIVE mode}}]] USER</code>
+! <code>{{nowrap|PERSISTENT}} mode SYSMAINT</code>
 |-
 ! Description
 | For daily activities such as browsing, email, chat, or running a pre-configured server.
@@ -220,13 +220,11 @@ filename                                     purpose
 
 Files should remain in lexical order below <code>/etc/grub.d/20_</code> to avoid conflicts with existing scripts.
 
-Note: Some files may not be created initially (or at all), as outlined in the "Boot Modes Considered Too Unimportant to Be Added to GRUB Default Boot Menu" section.
-
 = Server Support =
 
-GRUB boot menus aren’t easily accessible on many servers. A solution for making these boot modes available on servers is yet to be determined.
+GRUB boot menus aren’t easily accessible on many servers. A solution for making these boot modes available on servers is yet to be determined. Booting a server into sysmaint mode with minimal services (such as SSH, but not web servers, etc.) might not be practical due to downtimes.
 
-<code>user-sysmaint-split</code> will not be installed by default on servers. Meta package <code>kicksecure-host-xfce</code> will come with <code>user-sysmaint-split</code>  by default but meta package <code>kicksecure-host-cli</code> won't.
+<code>user-sysmaint-split</code> will not be installed by default on servers. Meta package <code>kicksecure-host-xfce</code> will come with <code>user-sysmaint-split</code> by default but meta package <code>kicksecure-host-cli</code> won't.
 
 Future work ideas:
 
@@ -237,51 +235,57 @@ Future work ideas:
 = Qubes Support =
 Package <code>qubes-core-agent-passwordless-root</code> will be no longer installed by default in [[Qubes|Kicksecure for Qubes]].
 
-= Todo =
+For administrative actions, users can use a [[Root#Qubes_Root_Console|Qubes Root Console]].
 
-issues with sysmaint mode:
+= Design =
+Should user-sysmaint-split postinst "`run_once`" `sudo delgroup user sudo`? Not needed. Not executable anymore anyhow by limited user accounts such as user <code>user</code>.
+
+Why login into a limited environment inste of a full desktop? A full desktop would pose issues such as:
 
 * systemd units running providing attack surface (think long running file downloads/uploads)
 * start menu offering Firefox etc.
-* ability to run Firefox etc. from the terminal emulator
 
-ideas:
+Implementation:
 
-* minimal GUI
+* <code>sysmaint-boot.target</code>, a systemd target similar to single user mode (kernel parameter <code>single</code>).
+* start minimal services only when booting into sysmaint mode
+* https://github.com/Kicksecure/user-sysmaint-split/blob/master/usr/lib/systemd/system/sysmaint-boot.service systemd unit getting (similar to systemd <code>ConditionKernelCommandLine=boot-role=sysmaint</code>)
+
+Reject alternatives solutions:
+
 * chroot based: complex, messy, two systems to upgrad
 ** You have to get the disk mounts just right or else you will end up with bootloader upgrades and the like failing
 ** You have to potentially deal with encryption and LVM, maybe even RAID and other weird setups
 ** You have two systems to update, which is hard
-* a target similar to <code>single</code> user mode but not really single user mode to avoid issues with real single user mode
-* start minimal services only when booting into sysmaint mode
-** <code>single</code> user mode kernel parameter?
-** https://packages.debian.org/policy-rcd-declarative-deny-all
-** a global <code>ConditionKernelCommandLine=boot-role=sysmaint</code> that applies to all systemd units?
+* <code>single</code> user mode kernel parameter: Doesn't allow login to graphic target.
+* https://packages.debian.org/policy-rcd-declarative-deny-all
 * Start Menu: Hide Firefox and other similar applications when booting into sysmaint mode.
+** Involved implementation . Desktop environment specific.
 * A systray icon could display an sysmaint symbol to indicate the mode.
 * Add a warning:
 ** When starting Firefox in sysmaint mode, a popup message should inform the user to avoid browsing the internet unless absolutely necessary.
+
+remaining issues:
+
+* ability to run Firefox etc. from the terminal emulator
 * Address the challenge of reading documentation after booting into sysmaint mode:
 ** Why read documentation in sysmaint mode?
 *** This is often necessary when performing complex system maintenance tasks.
 *** For online searches or resolving issues.
 *** Using AI assistants.
 *** Posting on forums.
-
-[[Offline Documentation]] is helpful but an insufficient solution.
-
-* Offline documentation often links extensively to upstream resources.
-* Users are encouraged to look up online documentation whenever possible (referring to upstream resources).
-
-Alternatives:
-
-* Ideally, users should perform such tasks on a separate computer.
-* These alternatives might seem impractical but are safer.
-* A less ideal, but safer option is to use a VM for such tasks.
+** [[Offline Documentation]] is helpful but an insufficient solution.
+*** Offline documentation often links extensively to upstream resources.
+*** Users are encouraged to look up online documentation whenever possible (referring to upstream resources).
+** Alternatives:
+*** Ideally, users should perform such tasks on a separate computer.
+*** These alternatives might seem impractical but are safer.
+*** A less ideal, but safer option is to use a VM for such tasks.
 
 = Implementation =
 
 * https://github.com/Kicksecure/user-sysmaint-split
+* https://github.com/Kicksecure/sysmaint-panel
 
 = Prior Versions =
 
