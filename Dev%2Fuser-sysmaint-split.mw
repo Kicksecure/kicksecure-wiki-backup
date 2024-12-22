@@ -9,6 +9,12 @@ user-sysmaint-split
 [[File:Grub-boot-icon.jpg|250px|thumb]]
 {{intro|
 <code>user-sysmaint-split</code> - Role-Based Boot Modes - Persistent User / Live user / Persistent sysmaint (system maintenance) and their use cases.
+
+Security-Driven Design:
+
+* Limited users can't access privilege escalation tools.
+* <code>sysmaint</code> mode isolates system maintenance tasks from daily use.
+* Transitioning between modes enforces a stricter security model.
 }}
 {{mbox
 |icon=fa-solid fa-exclamation cs-yellow
@@ -16,7 +22,7 @@ user-sysmaint-split
 }}
 = Introduction =
 
-This page discusses different boot modes in the {{project_name_long}} operating system, aimed at improving security through role-based boot options. It describes modes like "Persistent User" for daily activities and "Persistent System Maintenance (sysmaint)" for updates, software installation, and full system control. The goal is to isolate user activities and reduce security risks by restricting what each boot mode can access and modify. The page also explains potential opt-outs for users who prefer traditional [[root]] access.
+This page discusses different boot modes in the {{project_name_long}} operating system, aimed at improving security through role-based boot options. It describes modes like "Persistent User" for daily activities and "Persistent System Maintenance (sysmaint)" for updates, software installation, and full system control. The goal is to isolate user activities and reduce security risks by restricting what each boot mode can access and modify. The page also explains potential opt-outs for users who prefer [[unrestricted admin mode]].
 
 These schemes are generic and work for both hosts and VMs. This applies to {{project_name_long}} and derivatives of {{project_name_long}}, such as {{whonix}}.
 
@@ -61,26 +67,36 @@ Common use cases tailored to the available boot modes:
 ! <code>[[Live Mode|{{nowrap|LIVE mode}}]] USER</code>
 ! <code>{{nowrap|PERSISTENT}} mode SYSMAINT</code>
 |-
+
 ! Description
 | For daily activities such as browsing, email, chat, or running a pre-configured server.
 | Similar to Persistent User but without persistence.
 | For system maintenance tasks such as running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER mode afterward.
 |-
+
 ! File System Access: <code>/usr</code>, <code>/etc</code>
 | {{No}}, read-only
 | {{No}}, read-only
 | {{Yes}}, read-write
 |-
+
 ! File System Access: <code>/home</code>
 | {{Yes}}, read-write
 | {{No}}, read-only
 | {{Yes}}, read-write
 |-
+
 ! [[Verified Boot]] ('''<u>planned</u>''')
 | {{Yes}}, Enabled
 | {{Yes}}, Enabled
 | {{No}}, Disabled
+|-
+
 |}
+
+minimal services
+
+overlay
 
 = Integration with Verified Boot =
 
@@ -91,93 +107,6 @@ When booting into USER, verified boot will be enabled for the purpose of improve
 See also [[Verified_Boot#Verified_Boot_for_User_but_not_for_sysmaint|Verified Boot for User but not for sysmaint]].
 
 '''<u>planned</u>''': Role-Based Boot Modes (<code>user</code> versus <code>sysmaint</code>) will be implemented first. Verified boot is an additional security feature that is planned to be implemented later.
-
-= No Access to Privilege Escalation Tools for Limited Users =
-There are conceptually two groups of users, sysmaint users and limited users.
-
-sysmaint users:
-
-* <code>root</code>
-* <code>sysmaint</code>
-
-Limited users:
-
-* <code>user</code>
-* <code>nginx</code>
-* <code>mysql</code>
-* <code>sdwdate</code>
-* <code>ntp</code>
-* Not a member of groups <code>root</code>, <code>sudo</code>, or <code>wheel</code>.
-* etc.
-
-It is planned that,
-
-* A) user "<code>user</code>" is no longer a member of group <code>sudo</code> by default, and;
-* B) limited Linux user accounts such as user "<code>user</code>" will no longer have access to any of the following Privilege Escalation Tools applications:
-** <code>sudo</code>
-** <code>su</code>
-** <code>doas</code>
-** <code>pkexec</code>
-
-This is because Privilege Escalation Tools are SUID applications, which can be a security risk for local privilege escalation (such as from <code>user</code> to root). SUID related risks are elaborated on the [[SUID Disabler and Permission Hardener]] wiki page.
-
-<u>Prerequisite Knowledge:</u>
-
-* Linux file system permission basics.
-* <code>owner</code> (<code>u</code>)
-* <code>group</code> (<code>g</code>)
-* <code>others</code> (<code>o</code>) (public)
-* <code>read</code> (<code>r</code>)
-* <code>write</code> (<code>w</code>)
-* <code>execute</code> (<code>x</code>)
-
-<u>Comparison:</u>
-
-'''Debian:''' Privilege Escalation Tools (such as <code>sudo</code> and similar programs) are, as per Debian default, owned by user <code>root</code> and group <code>root</code>. These can be <code>read</code> and <code>execute</code> by <code>owner</code>, <code>group</code>, and <code>others</code>. (<code>chmod 755</code>)
-
-{{CodeSelect|code=
-chmod-calc /usr/bin/sudo
-}}         
-
-<pre>
-Permissions for: /usr/bin/sudo
-Type: Regular File
-Owner: root
-Group: root
-Octal Permissions: 755
-File Size: 281624 bytes
-Link Count: 1
-Hidden File: No
-ACLs: none
-Extended Attributes: none
-Capabilities: None
-Immutable (chattr +i): No
-
-Category   Read   Write  Execute 
-Owner      Yes    Yes    Yes     
-Group      Yes    No     Yes     
-Public     Yes    No     Yes     
-
-Special Attributes:
-SUID: Set
-SGID: Not Set
-Sticky Bit: Not Set
-</pre>
-
-'''Kicksecure Future:''' Privilege Escalation Tools will be owned by group <code>sysmaint</code>. <code>others</code> (which includes user <code>user</code>) will no longer have <code>read</code> or <code>execute</code> rights. (<code>chown root:sysmaint /usr/bin/sudo</code>; <code>chmod o-rw /usr/bin/sudo</code>; same for <code>/bin/sudo</code>)
-
-<pre>
-Group: sysmaint
-
-Category   Read   Write  Execute 
-Owner      Yes    Yes    Yes     
-Group      Yes    No     Yes     
-Public     No     No     No
-</pre>
-
-<u>Implementation Plan:</u>
-
-For this to happen, applications may no longer internally use <code>sudo</code> exceptions (e.g., <code>/etc/sudoers.d</code>). This is further detailed on the [[Dev/sudo]] page.
 
 = Opt-Out to Get the Same Behavior as Old {{project_name_short}} =
 Users who wish "the old {{project_name_short}}" "with unrestricted <code>sudo</code> for user <code>user</code>" back, who don't want the
@@ -219,6 +148,26 @@ filename                                     purpose
 </pre>
 
 Files should remain in lexical order below <code>/etc/grub.d/20_</code> to avoid conflicts with existing scripts.
+
+= Fast User Switching =
+
+The best-case potentially realistic scenario for fast user switching from account <code>user</code> to <code>sysmaint</code> - in theory - would be:
+
+'''1.''' Learn about [[SysRq]].
+
+'''2.''' Logout with "save session" as <code>user</code>. This means saving the session to disk and allowing it to be resumed, but no processes must continue to run.
+
+'''3.''' Use {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (Secure Access Key).
+
+'''4.''' Login into <code>sysmaint</code>.
+
+'''5.''' Perform system administration.
+
+'''6.''' Logout of <code>sysmaint</code>.
+
+'''7.''' Use {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (optional, just to establish the habit).
+
+'''8.''' Resume the <code>user</code> session.
 
 = Server Support =
 
@@ -281,6 +230,94 @@ remaining issues:
 *** Ideally, users should perform such tasks on a separate computer.
 *** These alternatives might seem impractical but are safer.
 *** A less ideal, but safer option is to use a VM for such tasks.
+
+= No Access to Privilege Escalation Tools for Limited Users =
+There are conceptually two groups of users, privileged users and limited users.
+
+Privileged users:
+
+* <code>root</code>
+* <code>sysmaint</code>
+
+Limited users:
+
+* <code>user</code>
+* <code>nginx</code>
+* <code>mysql</code>
+* <code>sdwdate</code>
+* <code>ntp</code>
+* Not a member of groups <code>root</code>, <code>sudo</code>, or <code>wheel</code>.
+* etc.
+
+Limited Linux user accounts such as user "<code>user</code>" no longer have access to any of the following Privilege Escalation Tools applications:
+
+* <code>sudo</code>
+* <code>su</code>
+* <code>doas</code>
+* <code>pkexec</code>
+
+This is because Privilege Escalation Tools are SUID applications, which can be a security risk for local privilege escalation (such as from <code>user</code> to root). SUID related risks are elaborated on the [[SUID Disabler and Permission Hardener]] wiki page.
+
+<u>Prerequisite Knowledge:</u>
+
+* Linux file system permission basics.
+* <code>owner</code> (<code>u</code>)
+* <code>group</code> (<code>g</code>)
+* <code>others</code> (<code>o</code>) (public)
+* <code>read</code> (<code>r</code>)
+* <code>write</code> (<code>w</code>)
+* <code>execute</code> (<code>x</code>)
+
+<u>Comparison:</u>
+
+'''Debian:''' Privilege Escalation Tools (such as <code>sudo</code> and similar programs) are, as per Debian default, owned by user <code>root</code> and group <code>root</code>. These can be <code>read</code> and <code>execute</code> by <code>owner</code>, <code>group</code>, and <code>others</code>. (<code>chmod 755</code>)
+
+{{CodeSelect|code=
+chmod-calc /usr/bin/sudo
+}}         
+
+<pre>
+Permissions for: /usr/bin/sudo
+Type: Regular File
+Owner: root
+Group: root
+Octal Permissions: 755
+File Size: 281624 bytes
+Link Count: 1
+Hidden File: No
+ACLs: none
+Extended Attributes: none
+Capabilities: None
+Immutable (chattr +i): No
+
+Category   Read   Write  Execute 
+Owner      Yes    Yes    Yes     
+Group      Yes    No     Yes     
+Public     Yes    No     Yes     
+
+Special Attributes:
+SUID: Set
+SGID: Not Set
+Sticky Bit: Not Set
+</pre>
+
+'''user-sysmaint-split:''' Privilege Escalation Tools are owned by group <code>sysmaint</code>. <code>others</code> (which includes limited user <code>user</code>) no longer have <code>read</code> or <code>execute</code> rights. (<code>chown root:sysmaint /usr/bin/sudo</code>; <code>chmod o-rw /usr/bin/sudo</code>; same for <code>/bin/sudo</code>)
+
+<pre>
+Group: sysmaint
+
+Category   Read   Write  Execute 
+Owner      Yes    Yes    Yes     
+Group      Yes    No     Yes     
+Public     No     No     No
+</pre>
+
+<u>Implementation Plan:</u>
+
+For this to happen, applications may no longer internally use <code>sudo</code> exceptions (e.g., <code>/etc/sudoers.d</code>). This is further detailed on the [[Dev/sudo]] page.
+
+== user group sudo membership ==
+Limited user "<code>user</code>" can safely safely stay a member of group <code>sudo</code> by default thanks to [[Dev/user-sysmaint-split#No_Access_to_Privilege_Escalation_Tools_for_Limited_Users|No Access to Privilege Escalation Tools for Limited Users]]. This simplifies testing and the process of users wishing to go back to [[unrestricted admin mode]].
 
 = Implementation =
 
