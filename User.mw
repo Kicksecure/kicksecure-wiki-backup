@@ -74,36 +74,11 @@ TODO: document topics not covered yet
 
 = Meanings of Special Characters in the Password Field of /etc/shadow File =
 
-In case you are not using {{ project_name_long }}, it is advisable to consult your OS documentation, as special characters might be different and have different meanings depending on the OpenSSH server build flags passed by the package maintainer or yourself.
+In case you are not using {{ project_name_long }}, it is advisable to consult your OS documentation, as special characters might be different and have different meanings depending on the build flags passed by the package maintainer or yourself when compiling OpenSSH server.
 
 The shadowed password file has fields delimited by <code>:</code>. The file stores user <u>passwords</u> in the <u>second field</u>, almost always hashed unless the user set the password manually with a tool that doesn't hash the password.
 
-Behind the scenes, <u>shadow(5)</u> interacts with <u>crypt(3)</u> for password manipulation. <u>crypt(3)</u> generates the hashed password, which is always entirely printable ASCII and does not contain whitespace, <code>!</code>, <code>*</code>, <code>:</code>, <code>;</code>, or <code>\</code>. These characters are reserved for special meanings to be used by interacting tools such as <u>passwd(5)</u> and <u>shadow(5)</u>. The usage of <code>;</code> and <code>\</code> in the shadow password field is undocumented and possibly dependent on the <u>passwd(5)</u> implementation; using them is discouraged, as programs that read the hashed password, such as SSH, might not understand their meaning.
-
-'''Note:''' Do not edit the <code>/etc/shadow</code> file directly. Instead, use proper tools to interact with it, such as <code>adduser</code> and <code>passwd</code>. Note that not all tools allow setting arbitrary special characters or modifying the password after creation.
-
-== Tools with Options Discouraged from Being Used ==
-
-'''<code>usermod</code>:'''
-* <code>-p, --password PASSWORD</code>: Expects the password to be already encrypted.
-
-'''<code>useradd</code>:'''
-* <code>-p, --password PASSWORD</code>: Expects the password to be already encrypted.
-* Cannot modify passwords of already existing users.
-
-== Recommended Usage ==
-
-'''<code>usermod</code>:'''
-* <code>-L, --lock</code>: Locks the password.
-* <code>-U, --unlock</code>: Unlocks the password.
-
-'''<code>passwd</code>:'''
-* <code>-l, --lock</code>: Locks the password.
-* <code>-u, --unlock</code>: Unlocks the password.
-
-'''<code>adduser</code>:'''
-* <code>--disabled-login</code>: Locks the password (but may also change the shell to <code>/usr/sbin/nologin</code> if <code>--system</code> is used).
-* <code>--disabled-password</code>: Disables the password.
+Behind the scenes, <u>shadow(5)</u> interacts with <u>crypt(3)</u> for password manipulation. <u>crypt(3)</u> generates the hashed password, which is always entirely printable ASCII and does not contain whitespace, <code>!</code>, <code>*</code>, <code>:</code>, <code>;</code>, or <code>\</code>. These characters are reserved for special meanings to be used by interacting tools such as <u>passwd(5)</u> and <u>shadow(5)</u>. The usage of <code>;</code> and <code>\</code> in the shadow password field is undocumented and possibly dependent on the <u>passwd(5)</u> implementation, using them is discouraged, as programs that read the shadowed password file might not understand their meaning and ignore or break the login.
 
 == Table: <code>/etc/shadow</code> Special Characters Comparison Table ==
 
@@ -118,40 +93,186 @@ Behind the scenes, <u>shadow(5)</u> interacts with <u>crypt(3)</u> for password 
 | <!-- Symbol --> <code>!</code>
 | <!-- Field --> First character
 | <!-- Meaning --> Locked password
-| <!-- Explanation --> When <code>!</code> appears in the aforementioned field, the account is locked, and the user cannot authenticate using a password.
+| <!-- Explanation --> The account is locked, and the user cannot authenticate using a password. SSHD prohibits all forms of authentication when <u>sshd_config</u> has <code>UsePAM yes</code>.
 |-
 
 | <!-- Symbol --> <code>*</code>
 | <!-- Field --> First character or after <code>!</code>
 | <!-- Meaning --> Disabled password
-| <!-- Explanation --> When <code>*</code> appears in the aforementioned field, the account is disabled, and the user cannot authenticate using a password.
+| <!-- Explanation --> The account is disabled, and the user cannot authenticate using a password. SSHD permits authentication when it is not by password.
 |-
 
-| <!-- Prefix --> <code>$PREFIX$PASS</code>
-| <!-- Field --> Last field
+| <!-- Prefix --> <code>$PREF$PASS</code>
+| <!-- Field --> After password state symbols if present
 | <!-- Meaning --> Hashing scheme and hashed passphrase
-| <!-- Explanation --> The example uses <code>PREFIX</code> for the hashing prefix and <code>PASS</code> for the hashed passphrase. Nothing prevents a user from adding a plain-text password that follows the same syntax.
+| <!-- Explanation --> The example uses <code>PREF</code> for the hashing scheme and <code>PASS</code> for the hashed passphrase.
 |-
 
 |}
 
-Fields can coexist, and enforcement of character meanings is done left to right. Here are some examples:
+There is no standard meaning of the states of <u>locking</u> and <u>disabling</u> a password, their interpretation depends on the tool that is being used for authentication. Not all operating systems have both modes, some only have the <u>locking</u> mode.
+
+Fields can coexist and evaluation of characters is done left to right. Here are some examples:
 
 {{CodeSelect|code=
-!               # password locked
-!!              # password never set (Red Hat syntax), unlocked
-!*              # password locked and disabled
-*               # password disabled
-$PREFIX$PASS    # password set
-!$PREFIX$PASS   # password set, locked
-!*$PREFIX$PASS  # password set, locked and disabled
-*$PREFIX$PASS   # password set, disabled
+!             # password empty, locked
+!!            # password empty, never set (Red Hat syntax), unlocked
+!*            # password empty, locked and disabled
+*             # password empty, disabled
+$PREF$PASS    # password set
+!$PREF$PASS   # password set, locked
+!*$PREF$PASS  # password set, locked and disabled
+*$PREF$PASS   # password set, disabled
 }}
 
-<code>!</code> is locked from SSH when using <code>UsePAM no</code>, while <code>*</code> is not because:
+The symbols <code>!</code> and <code>*</code> can be seen together (<code>!*</code>) on the password field of users <u>polkitd</u> and <u>systemd-coredump</u>. By default, <code>systemd-sysusers</code> creates accounts disabled using the aforementioned combination. There is no documentation on why this is set besides the phrase in <u>sysusers.d(5)</u>: ''The account will be created disabled, so that logins are not allowed''. We consider it as a way to emphasize the account shouldn't be logon to.
 
-* <code>*</code> is <code>--disabled-password</code>.
-* It is not <code>!</code> (<code>--disabled-login</code>).
+The combination <code>!!</code> is done automatically on some Red Hat's developed operating systems when  the user account was created but no password was set, as a way to emphasize for programs reading the shadowed password file that a password should/must still be set and possibly notify the user from time to time to set a password. On other Linux systems, the presence of at least one <code>!</code> symbol considers the password locked and more than one shouldn't cause any problems or benefits.
+
+Different operating systems consider different symbols for locking. This is a non-exhaustive table of discrepancies of <u>locking</u> symbols per operating system:
+<!-- 
+Table gathered by looking for the hosts and string LOCKED_PASSWD_ in https://salsa.debian.org/ssh-team/openssh/-/blob/master/configure?ref_type=heads
+-->
+
+{| class="wikitable"
+|+ Symbol of Locked Password per Operating System
+! Symbol <!-- Which symbol it uses -->
+! OS <!-- Operating system -->
+|-
+
+| <!-- Symbol --> <code>*LK*</code>
+| <!-- OS --> solaris, irix5, irix6, sysv4.2 and sysv5
+|-
+
+| <!-- Symbol --> <code>!</code>
+| <!-- OS --> linux, k*bsd*-gnu and kopensolaris*-gnu
+|-
+
+| <!-- Symbol --> <code>*</code>
+| <!-- OS --> openbsd
+|-
+
+| <!-- Symbol --> <code>*LOCKED*</code>
+| <!-- OS --> freebsd
+|-
+
+| <!-- Symbol --> <code>Nologin</code>
+| <!-- OS --> dec-osf
+|-
+
+|}
+
+== Tools to Manage an Account's Password State ==
+
+Do not edit the <code>/etc/shadow</code> file directly. Instead, use proper tools to interact with it, relevant ones will be listed below by order of recommendation accompanied by their disadvantages. Please note that different operating systems have different options, the options below were only tested on {{project_name_long}}.
+
+=== Locking a Password ===
+
+{| class="wikitable"
+|+ Locking a Password
+! Tool <!-- Which tool it uses -->
+! Disadvantages <!-- Downsides of this option -->
+|-
+
+| <!-- Tool --> <code>passwd -l,--lock</code>
+| <!-- Disadvantages --> None.
+|-
+
+| <!-- Tool --> <code>usermod -L,--lock</code>
+| <!-- Disadvantages --> None.
+|-
+
+| <!-- Tool --> <code>usermod -p '!'</code>
+| <!-- Disadvantages --> Substitutes everything for <code>!</code>.
+|-
+
+| <!-- Tool --> <code>printf '%s' "USER:!" | chpasswd -c NONE</code>
+| <!-- Disadvantages -->  Substitutes everything for <code>!</code>.
+|-
+
+| <!-- Tool --> <code>useradd</code>
+| <!-- Disadvantages --> Cannot modify existing user's password. Only works when no password is set with <code>-p,--password PASSWORD</code>.
+|-
+
+| <!-- Tool --> <code>adduser --disabled-login</code>
+| <!-- Disadvantages --> Cannot modify existing user's password. May also change the shell to <code>/usr/sbin/nologin</code> if <code>--system</code> is used.
+|-
+
+|}
+
+=== Unocking a Password ===
+
+{| class="wikitable"
+|+ Unlocking a Password
+! Tool <!-- Which tool it uses -->
+! Disadvantages <!-- Downsides of this option -->
+|-
+
+| <!-- Tool --> <code>passwd -u,--unlock</code>
+| <!-- Disadvantages --> Cannot unlock when password is empty.
+|-
+
+| <!-- Tool --> <code>usermod -U,--unlock</code>
+| <!-- Disadvantages --> Cannot unlock when password is empty.
+|-
+
+|}
+
+=== Disabling a Password ===
+
+{| class="wikitable"
+|+ Disabling a Password
+! Tool <!-- Which tool it uses -->
+! Disadvantages <!-- Downsides of this option -->
+|-
+
+| <!-- Tool --> <code>usermod -p '*'</code>
+| <!-- Disadvantages --> Substitutes everything for <code>*</code>.
+|-
+
+| <!-- Tool --> <code>printf '%s' "USER:!" | chpasswd -c NONE</code>
+| <!-- Disadvantages -->  Substitutes everything for <code>*</code>.
+|-
+
+| <!-- Tool --> <code>adduser --disabled-password</code>
+| <!-- Disadvantages --> Cannot modify existing user's password.
+|-
+
+|}
+
+=== Setting a Password ===
+
+{| class="wikitable"
+|+ Setting a Password
+! Tool <!-- Which tool it uses -->
+! Disadvantages <!-- Downsides of this option -->
+|-
+
+| <!-- Tool --> <code>printf '%s' "USER:PASS" | chpasswd</code>
+| <!-- Disadvantages -->  None.
+|-
+
+| <!-- Tool --> <code>passwd</code>
+| <!-- Disadvantages -->  Requires a terminal (unless it has the <code>--stdin</code> option).
+|-
+
+| <!-- Tool --> <code>adduser</code>
+| <!-- Disadvantages --> Cannot modify existing user's password. Requires interaction.
+|-
+
+| <!-- Tool --> <code>useradd -p,--password PASSWORD</code>
+| <!-- Disadvantages --> Cannot modify existing user's password. Expect the password to be already encrypted. Password will be visible in the process list. Cannot lock and set a password with a single command.
+|-
+
+| <!-- Tool --> <code>usermod -p,--password PASSWORD</code>
+| <!-- Disadvantages --> Expect the password to be already encrypted. Password will be visible in the process list. Cannot lock and set a password with a single command.
+|-
+
+|}
+
+=== Enable a Password or Unlock an Empty Password ===
+
+There isn't a tool with an option to enable the password (remove the <code>*</code> prefix) or unlock a password (remove the <code>!</code> prefix) if the password is empty. You must set a new password for the account instead. Leaving the password field empty is dangerous and should not be considered as it allows login using only the account name.
 
 = Attribution =
 {{sdebian

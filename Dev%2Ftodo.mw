@@ -22,50 +22,6 @@ TODO
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== investigate dracut-config-generic ==
-* VM images use dracut-config-generic because help-steps/variables has:
-
-<pre>
-[ -n "$BUILD_INITRAMFS_DRACUT" ] || BUILD_INITRAMFS_DRACUT="dracut dracut-live dracut-config-generic binutils dmsetup pigz"
-</pre>
-
-* ISO images do not have dracut-config-generic
-
-<pre>
-apt-file list dracut-config-generic 
-dracut-config-generic: /etc/dracut.conf.d/20-generic-image.conf
-cat /etc/dracut.conf.d/20-generic-image.conf
-hostonly="no"
-</pre>
-
-* TODO: Would it be useful to have this package also on the ISO? Specifically since it would be useful if this package ends up on the installed system to always have a generic initial ramdisk as well as for feature/bug parity with VM images.
-* Patrick: Seems actually already done as per:
-
-<pre>
-live-build/scripts/build/config:                        NEEDED_PACKAGES="live-config live-config-systemd systemd-sysv dracut-live dracut-config-generic dracut"
-</pre>
-
-== boot modes wiki page review ==
-* [[Dev/user-sysmaint-split]] has been updated
-* Please review.
-* Ideas for chapter [[Dev/user-sysmaint-split#Server_Support|Server Support]], and
-* chapter [[Dev/user-sysmaint-split#Todo|Todo]]?
-* Related to upcoming tasks run0, sudoless, doas.
-* I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
-** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-sysmaint-split package uninstallable: dummy-dependency user-sysmaint-split
-*** Aaron: Sounds good.
-**** Patrick: Wiki page updated.
-* Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
-** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
-* Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
-** Patrick: This would mean to boot the server always into admin mode? In that case, perhaps better to go back to "classic"?
-*** Aaron: Yes, and that's included in the dummy-dependency user-sysmaint-split plan, so that's what we can do. Perhaps kicksecure-host-cli should use "classic" mode by default and kicksecure-host-xfce should use "user-sysmaint-split" by default?
-**** Patrick: Yes. Wiki page updated.
-* We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
-** Patrick: Yes.
-* We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
-** Patrick: Yes.
-
 == research verified boot and measured boot ==
 * https://www.kicksecure.com/wiki/Dev/About_Computer_(In)Security
 * https://www.kicksecure.com/wiki/Hardware_Wallet_Security
@@ -158,63 +114,6 @@ Host key verification failed.
 * boot guard -> dasharo (3MDEB) firmware -> heads (?) -> verify Debian's kernel against Debian's key?
 * maybe the unchangeable root of trust would be well placed with boot guard, dasharo. the hopefully socially incorruptible organisation becoming the caretaker of taking care the most difficult parts.
 * key management could be done at a "simpler level". at the level of heads (or similar).
-
-== ISO - use BUILD_INITRAMFS_PKGS ==
-* todo: could you please use $BUILD_INITRAMFS_PKGS (already existing variable) instead of hardcoding dracut as initramfs generator?
-
-== Qubes umask ticket ==
-* /etc/sudoers.d/umask
-* https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
-
-== investigate porting from sudo to doas ==
-* https://forums.whonix.org/t/replace-sudo-with-doas/17482
-* can our /etc/sudoers.d snippets be ported to doas? is doas powerful enough for our requirements based on our already existing /etc/sudoers.d snippets?
-* could we have a system that no longer requires sudo or would we end up with a system that comes with both, sudo and doas? ("double" attack surface)
-* use ReplaceText as a wiki search engine to find our current uses of sudo because these would need to be ported to doas
-** https://www.kicksecure.com/wiki/Special:ReplaceText
-** https://www.whonix.org/wiki/Special:ReplaceText
-** search terms:
-** <code>sudo</code>
-** <code>lxsudo</code>
-* Ensure sudoers.d config files used in Kicksecure and Whonix on Qubes OS can be ported to doas
-* Did an audit of all uses of sudo in kickseure and whonix codebases, and how difficult they should be to port to doas. Results:  https://gist.github.com/ArrayBolt3/6699ec4c631fec28e1f4c0a2e657fcd7
-
-== doas - send pull requests to Qubes ==
-* [[Dev/todo#Qubes_doas_ticket|Qubes doas ticket]] might be unlikely to get rejected. But replies could take a while.
-* Please send a pull requests. Since it is only 2 packages, 3 files the wasted effort if this gets rejected might be low enough?
-
-<pre>
-qubes-core-agent: /etc/sudoers.d/qt_x11_no_mitshm
-qubes-core-agent: /etc/sudoers.d/umask
-
-qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
-</pre>
-
-== create /usr/local/etc/doas.d /etc/doas.d parser and /etc/doas.conf configuration file creator ==
-* parse /usr/local/etc/doas.d
-* parse /etc/doas.d
-* parse only configuration files ending with <code>.conf</code>
-* do not overwrite a file that does not contain our auto generated configuration file (could be user custom file)
-** echo a warning in that case
-* atomic, create variable then use sponge
-* add to security-misc
-* add a dpkg trigger
-* <code>/etc/doas.conf</code> would require a header pointing out it is auto-generated.
-
-<pre>
-## Do not edit this file!
-## Please create and add modifications to the following file instead:
-## /usr/local/etc/torrc.d/50_user.conf
-
-## This file was auto generated by '$BASH_SOURCE' at APT package installation time (a dpkg trigger).
-</pre>
-
-== doas - add to security-misc permission hardener whitelist ==
-* todo
-
-== doas - create /etc/doas.d configuration snippets ==
-* add /etc/doas.d configuration snippets to the various packages needing these
-* if possible, pending discussion in https://forums.whonix.org/t/replace-sudo-with-doas/17482/19 for review of sudoers.d snippets by upstream
 
 == audio ==
 === audio generally ===
@@ -513,6 +412,44 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== ISO - Debug chsh failure ==
+<pre>
+/var/lib/dpkg/info/dist-base-files.postinst: INFO: Setting shell for user 'user' to zsh.
+Password:
+chsh: PAM: Authentication failure
+/var/lib/dpkg/info/dist-base-files.postinst: ERROR: Command 'chsh --shell /usr/bin/zsh user' failed. This is only a minor issue.
+</pre>
+
+* Possibly caused by this commit? https://github.com/Kicksecure/dist-base-files/commit/e4ba4e8ffc43f5ec3326c742bf86d56c34f23d79
+* We're trying to set the shell to zsh before the /etc/shells file is updated. Setting zsh as a Pre-Depends of dist-base-files silently failed to resolve this, thus had to be added to Kicksecure's package list at the appropriate location.
+* Fixed: https://github.com/ArrayBolt3/derivative-maker/commit/ce6e8e5da6b3428eb36b1f7650edfab54436e5d2
+
+== ISO - use BUILD_INITRAMFS_PKGS ==
+* todo: could you please use $BUILD_INITRAMFS_PKGS (already existing variable) instead of hardcoding dracut as initramfs generator?
+* Done: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
+== boot modes wiki page review ==
+* [[Dev/user-sysmaint-split]] has been updated
+* Please review.
+* Ideas for chapter [[Dev/user-sysmaint-split#Server_Support|Server Support]], and
+* chapter [[Dev/user-sysmaint-split#Todo|Todo]]?
+* Related to upcoming tasks run0, sudoless, doas.
+* I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
+** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-sysmaint-split package uninstallable: dummy-dependency user-sysmaint-split
+*** Aaron: Sounds good.
+**** Patrick: Wiki page updated.
+* Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
+** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
+* Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
+** Patrick: This would mean to boot the server always into admin mode? In that case, perhaps better to go back to "classic"?
+*** Aaron: Yes, and that's included in the dummy-dependency user-sysmaint-split plan, so that's what we can do. Perhaps kicksecure-host-cli should use "classic" mode by default and kicksecure-host-xfce should use "user-sysmaint-split" by default?
+**** Patrick: Yes. Wiki page updated.
+* We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
+** Patrick: Yes.
+* We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
+** Patrick: Yes.
+* Added some more ideas, including thoughts for server support. I don't think we need a todo chapter since this dev/todo document works as that.
+
 == review USBGuard pull request ==
 * https://github.com/Kicksecure/security-misc/pull/166
 * https://usb-ids.gowdy.us/read/UC/
@@ -594,6 +531,31 @@ fi
 * https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
 
 = ARCHIVED =
+== investigate dracut-config-generic ==
+* VM images use dracut-config-generic because help-steps/variables has:
+
+<pre>
+[ -n "$BUILD_INITRAMFS_DRACUT" ] || BUILD_INITRAMFS_DRACUT="dracut dracut-live dracut-config-generic binutils dmsetup pigz"
+</pre>
+
+* ISO images do not have dracut-config-generic
+
+<pre>
+apt-file list dracut-config-generic 
+dracut-config-generic: /etc/dracut.conf.d/20-generic-image.conf
+cat /etc/dracut.conf.d/20-generic-image.conf
+hostonly="no"
+</pre>
+
+* TODO: Would it be useful to have this package also on the ISO? Specifically since it would be useful if this package ends up on the installed system to always have a generic initial ramdisk as well as for feature/bug parity with VM images.
+* Patrick: Seems actually already done as per:
+
+<pre>
+live-build/scripts/build/config:                        NEEDED_PACKAGES="live-config live-config-systemd systemd-sysv dracut-live dracut-config-generic dracut"
+</pre>
+
+* Aaron: Confirmed, chrooting into the squashfs on a live-build-built Kicksecure ISO and running <code>dpkg-query -s dracut-config-generic</code> shows that it is <code>install ok installed</code>. Furthermore the <code>20-generic-image.conf</code> file exists on the ISO.
+
 == investigate sudoless ==
 * https://github.com/secureblue/secureblue/releases/tag/v4.2.0
 * https://www.kicksecure.com/wiki/Dev/secureblue#sudoless
@@ -897,6 +859,68 @@ error: `/grub2/fonts/unicode.pf2' not found
 [[Dev/todo/archived]]
 
 = backlog - one day =
+== Qubes umask ticket ==
+* /etc/sudoers.d/umask
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/22
+* This was only needed if migrating to doas. Superceded by sudoless mode, moved to backlog
+
+== investigate porting from sudo to doas ==
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482
+* can our /etc/sudoers.d snippets be ported to doas? is doas powerful enough for our requirements based on our already existing /etc/sudoers.d snippets?
+* could we have a system that no longer requires sudo or would we end up with a system that comes with both, sudo and doas? ("double" attack surface)
+* use ReplaceText as a wiki search engine to find our current uses of sudo because these would need to be ported to doas
+** https://www.kicksecure.com/wiki/Special:ReplaceText
+** https://www.whonix.org/wiki/Special:ReplaceText
+** search terms:
+** <code>sudo</code>
+** <code>lxsudo</code>
+* Ensure sudoers.d config files used in Kicksecure and Whonix on Qubes OS can be ported to doas
+* Did an audit of all uses of sudo in kickseure and whonix codebases, and how difficult they should be to port to doas. Results:  https://gist.github.com/ArrayBolt3/6699ec4c631fec28e1f4c0a2e657fcd7
+* Superceded by sudoless mode, moved to backlog
+
+== doas - send pull requests to Qubes ==
+* [[Dev/todo#Qubes_doas_ticket|Qubes doas ticket]] might be unlikely to get rejected. But replies could take a while.
+* Please send a pull requests. Since it is only 2 packages, 3 files the wasted effort if this gets rejected might be low enough?
+
+<pre>
+qubes-core-agent: /etc/sudoers.d/qt_x11_no_mitshm
+qubes-core-agent: /etc/sudoers.d/umask
+
+qubes-input-proxy-sender: /etc/sudoers.d/qubes-input-trigger
+</pre>
+
+* Superceded by sudoless mode, moved to backlog
+
+== create /usr/local/etc/doas.d /etc/doas.d parser and /etc/doas.conf configuration file creator ==
+* parse /usr/local/etc/doas.d
+* parse /etc/doas.d
+* parse only configuration files ending with <code>.conf</code>
+* do not overwrite a file that does not contain our auto generated configuration file (could be user custom file)
+** echo a warning in that case
+* atomic, create variable then use sponge
+* add to security-misc
+* add a dpkg trigger
+* <code>/etc/doas.conf</code> would require a header pointing out it is auto-generated.
+
+<pre>
+## Do not edit this file!
+## Please create and add modifications to the following file instead:
+## /usr/local/etc/torrc.d/50_user.conf
+
+## This file was auto generated by '$BASH_SOURCE' at APT package installation time (a dpkg trigger).
+</pre>
+
+* Superceded by sudoless mode, moved to backlog
+
+== doas - add to security-misc permission hardener whitelist ==
+* todo
+* Superceded by sudoless mode, moved to backlog
+
+== doas - create /etc/doas.d configuration snippets ==
+* add /etc/doas.d configuration snippets to the various packages needing these
+* if possible, pending discussion in https://forums.whonix.org/t/replace-sudo-with-doas/17482/19 for review of sudoers.d snippets by upstream
+* Superceded by sudoless mode, moved to backlog
+
 == bootloader password ==
 * https://forums.kicksecure.com/t/harden-grub-bootloader-using-bootloader-password/723
 
