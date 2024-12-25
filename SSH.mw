@@ -502,53 +502,88 @@ This ensures the outgoing rules you have are the only ones that allow traffic. I
 This should complete the SSH setup. Some people also recommend re-generating the moduli file that comes in <code>/etc/ssh</code>. If you use the settings above, look at the kex algorithms. Since no diffie hellman group exchange kex algorithms are used to exchange keys, it is unnecessary to regenerate the moduli. The chosen kex algo is curve25519.
 
 = SSH Login Comparison Table =
-'''NOTE: Not yet verified! Could be wrong! Use with caution! Work in progress!'''
-<!-- TODO: reviewer note: verify all claims made by memory -->
+
+'''Note''': Shadowed file password symbol evaluation is done left to right, if a password locked or disabled and a plain-text or encrypted password is set, the password can't be used for password-based logins.
 
 '''Table:''' ''SSH Login Comparison Table''
 
 {| class="wikitable"
 |+ Effects of Password State on User Login
-! Unlocked Password <!-- Unlocked password -->
-! <code>UsePAM</code> Option <!-- PAM setting -->
+! Password State <!-- Password state -->
 ! <code>AuthenticationMethod</code> Options <!-- Authentication method -->
+! <code>UsePAM</code> Option <!-- PAM setting -->
+! <code>PermitEmptyPasswords</code> Option <!-- Permit empty passwords -->
 ! Login Outcome <!-- Login result -->
 ! Explanation <!-- Why -->
 |-
 
-| <!-- Unlocked password --> {{Yes}}
-| <!-- PAM setting --> {{Yes}}
-| <!-- Authentication method --> Any
+| <!-- Password state --> Password set
+| <!-- Authentication method --> Any.
+| <!-- PAM setting --> Irrelevant
+| <!-- Permit empty passwords --> Irrelevant
 | <!-- Login result --> {{Yes}}
-| <!-- Why --> PAM checks the shadow file and an unlocked password allows all types of login.
+| <!-- Why --> SSHD or PAM checks the shadow file and an unlocked password allows any type of login.
 |-
 
-| <!-- Unlocked password --> {{Yes}}
-| <!-- PAM setting --> {{No}}
-| <!-- Authentication method --> Any
+| <!-- Password state --> Empty
+| <!-- Authentication method --> <code>none</code>
+| <!-- PAM setting --> Irrelevant
+| <!-- Permit empty passwords --> {{Yes}}
 | <!-- Login result --> {{Yes}}
-| <!-- Why --> SSHD checks the shadow file an unlocked passwords allows login.
+| <!-- Why --> SSHD or PAM checks the shadow file and an empty password allows <code>none</code> type login.
 |-
 
-| <!-- Unlocked password --> {{No}}
-| <!-- PAM setting --> {{Yes}}
-| <!-- Authentication method --> <code>password</code> or <code>none</code>.
+| <!-- Password state --> Empty
+| <!-- Authentication method --> <code>none</code>
+| <!-- PAM setting --> Irrelevant
+| <!-- Permit empty passwords --> {{No}}
 | <!-- Login result --> {{No}}
-| <!-- Why --> PAM checks the shadow file and a locked password prohibits login.
+| <!-- Why --> SSHD or PAM checks the shadow file and an empty password prohibits <code>none</code> type login.
 |-
 
-| <!-- Unlocked password --> {{No}}
-| <!-- PAM setting --> {{Yes}}
-| <!-- Authentication method --> '''Not''' with <code>password</code> or <code>none</code>.
-| <!-- Login result --> {{Yes}}
-| <!-- Why --> PAM checks the shadow file but ignores locked password as authentication is not password-based.
-|-
-
-| <!-- Unlocked password --> {{No}}
-| <!-- PAM setting --> {{No}}
-| <!-- Authentication method --> Any
+| <!-- Password state --> Disabled
+| <!-- Authentication method --> <code>password</code>
+| <!-- PAM setting --> Irrelevant
+| <!-- Permit empty passwords --> Irrelevant
 | <!-- Login result --> {{No}}
-| <!-- Why --> SSHD checks the shadow file and a locked passwords prohibits login.
+| <!-- Why --> SSHD or PAM checks the shadow file and a disabled password prohibits password-based login.
+|-
+
+| <!-- Password state --> Disabled
+| <!-- Authentication method --> '''Not''' with <code>password</code>
+| <!-- PAM setting --> Irrelevant
+| <!-- Permit empty passwords --> Irrelevant
+| <!-- Login result --> {{Yes}}
+| <!-- Why --> SSHD or PAM checks the shadow file and ignores disabled password as it is non password-based login.
+|-
+
+| <!-- Password state --> Locked
+| <!-- Authentication method --> <code>password</code>.
+| <!-- PAM setting --> {{Yes}}
+| <!-- Permit empty passwords --> Irrelevant
+| <!-- Login result --> {{No}}
+| <!-- Why --> PAM checks the shadow file and locked password prohibits password-based login.
+|-
+
+| <!-- Password state --> Locked
+| <!-- Authentication method --> '''Not''' with <code>password</code>
+| <!-- PAM setting --> {{Yes}}
+| <!-- Permit empty passwords --> Irrelevant
+| <!-- Login result --> {{Yes}}
+| <!-- Why --> PAM checks the shadow file and ignores locked password as it is non password-based login.
+|-
+
+| <!-- Password state --> Locked
+| <!-- Authentication method --> Any.
+| <!-- PAM setting --> {{No}}
+| <!-- Permit empty passwords --> Irrelevant
+| <!-- Login result --> {{No}}
+| <!-- Why --> SSHD checks the shadow file and a locked password prohibits any type of login. <ref>
+sshd journal log:
+<pre>
+sshd[7740]: User user not allowed because account is locked
+</pre>
+</ref>
 |-
 
 |}
