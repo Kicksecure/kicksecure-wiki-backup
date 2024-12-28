@@ -10,29 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== calamares dual legacy + efi booting support ==
-* as discussed
-
-== permission-hardener refactor ==
-* Avoid lazy loading, instead build state arrays and apply them in an idempotent fashion
-* Currently planned algorithm:
-** Build the state first, starting with an empty state array if there is no state or loading an existing state array if there is state. For each file mentioned in the policy, check to see if it's in the state array, and if not, add its current user owner, group owner, and permissions state to the array. (TODO: How to handle capabilities? For now we can just support stripping them and not support adding them back.)
-** Next, apply the policy to the state. Copy the state array to a new array, and then change the user owner, group owner, permissions state, and capabilities to match the policy. It is important that it be done this way, because this means if the policy used to modify a file, but now no longer does, that file's original permissions state will exist in the state array, and thus will be considered part of the state that permissions-hardener applies.
-** Apply the built, policy-enhanced state to the filesystem's active state. For each file in the state array, delete the file's entry in dpkg-statoverride, then change the file's actual state to match the state array (again using dpkg-statoverride to do this)
-** To undo a policy for a file, load the state file, wipe the dpkg-statoverride entry for it, and then apply the stored state to the real file.
-
-== investigate Debian Rolling ==
-* investigate why Debian Rolling initiative failed
-** From initial research:
-*** Lots of disagreement about how exactly to implement it, although https://lists.debian.org/debian-devel/2011/05/msg00275.html had a very large amount of positive feedback compared to other proposals
-**** See also DEP-10 (https://dep-team.pages.debian.net/deps/dep10/) which is somewhat orthogonal but related
-*** Limited manpower, no one appears to have tried to actually do it
-*** Need to cope with the activity occurring in Debian's unstable and testing repositories, which have some turbulence and can cause issues if one isn't careful
-*** Likely worth trying to resurrect
-* contact people involved previously, if that makes sense
-* suggest prospective developers
-* Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
-
 == research verified boot and measured boot ==
 * https://www.kicksecure.com/wiki/Dev/About_Computer_(In)Security
 * https://www.kicksecure.com/wiki/Hardware_Wallet_Security
@@ -126,8 +103,70 @@ Host key verification failed.
 * maybe the unchangeable root of trust would be well placed with boot guard, dasharo. the hopefully socially incorruptible organisation becoming the caretaker of taking care the most difficult parts.
 * key management could be done at a "simpler level". at the level of heads (or similar).
 
+== user-admin-split - Qubes support ==
+* sysmaint-panel is probably functional as is?
+* user-admin-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
+* Plan for Qubes?
+** No longer install qubes-core-agent-passwordless-root by default.
+** Install user-admin-split by default in new templates.
+** Users could not really use account sysmaint due to missing X server. Instead, user needs to use a [[Root#Qubes_Root_Console|Qubes Root Console]].
+* user documentation
+* suggestions for https://github.com/QubesOS/qubes-issues/issues/9519?
+
+== user-admin-split - Wayland support ==
+* todo
+* ssdm support (because that is LXQt's default login manager)
+
+== grml-debootstrap - fix UEFI bootloader updates ==
+* https://github.com/grml/grml-debootstrap/issues/297
+* please send a pull request upstream
+
+== calamares dual legacy + efi booting support ==
+* as discussed
+
+== investigate Debian Rolling ==
+* investigate why Debian Rolling initiative failed
+** From initial research:
+*** Lots of disagreement about how exactly to implement it, although https://lists.debian.org/debian-devel/2011/05/msg00275.html had a very large amount of positive feedback compared to other proposals
+**** See also DEP-10 (https://dep-team.pages.debian.net/deps/dep10/) which is somewhat orthogonal but related
+*** Limited manpower, no one appears to have tried to actually do it
+*** Need to cope with the activity occurring in Debian's unstable and testing repositories, which have some turbulence and can cause issues if one isn't careful
+*** Likely worth trying to resurrect
+* contact people involved previously, if that makes sense
+* suggest prospective developers
+* Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
+
+== qubes-template-kicksecure ==
+* https://github.com/QubesOS/qubes-issues/issues/9573
+* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
+* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
+** https://github.com/QubesOS/qubes-builderv2/
+
 == implement sudoless ==
 * [[Dev/sudo]]
+
+== enable sysmaint by default for Xfce version ==
+<pre>
+   #--sysmaint-enable \\
+   #--unrestricted-admin-enable \\
+</pre>
+
+* and for VM images as "loose packages"
+* not for Whonix-Gateway?
+
+== default password ==
+* rationale: virtual console based login attempts. An attacker could connect a keyboard to a server to login.
+* review wiki: [[Default Passwords]]
+* helper-scripts: add a tool that looks user accounts with empty passwords, if feasible
+* GUI ISO: calamares.
+** link to documentation
+** choices:
+*** default: none (user must choose)
+*** passwordless
+*** set a password
+* CLI ISO: non-existent, therefore non-issue for now
+* GUI VM images: A setup-wizard-dist popup should explain this.
+* CLI: an INFO message after login
 
 == audio ==
 === audio generally ===
@@ -264,7 +303,31 @@ sudo apt install serial-console-enable
 == apt-get - implement --restrict-install-recommends proof of concept ==
 * todo
 
+== improved server support ==
+* documentation
+** rebrand wiki CLI for server
+** 
+* Linux account passwords?
+* cloudinit?
+
 = WAITING ON =
+== trixie port - misc ==
+* waiting for trixie to get frozen and stable enough
+* 1) SSH configurations
+** move configuration snippets from [[SSH]] wiki page to security-misc [not completed at time of writing in end of 2024 but should be early next year]
+** https://github.com/Kicksecure/legacy-dist/blob/master/usr/sbin/release-upgrade
+*** add ominous message to release-upgrade script if SSH client or server is installed
+*** point out in distribution morphing instructions
+* 2) repository codename split project names
+** update repository origin value as per https://www.kicksecure.com/wiki/Dev/APT#changed_its_'Origin'_value_from_'whonix'_to_'kicksecure'
+** (revert the revert of https://github.com/Kicksecure/derivative-maker/commit/25f5c7e11afd23f58f40286be1fd9097c31a705e)
+* 3) move pwchange from usability-misc to to helper-scripts
+* 4) convert user-sysmaint-split and sysmaint-panel from "loose packages" to dependencies of the respective meta packages
+** add ominous message to release-upgrade script
+
+== trixie port - meta packages ==
+* implement [[Dev/Metapackages]] when porting to trixie
+
 == review and test IPv6 support pull requests ==
 * https://forums.whonix.org/t/add-ipv6-support/19893
 * https://www.whonix.org/wiki/Dev/ipv6
@@ -396,9 +459,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** https://github.com/linux-pam/linux-pam/issues/842
 ** https://github.com/sudo-project/sudo/issues/415
 
-== trixie port - meta packages ==
-* implement [[Dev/Metapackages]] when porting to trixie
-
 == live-build - local repository support ==
 * add support to build from local repository
 * Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
@@ -417,12 +477,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== sysmaint - no autologin if password is set ==
-* If there's a password set, do not auto login. Prompt for password using normal login or display manager mechanism instead.
-* users always need an opt-in way to set passwords, disable autologin.
-* Done: https://github.com/ArrayBolt3/user-sysmaint-split
-
-== iso sysmaint mode ==
+== iso sysmaint mode - #2 ==
 * as discussed
 * Current state (WIP):
 ** live-config-dist changes for unrestricted admin mode, probably shouldn't be merged until Trixie: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
@@ -444,6 +499,55 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/f8db224e179ca7b32cffe7c21d8a159ef3e5abc3
 ** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
 ** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+* Patrick: all merged
+* Another batch of patches:
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+*** Patrick: merged
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/sysmaint
+*** Patrick: needs revision as discussed
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sysmaint
+*** Patrick: same as above
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sysmaint
+*** Patrick: merged
+** live-build: https://salsa.debian.org/ArrayBolt3/live-build/-/commit/8484b589775c9783d396a84babd3c6c4eb53b7c2
+*** Patrick: merged
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+*** Patrick: not merged -> but broken: breaks unrestricted admin mode
+* Patrick: TODO:
+** use config-package-dev displace for /etc/grub.d/10-linux for generic GRUB_DISTRIBUTOR setting based on already existing marker files
+*** Ended up not doing this as it was avoidable and avoiding modifying 10_linux is probably a good idea for safety and maintainability reasons.
+** live-config-dist: fix restricted admin mode
+* Revised patches:
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sysmaint
+** kicksecure-base-files: none, patch deleted as it is no longer needed
+
+== review wiki - shadow and ssh ==
+* https://www.kicksecure.com/wiki/User#Meanings_of_Special_Characters_in_the_Password_Field_of_/etc/shadow_File
+* https://www.kicksecure.com/wiki/SSH#SSH_Login_Comparison_Table
+* Reviewed, added some info to both pages.
+
+== permission-hardener refactor ==
+* Avoid lazy loading, instead build state arrays and apply them in an idempotent fashion
+* Currently planned algorithm:
+** Build the state first, starting with an empty state array if there is no state or loading an existing state array if there is state. For each file mentioned in the policy, check to see if it's in the state array, and if not, add its current user owner, group owner, and permissions state to the array. (TODO: How to handle capabilities? For now we can just support stripping them and not support adding them back.)
+** Next, apply the policy to the state. Copy the state array to a new array, and then change the user owner, group owner, permissions state, and capabilities to match the policy. It is important that it be done this way, because this means if the policy used to modify a file, but now no longer does, that file's original permissions state will exist in the state array, and thus will be considered part of the state that permissions-hardener applies.
+** Apply the built, policy-enhanced state to the filesystem's active state. For each file in the state array, delete the file's entry in dpkg-statoverride, then change the file's actual state to match the state array (again using dpkg-statoverride to do this)
+** To undo a policy for a file, load the state file, wipe the dpkg-statoverride entry for it, and then apply the stored state to the real file.
+* Ready for review: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-refactor
+* PR: https://github.com/Kicksecure/security-misc/pull/293
+
+= ARCHIVED =
+== sysmaint - no autologin if password is set - #2 ==
+* If there's a password set, do not auto login. Prompt for password using normal login or display manager mechanism instead.
+* users always need an opt-in way to set passwords, disable autologin.
+* Done: https://github.com/ArrayBolt3/user-sysmaint-split
+* Patrick: bug found
+** /usr/libexec/user-sysmaint-split/sysmaint-boot. currently we're checking twice kernel boot parameter. i think the logic can be simplified.
+*** if in non-sysmaint (user) boot mode -> lock sysmaint and safe-rm any autologin config files that might exist
+** bug: and let's say "/usr/sbin/lightdm" does exist. but we're not in sysmaint mode. currently what happens: do not delete the lightdm configuration file.
+** Both issues fixed: https://github.com/ArrayBolt3/user-sysmaint-split
 
 == live-config-dist- check-unrestricted-admin TMP folder ==
 * /usr/libexec/live-config-dist/check-unrestricted-admin
@@ -455,7 +559,6 @@ export TMPDIR='/tmp'
 * necessary? needs to be commented or removed
 * Fixed dummy-dependency and removed this from check-unrestricted-admin.
 
-= ARCHIVED =
 == calamares - implement - Allow distros to restrict what filesystems can be used in manual partitioning ==
 * https://github.com/calamares/calamares/issues/2397
 * PR here: https://github.com/calamares/calamares/pull/2400 Awaiting full review from devs.

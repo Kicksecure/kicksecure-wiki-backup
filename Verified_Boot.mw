@@ -645,6 +645,152 @@ against Debian's uefi public key
 
 verify debian efi signatures without using efi
 
+== Firmware and Device requirements (wip) ==
+It's unclear how much effort it is to implement this or how practical it is, however much of it is based upon how Android hardware works so it should be feasible, even if somewhat tricky.
+
+There are four goals that should be achieved with a firmware and device implementation here, in order of importance:
+
+* Whatever OS the user boots needs to be an OS the *user* trusts. Not Microsoft, not 3mdeb, not Kicksecure or anyone else. The user must be the ultimate authority of what does and doesn't boot. Operating systems that are untrusted must be rejected, operating systems that are trusted must be bootable without requiring further confirmation or authentication.
+* As much as is possible, the firmware needs to be low-maintenance. The user should not need to undertake technically difficult tasks in order to operate the firmware in a reasonably secure fashion. In particular:
+** The firmware needs to be able to be pre-installed on the machine in an authenticatable state. Solutions that require the user to install the firmware themselves with special keys (such as what FlashKeeper is intended to require) won't work.
+** If it is at all avoidable, devices along the lines of the Librem Key need to not be involved in the boot process. The user should be able to verify the authenticity of the firmware without needing to have a special USB device or anything similar.
+** The firmware needs to be able to run mainstream Linux-based operating systems without requiring complex gymnastics. (The ability to do a bare-metal installation of Windows is not considered a requirement and would even potentially be an anti-feature, so it can be ignored in considerations about OS compatibility.)
+* The user and firmware must be able to mutually authenticate each other for privileged operations. The user needs to be able to know that the firmware on the machine is not tampered with, and that any communications they make to the machine are being made to the machine they expect to be communicating with. The firmware needs to know that the user issuing security-sensitive commands is the user who owns the device or has been authorized by the device owner.
+* The device must provide some sort of tamper-proof, increment-only counter that can be used to allow individual operating systems to implement rollback protection.
+
+With this in mind, a device and firmawre with Verified Boot support should meet the following requirements. None of these are set in stone, alternate ways of implementing the above goals are fine. These are just ideas for how to implement the above goals effectively.
+
+* The firmware must be UEFI-based.
+** Rationale: There are three major boot "techniques" used by modern boot firmware, those being legacy BIOS boot, UEFI boot, and direct kernel boot. Legacy BIOS boot is inherently insecure because of the lack of a clearly defined bootloader - you have to execute an arbitrary half-kilobyte of code to even *find* the rest of the bootloader, and then there's no guarantee the "rest of the bootloader" pointed to by the boot sector will be contiguous or complete. It's nearly impossible to find what you want to verify before executing it, so BIOS isn't acceptable. Direct kernel boot on the other hand is a problem because it is not easily compatible with mainstream Linux distros - the firmware would have to work as a bootloader too, which requires doing things like parsing GRUB configuration or the config for other bootloaders. This has too much potential to go wrong and requires a large amount of technical skill to operate correctly. UEFI is all that's left, and it conveniently takes care of both the security and usability issues by providing very well-defined bootloaders and allowing the boot process to be handed off to an OS-specific bootloader.
+* The firmware must support user-provided Secure Boot keys, and should make the functionality for installing these keys as easily accessed as possible.
+** Rationale: This is needed to allow the user to decide exactly what OSes they do and don't want to trust. Many users will be installing their own keys, so it is of paramount importance that key installation be safe, easy, and accessible.
+** (As a side-note, this isn't really a firmware requirement half so much as a general device requirement, but no option ROMs can be present in the system, since those require that they be signed with a vendor-provided Secure Boot key, and we cannot rely on any vendor-provided key being preserved by the end-user.)
+* The firmware **MUST NOT** rely on Microsoft's Secure Boot key as a root of trust by default.
+** Rationale: Microsoft's Secure Boot key essentially puts Microsoft in direct control of what operating systems will and won't load by default. This set of operating systems is very large, and Microsoft's key may eventually leak (if it hasn't already).
+* The firmware must embed the Secure Boot keys of several major Linux distros into its configuration by default, and allow the user to switch these keys on and off independently.
+** Rationale: Users should not have to configure Secure Boot keys just to attempt booting an OS. When the user receives a device with Verified Boot, they should be able to unpack it, boot it from a USB, install their Linux distro of choice, and then use it. At the same time, Secure Boot should be enabled by default to provide some degree of security before the user sets up their own keys. The user should also have the power to restrict what OSes the system will boot even without installing their own keys, thus the choice of whether or not to use these keys needs to be configurable. To begin with, it is probably suitable to provide the keys for Debian, Ubuntu, and Fedora. Other major Linux distros with Secure Boot signatures may be considered, even if those distros do not yet have a Microsoft-signed shim (since we're not using Microsoft's keys anyway).
+* The firmware must be upgradable from within a trusted OS.
+** Rationale: People need to be able to install firmware updates without having to open the device and fiddle with chip clips. This is part of being low-maintenance.
+* The firmware must require the user to set up some form of authentication (BIOS password, HSM, or similar) before they can take any action in the firmware settings that affects the system's security, such as installing custom Secure Boot keys, turning Secure Boot off, etc. Once an authentication method has been set up, it is mandatory that the user use that authentication method any time they attempt to change the settings again later.
+** Rationale: Turning off Secure Boot or installing user-specific keys is similar to unlocking the bootloader on an Android phone and then installing keys into a user-settable root of trust. The firmware needs to trust that the user taking these actions is who they say they are, which requires some form of authentication. Furthermore, the user should be able to use Secure Boot as a form of anti-theft, where a thief will be unable to boot any OS on the stolen device other than one which the owner has signed, and they will be unable to change the keys because they cannot authenticate to the firmware.
+* The firmware needs to be able to somehow prove to the user that it is authentic, in a manner that is not vulnerable to relay, replay or other MITM attacks.
+** Rationale: This is one of the core goals.
+** TODO: Detail this, actually give an idea for how to implement it
+* The firmware needs to verify that it has not been downgraded.
+** Rationale: Avoids rollback attacks, this is part of the firmware being able to authenticate to the user.
+* The device needs to provide features required for an OS to implement rollback protection.
+** Rationale: TODO fill this in
+
+=== Firmware authentication, avoiding relay attacks ===
+Authentication is not a new concept at all in computing. Many of the things we do on a daily basis, such as posting on forums, reading emails, and accessing work resources, requires us to authenticate to a machine that we are who we say we are. Interestingly though, the reverse is rarely done - machines rarely authenticate themselves to users. The machine refuses to trust the user until they prove that they are who they say they are, but the user blindly trusts that the machine is who it says it is, and inputs sensitive login credentials to that machine. Most of the time, the machine is who it says it is, and so everything is fine, but every so often you can end up with one machine pretending to be some other machine (for instance, if you click a link in a phishing email). If you provide login credentials to the wrong machine, the machine may be able to authenticate to the real machine as if it were you, providing the operator of the fake machine with access to your data or identity. To avoid this, it's of paramount importance that users have some way to authenticate the machine they are talking to, before authenticating to it in return.
+
+The primary scenario we are concerned with here is firmware authentication, although the principles here can apply to any authentication scenario. The primary question is, how can a user know that the machine they are using is using firmware they trust, and how can they know that they are actually using the machine they think they are?
+
+First, have to establish the threat model. We assume that the user is in a potentially hostile environment. They have to leave a device of theirs unattended for some duration of time, and intend to continue using the device after they return. During the time they are away, an attacker has unrestricted physical access to the device, where they can freely read or modify any components on the system that can be read or modified, including the firmware. The user needs to be able to establish trust in the device when they return, so they can continue using the device safely after the attacker has had access to it. If the attacker has modified the system's state, they must be able to reliably verify that their machine is corrupted, so they can discard it.
+
+In this scenario, how can the user know that the firmware is uncorrupted? A simple way would be to open the machine, read the firmware off the chip, and compare it to a known-good version, but this is a very difficult task, requires access to a substantial amount of equipment, and consumes a large amount of time. It's analogous to a website owner driving to your house and looking at your ID before instructing their website to provide you access to your account, it's just not practical. Thus we need some way for the firmware to be able to tell the user "I am who you think I am" in a reliable fashion.
+
+In order for this to work, we need the firmware to have some sort of shared secret with the user, which the user can verify the firmware has without having to actually transmit that secret over an insecure connection. (For avoidance of doubt, we are considering the machine's display to be an insecure connection, since the attacker can easily view it while tampering with the machine in the user's absence.) The easiest way to do this is via TOTP. The user can have a TOTP secret stored in their phone, and the firmware can have access to that same secret. The user can then compare the TOTP code generated by the firmware with the TOTP code on their phone, and verify that the device is authentic. We can't just embed the TOTP secret into the firmware or store it in a UEFI variable though, because the attacker may be able to read either of those. If they can steal the TOTP secret, they can swap the authentic machine for a fake replacement that can authenticate itself to the user.
+
+To avoid this, the TOTP secret needs to only be accessible if the firmware is unmodified. The firmware can be proven to be unmodified if a cryptographic hash of it matches the cryptographic hash of trusted firmware, but we can't use this fingerprint as an authentication mechanism directly because it could easily be saved by an attacker and displayed to the user fraudulently (i.e. the firmware could show the user any hash it wants, it doesn't have to share its own hash). We need something other than the firmware that can verify the firmware, something the attacker cannot control.
+
+Before we get to that point, let's just assume that we have something that can verify the firmware that is external to the firmware. This external verifier is then able to access a TOTP secret because of the firmware's validity, and it can prove to us that the firmware is unmodified by showing us a TOTP token generated from the secret. Our job is done, right? Well, not exactly, because the attacker has another nifty trick available to them, a relay attack. In essence, how do you *know* that the machine you're typing into is the machine that is receiving your keystrokes? How do you *know* the output you're looking at on the computer screen is actually coming from the computer? You don't, you just assume it. This is a major problem since it means the attacker can steal your computer, put a fake one in its place, and then relay messages between the two. When you boot the malicious computer, it can then send a signal to the real computer to generate a TOTP code. The original computer does so, and dutifully sends it to the malicious computer as if it were trying to authenticate to the user. The malicious computer then displays the TOTP code on the screen, thus fooling the user into thinking that the machine they're using is authentic. So that's another thing we need to grapple with, but first, we need to figure out how to verify the firmware externally.
+
+On the surface, one might think that Intel Boot Guard can work for firmware verification. This is basically Secure Boot for system firmware, it verifies signatures on firmware and only allows it to boot if it is authentic. Boot Guard is implemented on the CPU itself, in firmware that the attacker cannot read or modify. Because of its immutable and secret nature, Boot Guard can be assumed to be trusted (so long as the user trusts Intel), and so if it reports that the firmware is good, we can believe it. There's a bit more work that needs to be done to make sure the firmware is not only trusted by the machine, but is also the firmware the user expects, but we don't need to go that far, since there's a major problem here. How do you know that Intel Boot Guard is actually being used? What if the attacker has swapped your CPU for some other x86_64 implementation that doesn't have Boot Guard at all, or that has a Boot Guard implementation with attacker-controlled keys? You could require the CPU to send you some signed random data that you can then verify the signature of, but now you have a relay attack to worry about (the malicious CPU could forward your request for identify verification to an authentic CPU, which would then send back the verification information to the malicious CPU which would then present it as if it were an authentic reply). So this isn't going to work.
+
+If you stop and think about it, this relay attack possibility is a big problem because every interface in the computer could theoretically just be a relay. Even the firmware itself could just be relayed, meaning the firmware chip might present itself to a verification routine one way and then present malicious code when it came time to actually execute it. Because the relay attack involves the transfer of actual, authentic data, the only hint the user has that they may be experiencing a relay attack is *positional* information. If the device they're talking to is not in the same location as the device they're receiving responses from, a relay attack is occurring. Because of the pervasive threat relay attacks pose, we need to temporarily change our goal in authentication. We don't need to verify the device's identity half so much as we need to verify the device's location.
+
+The first question to ask ourselves is, what information can we send in order to verify the location of the device we're talking to? GPS coordinates are one option, but they require that the entirety of the GPS system (including the GPS receiver used by the user's authentic device ) is trustworthy, accurate, precise, and functional. We can't prove that GPS is trustworthy, and it's easy for it to be inaccurate, imprecise, or non-functional if our authentic machine's GPS receiver is broken or we're in a location where GPS doesn't work at all (underground, for instance). It also can only pinpoint the location of a device on the surface of the earth, which is a severe problem if the authentic device is *under* a malicious device. So this isn't something we can use. Instead, we can use the same technique that is used by GPS for calculating location, which is observing time discrepancies between when a message is sent and when it is received.
+
+When you send a message to a device, it takes some time for that device to respond to that message. The exact amount of time can vary, but it is usually measurable, especially when dealing with individual silicon chips with strict timing limits. If a device's response to a particular message is static or predictable, it's vulnerable to a replay attack, but if the response is dynamic, you can be sure that your message got all the way to the device you're querying, the device actually processed it, and then the response got all the way back to you. You can then time how long this entire cycle takes when you're talking to a device directly. Now imagine you have a relay in between you and the device you're querying. The message has to be transmitted to the relay, then to the device you're actually talking to, and then the response has to go through the relay to get back to you. No matter how short the distances involved are or how fast the equipment you're using is, this is going to add *some* delay that isn't present when querying the device directly. How much delay depends on the speed and location of the components in the relay and the device you're querying, but the delay *will* be longer than normal. (This is ignoring signal integrity and error correction concerns, both of which are irrelevant here because of the short distances and high reliability of communication when using a physical machine in-person. Signal integrity complicates things because if the two devices are far from each other, signals may be corrupted or lost in transit, requiring retransmission to correct. In this scenario, a relay can actually speed up the connection, because the signal between each device and the relay is more reliable than the signal between the two devices directly. WiFi extenders are good examples of this.)
+
+Because of the behavior of delays here, we can use timing to authenticate a device's location. Send a signal, get the response, calculate the delay. A short delay indicates there is no unexpected relay, a not-short delay indicates there is an unexpected relay. What exactly "short" is depends on the device and the situation, and is something that would probably have to be calculated on a per-device basis. Not-short is anything significantly longer than short, where again "significantly longer" may vary from situation to situation and from device to device.
+
+The nice thing about time-based location authentication is that we can combine it with traditional identity authentication. Send an authentication challenge, receive the response, time how long it took for the response to show up. If the response is invalid, or if it took too long to show up, authentication fails. Not only can you combine these two forms of authentication, you actually have to. Otherwise a malicious machine could authenticate its own position to you, but then relay the identity authentication challenge to the real machine. We now have an idea of how a relay-attack-proof authentication model would work.
+
+The primary issue with this form of relay attack prevention is that modern electronics operate too quickly for this to be practical without specialized equipment. A human will generally miss a delay of 50ms or less, and if they're not paying extremely close attention they will almost certainly miss an 80 or even 100ms delay. I can type on my Bluetooth keyboard and see characters show up effectively instantly on my screen, despite there being a wireless link, a Bluetooth card, some chipset circuitry, the CPU and RAM, and a rather long DisplayPort cable in between the keyboard and the screen. All of these are acting as relays, yet despite the relay multitude I don't notice the delay. (It might be barely perceptible if I'm paying extremely close attention, but otherwise I never see it, and even when I do see it, it's so short that I doubt whether I see it or not.) Thus time-based location authentication is not suitable if you're trying to authenticate location without the need for specialized hardware. For now, we'll accept that this is the case, and continue on regardless.
+
+So now, we can authenticate that the device we're talking to is where we think it is. Picking up where we left off before, we need some device that is immutable that is able to read the system's firmware and verify it, and this device needs to have a secret that cannot be read by an attacker, which can be used to verify its authenticity. Intel Boot Guard uses effectively immutable code (the code that the CPU runs is either baked into the chip in ROM or is signed by Intel so the chip can trust it when executing it). However, verifying the authenticity of an Intel CPU is not all that easy - you can do it with Intel TDX, but there isn't any feature in an Intel CPU to my awareness that can be used to verify the authenticity of the CPU very early in the boot process, before system firmware is even loaded. Thus Intel Boot Guard isn't really a good solution here.
+
+TODO: So how do we verify the firmware externally? Flashkeeper has some promise here but it has issues we'd rather avoid. What other options do we have? Do we need custom silicon for this? The device will need to be able to pass a challenge-response via high-speed signature or TOTP verification, and then it will need to verify the firmware, which will then have to pass a high-speed signature or TOTP verification itself using a secret unsealed by the TPM. Or... maybe the verification engine and the firmware chip are combined into one thing? The firmware chip could contain a verification engine that verifies that the firmware is authentic first, then if so, it will respond positively to a high-speed identity challenge, and negatively otherwise. Such a device would have to be resistant to TOCTOU attacks, meaning it has to verify the firmware as the system boots it, not just before the system starts booting.
+
+TODO: Are there CPU features in Intel or AMD hardware that can be used to verify the authenticity of the CPU in a cryptographically secure way before the first instruction is even executed?
+
+TODO: Would it be possible to verify the firmware via an external port? Then the location authentication could be done by measuring the speed of reading the firmware from the external port, and the device doing the measuring would be physically held by the user and thus trusted. It would check the firmware signature and display a notification about whether it passed or not.
+
+TODO: Is there some other way of authenticating location without having to use time? It's very frustrating to require a dedicated piece of hardware for this. GPS isn't a good choice, but maybe something else would work. Alternatively, could a phone be able to handle the time measurements with sufficient precision and accuracy to be usable without needing a special authentication key?
+
+TODO: The 3mdeb founder seems to think D-RTM can help with relay attacks: https://tech.michaelaltfield.net/2023/02/16/evil-maid-heads-pureboot/#comment-43489 It's not totally clear to me how that would work though, it might allow attesting the OS but how would it allow verifying the security of the firmware? Or is the point that the security of the firmware no longer matters at that point because D-RTM has forced everything to a secure state?
+
+TODO: Does the Librem key have measures to avoid relay attacks? How does it work? (I would guess it probably just times the response.)
+
+= misc =
+* https://blog.osfw.foundation/a-comparison-between-open-source-host-firmware-solutions-and-closed-source-uefi/
+* https://keylime.dev/blog/2024/02/07/remote-attestation-blog-part1.html
+
+= Write Protection =
+Does activating the BIOS write protection jumper enforce physical write protection, or is it purely a software mechanism that blocks write operations?
+
+How do traditional floppy disk write-protect mechanisms work, and do they rely solely on hardware enforcement, or is the prevention of write operations dependent on the drive's firmware or software honoring the signal?
+
+* https://en.m.wikipedia.org/wiki/Write_protection
+* https://security.stackexchange.com/questions/265582/why-did-they-stop-adding-physical-write-protect-mechanism
+
+The thread clarifies that traditional floppy disk write-protection mechanisms were not entirely physical but relied on the disk drive to honor the setting. While the write-protect tab physically signaled the drive, it was ultimately the drive's responsibility to enforce write prevention. Similarly, modern SD card write-protect switches serve as advisory signals to software, which can choose to ignore them. This shift away from hardware-enforced write protection reflects cost-saving priorities and consumer demand, with specialized devices available for users needing robust protection. You can read the full discussion here.
+
+* https://www.reddit.com/r/vintagecomputing/comments/1b9ycts/bypass_525_disks_write_protection_when_there_is/
+* https://www.lemon64.com/forum/viewtopic.php?t=67989
+* https://www.kb.cert.org/vuls/id/766164/
+* https://www.techspot.com/news/61596-bios-write-protection-flaw-discovered-here-everything-you.html
+* https://eclypsium.com/blog/firmware-security-realizations-part-3-spi-write-protections/
+* [https://watchmysys.com/blog/2017/06/cve-2017-8083-compulab-intensepc-lacks-bios-wp/ CVE-2017-8083: Intense PC lacks BIOS Write Protection]
+* https://www.arrow.com/en/research-and-events/articles/what-is-rom-types-of-rom-explained
+* https://www.vogons.org/viewtopic.php?t=56217
+* https://en.wikipedia.org/wiki/Read-only_memory#Factory-programmed
+
+= Status =
+* Help welcome to implement [[Verified_Boot#Verified_Boot_for_User_but_not_for_Admin|Verified Boot for User but not for Admin]].
+* [[Dev/user-sysmaint-split|Role-Based Boot Modes (user versus admin) for Enhanced Security]] (and maybe [[noexec]]) will be implemented first.
+
+= Other Distributions implementing Verified Boot =
+* https://source.android.com/security/verifiedboot/
+* https://www.chromium.org/chromium-os/chromiumos-design-docs/verified-boot
+* https://blogs.oracle.com/solaris/post/solaris-verified-boot
+* https://web.archive.org/web/20201126091953/https://coreos.com/blog/verifying-os-at-runtime.html
+* https://blog.verbum.org/2017/06/12/on-dm-verity-and-operating-systems/
+* https://fedoraproject.org/wiki/Changes/FsVerityRPM
+* https://0pointer.net/blog/brave-new-trusted-boot-world.html
+* https://0pointer.net/blog/fitting-everything-together.html
+
+{{quotation
+|quote=No default keys are supported (e.g., Microsoft keys) thus you will need to generate you own Secure Boot signing keys and use them during the build process. Those keys must then be enrolled in hardware.
+|context=https://docs.clip-os.org/clipos/boot_integrity.html
+}}
+
+= Immutable Linux Distributions =
+* https://vanillaos.org/
+** https://github.com/vanilla-os
+** [https://github.com/Vanilla-OS/ABRoot ABRoot]
+
+{{Quotation
+|quote=
+Vanilla OS, an immutable desktop Linux distribution designed for developers and advanced users,
+|context=https://lwn.net/Articles/989629/
+}}
+
+* https://ubuntu.com/core
+
+= Forum Discussion =
+* https://forums.whonix.org/t/enable-linux-kernel-gpg-verification-in-grub-and-or-enable-secure-boot-by-default/7894
+* https://forums.whonix.org/t/fs-verity-in-linux-5-4/8911
+* https://www.phoronix.com/forums/forum/phoronix/general-discussion/1354003-lennart-poettering-talks-up-a-brave-new-trusted-boot-world-for-linux
+
+= See Also =
+{{boot_firmware}}
+
+= Archive =
+Older ideas and concepts that are partially or entirely obsolete.
+
 == Detailed ideas for implementing Verified Boot through hardware and software ==
 ==== Part 1 - Hardware and Firmware ====
 
@@ -714,77 +860,6 @@ While all of the above mechanisms should provide very good security for the host
 * A cold boot attack should be hard enough with this design, but using surface-mount soldered RAM would make the attack an order of magnitude harder than it already would be. Attaching to the RAM chip would be impossible without heating it, and heating it will totally destroy any hope of recovering data from it.
 * No BMC or similar firmware-level remote access mechanism should be made available. It would be pretty much useless anyway due to the possibility of MITM attacks (unless the user embedded an access key for that into the firmware too, which they could theoretically do), and it introduces more attack surface.
 * Should remote firmware updates be possible? It should be possible to implement this in a secure fashion, and it might be necessary for good security to avoid firmware-level vulnerabilities becoming a problem.
-
-= misc =
-https://blog.osfw.foundation/a-comparison-between-open-source-host-firmware-solutions-and-closed-source-uefi/
-
-https://keylime.dev/blog/2024/02/07/remote-attestation-blog-part1.html?utm_source=perplexity
-
-TPM's Endorsement Key (EK)
-
-"a" real TPM. Who's TPM?
-
-Does activating the BIOS write protection jumper enforce physical write protection, or is it purely a software mechanism that blocks write operations?
-
-How do traditional floppy disk write-protect mechanisms work, and do they rely solely on hardware enforcement, or is the prevention of write operations dependent on the drive's firmware or software honoring the signal?
-
-https://en.m.wikipedia.org/wiki/Write_protection
-
-https://security.stackexchange.com/questions/265582/why-did-they-stop-adding-physical-write-protect-mechanism
-
-The thread clarifies that traditional floppy disk write-protection mechanisms were not entirely physical but relied on the disk drive to honor the setting. While the write-protect tab physically signaled the drive, it was ultimately the drive's responsibility to enforce write prevention. Similarly, modern SD card write-protect switches serve as advisory signals to software, which can choose to ignore them. This shift away from hardware-enforced write protection reflects cost-saving priorities and consumer demand, with specialized devices available for users needing robust protection. You can read the full discussion here.
-
-https://www.reddit.com/r/vintagecomputing/comments/1b9ycts/bypass_525_disks_write_protection_when_there_is/
-
-https://www.lemon64.com/forum/viewtopic.php?t=67989
-
-https://www.kb.cert.org/vuls/id/766164/
-
-https://www.techspot.com/news/61596-bios-write-protection-flaw-discovered-here-everything-you.html
-
-https://eclypsium.com/blog/firmware-security-realizations-part-3-spi-write-protections/
-
-https://watchmysys.com/blog/2017/06/cve-2017-8083-compulab-intensepc-lacks-bios-wp/
-
-= Status =
-* Help welcome to implement [[Verified_Boot#Verified_Boot_for_User_but_not_for_Admin|Verified Boot for User but not for Admin]].
-* [[Dev/user-sysmaint-split|Role-Based Boot Modes (user versus admin) for Enhanced Security]] (and maybe [[noexec]]) will be implemented first.
-
-= Other Distributions implementing Verified Boot =
-* https://source.android.com/security/verifiedboot/
-* https://www.chromium.org/chromium-os/chromiumos-design-docs/verified-boot
-* https://blogs.oracle.com/solaris/post/solaris-verified-boot
-* https://web.archive.org/web/20201126091953/https://coreos.com/blog/verifying-os-at-runtime.html
-* https://blog.verbum.org/2017/06/12/on-dm-verity-and-operating-systems/
-* https://fedoraproject.org/wiki/Changes/FsVerityRPM
-* https://0pointer.net/blog/brave-new-trusted-boot-world.html
-* https://0pointer.net/blog/fitting-everything-together.html
-
-{{quotation
-|quote=No default keys are supported (e.g., Microsoft keys) thus you will need to generate you own Secure Boot signing keys and use them during the build process. Those keys must then be enrolled in hardware.
-|context=https://docs.clip-os.org/clipos/boot_integrity.html
-}}
-
-= Immutable Linux Distributions =
-* https://vanillaos.org/
-** https://github.com/vanilla-os
-** [https://github.com/Vanilla-OS/ABRoot ABRoot]
-
-{{Quotation
-|quote=
-Vanilla OS, an immutable desktop Linux distribution designed for developers and advanced users,
-|context=https://lwn.net/Articles/989629/
-}}
-
-* https://ubuntu.com/core
-
-= Forum Discussion =
-* https://forums.whonix.org/t/enable-linux-kernel-gpg-verification-in-grub-and-or-enable-secure-boot-by-default/7894
-* https://forums.whonix.org/t/fs-verity-in-linux-5-4/8911
-* https://www.phoronix.com/forums/forum/phoronix/general-discussion/1354003-lennart-poettering-talks-up-a-brave-new-trusted-boot-world-for-linux
-
-= See Also =
-{{boot_firmware}}
 
 = Attribution =
 {{sdebian
