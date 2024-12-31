@@ -571,11 +571,11 @@ This idea integrates well with [[Dev/user-sysmaint-split|Role-Based Boot Modes (
 ** After booting into admin mode, admin can run <code>sudo apt install package-name</code> etc.
 ** Based on dpkg trigger or shutdown, a new dm-verity has tree will be created, that will be used next time booting into user mode.
 
-== Design ==
+== Notes ==
 * minimal firmware
 * infrequent firmware updates required
 * feature freeze
-* SeaBIOS based?
+* SeaBIOS based possible?
 * stage 1 (boot block), 2, 3
 * simple reporting
 * legacy boot based simpler, safer?
@@ -595,7 +595,7 @@ This idea integrates well with [[Dev/user-sysmaint-split|Role-Based Boot Modes (
 ** Attacks against fTPMs have occurred in the past, though hopefully modern CPUs will have taken steps to avoid these: https://arxiv.org/pdf/2304.14717
 * possibilities without flashkeeper?
 * flashkeeper issues writedown, video defective
-* market interest in flashkeeper
+* market interest in flashkeeper?
 * key handling
 ** stage 1: firmware developer
 * distribution controls key
@@ -616,24 +616,12 @@ This idea integrates well with [[Dev/user-sysmaint-split|Role-Based Boot Modes (
 **** User-settable root of trust only.
 **** Considering user-settable root of trust as being "green" (good) and "normal".
 
-https://github.com/osresearch/safeboot/blob/master/sbin/safeboot
-
-standard hardware no way due to platform key usability
-
-if boot guard is required, how to trust remote attestation?
-
-how android hardware based remote attestation, issues?
-
-https://github.com/chipsalliance/Caliptra
-
-Boot Guard itself isn't great. Major issues:
-
-* Key leaks risk.
-* Keys are hardcoded, which makes it an inflexible design, unfixable once deployed.
-
-https://eclypsium.com/research/trickbot-now-offers-trickboot-persist-brick-profit/
-
-relay attack?
+* https://github.com/osresearch/safeboot/blob/master/sbin/safeboot
+* https://github.com/chipsalliance/Caliptra
+* Boot Guard itself isn't great. Major issues:
+*** Key leaks risk.
+** Keys are hardcoded, which makes it an inflexible design, unfixable once deployed.
+* https://eclypsium.com/research/trickbot-now-offers-trickboot-persist-brick-profit/
 
 TPM proxied attack?
 
@@ -647,8 +635,10 @@ against Debian's uefi public key
 
 verify debian efi signatures without using efi
 
-== Firmware and Device requirements (wip) ==
+== Firmware and Device Requirements ==
 It's unclear how much effort it is to implement this or how practical it is, however much of it is based upon how Android hardware works so it should be feasible, even if somewhat tricky.
+
+* Anti-Bricking: Some part of the firmware might need to be a true ROM, read-only that cannot be rewritten from software. Otherwise, users might brick their hardware.
 
 There are four goals that should be achieved with a firmware and device implementation here, in order of importance:
 
@@ -658,7 +648,7 @@ There are four goals that should be achieved with a firmware and device implemen
 ** If it is at all avoidable, devices along the lines of the Librem Key need to not be involved in the boot process unless the user specifically wants them. The user should be able to verify the authenticity of the firmware locally without needing to have a special USB device (though it might be acceptable for the user to use their phone for authenticating the device).
 ** The firmware needs to be able to run mainstream Linux-based operating systems without requiring complex gymnastics. (The ability to do a bare-metal installation of Windows is not considered a requirement and would even potentially be an anti-feature, so it can be ignored in considerations about OS compatibility.)
 * The user and firmware must be able to mutually authenticate each other for privileged operations. The user needs to be able to know that the firmware on the machine is not tampered with, and that any communications they make to the machine are being made to the machine they expect to be communicating with. The firmware needs to know that the user issuing security-sensitive commands is the user who owns the device or has been authorized by the device owner.
-* The device must provide some sort of tamper-proof, increment-only counter that can be used to allow individual operating systems to implement rollback protection. This can most likely be handled by the TPM.
+* The device must provide some sort of tamper-proof, increment-only counter that can be used to allow individual operating systems to implement rollback protection. This can most likely be handled by the TPM? Or is some kind of append-only storage required or an HSM?
 
 With this in mind, a device and firmware with Verified Boot support should meet the following requirements. None of these are set in stone, alternate ways of implementing the above goals are fine. These are just ideas for how to implement the above goals effectively.
 
@@ -674,9 +664,9 @@ With this in mind, a device and firmware with Verified Boot support should meet 
 * The firmware must be upgradable from within a trusted OS.
 ** Rationale: People need to be able to install firmware updates without having to open the device and fiddle with chip clips. This is part of being low-maintenance.
 * The firmware must require the user to set up some form of authentication (BIOS password, HSM, or similar) before they can take any action in the firmware settings that affects the system's security, such as installing custom Secure Boot keys, turning Secure Boot off, etc. Once an authentication method has been set up, it is mandatory that the user use that authentication method any time they attempt to change the settings again later.
-** Rationale: Turning off Secure Boot or installing user-specific keys is similar to unlocking the bootloader on an Android phone and then installing keys into a user-settable root of trust. The firmware needs to trust that the user taking these actions is who they say they are, which requires some form of authentication. Furthermore, the user should be able to use Secure Boot as a form of anti-theft, where a thief will be unable to boot any OS on the stolen device other than one which the owner has signed, and they will be unable to change the keys because they cannot authenticate to the firmware. (A determined attacker may be able to change the UEFI variables containing the Secure Boot keys by using external flashing hardware, but for now we'll consider this out of scope since we don't want to have to integrate an entire additional secure chip of some sort just to provide anti-theft, unless a potential customer really wants that feature.)
+** Rationale: Turning off Secure Boot or installing user-specific keys is similar to unlocking the bootloader on an Android phone and then installing keys into a user-settable root of trust. The firmware needs to trust that the user taking these actions is who they say they are, which requires some form of authentication. Furthermore, the user should be able to use Secure Boot as a form of anti-theft, where a thief will be unable to boot any OS on the stolen device other than one which the owner has signed, and they will be unable to change the keys because they cannot authenticate to the firmware. (A determined attacker may be able to change the UEFI variables containing the Secure Boot keys by using external flashing hardware, but for now we might consider this out of scope since we don't want to have to integrate an entire additional secure chip of some sort just to provide anti-theft, unless a potential customer really wants that feature.)
 * The firmware needs to be able to prove to the user that it is authentic via a timed, high-speed challenge-response authentication routine, using authentication data that is unpredictable ''or'' encrypting the connection between the device and the authenticator. The UEFI variables should be taken into account in this proof.
-** Rationale: The ability to prove the authenticity of the firmware is a core goal. The CPU needs to verify the firmware using Intel Boot Guard or AMD's equivalent thereof, and the firmware needs to measure itself into the TPM, unsealing a secret that allows passing some form of authentication challenge. Assuming the system uses an fTPM, the combination of the TPM and Boot Guard (or AMD's equivalent thereof) should ensure that an attacker cannot modify firmware without either flunking Boot Guard verification or flunking an authentication attempt. If authentication passes, the user knows that the CPU in use is the CPU their machine used (since the fTPM is part of the CPU itself on a suitable CPU and the machine wouldn't be able to unseal the authentication secret without the correct CPU), thus the user knows that Boot Guard was used to verify the firmware. This allows them to trust that the firmware measured itself into the TPM accurately, so they can trust the results of the authentication routine. The routine needs to not be vulnerable to replay attacks, which is why the authentication data needs to be unpredictable or the connection between the device and authenticator needs to be encrypted. The routine also needs to not be vulnerable to relay attacks, which is why the routine has to be high-speed and timed. That way the authenticator can time how long it takes for an authentication request to be satisfied, and if it takes longer than the amount of time it usually takes, a relay attack can be assumed to be occurring. This delay would be treated as authentication failure. The UEFI variables should also be measured into the TPM (or at least some of them, specifically those that are Secure Boot related) so that an attacker can't modify the Secure Boot configuration or other UEFI settings without causing the firmware to flunk authentication. The user should have to reseal their key into the TPM if the variables change, and this resealing should NOT be something the firmware can do on its own without the user being present to either authenticate themselves, or provide the secret for firmware authentication after the settings are changed. For how exactly to implement this, I'm not entirely sure, but it may be possible to use something based on signed random data, or it may be possible to use HOTP with an encrypted link. The actual authenticator device could be a physical hardware device, or it could be an Android app potentially.
+** '''Rationale:''' The ability to prove the authenticity of the firmware is a core goal. The CPU needs to verify the firmware using Intel Boot Guard or AMD's equivalent thereof, and the firmware needs to measure itself into the TPM, unsealing a secret that allows passing some form of authentication challenge. Assuming the system uses an fTPM, the combination of the TPM and Boot Guard (or AMD's equivalent thereof) should ensure that an attacker cannot modify firmware without either flunking Boot Guard verification or flunking an authentication attempt. If authentication passes, the user knows that the CPU in use is the CPU their machine used (since the fTPM is part of the CPU itself on a suitable CPU and the machine wouldn't be able to unseal the authentication secret without the correct CPU), thus the user knows that Boot Guard was used to verify the firmware. This allows them to trust that the firmware measured itself into the TPM accurately, so they can trust the results of the authentication routine. The routine needs to not be vulnerable to replay attacks, which is why the authentication data needs to be unpredictable or the connection between the device and authenticator needs to be encrypted. The routine also needs to not be vulnerable to relay attacks, which is why the routine has to be high-speed and timed. That way the authenticator can time how long it takes for an authentication request to be satisfied, and if it takes longer than the amount of time it usually takes, a relay attack can be assumed to be occurring. This delay would be treated as authentication failure.  The UEFI variables should also be measured into the TPM (or at least some of them, specifically those that are Secure Boot related) so that an attacker can't modify the Secure Boot configuration or other UEFI settings without causing the firmware to flunk authentication. The user should have to reseal their key into the TPM if the variables change, and this resealing should '''not''' be something the firmware can do on its own without the user being present to either authenticate themselves, or provide the secret for firmware authentication after the settings are changed. For how exactly to implement this, it may be possible to use something based on signed random data, or it may be possible to use HOTP with an encrypted link. The actual authenticator device could be a physical hardware device, or it could be an Android app potentially.
 * The firmware needs to verify that it has not been downgraded.
 ** Rationale: Avoids rollback attacks, this is part of the firmware being able to authenticate to the user. Can this potentially be done with the help of the TPM?
 * The device needs to provide features required for an OS to implement rollback protection.
@@ -747,6 +737,44 @@ TODO: Does heads firmware mitigate this? Heads firmware feature request: [https:
 
 TODO: Does the Librem key have measures to avoid relay attacks? How does it work? (I would guess it probably just times the response.)
 
+= Hardware Keystore - HSM =
+* Is a HSM required for factory reset protection, theft protection?
+
+= Theft Protection =
+* offline
+* online - remote locking
+
+Doable?
+
+= Remote Attestation =
+* In how far is verified boot related to remote attestation?
+* If buying a cloud server, how can the user ever be sure to talk talk to a real TPM without MiTM?
+* The only solutions are either sending own hardware to the cloud provider or TOFU?
+* Maybe solvable if the cloud vendor reveals TPM endorsement key (EK) fingerprint beforehand?
+** Not sufficient. The TPM can be fooled by firmware if Boot Guard isn't in use, and the user can't be sure that Boot Guard is in use unless they can either remotely verify the authenticity of the CPU (likely not possible unless using Intel TDX or AMD SEV) or they can verify it locally.
+* The following are kinda related, similar issues:
+
+<pre>
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+</pre>
+
+<pre>
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the RSA key sent by the remote host is
+6e:45:f9:a8:af:38:3d:a1:a5:c7:76:1d:02:f8:77:00.
+Please contact your system administrator.
+Add correct host key in /home/hostname /.ssh/known_hosts to get rid of this message.
+Offending RSA key in /var/lib/sss/pubconf/known_hosts:4
+RSA host key for pong has changed and you have requested strict checking.
+Host key verification failed.
+</pre>
+
 = misc =
 * https://blog.osfw.foundation/a-comparison-between-open-source-host-firmware-solutions-and-closed-source-uefi/
 * https://keylime.dev/blog/2024/02/07/remote-attestation-blog-part1.html
@@ -812,10 +840,12 @@ Vanilla OS, an immutable desktop Linux distribution designed for developers and 
 = See Also =
 {{boot_firmware}}
 
-= Archive =
+* [http://darkmentor.com/timeline.html Low Level Desktop and Server Attack and Defense Timeline, Timeline of low-level security talks on attack/defense topics such as firmware, BIOS, UEFI, SMM, Virtualization, etc]
+* https://gitlab.com/XenoKovah/low-level_security_timeline
+
+= Detailed ideas for implementing Verified Boot through hardware and software =
 Older ideas and concepts that are partially or entirely obsolete.
 
-== Detailed ideas for implementing Verified Boot through hardware and software ==
 ==== Part 1 - Hardware and Firmware ====
 
 Secure Boot and measured boot currently work to solve two different problems. Secure Boot is designed to prevent the device from even booting an untrusted OS. Measured boot, on the other hand, traditionally "just loads" the OS but relies on the TPM detecting the tampering of the OS to prevent it from releasing a secret, such as a disk encryption key. This means that the OS boots but is denied access to sensitive data.
