@@ -86,6 +86,12 @@ Common use cases tailored to the available boot modes:
 | {{Yes}}, read-write
 |-
 
+! Minimal Services
+| {{No}}
+| {{No}}
+| {{Yes}} (<code>sysmaint-boot.target</code>)
+|-
+
 ! [[Verified Boot]] ('''<u>planned</u>''')
 | {{Yes}}, Enabled
 | {{Yes}}, Enabled
@@ -93,10 +99,6 @@ Common use cases tailored to the available boot modes:
 |-
 
 |}
-
-minimal services
-
-overlay
 
 = Integration with Verified Boot =
 
@@ -149,101 +151,33 @@ filename                                     purpose
 
 Files should remain in lexical order below <code>/etc/grub.d/20_</code> to avoid conflicts with existing scripts.
 
-= Fast User Switching =
-
-The best-case potentially realistic scenario for fast user switching from account <code>user</code> to <code>sysmaint</code> - in theory - would be:
-
-'''1.''' Learn about [[SysRq]].
-
-'''2.''' Logout with "save session" as <code>user</code>. This means saving the session to disk and allowing it to be resumed, but no processes must continue to run.
-
-'''3.''' Use {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (Secure Access Key).
-
-'''4.''' Login into <code>sysmaint</code>.
-
-'''5.''' Perform system administration.
-
-'''6.''' Logout of <code>sysmaint</code>.
-
-'''7.''' Use {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (optional, just to establish the habit).
-
-'''8.''' Resume the <code>user</code> session.
-
-= Server Support =
-
-GRUB boot menus aren’t easily accessible on many servers. A solution for making these boot modes available on servers is yet to be determined. Booting a server into sysmaint mode with minimal services (such as SSH, but not web servers, etc.) might not be practical due to downtimes.
-
-<code>user-sysmaint-split</code> will not be installed by default on servers. Meta package <code>kicksecure-host-xfce</code> will come with <code>user-sysmaint-split</code> by default but meta package <code>kicksecure-host-cli</code> won't.
-
-Future work ideas:
-
-* See the forum discussion: https://forums.whonix.org/t/multiple-boot-modes-for-better-security-persistent-user-live-user-persistent-admin-persistent-superadmin-persistent-recovery-mode/7708/50
-* A) User could create a file that requests booting into sysmaint mode next time.
-** This file would have to be writable by an unprivileged user, this needs to be done carefully otherwise *any* unprivileged user can DoS the system by writing the sysmaint drop file when the administrator doesn't expect it, thus resulting in the next reboot causing unexpected downtime.
-** What users should be able to write the sysmaint boot request file? Only <code>user</code>?
-* B) Sysmaint mode would use a systemd unit drop-in to disable most systemd units, except SSH, etc.
-** The current <code>sysmaint-boot.target</code> file does '''not''' enable SSH. It probably should.
-
-= Qubes Support =
-Package <code>qubes-core-agent-passwordless-root</code> will be no longer installed by default in [[Qubes|Kicksecure for Qubes]].
-
-For administrative actions, users can use a [[Root#Qubes_Root_Console|Qubes Root Console]].
-
 = Design =
-Should user-sysmaint-split postinst "`run_once`" `sudo delgroup user sudo`? Not needed. Not executable anymore anyhow by limited user accounts such as user <code>user</code>.
+== Limited Environment ==
 
-Why login into a limited environment inste of a full desktop? A full desktop would pose issues such as:
+* '''Question:''' Why log in to a limited environment instead of a full desktop?
+* '''Issues:''' A full desktop environment poses issues such as:
+** '''Increased attack surface:''' Systemd units running could provide attack surface (e.g., long-running file downloads/uploads).
+** '''Application exposure:''' The start menu could offer access to applications like Firefox, which could increase risk.
 
-* systemd units running providing attack surface (think long running file downloads/uploads)
-* start menu offering Firefox etc.
+== Implementation ==
 
-Implementation:
+* '''Systemd target:''' <code>sysmaint-boot.target</code>, a systemd target similar to single user mode (kernel parameter <code>single</code>).
+* '''Minimal services:''' Start only minimal services when booting into sysmaint mode (<code>sysmaint-boot.target</code>).
+* '''Systemd unit:''' [https://github.com/Kicksecure/user-sysmaint-split/blob/master/usr/lib/systemd/system/sysmaint-boot.service sysmaint-boot.service], configured similarly to systemd <code>ConditionKernelCommandLine=boot-role=sysmaint</code>.
+* https://github.com/Kicksecure/user-sysmaint-split
+* https://github.com/Kicksecure/sysmaint-panel
 
-* <code>sysmaint-boot.target</code>, a systemd target similar to single user mode (kernel parameter <code>single</code>).
-* start minimal services only when booting into sysmaint mode
-* https://github.com/Kicksecure/user-sysmaint-split/blob/master/usr/lib/systemd/system/sysmaint-boot.service systemd unit getting (similar to systemd <code>ConditionKernelCommandLine=boot-role=sysmaint</code>)
+== No Access to Privilege Escalation Tools for Limited Accounts ==
+{{Anchor|No Access to Privilege Escalation Tools for Limited Users}}
 
-Reject alternatives solutions:
+There are conceptually two groups of accounts, privileged accounts and limited accounts.
 
-* chroot based: complex, messy, two systems to upgrad
-** You have to get the disk mounts just right or else you will end up with bootloader upgrades and the like failing
-** You have to potentially deal with encryption and LVM, maybe even RAID and other weird setups
-** You have two systems to update, which is hard
-* <code>single</code> user mode kernel parameter: Doesn't allow login to graphic target.
-* https://packages.debian.org/policy-rcd-declarative-deny-all
-* Start Menu: Hide Firefox and other similar applications when booting into sysmaint mode.
-** Involved implementation . Desktop environment specific.
-* A systray icon could display an sysmaint symbol to indicate the mode.
-* Add a warning:
-** When starting Firefox in sysmaint mode, a popup message should inform the user to avoid browsing the internet unless absolutely necessary.
-
-remaining issues:
-
-* ability to run Firefox etc. from the terminal emulator
-* Address the challenge of reading documentation after booting into sysmaint mode:
-** Why read documentation in sysmaint mode?
-*** This is often necessary when performing complex system maintenance tasks.
-*** For online searches or resolving issues.
-*** Using AI assistants.
-*** Posting on forums.
-** [[Offline Documentation]] is helpful but an insufficient solution.
-*** Offline documentation often links extensively to upstream resources.
-*** Users are encouraged to look up online documentation whenever possible (referring to upstream resources).
-** Alternatives:
-*** Ideally, users should perform such tasks on a separate computer.
-*** These alternatives might seem impractical but are safer.
-*** A less ideal, but safer option is to use a VM for such tasks.
-**** If Verified Boot and A/B updates are implemented, it might be possible to implement a sandbox feature that boots the host OS itself in a VM, using immutable images to make this safe.
-
-= No Access to Privilege Escalation Tools for Limited Users =
-There are conceptually two groups of users, privileged users and limited users.
-
-Privileged users:
+Privileged accounts:
 
 * <code>root</code>
 * <code>sysmaint</code>
 
-Limited users:
+Limited accounts:
 
 * <code>user</code>
 * <code>nginx</code>
@@ -253,14 +187,14 @@ Limited users:
 * Not a member of groups <code>root</code>, <code>sudo</code>, or <code>wheel</code>.
 * etc.
 
-Limited Linux user accounts such as user "<code>user</code>" no longer have access to any of the following Privilege Escalation Tools applications:
+Limited Linux accounts such as accounts "<code>user</code>" no longer have access to any of the following Privilege Escalation Tools applications:
 
 * <code>sudo</code>
 * <code>su</code>
 * <code>doas</code>
 * <code>pkexec</code>
 
-This is because Privilege Escalation Tools are SUID applications, which can be a security risk for local privilege escalation (such as from <code>user</code> to root). SUID related risks are elaborated on the [[SUID Disabler and Permission Hardener]] wiki page.
+This is because Privilege Escalation Tools are SUID applications, which can be a security risk for local privilege escalation (such as from account <code>user</code> to root). SUID related risks are elaborated on the [[SUID Disabler and Permission Hardener]] wiki page.
 
 <u>Prerequisite Knowledge:</u>
 
@@ -274,7 +208,7 @@ This is because Privilege Escalation Tools are SUID applications, which can be a
 
 <u>Comparison:</u>
 
-'''Debian:''' Privilege Escalation Tools (such as <code>sudo</code> and similar programs) are, as per Debian default, owned by user <code>root</code> and group <code>root</code>. These can be <code>read</code> and <code>execute</code> by <code>owner</code>, <code>group</code>, and <code>others</code>. (<code>chmod 755</code>)
+'''Debian:''' Privilege Escalation Tools (such as <code>sudo</code> and similar programs) are, as per Debian default, owned by account <code>root</code> and group <code>root</code>. These can be <code>read</code> and <code>execute</code> by <code>owner</code>, <code>group</code>, and <code>others</code>. (<code>chmod 755</code>)
 
 {{CodeSelect|code=
 chmod-calc /usr/bin/sudo
@@ -305,7 +239,7 @@ SGID: Not Set
 Sticky Bit: Not Set
 </pre>
 
-'''user-sysmaint-split:''' Privilege Escalation Tools are owned by group <code>sysmaint</code>. <code>others</code> (which includes limited user <code>user</code>) no longer have <code>read</code> or <code>execute</code> rights. (<code>chown root:sysmaint /usr/bin/sudo</code>; <code>chmod o-rw /usr/bin/sudo</code>; same for <code>/bin/sudo</code>)
+'''user-sysmaint-split:''' Privilege Escalation Tools are owned by group <code>sysmaint</code>. <code>others</code> (which includes limited account <code>user</code>) no longer have <code>read</code> or <code>execute</code> rights. (<code>chown root:sysmaint /usr/bin/sudo</code>; <code>chmod o-rw /usr/bin/sudo</code>; same for <code>/bin/sudo</code>)
 
 <pre>
 Group: sysmaint
@@ -323,12 +257,100 @@ For this to happen, applications may no longer internally use <code>sudo</code> 
 == user group sudo membership ==
 Should <code>user-sysmaint-split</code> postinst "<code>run_once</code>" <code>sudo delgroup user sudo</code>? No, not needed.
 
-Limited user "<code>user</code>" can safely safely stay a member of group <code>sudo</code> by default thanks to [[Dev/user-sysmaint-split#No_Access_to_Privilege_Escalation_Tools_for_Limited_Users|No Access to Privilege Escalation Tools for Limited Users]]. This simplifies testing and the process of users wishing to go back to [[unrestricted admin mode]].
+Limited account "<code>user</code>" can safely safely stay a member of group <code>sudo</code> by default thanks to [[Dev/user-sysmaint-split#No_Access_to_Privilege_Escalation_Tools_for_Limited_Accounts|No Access to Privilege Escalation Tools for Limited Accounts]]. This simplifies testing and the process of users wishing to go back to [[unrestricted admin mode]].
 
-= Implementation =
+== Qubes Support ==
+Package <code>qubes-core-agent-passwordless-root</code> will be no longer installed by default in [[Qubes|Kicksecure for Qubes]].
 
-* https://github.com/Kicksecure/user-sysmaint-split
-* https://github.com/Kicksecure/sysmaint-panel
+For administrative actions, users can use a [[Root#Qubes_Root_Console|Qubes Root Console]].
+
+= Remaining Issues =
+== Fast User Switching ==
+[[Sysmaint|sysmaint - System Maintenance User]] documentation chapter [[Sysmaint#Fast_User_Switching|Fast User Switching]] explains, that
+
+{{quotation|
+|quote=
+It is not possible to switch from account <code>user</code> to <code>sysmaint</code> using:
+
+* Start Menu &rarr; logout
+* Start Menu &rarr; switch user
+}}
+
+This is a security feature. This is to mitigate [[login spoofing]] attacks and to to prevent [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|<code>sudo</code> password sniffing]].
+
+The best-case potentially realistic scenario for fast user switching from account <code>user</code> to <code>sysmaint</code> - in theory - would be:
+
+'''1.''' Learn about [[SysRq]].
+
+'''2.''' Logout with "save session" as <code>user</code>. This means saving the session to disk and allowing it to be resumed, but no processes must continue to run.
+
+'''3.''' Use {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (Secure Access Key).
+
+'''4.''' Login into <code>sysmaint</code>.
+
+'''5.''' Perform system administration.
+
+'''6.''' Logout of <code>sysmaint</code>.
+
+'''7.''' Use {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (optional, just to establish the habit).
+
+'''8.''' Resume the <code>user</code> session.
+
+== Server Support ==
+
+GRUB boot menus aren’t easily accessible on many servers. A solution for making these boot modes available on servers is yet to be determined. Booting a server into sysmaint mode with minimal services (such as SSH, but not web servers, etc.) might not be practical due to downtimes.
+
+<code>user-sysmaint-split</code> will not be installed by default on servers. Meta package <code>kicksecure-host-xfce</code> will come with <code>user-sysmaint-split</code> by default but meta package <code>kicksecure-host-cli</code> won't.
+
+Future work ideas:
+
+* See the forum discussion: https://forums.whonix.org/t/multiple-boot-modes-for-better-security-persistent-user-live-user-persistent-admin-persistent-superadmin-persistent-recovery-mode/7708/50
+* A) User could create a file that requests booting into sysmaint mode next time.
+** This file would have to be writable by an unprivileged user, this needs to be done carefully otherwise *any* unprivileged user can DoS the system by writing the sysmaint drop file when the administrator doesn't expect it, thus resulting in the next reboot causing unexpected downtime.
+** What users should be able to write the sysmaint boot request file? Only <code>user</code>?
+* B) Sysmaint mode would use a systemd unit drop-in to disable most systemd units, except SSH, etc.
+** The current <code>sysmaint-boot.target</code> file does '''not''' enable SSH. It probably should.
+
+== Usability ==
+* '''Terminal application risks:''' 
+** Ability to run applications like Firefox from the terminal emulator in sysmaint mode.
+
+* '''Documentation access in sysmaint mode:'''
+** '''Why read documentation in sysmaint mode?'''
+*** Necessary for complex system maintenance tasks.
+*** For online searches or resolving issues.
+*** Using AI assistants or posting on forums.
+
+* '''Offline documentation:'''
+** [[Offline Documentation|Offline documentation]] is helpful but insufficient since it often links extensively to upstream resources.
+** Users are encouraged to refer to online documentation whenever possible (upstream resources).
+
+* '''Alternatives:'''
+** '''Separate computer:''' Ideally, such tasks should be performed on a separate computer.
+** '''Virtual machine (VM):''' A less ideal but safer option is to use a VM for such tasks.
+*** If Verified Boot and A/B updates are implemented, a sandbox feature could be designed to boot the host OS itself in a VM using immutable images, enhancing safety.
+
+= Rejected Alternative Implementations =
+* '''Chroot-based solutions:''' 
+** '''Complex and messy:''' Involves managing two systems for upgrades.
+** '''Disk mounts challenges:''' Bootloader upgrades, encryption, LVM, RAID, and other configurations must be handled correctly.
+** '''System updates:''' Maintaining two systems for updates is difficult.
+
+* '''Single user mode (kernel parameter <code>single</code>):''' 
+** Does not allow login to graphical targets.
+
+* '''Policy-rcd solutions:''' 
+** See: [https://packages.debian.org/policy-rcd-declarative-deny-all policy-rcd-declarative-deny-all].
+
+* '''Start menu restrictions:'''
+** Hide applications like Firefox when booting into sysmaint mode.
+** '''Implementation difficulty:''' Desktop environment-specific changes are required.
+
+* '''Systray indicator:''' 
+** A system tray icon could display a sysmaint symbol to indicate the current mode.
+
+* '''Warning popups:''' 
+** When starting Firefox in sysmaint mode, a popup could warn users to avoid browsing the internet unless absolutely necessary.
 
 = Prior Versions =
 

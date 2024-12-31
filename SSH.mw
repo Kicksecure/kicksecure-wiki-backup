@@ -503,99 +503,91 @@ This should complete the SSH setup. Some people also recommend re-generating the
 
 = SSH Login Comparison Table =
 
-'''Note''': Shadowed file password symbol evaluation is done left to right, if a password locked or disabled and a plain-text or encrypted password is set, the password can't be used for password-based logins.
-
-<u>Legend:</u>
-
-* <code>Authentication<wbr>Method</code> <code>none</code> - used for access to password-less accounts when <code>Permit<wbr>Empty<wbr>Passwords</code> is enabled
-* "Any." - English word.
-* <code>any</code> (within code tags) - configuration option <code>any</code>
-
-'''Note''': The following table is very complex. There is a huge amount of ways to configure SSH logins. The user should verify their particular setup. 
+'''Note''': Shadowed file password symbol evaluation is done left to right, if a password locked or disabled and a plain-text or encrypted password is set, the password can't be used for password-based logins. Please consult [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_.2Fetc.2Fshadow_File|the User page]] for more information.
 
 '''Disclaimer''': This information is provided as-is without any guarantees or warranties of any kind, including but not limited to correctness, completeness, or fitness for a particular purpose. Users are responsible for testing and verifying their specific configurations to ensure security and functionality. Our [[Terms of Service]] apply.
+
+Quote from the manual <u>sshd_config.5</u>: ''Note that each authentication method listed should also be explicitly enabled in the configuration.''
+
+'''Table:''' ''SSH Login Related Options per Authentication''
+
+{| class="wikitable"
+|+ Authentication method and options required for them to be considered
+! <code>{{nowrap|AuthenticationMethod}}</code> Option <!-- Authentication method -->
+! Option required for authentication method to be used <!-- Authentication specific option -->
+! Explanation <!-- Explanation -->
+|-
+
+| <!-- Authentication method --> <code>none</code>
+| <!-- Authentication specific option --> <code>PasswordAuthentication yes</code> and <code>PermitEmptyPasswords yes</code>
+| <!-- Explanation --> Allows login to an account with empty password string.
+|-
+
+| <!-- Authentication method --> <code>password</code>
+| <!-- Authentication specific option --> <code>PasswordAuthentication yes</code>
+| <!-- Explanation --> Allows password authentication.
+|-
+
+| <!-- Authentication method --> <code>publickey</code>
+| <!-- Authentication specific option --> <code>PubkeyAuthentication yes</code>
+| <!-- Explanation --> Allows public key authentication.
+|-
+
+
+| <!-- Authentication method --> <code>hostbased</code>
+| <!-- Authentication specific option --> <code>HostbasedAuthentication yes</code> and <code>UseDNS yes</code>
+| <!-- Explanation --> Allows client domain name (hostname) authentication.
+|-
+
+| <!-- Authentication method --> <code>gssapi-with-mic</code>
+| <!-- Authentication specific option --> <code>GSSAPIAuthentication yes</code> and optionally <code>KerberosAuthentication yes</code>
+| <!-- Explanation --> Allows Generic Security Service Application Programming Interface authentication.
+|-
+
+| <!-- Authentication method --> <code>keyboard-interactive</code>
+| <!-- Authentication specific option --> <code>KbdInteractiveAuthentication yes</code>
+| <!-- Explanation --> Allows keyboard-interactive authentication.
+|-
+
+|}
+
+'''Note''': The following table is very complex. There is a huge amount of ways to configure SSH logins. The user should verify their particular setup. 
 
 '''Table:''' ''SSH Login Comparison Table''
 
 {| class="wikitable"
-|+ Effects of Password State on User Login
+|+ Effects of Password State and PAM on User Login
 ! {{nowrap|Password}} State <!-- Password state -->
 ! <code>{{nowrap|Authentication}}<wbr>Method</code> <wbr>Options <!-- Authentication method -->
 ! {{nowrap|<code>UsePAM</code>}} <wbr>Option <!-- PAM setting -->
-! <code>Permit<wbr>Empty<wbr>{{nowrap|Passwords}}</code> <wbr>Option <!-- Permit empty passwords -->
-! <code>Password<wbr>{{nowrap|Authentication}}</code> <wbr>Option <!-- Allow password auth -->
 ! Login Outcome <!-- Login result -->
 ! Explanation <!-- Why -->
 |-
 
 | <!-- Password state --> Password set
-| <!-- Authentication method --> Any.
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> {{Yes}}
+| <!-- Authentication method --> <code>any</code>
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
 | <!-- Login result --> {{Yes}}
 | <!-- Why --> SSHD or PAM checks the shadow file and an unlocked password allows any type of login.
 |-
 
-| <!-- Password state --> Password set
-| <!-- Authentication method --> <code>publickey</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> {{No}}
-| <!-- Login result --> {{Yes}}
-| <!-- Why --> SSHD or PAM checks the shadow file and an unlocked password allows publickey login.
-|-
-
-| <!-- Password state --> Password set
-| <!-- Authentication method --> <code>password</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> {{No}}
-| <!-- Login result --> {{No}}
-| <!-- Why --> SSHD refuses <code>password</code> authentication due to config.
-|-
-
 | <!-- Password state --> Empty
 | <!-- Authentication method --> <code>none</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> {{Yes}}
-| <!-- Allow password auth --> {{Yes}}
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
 | <!-- Login result --> {{Yes}}
 | <!-- Why --> SSHD or PAM checks the shadow file and an empty password allows <code>none</code> type login.
 |-
 
-| <!-- Password state --> Empty
-| <!-- Authentication method --> <code>none</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> {{Yes}}
-| <!-- Allow password auth --> {{No}}
-| <!-- Login result --> {{No}}
-| <!-- Why --> SSHD refuses <code>none</code> authentication due to <code>password</code> auth being disabled.
-|-
-
-| <!-- Password state --> Empty
-| <!-- Authentication method --> <code>none</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> {{No}}
-| <!-- Allow password auth --> Irrelevant
-| <!-- Login result --> {{No}}
-| <!-- Why --> SSHD or PAM checks the shadow file and an empty password prohibits <code>none</code> type login.
-|-
-
 | <!-- Password state --> Disabled
 | <!-- Authentication method --> <code>password</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> Irrelevant
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
 | <!-- Login result --> {{No}}
 | <!-- Why --> SSHD or PAM checks the shadow file and a disabled password prohibits password-based login.
 |-
 
 | <!-- Password state --> Disabled
-| <!-- Authentication method --> '''Not''' with <code>password</code>
-| <!-- PAM setting --> Irrelevant
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> Irrelevant
+| <!-- Authentication method --> '''Except''' with <code>password</code>
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
 | <!-- Login result --> {{Yes}}
 | <!-- Why --> SSHD or PAM checks the shadow file and ignores disabled password as it is non password-based login.
 |-
@@ -603,26 +595,20 @@ This should complete the SSH setup. Some people also recommend re-generating the
 | <!-- Password state --> Locked
 | <!-- Authentication method --> <code>password</code>
 | <!-- PAM setting --> {{Yes}}
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> Irrelevant
 | <!-- Login result --> {{No}}
 | <!-- Why --> PAM checks the shadow file and locked password prohibits password-based login.
 |-
 
 | <!-- Password state --> Locked
-| <!-- Authentication method --> '''Not''' with <code>password</code>
+| <!-- Authentication method --> '''Except''' with <code>password</code>
 | <!-- PAM setting --> {{Yes}}
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> Irrelevant
 | <!-- Login result --> {{Yes}}
 | <!-- Why --> PAM checks the shadow file and ignores locked password as it is non password-based login.
 |-
 
 | <!-- Password state --> Locked
-| <!-- Authentication method --> Any.
+| <!-- Authentication method --> <code>any</code>
 | <!-- PAM setting --> {{No}}
-| <!-- Permit empty passwords --> Irrelevant
-| <!-- Allow password auth --> Irrelevant
 | <!-- Login result --> {{No}}
 | <!-- Why --> SSHD checks the shadow file and a locked password prohibits any type of login. <ref>
 sshd journal log:

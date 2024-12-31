@@ -18,20 +18,25 @@ Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, C
 {{mbox
 |icon=fa-solid fa-info cs-green
 |text=
-'''User account isolation and root rights is a very relevant, but often overlooked security topic''' for many Linux distributions. In this chapter we will give you an overview about the history, possible attack vectors, security measures that you can implement youself and the '''plenty security measures that are implemented in {{project_name_short}} by default'''.
+'''User account isolation and root rights is a very relevant, but often overlooked security topic''' for many Linux distributions. In this chapter we will give you an overview about the history, possible attack vectors, security measures that you can implement yourself, and the '''plenty of security measures that are implemented in {{project_name_short}} by default'''.
 }}
 
-* We are aiming to provide a comprehensive, rather complete overview. There are many advanced details being discussed in many places on the internet, but explanations of the essential foundations are hard to find. When this topic is usually discussed, there is a large amount of unspoken assumptions and threat models. '''Example''' : {{Quotation
+We are aiming to provide a comprehensive, rather complete overview. There are many advanced details being discussed in many places on the internet, but explanations of the essential foundations are hard to find. When this topic is usually discussed, there is a large amount of unspoken assumptions and threat models. 
+
+'''Example''': {{Quotation
 |quote=The solution to this is simple: you shouldn't be logging in on the console as root in the first place! (What, are you crazy or something?). Proper Unix hygiene dictates that you should log in as yourself, and su to root as necessary. People who spend their day logged in as root are just begging for disaster.
 |context=XScreenSaver FAQ, answer to "[https://www.jwz.org/xscreensaver/faq.html#root-lock When I'm logged in as root, XScreenSaver won't lock my screen!]"
-}} Sounds quite important, right? Is it? What kind of disaster awaits if being logged in as root? No automatic security disaster. Many applications (such as Kate; Wayland) refuse to run as root. Due to this convention, it is best to go with the flow (what most Linux distributions do) and avoid being logged in as root. As many actions as possible should be done with a non-root user.
-* '''Avoiding root compromise is useful for reasons explained in chapter [[Root#Rationale|Rationale]].'''
-* Many applications nowadays run under different Linux user accounts. For example, the web server and database server very likely run under different Linux user accounts.
-* Many of the things written about sudo, su, root, and user isolation are correct but written in a different time and/or with a different threat model in mind.
-* Is sudo a security tool? Yes. But what does this mean? sudo provides an audit trail. It keeps a log of all invocations of sudo. Specifically, if there are multiple system administrators, and there is an unexplained issue, they can look at the logs and investigate who performed which action. By default, this only works in non-malicious cases. An attacker with root rights also has the ability to remove evidence of their own actions from logs. Secure, tamper-proof append-only logs is a different security problem to solve.
-* '''Password input security:''' The sudo project does not guarantee a secure password entry mechanism. Various attack vectors, such as malware, can compromise password security by intercepting or sniffing passwords entered via sudo. This is being elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]].
-* '''Password encryption:''' But how can malware steal the password? Aren't passwords encrypted? Yes, passwords are encrypted in <code>/etc/shadow</code> file. Additionally, non-root users cannot read <code>/etc/shadow</code> file thanks to default file permissions. This, however, is of little help against malware. As elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]], what malware actually can do to steal the password does not involve attacking the encryption. The encryption of passwords in <code>/etc/shadow</code> is only useful in a different threat model. For example, if an attacker gained access to <code>/etc/shadow</code> (by possibly getting access through full system compromise), then at least the attacker still does not know that user's password. This can be useful in case the user re-used this password elsewhere, for example to log in to their online banking.
-* '''single-user system vs multi-user system:''' The usefulness of sudo also depends on whether it is a single-user system or a multi-user system. This is elaborated in chapter [[Default_Passwords#Information|Information]].
+}} 
+
+Sounds quite important, right? Is it? What kind of disaster awaits if being logged in as root? No automatic security disaster. Many applications (such as Kate; Wayland) refuse to run as root. Due to this convention, it is best to go with the flow (what most Linux distributions do) and avoid being logged in as root. As many actions as possible should be done with a non-root user.
+
+* '''Avoiding root compromise:''' Useful for reasons explained in chapter [[Root#Rationale|Rationale]].
+* '''Applications under separate user accounts:''' Many applications nowadays run under different Linux user accounts. For example, the web server and database server very likely run under different Linux user accounts.
+* '''Context and threat models:''' Many of the things written about sudo, su, root, and user isolation are correct but were written in a different time and/or with a different threat model in mind.
+* '''Is sudo a security tool?''' Yes. But what does this mean? sudo provides an audit trail. It keeps a log of all invocations of sudo. Specifically, if there are multiple system administrators, and there is an unexplained issue, they can look at the logs and investigate who performed which action. By default, this only works in non-malicious cases. An attacker with root rights also has the ability to remove evidence of their own actions from logs. Secure, tamper-proof append-only logs is a different security problem to solve.
+* '''Password input security:''' The sudo project does not guarantee a secure password entry mechanism. Various attack vectors, such as malware, can compromise password security by intercepting or sniffing passwords entered via sudo. This is elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]].
+* '''Password encryption:''' But how can malware steal the password? Aren't passwords encrypted? Yes, passwords are encrypted in the <code>/etc/shadow</code> file. Additionally, non-root users cannot read the <code>/etc/shadow</code> file thanks to default file permissions. This, however, is of little help against malware. As elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]], what malware actually can do to steal the password does not involve attacking the encryption. The encryption of passwords in <code>/etc/shadow</code> is only useful in a different threat model. For example, if an attacker gained access to <code>/etc/shadow</code> (by possibly getting access through full system compromise), then at least the attacker still does not know the user's password. This can be useful in case the user re-used this password elsewhere, for example to log in to their online banking.
+* '''Single-user system vs multi-user system:''' The usefulness of sudo also depends on whether it is a single-user system or a multi-user system. This is elaborated in chapter [[Default_Passwords#Information|Information]].
 * '''Local system vs remote server:''' When using password-based login, the user password matters. However, password-based logins are only safe when logging into a machine locally. Public key authentication is much more secure for remote access.
 
 = Essentials =
@@ -40,22 +45,35 @@ In this chapter we would like to introduce the topic of user account isolation m
 
 == History ==
 
-* Sharing the root password historically when one computer was often shared by multiple system administrators was bad. When someone changed the root password and did not properly record the new password, other system administrators could no longer easily login. Hence, sudo has been developed.
-* With sudo it became possible for individual users to login as root (sudo su) or to execute individual commands with root rights (sudo command).
-* From one of the co-authors of sudo: {{Quotation
+* '''Root password sharing issues:''' Historically, sharing the root password was problematic when one computer was shared by multiple system administrators. If someone changed the root password without properly recording the new password, other administrators could no longer log in.
+* '''Development of sudo:''' To address this issue, sudo was developed.
+* '''Functionality of sudo:''' With sudo, individual users could:
+** Log in as root (<code>sudo su</code>)
+** Execute individual commands with root rights (<code>sudo command</code>).
+* '''Insight from sudo's co-author:''' {{Quotation
 |context=Bob Coggeshall, co-author of sudo <ref>Bob Coggeshall is mentioned on [https://www.sudo.ws/about/history/ sudo history].</ref>, [https://security.stackexchange.com/a/233042 complete answer here]
 |quote=I am the co-author of sudo. It was written in the early 80's specifically to address a need to protect the integrity of a shared resource (A VAX-11/750 running BSD UNIX) from its users (the faculty of the CS Department at SUNY/Buffalo). At the time, the only other option was 'su' which required everyone share a single password. Had a calamity occurred it would have been difficult or impossible to sift through the forensics ...
 }}
 
 == Isolation rationale and benefits ==
 
-Oftentimes when we think of a user account, we think of an account on the system that someone is intended to log into. However, most systems have a large number of user accounts even if they are only intended to be used by a single person. This is because there are many background processes that run on most computers. Many of these background processes introduce some form of attack surface, or work with sensitive information that other background processes or other people should not be able to access. To reduce the risk of unauthorized access or severe damage in the event of a compromise, these services are given user accounts with appropriately restricted permisisons. If one of those background processes becomes compromised, the attacker will not be able to easily read or write data that the user account restricts them from accessing.
+Oftentimes, when we think of a user account, we think of an account on the system that someone is intended to log into. However, most systems have a large number of user accounts, even if they are only intended to be used by a single person. This is because many background processes run on most computers. 
 
-When properly implemented, user account isolation provides three main benefits:
+* '''Attack surface and sensitive data:''' Many of these background processes introduce some form of attack surface or work with sensitive information that other background processes or other people should not be able to access.
+* '''Restricted permissions:''' To reduce the risk of unauthorized access or severe damage in the event of a compromise, these services are given user accounts with appropriately restricted permissions. 
+* '''Compromise containment:''' If a background process becomes compromised, the attacker will not be able to easily read or write data that the user account restricts them from accessing.
 
-* It hinders system accounts from attacking other system accounts or people's user accounts. This reduces (though does not eliminate) the risk of a compromised service resulting in the entire system being compromised.
-* It hinders people's user accounts from attacking other people's user accounts or system accounts. This reduces (though does not eliminate) a malicious user's ability to steal data or compromise accounts they aren't supposed to access. This is only useful on systems that are used by more than one person, such as server machines.
-* It hinders both system accounts and people's user accounts from gaining unauthorized access to the root account. Root account access allows one to access any data or compromise any accounts or processes on the system, thus making it a frequent target for attackers.
+'''When properly implemented, user account isolation provides three main benefits:'''
+* '''Protection of system accounts:''' 
+** '''Attack prevention:''' Hinders system accounts from attacking other system accounts or people's user accounts.
+** '''Risk reduction:''' Reduces (though does not eliminate) the risk of a compromised service resulting in the entire system being compromised.
+* '''Protection of people's user accounts:''' 
+** '''Account isolation:''' Hinders people's user accounts from attacking other people's user accounts or system accounts.
+** '''Malicious user prevention:''' Reduces (though does not eliminate) a malicious user's ability to steal data or compromise accounts they aren't supposed to access.
+** '''Multi-user system relevance:''' This is particularly useful on systems used by more than one person, such as server machines.
+* '''Root account protection:''' 
+** '''Unauthorized access prevention:''' Hinders both system accounts and people's user accounts from gaining unauthorized access to the root account.
+** '''Frequent attack target:''' Since root account access allows one to access any data or compromise any accounts or processes on the system, it is a frequent target for attackers.
 
 = Defenses against root user exploits =
 {{Anchor|Defenses}}
@@ -69,12 +87,21 @@ In this chapter we compare non-hardened vs. {{project_name_short}}-hardened Linu
 |text=Defenses: low - for most if not all Linux desktop operating systems
 }}
 
-* By default, a compromised non-root user account which is member of group <code>sudo</code> is almost equal to full root compromise as there are too many ways for an attacker to retrieve the sudo password. [[#sudo password sniffing|Malware can sniff the sudo password]].
-* Compromised non-root users that are not member of group <code>sudo</code> in order to acquire root compromise require either,
-** '''A)''' a local privilege escalation exploit, <u>or</u>
-** '''B)''' brute forcing the root password.
-** For example, were the web server user (<code>www</code>) to become compromised, it could not gain root without that.
-* Home folder (<code>~</code>) (such as for example home folder of user <code>user</code> <code>/home/user</code>) might be readable by other users (such as for example by user <code>user2</code> or <code>www</code>). This to a large degree negates the usefulness of linux file permissions. While compromised user accounts might not be able to destroy user data, all private user data might be exfiltrated.
+* '''Root compromise risk with sudo accounts:''' 
+** '''Equal to root compromise:''' By default, a compromised non-root user account that is a member of the group <code>sudo</code> is almost equivalent to a full root compromise. 
+** '''Password retrieval risk:''' There are too many ways for an attacker to retrieve the sudo password.
+** '''Malware risk:''' See: [[#sudo password sniffing|Malware can sniff the sudo password]].
+
+* '''Non-sudo account compromise:''' 
+** '''Conditions for root compromise:''' Compromised non-root accounts that are not members of the group <code>sudo</code> require either:
+*** '''A)''' A local privilege escalation exploit, <u>or</u>
+*** '''B)''' Brute-forcing the root password.
+** '''Example scenario:''' If the web server account (<code>www</code>) becomes compromised, it cannot gain root without fulfilling one of these conditions.
+
+* '''Home folder readability:''' 
+** '''Cross-account data access:''' By default, the home folder (<code>~</code>) of one accounts (e.g., <code>/home/user</code>) might be readable by other accountss (e.g., <code>user2</code> or <code>www</code>).
+** '''Reduced file permission effectiveness:''' This significantly reduces the usefulness of Linux file permissions.
+** '''Data exfiltration risk:''' While compromised user accounts might not be able to destroy user data, they can exfiltrate all private user data.
 
 == {{project_name_short}} Hardened Linux Distributions ==
 
@@ -86,12 +113,14 @@ In this chapter we compare non-hardened vs. {{project_name_short}}-hardened Linu
 {{project_name_short}} implements various mechanisms to implement strong linux user account isolation:
 
 * [[#Console Lockdown|Console Lockdown]]
-* [[#Bruteforcing Linux User Account Passwords|Anti Bruteforcing of Linux User Account Passwords]]
-* disable root login
+* [[#Bruteforcing Linux Account Passwords Protection|Anti Bruteforcing of Linux User Account Passwords]] ([[#Online Password Cracking Restrictions|Online Password Cracking Restrictions]])
+* [[#/etc/securetty|<code>/etc/securetty</code>]]
+* [[Dev/Strong_Linux_User_Account_Isolation#Root_Login_Disabled|Root Login Disabled]]
 * [[#su restrictions|su restrictions]]
 * [[#sudo restrictions|sudo restrictions]]
-* [[#access rights restrictions|access rights restrictions]] (permission lockdown)
-** Such as for example home folder (<code>~</code>) of user <code>user</code> <code>/home/user</code> being readable only by user <code>user</code> and not by user <code>www</code>.
+* [[#Permission Lockdown|permission lockdown]]: Access rights restrictions such as for example home folder (<code>~</code>) of user <code>user</code> <code>/home/user</code> being readable only by user <code>user</code> and not by user <code>www</code>.
+* [[#umask hardening|umask hardening]]
+* [[#libpam-tmpdir|libpam-tmpdir]]
 * <u>Usability</u>: if the advanced advice to [[#Prevent Malware from Sniffing the Root Password|Prevent Malware from Sniffing the Root Password]] is not followed, then users will only require a single, secure root password for the user <code>user</code> account. It is no longer necessary to have two secure passwords for the user <code>user</code> and root accounts. <ref>
 On the flip-side, if the [[#Prevent Malware from Sniffing the Root Password|Prevent Malware from Sniffing the Root Password]] steps are followed, two secure passwords are required for the user <code>user</code> and user <code>sysmaint</code> accounts.
 </ref>
@@ -102,22 +131,20 @@ Once proposal [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Mod
 
 == Console Lockdown ==
 
-Console lockdown allows only members of group <code>console</code> to use console. Everyone else except members of group <code>console-unrestricted</code> are restricted from using console using ancient, unpopular login methods such as using <code>/bin/login</code> over networks, which might be exploitable. ([https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2001-0797 CVE-2001-0797]) Using <code>pam_access</code>. It is active for pam service <code>login</code>. Implemented in package [https://github.com/{{project_name_short}}/security-misc security-misc].
+Console lockdown restricts console access to members of the group <code>console</code>. Everyone else, except members of the group <code>console-unrestricted</code>, is restricted from using the console. This includes blocking access via ancient, unpopular login methods such as <code>/bin/login</code> over networks, which might be exploitable ([https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2001-0797 CVE-2001-0797]). This is implemented using <code>pam_access</code> for the PAM service <code>login</code> (<code>/etc/pam.d/login</code>), and is part of the package [https://github.com/{{project_name_short}}/security-misc security-misc].
 
-[https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-info This also has good usability.] Attempts to login into console for users which are not a member of group <code>console</code> would result in an error message.
+[https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-info This also has good usability.] Attempts to log in to the console by users who are not members of the group <code>console</code> result in an error message.
 
-By {{project_name_long}} and {{project_name_short}} default:
-
+By {{project_name_long}} default:
 * Console lockdown is [https://github.com/{{project_name_short}}/dist-base-files/blob/master/debian/dist-base-files.postinst enabled by] default in {{project_name_short}} version <code>15.0.0.8.7</code> and above.
-* Only user <code>user</code> is a member of group <code>console</code> by default.
-* There are no default members of group <code>console-unrestricted</code>.
+* Only the user <code>user</code> is a member of the group <code>console</code> by default.
+* There are no default members of the group <code>console-unrestricted</code>.
 
-Related files:
-
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/console-lockdown-security-misc
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam_only_if_login
-* https://github.com/{{project_name_short}}/security-misc/blob/master/etc/security/access-security-misc.conf
-* https://forums.whonix.org/t/etc-security-hardening-console-lockdown-pam-access-access-conf/8592
+'''Related files:'''
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/console-lockdown-security-misc Console lockdown PAM configuration]
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam_only_if_login PAM only if <code>login</code> script]
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/etc/security/access-security-misc.conf Access security configuration (<code>/etc/security/access.conf</code>)]
+* [https://forums.whonix.org/t/etc-security-hardening-console-lockdown-pam-access-access-conf/8592 Forum discussion on console lockdown and PAM access configuration]
 
 {{sdebian
 |link=https://www.debian.org/doc/manuals/securing-debian-manual/ch03.en.html#bios-passwd
@@ -134,30 +161,41 @@ Related files:
 |text=Disallow remote administrative access
 }}
 
-== Bruteforcing Linux User Account Passwords Protection ==
-Bruteforcing into Linux user accounts is severely limited in by package [https://github.com/{{project_name_short}}/security-misc security-misc].
+== Bruteforcing Linux Account Passwords Protection ==
+{{Anchor|Bruteforcing Linux User Account Passwords Protection}}
 
-* Lock user accounts after 50 failed login attempts using <code>faillock</code> until [[Root#Unlock_User_Account:_Excessive_Wrong_Password_Entry_Attempts|password unlock procedure]] is required.
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/faillock-security-misc
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/faillock2-security-misc
-* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-info This also has good usability.] After the first authentication failure, <code>pam_tally2-info</code> by security-misc will show the number of remaining login attempts before unlock procedure will be required. Once required, will show a link to documentation how to perform [[root#unlock|unlock procedure]].
+Bruteforcing into Linux user accounts is severely limited by the package [https://github.com/{{project_name_short}}/security-misc security-misc].
 
-forum discussion: [https://forums.whonix.org/t/protect-linux-user-accounts-against-brute-force-attacks protect Linux user accounts against brute force attacks]
+* '''Account lockout policy''': Accounts are locked after 50 failed login attempts using <code>faillock</code>, requiring the [[Root#Unlock_User_Account:_Excessive_Wrong_Password_Entry_Attempts|password unlock procedure]].
+* '''Configuration details''':
+** [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/faillock-preauth-security-misc PAM faillock configuration]
+** [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/unix-faillock-security-misc PAM faillock2 configuration]
+* '''Usability enhancement''': [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-info pam-info] by security-misc:
+** '''Login attempts feedback''': Displays the number of remaining login attempts after the first authentication failure.
+** '''Unlock procedure guidance''': Provides a link to documentation on performing the [[Root#unlock|unlock procedure]] when required.
 
-issues:
+Forum discussion: [https://forums.whonix.org/t/protect-linux-user-accounts-against-brute-force-attacks protect Linux accounts against brute force attacks]
 
-* PAM issue: [https://github.com/linux-pam/linux-pam/issues/842 pam_faillock tally and lockout status is reset by running a command with a NOPASSWD exception using sudo]
-* sudo issue: [https://github.com/sudo-project/sudo/issues/415 NOPASSD exceptions in /etc/sudoers(.d) interact poorly with pam_faillock, no configuration option available to allow sudo to tell PAM when a NOPASSWD command is being run]
+'''Issues:'''
+* '''PAM issue''': [https://github.com/linux-pam/linux-pam/issues/842 pam_faillock tally and lockout status is reset by running a command with a NOPASSWD exception using sudo]
+* '''sudo issue''': [https://github.com/sudo-project/sudo/issues/415 NOPASSWD exceptions in /etc/sudoers(.d) interact poorly with pam_faillock; no configuration option exists to allow sudo to tell PAM when a NOPASSWD command is being run]
+** Solution for these two issues: [[Dev/user-sysmaint-split]]
 
 == Online Password Cracking Restrictions ==
-A secure password for root/user accounts does not necessarily have to follow the rationale explained on the [[Passwords]] page. Offline attacks against the password (parallelization, password cracking attempts only limited by RAM, disk, and CPU) are not possible. Only "online" attacks are possible. Similar to attempts of cracking a password of a user account on a website. Only x attempts every y time are possible. See also [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]].
 
-https://security.stackexchange.com/questions/213084/how-strong-do-linux-user-account-passwords-have-to-be-when-using-full-disk-encry
+A secure password for root/user accounts does not necessarily have to follow the rationale explained on the [[Passwords]] page. Offline attacks against the password (parallelization, password cracking attempts limited only by RAM, disk, and CPU) are not possible. Only "online" attacks are feasible, similar to attempts to crack a password of a user account on a website. 
+
+These attacks are limited to a specific number of attempts (e.g., 50 failed login attempts) within a defined time period (TODO). After the limit is reached, the account is locked, and additional steps, such as a password unlock procedure, are required.
+
+See also: [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]]
+
+Relevant discussion: [https://security.stackexchange.com/questions/213084/how-strong-do-linux-user-account-passwords-have-to-be-when-using-full-disk-encry How strong do Linux user account passwords need to be when using full-disk encryption?]
 
 == /etc/securetty ==
-Package [https://github.com/{{project_name_short}}/security-misc security-misc] removes all non-comments from <code>/etc/securetty</code>. Thereby root login and ancient consoles can no longer be used to attempt root login.
 
-* https://github.com/{{project_name_short}}/security-misc/blob/master/etc/securetty.security-misc
+The package [https://github.com/{{project_name_short}}/security-misc security-misc] removes all non-comment lines from <code>/etc/securetty</code>. As a result, root login and ancient console-based root login attempts are effectively disabled.
+
+* Configuration details: [https://github.com/{{project_name_short}}/security-misc/blob/master/etc/securetty.security-misc securetty configuration]
 
 {{sdebian
 |link=https://www.debian.org/doc/manuals/securing-debian-manual/ch04s11.en.html#pam-rootaccess
@@ -165,38 +203,50 @@ Package [https://github.com/{{project_name_short}}/security-misc security-misc] 
 }}
 
 == Root Login Disabled ==
-Root login is disabled by default since {{project_name_short}} <code>15.0.0.3.6</code>.
 
-Only one user account with password and no root account login supported by default also means the user has only to remember and secure one rather than two strong passwords.
+Root login has been disabled by default since {{project_name_short}} <code>15.0.0.3.6</code>.
 
-usability:
+For users that require account password protection, having only one user account with a password and no root account login by default simplifies security. This setup ensures users only need to remember and secure one strong password instead of two.
 
-* Root login failures do not count as a failed login attempt fortunately to the faillock implementation by [[security-misc]].
+'''Usability:'''
+* Root login failures do not count as failed login attempts, thanks to the <code>faillock</code> implementation by [[security-misc]].
 
-related files:
+'''Related files:'''
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/pam-abort-on-locked-password-security-misc PAM abort on locked password configuration]
+* [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-abort-on-locked-password PAM abort on locked password script]
 
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/pam-abort-on-locked-password-security-misc
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/libexec/security-misc/pam-abort-on-locked-password
-* documentation: [[root]]
+Documentation: [[root]]
 
 == su restrictions ==
-By Debian default, any user account can attempt to use <code>su</code> to try to switch to the root user or any other user account. Any user account can try to bruteforce switching to another user account. [[Kicksecure]] / [[Whonix]] (package [https://github.com/{{project_name_short}}/security-misc security-misc]) configure that group <code>sudo</code> membership required to use <code>su</code> using [https://manpages.debian.org/pam_wheel pam_wheel].
 
-* https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/wheel-security-misc
+By default in Debian, any user account can attempt to use <code>su</code> to switch to the root user or another user account. This means any user can attempt to bruteforce switching to another account. [[Kicksecure]] / [[Whonix]] (via the package [https://github.com/{{project_name_short}}/security-misc security-misc]) restricts this behavior by requiring group <code>sudo</code> membership to use <code>su</code>, utilizing [https://manpages.debian.org/pam_wheel pam_wheel].
 
-[[Security-misc#SUID_Disabling_and_Permission_Hardening|SUID Disabling and Permission Hardening]] by security-misc removes SUID from <code>su</code> and many other binaries by default for further hardening.
+* Configuration details: [https://github.com/{{project_name_short}}/security-misc/blob/master/usr/share/pam-configs/wheel-security-misc PAM wheel configuration]
 
-User documentation: [[Root#Substitute_User_.28su.29_Command|Safely Use Root Commands chapter Substitute User (su) Command]]
+Additionally, [[Security-misc#SUID_Disabling_and_Permission_Hardening|SUID Disabling and Permission Hardening]] by security-misc removes SUID from <code>su</code> and many other binaries by default for further hardening.
 
-related development discussion: https://forums.whonix.org/t/restrict-root-access/7658
+'''User documentation:'''
+* [[Root#Substitute_User_.28su.29_Command|Safely Use Root Commands: Substitute User (su) Command]]
+
+'''Related development discussion:'''
+* [https://forums.whonix.org/t/restrict-root-access/7658 Restrict root access]
 
 == Console Login Attacks ==
 
-Blocking access to <code>su</code> would be ineffective if it were possible for a compromised user account to log into another user account by switching to a virtual terminal and bruteforcing the password from there. However, this is not possible due to access controls in the Linux kernel. This section explains how this works.
+Blocking access to <code>su</code> would be ineffective if a compromised user account could log into another user account by switching to a virtual terminal and bruteforcing the password. However, this is not possible due to access controls enforced by the Linux kernel. This section explains how this works.
 
-The Linux kernel provides various virtual console devices to userspace, generally through the <code>/dev/tty*</code> devices. In order to switch between virtual console devices, the user must have write access to at least one of these devices. By default, these devices are owned by root and can only be read and written by the owning user. This prevents any non-root process from accessing virtual consoles without root access.
+The Linux kernel provides various virtual console devices to userspace, typically through the <code>/dev/tty*</code> devices. To switch between virtual console devices, the user must have write access to at least one of these devices. By default:
 
-One or more <code>login</code> processes are automatically started on some of these virtual terminals by the <code>init</code> program, which run as root and provide a login prompt to the user. These cannot be accessed without being able to read from and write to the virtual console each process runs on. Due to the permission restrictions mentioned above, no user process can attempt to log into the system as another user through the console without already having root privileges. When a user does log in using a virtual console, the <code>login</code> process controlling that console will change the permissions on it so that the user that just logged in can read and write data on that console. This permits them to interact with whatever program is executed on the console (typically a shell such as bash). Once the user logs out, the console device's permissions are changed back, preventing processes running as the user from exploiting the console login system to log in as someone else.
+* These devices are owned by root.
+* They can only be read and written by the owning user.
+
+This ensures that non-root processes cannot access virtual consoles without root privileges.
+
+One or more <code>login</code> processes are automatically started on some of these virtual terminals by the <code>init</code> program. These processes run as root and provide a login prompt to the user. They cannot be accessed without the ability to read from and write to the virtual console each process runs on. 
+
+Due to the permission restrictions mentioned above, no user process can log into the system as another user through the console without already having root privileges. When a user logs in using a virtual console, the <code>login</code> process controlling that console changes the permissions on it so that the user who just logged in can read and write data on that console. This allows the user to interact with any program executed on the console (typically a shell such as <code>bash</code>).
+
+Once the user logs out, the console device's permissions revert, preventing processes running as the user from exploiting the console login system to log in as another user.
 
 {{quotation
 |quote=This is about where the process is started and what has connected as controlling terminal. It isn't anything Qubes specific. A non-privileged process cannot inject characters into a separate session (let's forget about X11 breaking all this assumptions, as we are talking about non-X11 session), especially if it's of a different user, similarly as it cannot write to files it doesn't have write permission. to. You can think of it as a write access to <code>/dev/tty</code> (or <code>/dev/hvc0</code> in this case). When you login on <code>/dev/hvc0</code>, login process (running as root) will setup permission to <code>/dev/hvc0</code> and also pass an open FD to it to your shell. Then, you (user, and that shell) will be able to interact with <code>/dev/hvc0</code> and specifically run commands connected to it. If you don't login there, login process will not set the permissions, so you won't have access.
@@ -204,14 +254,24 @@ This does assume kernel enforced permissions are effective, but as we are talkin
 |context=[https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366 Comment by Marek Marczykowski-Górecki, Qubes lead developer]
 }}
 
-This raises the question of how it is possible to switch between virtual consoles using a keypress such as Ctrl+Alt+Fn, or by using a command such as <code>chvt</code>. Virtual console switching is done by one of two things - the kernel virtual console code itself, or a program that can control any one of the virtual console devices. If you are logged in at a TTY, and press a Ctrl+Alt+Fn key combo, the kernel's virtual console code will detect the keypress, and switch to the desired virtual terminal. If you use the <code>chvt</code> command while logged into a virtual terminal, it will be able to switch to another virtual terminal because the virtual terminal the user logged in at is now readable and writable by the logged in user. It can thus access it and tell the kernel virtual terminal code to switch to a different virtual terminal. When you have a running graphical session, things are slightly more complicated, because the X server will take control of one of the virtual consoles, and when one presses Ctrl+Alt+Fn, that keypress will go to X, not the kernel virtual console code. In this instance, X will interpret the keypress and instruct the kernel's virtual terminal code to switch to the user's desired virtual console.
+This raises the question of how it is possible to switch between virtual consoles using a keypress such as Ctrl+Alt+Fn, or by using a command such as <code>chvt</code>. Virtual console switching is done by one of two things - the kernel virtual console code itself, or a program that can control any one of the virtual console devices. 
+
+If you are logged in at a TTY, and press a Ctrl+Alt+Fn key combo, the kernel's virtual console code will detect the keypress and switch to the desired virtual terminal.
+
+If you use the <code>chvt</code> command while logged into a virtual terminal, it will be able to switch to another virtual terminal because the virtual terminal the user logged in at is now readable and writable by the logged-in user. It can thus access it and tell the kernel virtual terminal code to switch to a different virtual terminal.
+
+When you have a running graphical session, things are slightly more complicated. The X server will take control of one of the virtual consoles, and when one presses Ctrl+Alt+Fn, that keypress will go to X, not the kernel virtual console code. In this instance, X will interpret the keypress and instruct the kernel's virtual terminal code to switch to the user's desired virtual console.
 
 With the above rules in place, the only way to gain read/write access to a virtual terminal is to:
 * Have physical access to the computer, thus giving one the ability to communicate directly with the kernel virtual terminal code.
 * Or, be running under a user account that has logged in at a virtual terminal already.
-** In this latter instance, software running as the logged-in user could ''switch'' to a different virtual terminal, but it would not be able to attempt to login at that terminal. That would require read/write access to the virtual terminal that was switched to, and virtual terminals that have a login prompt are only able to be read from and written to by root or a person with physical access to the machine.
+** In this latter instance, software running as the logged-in user could ''switch'' to a different virtual terminal, but it would not be able to attempt to login at that terminal. That would require read/write access to the virtual terminal that was switched to. Virtual terminals that have a login prompt are only able to be read from and written to by root or a person with physical access to the machine.
 
-It is also possible to communicate with an application that is controlling a virtual terminal. The most obvious example of this is when the X server is running as root (which it does by default on Debian-based systems, Kicksecure included). In this instance it is possible to do some limited console-level actions (namely switching to a different virtual terminal) even without direct read/write access to any virtual terminal device (for instance, by using <code>xdotool</code> to emulate a Ctrl+Alt+Fn keypress). Even in this scenario however, a malicious process that did this would not be able to login at the virtual terminal that was switched to, because it would not have read/write access to the virtual terminal that it switched to.
+It is also possible to communicate with an application that is controlling a virtual terminal. The most obvious example of this is when the X server is running as root (which it does by default on Debian-based systems, Kicksecure included).
+
+In this instance, it is possible to perform some limited console-level actions (namely switching to a different virtual terminal) even without direct read/write access to any virtual terminal device (for instance, by using <code>xdotool</code> to emulate a Ctrl+Alt+Fn keypress).
+
+Even in this scenario, however, a malicious process that did this would not be able to login at the virtual terminal that was switched to, because it would not have read/write access to the virtual terminal that it switched to.
 
 == sudo restrictions ==
 By Debian default, users who are not members of the group <code>sudo</code> cannot use <code>sudo</code>. Therefore limited user accounts (for example user <code>sdwdate</code>) cannot use <code>sudo</code> to attempt to crack other user account passwords to run under these users.
@@ -220,9 +280,9 @@ By Debian default, users who are not members of the group <code>sudo</code> cann
 {{anchor|access rights restrictions}}
 Strong Linux User Account Separation. Access rights restrictions.
 
-For example, <code>user1</code> with home folder <code>/home/user1</code> cannot read <code>user2</code>'s files in <code>/home/user2</code> home folder.
+For example, <code>user1</code> using home folder <code>/home/user1</code> cannot read <code>user2</code>'s files in the <code>/home/user2</code> home folder.
 
-Removes read, write and execute access for others for all users who have home folders under folder <code>/home</code> by running, for example, <code>chmod o-rwx /home/user</code> during package installation, upgrade, or PAM <code>mkhomedir</code>. This will be done only once per folder in folder <code>/home</code>, so users who wish to relax file permissions are free to do so. This is to protect previously created files in user home folders that were created with lax file permissions prior to the installation of this package.
+Removes read, write, and execute access for others for all users who have home folders under the folder <code>/home</code> by running, for example, <code>chmod o-rwx /home/user</code> during package installation, upgrade, or PAM <code>mkhomedir</code>. This will be done only once per folder in the <code>/home</code> directory, so users who wish to relax file permissions are free to do so. This protects previously created files in user home folders that were created with lax file permissions prior to the installation of the security-misc package.
 
 * <code>debian/security-misc.postinst</code>
 * <code>/usr/libexec/security-misc/permission-lockdown</code>
@@ -234,9 +294,19 @@ Removes read, write and execute access for others for all users who have home fo
 }}
 
 == umask hardening ==
-TODO: document
-
 Complements Permission Hardening for folders outside of <code>/home</code>.
+
+The <code>umask</code> (user file-creation mode mask) determines the default file permissions for newly created files and directories. By default, many systems set the umask to <code>022</code>, allowing read access to all users. For enhanced security, especially in multi-user environments, it's advisable to set a more restrictive <code>umask</code>, such as <code>027</code>, which restricts new files and directories to be accessible only by their owner.
+
+The default <code>umask</code> for files created by non-root users, such as the <code>user</code> account, is set to <code>027</code>.
+
+This behavior is achieved through the PAM module configuration: <code>pam_mkhomedir.so umask=027</code>.
+
+By setting this value, files created by non-root users are protected from being read by other non-root users by default. Although the <code>/home</code> folder is already secured by Permission Lockdown, this configuration provides additional safeguards for directories like <code>/tmp</code>.
+
+<code>group</code> read permissions are retained, which is safe due to Debian's implementation of User Private Groups (UPGs). For further details, refer to: [https://wiki.debian.org/UserPrivateGroups User Private Groups].
+
+The root <code>umask</code> remains unchanged because system configuration files in <code>/etc</code> require "others" read access to avoid breaking applications. Examples of such files include <code>/etc/firefox-esr</code> and <code>/etc/thunderbird</code>. To address this, the <code>umask</code> for root is configured to <code>022</code> via <code>sudoers</code>, ensuring files created by root remain world-readable. This includes actions like <code>sudo vi /etc/file</code> or <code>sudo -i; touch /etc/file</code>.
 
 Discussions:
 
@@ -264,23 +334,24 @@ Discussions:
 '''In this chapter general Linux-specific issues are discussed'''. These issues are [[unspecific|unspecific to {{project_name_short}}]]. Most if not all Freedom Software Linux desktop distributions are affected by one or multiple of these issues.
 
 == sudo password sniffing ==
-A compromised user account <code>user</code> could be infected with a keylogger (which unfortunately, does not even require root access) which could trivially read the <code>sudo</code> password and thereby acquire root access.
 
-Therefore, instructions to [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] are still required. It's for advanced users only and awareness and usability is bad.
+A compromised account <code>user</code> could be infected with a keylogger (which unfortunately, does not even require root access) that could trivially read the <code>sudo</code> password and thereby acquire root access.
 
-In future, [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Modes)]] might solve this issue. 
+Therefore, instructions to [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] are required. This is intended for advanced users only, as awareness and usability are poor.
 
-Reasons:
+In the future, [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Modes)]] might solve this issue.
 
-* Users would have a strong guidance to separate use of user <code>user</code> through different boot modes.
-* User <code>user</code> would not be a member of group <code>sudo</code> by default anymore.
-* Only user <code>sysmaint</code> would be a member of group <code>sudo</code> by default.
-* Every day activity considered higher risk such as browsing the internet would be done clearly separated under user <code>user</code> while activities such as package installation and system upgrades would be done using separate user <code>sysmaint</code>.
-* Therefore the more likely compromised user <code>user</code> would not have a chance to sniff the <code>sudo</code> password and therefore would be hindered from escalating to root without a local privilege escalation exploit.
+'''Reasons:'''
+* '''Guidance for account separation''': Users would have strong guidance to separate the use of the limited account <code>user</code> through different boot modes.
+* '''Group membership''': [[Dev/user-sysmaint-split#user_group_sudo_membership|user group sudo membership]]
+* '''Exclusive sudo access''': Only account <code>sysmaint</code> would have the ability to use privilege escalation tools such as <code>sudo</code>, <code>pkexec</code>. ([[Dev/user-sysmaint-split#No_Access_to_Privilege_Escalation_Tools_for_Limited_Users|No Access to Privilege Escalation Tools for Limited Accounts]])
+* '''Group membership''': [[Dev/user-sysmaint-split#user_group_sudo_membership|user group sudo membership]]
+* '''Separation of risky activities''': Everyday activities considered higher risk, such as browsing the internet, would be done clearly separated under account <code>user</code>, while activities such as package installation and system upgrades would be performed using the separate account <code>sysmaint</code>.
+* '''Reduced risk of password sniffing''': The more likely compromised account <code>user</code> would not have a chance to sniff the <code>sudo</code> password, thus hindering it from escalating to root without a local privilege escalation exploit.
 
 == X Windows System ==
-Any graphical application running under X Windows System (X11) can see what any user is typing in any other application for any user.
-For example, if user <code>user</code> running X11 would run <code>lxsudo -u limited-user some-application</code> a compromised graphical application could sniff anything that user <code>user</code> is writing. Including but not limited to any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
+Any graphical application running under X Windows System (X11) can see what any account is typing in any other application for any account.
+For example, if account <code>user</code> running X11 would run <code>lxsudo -u limited-account some-application</code> a compromised graphical application could sniff anything that account <code>user</code> is writing. Including but not limited to any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
 
 See the following footnotes for references about security issues with GUI isolation related to X Windows System (X11). <ref>
 [https://blog.invisiblethings.org/2011/04/23/linux-security-circus-on-gui-isolation.html Quote] Joanna Rutkowska, security researcher, founder and advisor (formerly architecture, security, and development) of Qubes OS:
@@ -289,20 +360,22 @@ See the following footnotes for references about security issues with GUI isolat
 One application can sniff or inject keystrokes to another one, can take snapshots of the screen occupied by windows belonging to another one, etc.
 </blockquote>
 </ref> <ref>
+Note: Rewritten "user" with "account" for clarity.
+
 https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366
 
 @Patrick
 
 <blockquote>
-Why “I” can do it but user “man” cannot? What makes “me” and user “man” different?
+Why “I” can do it but account “man” cannot? What makes “me” and account “man” different?
 
-On non-Qubes Debian I am always wondering if I can switch a virtual console using ctrl + alt + F1, why can user “man” not? And how’s that different in Qubes?
+On non-Qubes Debian I am always wondering if I can switch a virtual console using ctrl + alt + F1, why can account “man” not? And how’s that different in Qubes?
 <blockquote>
 
 @marmarek wrote:
 
 <blockquote>
-This is about where the process is started and what has connected as controlling terminal. It isn’t anything Qubes specific. A non-privileged process cannot inject characters into a separate session (lets forget about X11 breaking all this assumptions, as we are talking about non-X11 session), especially if it’s of a different user, similarly as it cannot write to files it doesn’t have write permission to. You can think of it as a write access to /dev/tty* (or /dev/hvc0 in this case). When you login on /dev/hvc0, login process (running as root) will setup permission to <code>/dev/hvc0</code> and also pass an open FD to it to your shell. Then, you (<code>user</code>, and that shell) will be able to interact with <code>/dev/hvc0</code> and specifically run commands connected to it. If you don’t login there, login process will not set the permissions, so you won’t have access. &gt; This does assume kernel enforced permissions are effective, but as we are talking here about in-VM account isolation only, it’s a reasonable assumption.
+This is about where the process is started and what has connected as controlling terminal. It isn’t anything Qubes specific. A non-privileged process cannot inject characters into a separate session (lets forget about X11 breaking all this assumptions, as we are talking about non-X11 session), especially if it’s of a different account, similarly as it cannot write to files it doesn’t have write permission to. You can think of it as a write access to /dev/tty* (or /dev/hvc0 in this case). When you login on /dev/hvc0, login process (running as root) will setup permission to <code>/dev/hvc0</code> and also pass an open FD to it to your shell. Then, you (<code>user</code>, and that shell) will be able to interact with <code>/dev/hvc0</code> and specifically run commands connected to it. If you don’t login there, login process will not set the permissions, so you won’t have access. &gt; This does assume kernel enforced permissions are effective, but as we are talking here about in-VM account isolation only, it’s a reasonable assumption.
 </blockquote>
 
 [https://github.com/marmarek marmarek]
@@ -328,38 +401,37 @@ Potential solutions:
 
 * [https://forums.whonix.org/t/can-apparmor-prevent-sudo-password-sniffing-through-abuse-of-x-windows-system/8973/8 Can AppArmor prevent sudo password sniffing through abuse of X Windows System?]
 * [https://forums.whonix.org/t/enlightenment-de/8900/10 Can we replace xfce window manager as an easy path to switch to wayland?]
-* In future, [https://forums.whonix.org/t/multiple-boot-modes-for-better-security-persistent-root-persistent-noroot-live-root-live-noroot/7708 multiple boot modes for better security: persistent + root | persistent + noroot | live + root | live + noroot] might solve this issue for similar reasons as in above chapter.
+* In future, [[Sysmaint|sysmaint - System Maintenance User]] / [[Dev/user-sysmaint-split|user-sysmaint-split]] might solve this issue for similar reasons as in above chapter.
 
 Help welcome!
 
 == /proc/pid/sched spy on keystrokes ==
-The <code>/proc</code> filesystem leaks a lot of information about other processes which allows attackers to spy on certain processes a large amount. One example is <code>/proc/pid/sched</code> which allows attackers to spy on keystrokes but there is definitely far more information leakage than just that.
 
-* https://forums.whonix.org/t/proc-pid-sched-spy-on-keystrokes-proof-of-concept-spy-gksu/8225
-* https://www.openwall.com/lists/oss-security/2011/11/05/3
-* https://forums.whonix.org/t/apparmor-for-complete-system-including-init-pid1-systemd-everything-full-system-mac-policy/8339/363
+The <code>/proc</code> filesystem leaks a significant amount of information about other processes, allowing attackers to spy on certain processes extensively. One example is <code>/proc/pid/sched</code>, which enables attackers to spy on keystrokes. However, the information leakage extends far beyond just that.
 
-Potential solutions:
+* [https://forums.whonix.org/t/proc-pid-sched-spy-on-keystrokes-proof-of-concept-spy-gksu/8225 Whonix Forums: Proof of Concept - Spy on Keystrokes]
+* [https://www.openwall.com/lists/oss-security/2011/11/05/3 Openwall Security Discussion]
+* [https://forums.whonix.org/t/apparmor-for-complete-system-including-init-pid1-systemd-everything-full-system-mac-policy/8339/363 Whonix Forums: Full-System MAC Policy Discussion]
 
-* <code>hidepid=2</code> mount option to hide processes from other users - this would prevent spying on processes of other users but since most people run most of their apps as the same user, the benefits are limited unless multiple users are being used
-* PID namespaces to hide processes from outside the namespace and can be used for sandboxing apps - this would prevent spying on processes outside of the sandbox
-* [https://github.com/roddhjav/apparmor.d apparmor.d] to give fine-grained restrictions over <code>/proc</code>
+'''Potential solutions:'''
+* '''<code>hidepid=2</code> mount option''': This hides processes from other accounts, preventing spying on processes of other accounts. However, the benefits are limited unless multiple accounts are used, as most users run most applications under the same account.
+* '''PID namespaces''': These hide processes from outside the namespace and can be used for sandboxing apps, effectively preventing spying on processes outside of the sandbox.
+* '''[https://github.com/roddhjav/apparmor.d apparmor.d] profiles''': This provides fine-grained restrictions over <code>/proc</code>, offering a more targeted approach to mitigating information leakage.
 
 == LD_PRELOAD ==
 
-<code>LD_PRELOAD</code> is an environment variable which specifies certain libraries to preload for an application. An attacker can preload their malicious library globally to log keystrokes or even worse, hijack the program.
+<code>LD_PRELOAD</code> is an environment variable that specifies certain libraries to preload for an application. An attacker can exploit this by preloading their malicious library globally to log keystrokes or, even worse, hijack the program.
 
-There are many examples of LD_PRELOAD rootkits in Linux. One example is:
+There are numerous examples of <code>LD_PRELOAD</code> rootkits in Linux. One example is:
 
-* https://github.com/Aishou/wayland-keylogger
+* [https://github.com/Aishou/wayland-keylogger wayland-keylogger]
 
-Potential solutions:
-
+'''Potential solutions:'''
 * Use environment scrubbing for everything in <code>apparmor.d</code>.
 
 == Setting up a fake sudo ==
 
-An attacker can setup a fake <code>sudo</code> binary so the user gives them their password. Here is a simple example attack implementation on how to accomplish that.
+An attacker can set up a fake <code>sudo</code> binary to trick the user into providing their password. Below is a simple example attack implementation demonstrating how this could be accomplished:
 
 {{CodeSelect|code=
 cat <<\EOF > /tmp/sudo
@@ -377,20 +449,20 @@ chmod +x /tmp/sudo
 export PATH="/tmp:${PATH}"
 }}
 
-This example attack implementation has in theory a lot room for improvement but that is besides the point being made here.
+This example attack implementation could theoretically be improved further, but that is beside the point being made here.
 
-Specifying the file path of the real <code>sudo</code> will not work either:
+Even specifying the file path of the real <code>sudo</code> binary would not work:
 
 {{CodeSelect|code=
 function /usr/bin/sudo { echo "Doesn't work"; }
 function /bin/sudo { echo "Doesn't work"; }
 }}
 
-Potential solutions:
+'''Non-Solutions:'''
+* '''[[noexec]]''': Mounting all user-writeable places such as <code>/home</code> and <code>/tmp</code> as non-executable is not a viable solution because an attacker can bypass these restrictions by using the bash interpreter, for example: <code>bash /path/to/script</code>. Would [https://forums.whonix.org/t/lock-down-interpreters-compilers-interpreter-lock-compiler-lock/18499 interpreter lock] help?
 
-* None except getting rid of <code>sudo</code> access
-
-Mounting all user-writeable places such as /home and /tmp as non-executable is not a solution because an attacker can use the bash interpreter to bypass the restrictions using <code>bash /path/to/script</code>. Would [https://phabricator.whonix.org/T941 interpreter lock] help?
+'''Potential solutions:'''
+* None, except getting rid of <code>sudo</code> access, which is planned [[Sysmaint|sysmaint - System Maintenance User]] / [[Dev/user-sysmaint-split|user-sysmaint-split]].
 
 == Device timing sidechannels ==
 
@@ -444,27 +516,29 @@ After, build version <code>17.2.0.7</code> and above:
 user::19932:0:99999:7:::
 </pre>
 
+Related: [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_.2Fetc.2Fshadow_File|Meanings of Special Characters in the Password Field of /etc/shadow File]]
+
 = Conclusions =
 
 * In {{Kicksecure}} based Linux distributions:
-** On <u>single-user</u> systems:
-*** <u>Assessment</u>: There should be no way for potentially compromised applications running under limited Linux user accounts (such as for example user <code>sdwdate</code>) - if compromised by malware - to login to other user accounts such as <code>root</code> or user <code>user</code>. This is thanks to the following security features:
+** On <u>single-user</u> systems (with a single human used account only):
+*** <u>Assessment</u>: There should be no way for potentially compromised applications running under limited Linux accounts (such as for example account <code>sdwdate</code>) - if compromised by malware - to login to other accounts such as <code>root</code> or account <code>user</code>. This is thanks to the following security features:
 **** '''A)''' [[#Console Lockdown|Console Lockdown]]
 **** '''B)''' [[#su restrictions|su restrictions]]
 **** '''C)''' [[#sudo restrictions|sudo restrictions]]
-**** '''D)''' [[#Bruteforcing Linux User Account Passwords Protection|Bruteforcing Linux User Account Passwords Protection]]
+**** '''D)''' [[#Bruteforcing Linux Account Passwords Protection|Bruteforcing Linux Account Passwords Protection]]
 **** '''E)''' [[#Online Password Cracking Restrictions|Online Password Cracking Restrictions]]
-*** <u>Malware Compromise Considerations</u>: Strong Linux user account passwords should be unnecessary for protection from locally running malware unless above security features can be circumvented.
+*** <u>Malware Compromise Considerations</u>: Strong Linux account passwords should be unnecessary for protection from locally running malware unless above security features can be circumvented.
 ** On <u>multi-user</u> systems:
 *** <u>Definition</u>: A multi-user system is defined here as a shared computer that has multiple human users.
-*** <u>Assessment</u>: Similar to single-user systems, but additional Linux user accounts (such as for example user <code>user<u>2</u></code>) will need to be added to Linux user group <code>console</code>. Therefore security feature Console Lockdown (A) will be ineffective against attacks from the added user accounts. In effect, strong Linux user account passwords are more important. However, other security features (B, C, D, E) still providing protection.
+*** <u>Assessment</u>: Similar to single-user systems, but additional Linux accounts (such as for example account <code>user<u>2</u></code>) will need to be added to Linux user group <code>console</code>. Therefore security feature Console Lockdown (A) will be ineffective against attacks from the added accounts. In effect, strong Linux account passwords are more important. However, other security features (B, C, D, E) still providing protection.
 ** <u>Remote Login</u>:
 *** Systems using remote login (such as [[SSH]]): A strong password might make sense during initial SSH setup, before public key authentication has been set up. Once exclusively using public key authentication, password authentication should be disabled entirely. Once public key authentication is being used exclusively, a strong password should be no longer required for remote login.
 *** Systems not using remote login: No requirements for a strong password to protect remote logins since not using any remote login mechanism.
-** <u>Threat</u>: Could a compromised user <code>user</code> escalate to <code>root</code> if user <code>user</code> was compromised?
+** <u>Threat</u>: Could a compromised account <code>user</code> escalate to <code>root</code> if account <code>user</code> was compromised?
 *** If using procedure [https://www.kicksecure.com/wiki/Root#Prevent_Malware_from_Sniffing_the_Root_Password Prevent Malware from Sniffing the Root Password]: no
 *** If not using procedure Prevent Malware from Sniffing the Root Password: yes, due to [[#Issues|issues]].
-** <u>[https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks Protection against Physical Attacks]</u>: This is a mostly unrelated issue. A [https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks#Screen_Lock screen lock] might be sufficient protection from lesser adversaries. In that case, a host screen locker and a better, non-default Linux account user password on the host operating system might help, as the login password will also be used for the screen lock.
+** <u>[https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks Protection against Physical Attacks]</u>: This is a mostly unrelated issue. A [https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks#Screen_Lock screen lock] might be sufficient protection from lesser adversaries. In that case, a host screen locker and a better, non-default Linux account password on the host operating system might help, as the login password will also be used for the screen lock.
 
 = Related Topics =
 {{Anchor|Related}}
