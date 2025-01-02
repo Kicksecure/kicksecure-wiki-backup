@@ -723,6 +723,13 @@ At this point, assuming Intel and AMD do not allow malicious firmware to be sign
 
 To make this process user-friendly, an OEM can embed an authentication secret into the TPM during hardware manufacturing and provide the secret to the user over a secure channel (e.g., via a GPG-encrypted email). The user can then program this secret into their phone or another hardware device, which can subsequently be used to authenticate their computer.
 
+Android has a different solution to avoiding relay attacks called "key provenance attestation", which appears to let you verify that a particular device is also in possession of a non-exportable encryption key that is used for establishing a connection to a remote service. Basically this means that not only is the device's ID verifiable, it's also possible to verify that the device itself is the device being used to take privileged actions. This is useful for avoiding relay attacks in a remote access scenario (even if there is a relay, all it can do is shuttle encrypted data back and forth, it therefore becomes benign), but is unsuitable for a local scenario. This is because it would require all communication between the user interface devices (mouse, keyboard, I/O ports, screen) and the machine in possession of the authentication secret to be encrypted. Additionally, the user would have to remain in possession of all of those I/O devices and not leave them unattended, so they could remain trusted. That doesn't seem at all practical.
+
+Further reading and discussion:
+
+* https://github.com/linuxboot/heads/issues/1881
+* https://mjg59.dreamwidth.org/70630.html
+
 TODO: So how do we verify the firmware externally? Flashkeeper shows some promise here, but it has issues we would prefer to avoid. What other options do we have? Do we need custom silicon for this? The device will need to handle a challenge-response process via high-speed signature or TOTP verification. It must then verify the firmware, which, in turn, must pass a high-speed signature or TOTP verification using a secret unsealed by the TPM. Or... perhaps the verification engine and the firmware chip could be combined into a single component? The firmware chip could include a verification engine that authenticates the firmware first. If the firmware is confirmed authentic, the chip would respond positively to a high-speed identity challenge; otherwise, it would respond negatively. Such a device would need to be resistant to TOCTOU (Time of Check to Time of Use) attacks. This means it must verify the firmware as the system boots it, not merely before the system begins booting.
 
 TODO: Are there CPU features in Intel or AMD hardware that can be used to verify the authenticity of the CPU in a cryptographically secure way before the first instruction is executed?
@@ -777,7 +784,9 @@ Host key verification failed.
 
 = misc =
 * https://blog.osfw.foundation/a-comparison-between-open-source-host-firmware-solutions-and-closed-source-uefi/
-* https://keylime.dev/blog/2024/02/07/remote-attestation-blog-part1.html
+* remote attestation
+** https://keylime.dev/blog/2024/02/07/remote-attestation-blog-part1.html
+*** https://github.com/keylime/keylime/issues/1712
 
 = Write Protection =
 
