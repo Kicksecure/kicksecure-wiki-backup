@@ -1,4 +1,74 @@
-= Stub =
-{{stub}}
+{{Header}}
+{{#seo:
+|description={{project_name_short}} Qubes OS related development documentation.
+}}
+{{intro|
+{{project_name_short}} Qubes OS related development documentation.
+}}
 
-Maybe contents from https://www.whonix.org/wiki/Dev/Qubes could be ported here.
+'''NOTE:''' This documentation has not been thoroughly tested yet. Proceed with caution.
+
+'''NOTE:''' The changes to qubes-builderv2 needed to make this work have not yet been merged upstream. These instructions won't work yet.
+
+= Building the Template =
+
+{{project_name_short}} has a Qubes OS template available that can be built and installed using <code>qubes-builderv2</code>. This can be used to install Kicksecure into Qubes OS without having to use distribution morphin.
+
+'''WARNING:''' The Kicksecure Qubes OS template is still in development and may be unstable or have problems. Use at your own risk.
+
+== Setting up qubes-builderv2 ==
+It is recommended to use Fedora-based qubes for building the Kicksecure template.
+
+Determine which Fedora template is used for the <code>default-dvm</code> DVM template. We will assume it is <code>fedora-40-xfce</code> in this document.
+
+=== Installing dependencies ===
+Launch a terminal in the <code>fedora-40-xfce</code> template. Install all dependencies for <code>qubes-builderv2</code> into the template. The dependencies are listed at https://github.com/QubesOS/qubes-builderv2/blob/main/dependencies-fedora.txt. Also ensure <code>git</code> is installed using <code>sudo dnf install git</code>. Shut down the template when you are complete.
+
+=== Prepare qubes ===
+'''WARNING:''' It is not recommend to reuse an existing AppVM for running the template build. You will be transferring the built template to dom0 and installing it when you are complete. If your AppVM used for running the builder is compromised, the template may become compromised as well. Templates are simply RPM packages, meaning ''they can run arbitrary code as root during installation.'' This means that a compromised template can and probably will compromise dom0. To reduce the risk of this happening, you should use a fresh AppVM for the build process.
+
+Create a new AppVM for running <code>qubes-builderv2</code>. You can this qube anything you want, we will call it <code>work-qubesos</code> in this document. Using Qube Manager, set the private disk space for <code>work-qubesos</code> to something reasonably large, 32 GB should work.
+
+Clone the <code>default-dvm</code> template and name it <code>qubes-builder-dvm</code>. This DVM template will be used for fetching and building code. Once the template is cloned, adjust its settings with Qubes Manager and increase the private storage space to ''at least'' 30 GB (more is preferable). Once that's done, start a terminal ''in the template'' and install the list of packages at https://github.com/QubesOS/qubes-builderv2/blob/main/dependencies-fedora-qubes-executor.txt. (Note: Make very sure you launched the template, not a new DispVM!) Do not shut down the template yet, we will make more changes to it shortly.
+
+Open a dom0 terminal and run <code>sudo nano /etc/qubes/policy.d/50-qubesbuilder.policy</code>. Type the contents of https://github.com/QubesOS/qubes-builderv2/blob/main/rpc/policy/50-qubesbuilder.policy into this file. (Note: If you have chosen names other than <code>work-qubesos</code> or <code>qubes-builder-dvm</code> for your qubes, you will have to adjust this configuration file to specify the correct VM names.) Save your changed with <code>Ctrl+S</code> and exit with <code>Ctrl+X</code>.
+
+In the still-running <code>qubes-builder-dvm</code> template, run <code>sudo mkdir -p /rw/bind-dirs/builder /rw/config/qubes-bind-dirs.d</code>. Then run <code>sudo nano /rw/config/qubes-bind-dirs.d/builder.conf</code> and type <code>binds+=('/builder')</code> into this file. Save and close the file when this is done. Next, run <code>sudo nano /rw/config/rc.local</code> and add the command <code>mount /builder -o dev,suid,remount</code> to the file. Once this is done, shut down the template.
+
+In a dom0 terminal, run <code>qvm-prefs work-qubesos default_dispvm qubes-builder-dvm</code>.
+
+Finally, start the <code>work-qubesos</code> AppVM, and ensure that the Qubes Master Signing Key is imported and set to trust level <code>ultimate</code>. If it isn't,  All needed configuration for running <code>qubes-builderv2</code> should now be complete.
+
+=== Installing qubes-builderv2 ===
+Ensure that <code>fedora-40-xfce</code>, <code>qubes-builder-dvm</code>, and <code>work-qubesos</code> are all shut down. This is to make sure all changes made to the templates apply to any new AppVMs and DispVMs that will be launched during the build process.
+
+Start <code>work-qubesos</code> and open a terminal in it. Install and verify the authenticity of the Qubes Security Pack by following the instructions at https://www.qubes-os.org/security/pack/. This is necessary to verify the authenticity of the <code>qubes-builderv2</code> source code.
+
+Clone the <code>qubes-builderv2</code> repository using <code>git clone https://github.com/QubesOS/qubes-builderv2.git</code>. Enter the cloned repository with <code>cd qubes-builderv2</code>, then verify the authenticity of the head commit's tag using <code>git tag -v $(git describe)</code>. The output of this command should indicate that the tag's signature is good and NOT display any warnings. If warnings are displayed, you may have installed the Qubes Security Pack improperly (for instance, by forgetting to install the Qubes Master Signing Key or by forgetting to mark it as trusted). If you are told that a tag does not exist, the head commit hasn't been tagged by a Qubes OS developer, and you should use <code>git checkout HEAD^</code> to back up one commit. Then try to verify the repo's authenticity again. If the signature comes back bad, the repository is corrupted (or compromised) and should be discarded immediately.
+
+Create a new file under the <code>qubes-builderv2</code> directory, and fill it with the following contents:
+
+<pre>
+include:
+  - example-configs/kicksecure.yml
+
+qubes-release: r4.2
+use-qubes-repo:
+  version: 4.2
+</pre>
+
+Finally, to build the template, run <code>sudo ./qb package fetch prep build && sudo ./qb -t kicksecure-17 template fetch prep build</code>. This will download the code needed to build the template, and then will build the template. If all goes well, the built template will be placed under <code>qubes-builderv2/artifacts/templates/rpm</code>.
+
+Finally, to install the template, copy the template RPM file to dom0 using <code>qvm-run --pass-io work-qubesos 'cat /home/user/qubes-builderv2/artifacts/templates/rpm/qubes-template-kicksecure...rpm' > qubes-template-kicksecure...rpm</code>, substituting in the real name of the RPM file (this name includes a timestamp and will thus be different for each build). Then install it with <code>sudo qvm-template install --nogpgcheck ./qubes-template-kicksecure...rpm</code>. '''WARNING: This action can execute arbitrary code as root on dom0! Only do this if you fully trust the qube used to build this template!'''
+
+You should now see a <code>kicksecure-17</code> template available in the application menu, under the "Templates" section.
+
+= Known Issues =
+
+Currently, the <code>user</code> account does not have sudo rights, not in the template and not in AppVMs based on the template. If you need to run commands as root, you should open a [[Root#Qubes_Root_Console|Qubes Root Console]] using <code>qvm-run</code>.
+
+The Kicksecure repository will not be enabled by default. To fix this, get a root shell within the template, and run <code>repository-dist --enable</code>.
+
+<code>qubes-core-agent-networking</code> is not pre-installed. As a result, AppVMs based on Kicksecure will have no Internet access. <code>apt</code> will still work inside of the template though. To resolve this, get a root shell within the template, and run <code>apt install qubes-core-agent-networking</code>.
+
+{{Footer}}
