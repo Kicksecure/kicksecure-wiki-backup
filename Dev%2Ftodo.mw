@@ -43,34 +43,6 @@ TODO
 * For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
 * please search with browser website internal search for all mentions of X11 and add Wayland equivalents documentation
 
-== ISO - ARM64 build failing ==
-<pre>
-./derivative-maker --target iso --flavor kicksecure-xfce --repo true --remote-derivative-packages true --arch arm64
-</pre>
-
-<pre>
-Setting up python3-pil:arm64 (9.4.0-1.1+deb12u1) ...
-Traceback (most recent call last):
-  File "/usr/bin/py3compile", line 323, in <module>
-    main()
-  File "/usr/bin/py3compile", line 302, in main
-    compile(files, versions,
-  File "/usr/bin/py3compile", line 187, in compile
-    cfn = interpreter.cache_file(fn, version)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/share/python3/debpython/interpreter.py", line 212, in cache_file
-    (fname[:-3], self.magic_tag(version), last_char))
-                 ^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/share/python3/debpython/interpreter.py", line 246, in magic_tag
-    return self._execute('import imp; print(imp.get_tag())', version)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/share/python3/debpython/interpreter.py", line 359, in _execute
-    raise Exception('{} failed with status code {}'.format(command, output['returncode']))
-Exception: ('python3.11', '-c', 'import imp; print(imp.get_tag())') failed with status code -11
-dpkg: error processing package python3-pil:arm64 (--configure):
- installed python3-pil:arm64 package post-installation script subprocess returned error exit status 1
-</pre>
-
 == grml-debootstrap - fix UEFI bootloader updates ==
 * https://github.com/grml/grml-debootstrap/issues/297
 * please send a pull request upstream
@@ -448,6 +420,53 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== ISO - ARM64 build failing ==
+<pre>
+./derivative-maker --target iso --flavor kicksecure-xfce --repo true --remote-derivative-packages true --arch arm64
+</pre>
+
+<pre>
+Setting up python3-pil:arm64 (9.4.0-1.1+deb12u1) ...
+Traceback (most recent call last):
+  File "/usr/bin/py3compile", line 323, in <module>
+    main()
+  File "/usr/bin/py3compile", line 302, in main
+    compile(files, versions,
+  File "/usr/bin/py3compile", line 187, in compile
+    cfn = interpreter.cache_file(fn, version)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/share/python3/debpython/interpreter.py", line 212, in cache_file
+    (fname[:-3], self.magic_tag(version), last_char))
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/share/python3/debpython/interpreter.py", line 246, in magic_tag
+    return self._execute('import imp; print(imp.get_tag())', version)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/share/python3/debpython/interpreter.py", line 359, in _execute
+    raise Exception('{} failed with status code {}'.format(command, output['returncode']))
+Exception: ('python3.11', '-c', 'import imp; print(imp.get_tag())') failed with status code -11
+dpkg: error processing package python3-pil:arm64 (--configure):
+ installed python3-pil:arm64 package post-installation script subprocess returned error exit status 1
+</pre>
+
+* This appears to be a bug in either Xen or QEMU. python3 intermittently segfaults when run in an arm64 chroot emulated on an amd64 machine. To reproduce simply, boot into Qubes OS, open a Debian 12 AppVM, ensure <code>qemu-user-static</code> and <code>mmdebstrap</code> are installed in the AppVM, then run <code>sudo mmdebstrap --architecture=arm64 bookworm armtest</code>. Then bind-mount important dirs with <code>sudo mount --bind /dev armtest/dev && sudo mount --bind /dev/pts armtest/dev/pts && sudo mount --bind /proc armtest/proc && sudo mount --bint /sys armtest/sys</code>. Then chroot in, run <code>apt update && apt install python3</code>, and then finally run the following segfault reproducer:
+
+<pre>
+for i in {1..800}; do
+   python3 -c 'import imp; print(imp.get_magic())' >/dev/null 2>/dev/null
+   exit_code="$?"
+   echo "$exit_code"
+   if [ "$exit_code" != '0' ]; then
+      break
+   fi
+done
+</pre>
+
+* This should output a lot of zeros, but eventually it should segfault and return non-zero. This usually happens at least once in 400 runs for me, but it's possible that it won't happen that soon, thus why the above reproducer tries 800 times.
+* This issue only occurs under Qubes OS for me. In a KVM VM, even 1600 attempts does not segfault on my machine.
+* The version of QEMU in bookworm-backports appears to have solved this. Run <code>sudo apt install -t bookworm-backports qemu-user-static</code> in your Debian 12 (or Kicksecure) template, shut down the template and reboot affected AppVMs, then attempt the above reproduction steps again. It should not segfault even with 1600 attempts. I have also confirmed that an ISO build succeeds when doing this.
+* Worth reporting to Debian as a bug report against Bookworm specifically? (This probably doesn't affect Sid since it's using a newer QEMU version, approximately the same version as in bookworm-backports.)
+* Worth enhancing the derivative-maker dependency installation code to allow specifying specific packages from backports so that we can ensure that qemu-user-static from bookworm-backports is used?
+
 == sysmaint-panel - Qubes support ==
 * bug: when qubes-core-agent-passwordless-root is not installed but user-sysmaint-split is not installed, sysmaint-panel fails to notify the user that root escalation is failing
 
