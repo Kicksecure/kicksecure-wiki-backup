@@ -38,10 +38,30 @@ TODO
 * Might need separate sessions for Wayland and X11, provided either by different packages or with some configurable switch
 ** Patrick: multiple packages best avoided as discussed
 
+== user-admin-split - installer sysmaint support ==
+* context: [[Linux]]
+* wrap all commands in run_as_root versus run_as_user, if useful
+* improve privilege escalation tool detection
+* sudo -u user
+* keep unrestricted admin mode / "normal" Linux distribution compatibility
+
 == Strong Linux User Account Isolation wiki page - add Wayland considerations ==
 * edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
 * For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
 * please search with browser website internal search for all mentions of X11 and add Wayland equivalents documentation
+
+== qubes-template-kicksecure ==
+* https://github.com/QubesOS/qubes-issues/issues/9573
+* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
+* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
+** https://github.com/QubesOS/qubes-builderv2/
+* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
+* Documentation written and tested.
+* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and awaiting merge.
+* Fixes needed:
+** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
+** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
+** Add <code>user-sysmaint-split</code> to template code.
 
 == grml-debootstrap - fix UEFI bootloader updates ==
 * https://github.com/grml/grml-debootstrap/issues/297
@@ -49,6 +69,7 @@ TODO
 
 == calamares dual legacy + efi booting support ==
 * as discussed
+* Draft PR opened at https://github.com/calamares/calamares/pull/2422, needs more work
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -61,13 +82,6 @@ TODO
 * contact people involved previously, if that makes sense
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
-
-== qubes-template-kicksecure ==
-* https://github.com/QubesOS/qubes-issues/issues/9573
-* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
-* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
-** https://github.com/QubesOS/qubes-builderv2/
-* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
 
 == implement sudoless ==
 * [[Dev/sudo]]
@@ -292,6 +306,7 @@ sudo apt install serial-console-enable
 ** 3.3.11 was hung up on calamares-extensions 3.3.1, and while calamares-extensions 3.3.11 is technically available, a real release of it hasn't been made. Pinged the Calamares devs to see if they could do that, after than I'll ping the Debian Qt/KDE team to get them to package it and that should release calamares into Trixie.
 ** 3.3.12 was uploaded but was slightly wonky, wasn't migrating, maintainer wasn't fixing the issue yet. Got a DD friend to sponsor an NMU to fix the problem, should hopefully migrate on December 22nd if all goes well. (Thanks to Simon Quigley for sponsorship!) 
 * Backport 3.3.12 after it is available in Trixie
+** Backport submitted to Debian Mentors, review requested from maintainer.
 
 == ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
 * Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
@@ -410,6 +425,26 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== sysmaint-panel - Qubes support ==
+* bug: when qubes-core-agent-passwordless-root is not installed but user-sysmaint-split is not installed, sysmaint-panel fails to notify the user that root escalation is failing
+
+<pre>
+/usr/bin/sudo /usr/bin/apt update
+Sorry, try again.
+Sorry, try again.
+sudo: 3 incorrect password attempts
+Command exited. You may close this window safely.
+</pre>
+
+* issue introduced by Kicksecure. not applicable with Qubes <code>qvm-template install debian-12-minimal</code>
+* Issue caused by security-misc/usr/share/pam-configs/wheel-security-misc. If user <code>user</code> is not in group <code>sudo</code>, this check fails and causes PAM authentication to fail, even if <code>user</code> has no password.
+** This file seems obsolete - the file states that it prevents users who aren't part of group <code>wheel</code> from using <code>su</code>, but <code>su</code> isn't even executable by anyone other than root due to permission hardening.
+** Issue should be resolvable by adding <code>user</code> to <code>sudo</code> in the template, or by removing this config file.
+** After discussion with Patrick, preferred solution is to create a script that can detect if the `su` command is being called, and only ensure that the user account in use is in the `sudo` group if this is the case.
+** After further research, <code>su</code> actually has a PAM configuration file that can be used here, allowing us to use pam_wheel as intended without causing conflicts.
+* Fix: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/fix-sudo
+
+= ARCHIVED =
 == ISO - ARM64 build failing ==
 <pre>
 ./derivative-maker --target iso --flavor kicksecure-xfce --repo true --remote-derivative-packages true --arch arm64
@@ -457,23 +492,6 @@ done
 * Worth reporting to Debian as a bug report against Bookworm specifically? (This probably doesn't affect Sid since it's using a newer QEMU version, approximately the same version as in bookworm-backports.)
 * Worth enhancing the derivative-maker dependency installation code to allow specifying specific packages from backports so that we can ensure that qemu-user-static from bookworm-backports is used?
 
-== sysmaint-panel - Qubes support ==
-* bug: when qubes-core-agent-passwordless-root is not installed but user-sysmaint-split is not installed, sysmaint-panel fails to notify the user that root escalation is failing
-
-<pre>
-/usr/bin/sudo /usr/bin/apt update
-Sorry, try again.
-Sorry, try again.
-sudo: 3 incorrect password attempts
-Command exited. You may close this window safely.
-</pre>
-
-* issue introduced by Kicksecure. not applicable with Qubes <code>qvm-template install debian-12-minimal</code>
-* Issue caused by security-misc/usr/share/pam-configs/wheel-security-misc. If user <code>user</code> is not in group <code>sudo</code>, this check fails and causes PAM authentication to fail, even if <code>user</code> has no password.
-** This file seems obsolete - the file states that it prevents users who aren't part of group <code>wheel</code> from using <code>su</code>, but <code>su</code> isn't even executable by anyone other than root due to permission hardening.
-** Issue should be resolvable by adding <code>user</code> to <code>sudo</code> in the template, or by removing this config file.
-
-= ARCHIVED =
 == iso - calamares - Argon2id ==
 * are we using Argon2id because it is a cryptsetup default?
 * please follow-up if useful on these tickets
