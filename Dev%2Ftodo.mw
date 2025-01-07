@@ -20,6 +20,31 @@ TODO
 * Ready for review: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-refactor
 * PR: https://github.com/Kicksecure/security-misc/pull/293
 
+== pam wheel - review ==
+* please review Patrick's new pam wheel implementaiton
+
+== analyze pam stack ==
+* old:
+
+<pre>
+/usr/bin/sudo /usr/bin/apt update
+Sorry, try again.
+Sorry, try again.
+sudo: 3 incorrect password attempts
+Command exited. You may close this window safely.
+</pre>
+
+* new:
+
+<pre>
+[template  user ~]% sudo apt update      
+Sorry, user user is not allowed to execute '/usr/bin/apt update' as root on localhost.
+zsh: exit 1     sudo apt update
+</pre>
+
+* due to pam wheel changes, this works better now
+* todo: why does this work better now? the pam wheel changes should not affect that.
+
 == user-sysmaint-split - Qubes support ==
 * user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
 * Plan for Kicksecure-Qubes and Qubes-Whonix-Workstation?
@@ -30,6 +55,18 @@ TODO
 ** Keep [[unrestricted admin mode]] to be on par with Non-Qubes-Whonix-Gateway?
 * user documentation
 * suggestions for https://github.com/QubesOS/qubes-issues/issues/9519?
+* bug:
+
+<pre>
+permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
+permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
+permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
+permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
+</pre>
+
+* That is because user sysmaint is not being created on Qubes yet.
+* /usr/bin/passwordless-root needs fixes?
+* implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 
 == user-sysmaint-split - Wayland support ==
 * sddm support (because that is LXQt's default login manager)
@@ -44,6 +81,35 @@ TODO
 * improve privilege escalation tool detection
 * sudo -u user
 * keep unrestricted admin mode / "normal" Linux distribution compatibility
+
+== review list of remaining SUIDs ==
+{{CodeSelect|code=
+sudo find / -perm -4000 -type f -executable
+}}
+
+<pre>
+/usr/lib/qubes/qfile-unpacker
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/chromium/chrome-sandbox
+/usr/lib/openssh/ssh-keysign
+/usr/lib/polkit-1/polkit-agent-helper-1
+/usr/sbin/pam-tmpdir-helper
+/usr/bin/fusermount3
+/usr/bin/sudo
+/usr/bin/pkexec
+/usr/bin/qfile-unpacker
+</pre>
+
+* /usr/lib/qubes/qfile-unpacker: Probably still needed.
+* /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+* /usr/lib/chromium/chrome-sandbox: Probably OK.
+* /usr/lib/openssh/ssh-keysign: ?
+* /usr/lib/polkit-1/polkit-agent-helper-1: Should be handled in user-sysmaint-split?
+* /usr/sbin/pam-tmpdir-helper: ?
+* /usr/bin/fusermount3: ?
+* /usr/bin/sudo: Done. (Handled in user-sysmaint-split.)
+* /usr/bin/pkexec: Done. (Handled in user-sysmaint-split.)
+* /usr/bin/qfile-unpacker: Probably still needed.
 
 == Strong Linux User Account Isolation wiki page - add Wayland considerations ==
 * edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
@@ -425,6 +491,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+= ARCHIVED =
 == sysmaint-panel - Qubes support ==
 * bug: when qubes-core-agent-passwordless-root is not installed but user-sysmaint-split is not installed, sysmaint-panel fails to notify the user that root escalation is failing
 
@@ -443,8 +510,8 @@ Command exited. You may close this window safely.
 ** After discussion with Patrick, preferred solution is to create a script that can detect if the `su` command is being called, and only ensure that the user account in use is in the `sudo` group if this is the case.
 ** After further research, <code>su</code> actually has a PAM configuration file that can be used here, allowing us to use pam_wheel as intended without causing conflicts.
 * Fix: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/fix-sudo
+** Patrick: not merged. implemented with a different implementation. follow-up ticket created.
 
-= ARCHIVED =
 == ISO - ARM64 build failing ==
 <pre>
 ./derivative-maker --target iso --flavor kicksecure-xfce --repo true --remote-derivative-packages true --arch arm64

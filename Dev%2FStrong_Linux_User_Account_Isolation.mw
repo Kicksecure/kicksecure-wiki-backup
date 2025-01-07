@@ -231,6 +231,73 @@ Additionally, [[Security-misc#SUID_Disabling_and_Permission_Hardening|SUID Disab
 '''Related development discussion:'''
 * [https://forums.whonix.org/t/restrict-root-access/7658 Restrict root access]
 
+=== su success sample log ===
+<pre>
+Jan 06 05:28:43 work-main su[51364]: pam_exec(su:auth): /usr/libexec/security-misc/pam_only_if_su failed: exit code 1
+Jan 06 05:28:43 work-main su[51364]: pam_wheel(su:auth): Ignoring access request 'user2' for 'root'
+Jan 06 05:28:43 work-main su[51366]: pam_exec(su:auth): Calling /usr/libexec/security-misc/pam-info ...
+Jan 06 05:28:43 work-main su[51364]: pam_exec(su:auth): /usr/libexec/security-misc/pam_faillock_not_if_x failed: exit code 1
+Jan 06 05:28:45 work-main su[51364]: pam_exec(su:auth): /usr/libexec/security-misc/pam_faillock_not_if_x failed: exit code 1
+Jan 06 05:28:45 work-main su[51380]: pam_exec(su:auth): Calling /usr/libexec/security-misc/pam-abort-on-locked-password ...
+Jan 06 05:28:45 work-main su[51364]: (to root) user2 on pts/6
+Jan 06 05:28:45 work-main su[51364]: pam_unix(su:session): session opened for user root(uid=0) by user(uid=1001)
+Jan 06 05:28:45 work-main su[51364]: pam_succeed_if(su:session): requirement "uid eq 0" was met by user "root"
+</pre>
+
+Annotated:
+
+<pre>
+Jan 06 04:50:17 work-main su[37262]: pam_exec(su:auth): /usr/libexec/security-misc/pam_faillock_not_if_x failed: exit code 1
+</pre>
+
+<pre>
+Jan 06 04:50:19 work-main su[37262]: pam_exec(su:auth): /usr/libexec/security-misc/pam_only_if_su failed: exit code 1
+</pre>
+
+Expected. See file /usr/libexec/security-misc/pam_faillock_not_if_x and /usr/libexec/security-misc/pam_only_if_su for implementation and comments.
+
+<pre>
+Jan 06 04:50:19 work-main su[37262]: pam_wheel(su:auth): Ignoring access request 'user2' for 'root'
+</pre>
+
+<code>su</code> access of <code>user2</code> for <code>root</code> was permitted because <code>user2</code> was a member of group <code>sudo</code>.
+
+=== unix_chkpwd error ===
+<pre>
+Jan 06 05:25:43 work-main unix_chkpwd[50748]: check pass; user unknown
+</pre>
+
+<pre>
+chmod +s /usr/bin/su
+</pre>
+
+Should not be required:
+
+<pre>
+chmod +s /usr/sbin/unix_chkpwd
+</pre>
+
+=== su failure sample log ===
+<pre>
+Jan 06 05:17:22 work-main su[49202]: pam_exec(su:auth): /usr/libexec/security-misc/pam_only_if_su failed: exit code 1
+Jan 06 05:17:22 work-main su[49202]: pam_wheel(su:auth): Access denied to 'user3' for 'root'
+Jan 06 05:17:22 work-main su[49202]: FAILED SU (to root) user3 on pts/9
+</pre>
+
+Annotated:
+
+<pre>
+Jan 06 05:17:22 work-main su[49202]: pam_exec(su:auth): /usr/libexec/security-misc/pam_only_if_su failed: exit code 1
+</pre>
+
+Expected. See file /usr/libexec/security-misc/pam_faillock_not_if_x and /usr/libexec/security-misc/pam_only_if_su for implementation and comments.
+
+<pre>
+Jan 06 05:17:22 work-main su[49202]: pam_wheel(su:auth): Access denied to 'user3' for 'root'
+</pre>
+
+<code>su</code> access of <code>user3</code> for <code>root</code> failed because <code>user3</code> was a member of group <code>sudo</code>.
+
 == Console Login Attacks ==
 
 Blocking access to <code>su</code> would be ineffective if a compromised user account could log into another user account by switching to a virtual terminal and bruteforcing the password. However, this is not possible due to access controls enforced by the Linux kernel. This section explains how this works.
