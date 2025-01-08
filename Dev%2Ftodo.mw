@@ -20,31 +20,6 @@ TODO
 * Ready for review: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-refactor
 * PR: https://github.com/Kicksecure/security-misc/pull/293
 
-== pam wheel - review ==
-* please review Patrick's new pam wheel implementaiton
-
-== analyze pam stack ==
-* old:
-
-<pre>
-/usr/bin/sudo /usr/bin/apt update
-Sorry, try again.
-Sorry, try again.
-sudo: 3 incorrect password attempts
-Command exited. You may close this window safely.
-</pre>
-
-* new:
-
-<pre>
-[template  user ~]% sudo apt update      
-Sorry, user user is not allowed to execute '/usr/bin/apt update' as root on localhost.
-zsh: exit 1     sudo apt update
-</pre>
-
-* due to pam wheel changes, this works better now
-* todo: why does this work better now? the pam wheel changes should not affect that.
-
 == user-sysmaint-split - Qubes support ==
 * user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
 * Plan for Kicksecure-Qubes and Qubes-Whonix-Workstation?
@@ -491,7 +466,45 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== analyze pam stack ==
+* old:
+
+<pre>
+/usr/bin/sudo /usr/bin/apt update
+Sorry, try again.
+Sorry, try again.
+sudo: 3 incorrect password attempts
+Command exited. You may close this window safely.
+</pre>
+
+* new:
+
+<pre>
+[template  user ~]% sudo apt update      
+Sorry, user user is not allowed to execute '/usr/bin/apt update' as root on localhost.
+zsh: exit 1     sudo apt update
+</pre>
+
+* due to pam wheel changes, this works better now
+* todo: why does this work better now? the pam wheel changes should not affect that.
+** If you open /etc/pam.d/common-auth, you'll see the auth stack most things that use PAM (including sudo and su) use in Debian. Critically, sudo shares this stack with su.
+** pam_wheel checks the user calling it, to determine if that user is in a specific group. If not, access is denied. This doesn't block lightdm login because lightdm runs as root, and root is (apparently) allowed to authenticate as anyone. However, if user <code>user</code> is not in the specified group (in our case <code>sudo</code>), access is denied, ''regardless of what user <code>user</code> is trying to do.''
+** Our old PAM stack ran pam_wheel for any successful authentication, which meant that anything the user tries to use that requires authentication (sudo, pkexec, su) will fail due to failed authentication. This applies even if user <code>user</code> is passwordless, in which case one will see authentication automatically fail without any other user input. sudo attempts authentication three times, so you get three failure messages.
+** Adjusting PAM to only run pam_wheel when running su fixes the issue because now <code>su</code> is the only thing that will attempt to use pam_wheel. Anything else will ignore it, and so authentication will succeed. In the case of sudo, it will then check, see that user <code>user</code> is not part of group <code>sudo</code> and return a clear error message, rather than an authentication failure message.
+
+== permission-hardener - usrmerge ==
+* assume usrmerge, make it a dependency
+* simplify configuration (/bin no longer needed)
+* Distribution morphing: document, if applicable
+** No need to depend on usrmerge, Bookworm requires merged /usr
+** No need to document for the same reason
+** Fixed security-misc with no more /bin modifications: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/usrmerge
+
 = ARCHIVED =
+== pam wheel - review ==
+* please review Patrick's new pam wheel implementation
+** Reviewed and tested, looks good and works as intended on my end.
+
 == sysmaint-panel - Qubes support ==
 * bug: when qubes-core-agent-passwordless-root is not installed but user-sysmaint-split is not installed, sysmaint-panel fails to notify the user that root escalation is failing
 
