@@ -50,42 +50,6 @@ permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
 * Might need separate sessions for Wayland and X11, provided either by different packages or with some configurable switch
 ** Patrick: multiple packages best avoided as discussed
 
-== user-admin-split - installer sysmaint support ==
-* context: [[Linux]]
-* wrap all commands in run_as_root versus run_as_user, if useful
-* improve privilege escalation tool detection
-* sudo -u user
-* keep unrestricted admin mode / "normal" Linux distribution compatibility
-
-== review list of remaining SUIDs ==
-{{CodeSelect|code=
-sudo find / -perm -4000 -type f -executable
-}}
-
-<pre>
-/usr/lib/qubes/qfile-unpacker
-/usr/lib/dbus-1.0/dbus-daemon-launch-helper
-/usr/lib/chromium/chrome-sandbox
-/usr/lib/openssh/ssh-keysign
-/usr/lib/polkit-1/polkit-agent-helper-1
-/usr/sbin/pam-tmpdir-helper
-/usr/bin/fusermount3
-/usr/bin/sudo
-/usr/bin/pkexec
-/usr/bin/qfile-unpacker
-</pre>
-
-* /usr/lib/qubes/qfile-unpacker: Probably still needed.
-* /usr/lib/dbus-1.0/dbus-daemon-launch-helper
-* /usr/lib/chromium/chrome-sandbox: Probably OK.
-* /usr/lib/openssh/ssh-keysign: ?
-* /usr/lib/polkit-1/polkit-agent-helper-1: Should be handled in user-sysmaint-split?
-* /usr/sbin/pam-tmpdir-helper: ?
-* /usr/bin/fusermount3: ?
-* /usr/bin/sudo: Done. (Handled in user-sysmaint-split.)
-* /usr/bin/pkexec: Done. (Handled in user-sysmaint-split.)
-* /usr/bin/qfile-unpacker: Probably still needed.
-
 == Strong Linux User Account Isolation wiki page - add Wayland considerations ==
 * edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
 * For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
@@ -466,6 +430,52 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== review list of remaining SUIDs ==
+{{CodeSelect|code=
+sudo find / -perm -4000 -type f -executable
+}}
+
+<pre>
+/usr/lib/qubes/qfile-unpacker
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/chromium/chrome-sandbox
+/usr/lib/openssh/ssh-keysign
+/usr/lib/polkit-1/polkit-agent-helper-1
+/usr/sbin/pam-tmpdir-helper
+/usr/bin/fusermount3
+/usr/bin/sudo
+/usr/bin/pkexec
+/usr/bin/qfile-unpacker
+</pre>
+
+* /usr/lib/qubes/qfile-unpacker: Probably still needed.
+** Appears to be an integral part of file transfer between qubes, stripping SUID from this in an AppVM results in that AppVM being unable to receive files any longer. (It can still send files to other qubes though.)
+* /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+** Needed for D-Bus system activation to work, see https://dbus.freedesktop.org/doc/system-activation.txt. May be vital for desktop features to work normally. Appears to have been designed with security in mind and can only be called by root or a user in the <code>messagebus</code> group (which currently has one member, namely user <code>messagebus</code>).
+* /usr/lib/chromium/chrome-sandbox: Probably OK.
+** '''This is safe to disable.''' Chrome/Chromium now uses namespace-based sandboxing rather than a SUID sandbox for most use cases, and while the SUID sandbox is still technically supported (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_sandboxing.md), it's also virtually unused (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_suid_sandbox.md). Chromium still works fine when it is stripped of its SUID bit and rendered no longer executable, and opening <code>chrome://sandbox</code> while in this state shows that sandboxing is still working perfectly fine.
+* /usr/lib/openssh/ssh-keysign: ?
+** Used only for SSH host-based authentication (https://linux.die.net/man/8/ssh-keysign), needed to allow access to the machine's host key for use in the authentication process. This is a non-default method of authenticating to SSH, and is likely rarely used, thus I believe this should be safe to disable.
+* /usr/lib/polkit-1/polkit-agent-helper-1: Should be handled in user-sysmaint-split?
+** Required for Polkit to function at all (https://polkit-devel.freedesktop.narkive.com/zXO4yEg7/documentation-on-polkit-agent-helper-1-and-suid#, https://gitlab.freedesktop.org/polkit/polkit/-/issues/168). Changing permissions here may break more than just normal privilege escalation. May be safe to disable for users other than sysmaint similar to what we did with pkexec and sudo, however even that might not be safe.
+* /usr/sbin/pam-tmpdir-helper: ?
+** Used by the pam_tmpdir module to create a secure temporary directory for the user that is logging in. (https://manpages.ubuntu.com/manpages/oracular/man8/pam-tmpdir-helper.8.html) Apparently specific to Debian, there isn't actually any Git repo with this code in it, it's just a "floating" package in the Debian archive. Written by the same person who maintains the package. Almost certainly cannot be disabled without causing serious problems, but may be worth auditing. (Worthy of note, it doesn't seem this program takes any user input, but relies solely on the calling user's UID and GID, though I could have missed something.)
+* /usr/bin/fusermount3: ?
+** Critical component of FUSE (Filesystem in USErspace), used by things such as AppImages and Docker. If not SUID, unprivileged users will be unable to use FUSE any longer - this completely breaks AppImages, among other things. Should be left enabled to avoid causing problems.
+* /usr/bin/sudo: Done. (Handled in user-sysmaint-split.)
+* /usr/bin/pkexec: Done. (Handled in user-sysmaint-split.)
+* /usr/bin/qfile-unpacker: Probably still needed.
+** Not bit-for-bit identical to /usr/lib/qubes/qfile-unpacker, and stripping SUID from this does *not* break file copying. Unsure what this is for, asked in Qubes OS Matrix room for clarification.
+
+== user-admin-split - installer sysmaint support ==
+* context: [[Linux]]
+* wrap all commands in run_as_root versus run_as_user, if useful
+* improve privilege escalation tool detection
+* sudo -u user
+* keep unrestricted admin mode / "normal" Linux distribution compatibility
+** PR with the bulk of the changes: https://github.com/Kicksecure/usability-misc/pull/13
+** Sudoers exception needed to make the above work in sysmaint mode: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/dist-installer-sysmaint
+
 == analyze pam stack ==
 * old:
 
@@ -501,6 +511,10 @@ zsh: exit 1     sudo apt update
 ** Fixed security-misc with no more /bin modifications: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/usrmerge
 
 = ARCHIVED =
+== report research results to purism ==
+* as discussed
+* Done.
+
 == pam wheel - review ==
 * please review Patrick's new pam wheel implementation
 ** Reviewed and tested, looks good and works as intended on my end.
