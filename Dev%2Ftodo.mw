@@ -10,15 +10,32 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== permission-hardener refactor ==
-* Avoid lazy loading, instead build state arrays ancd apply them in an idempotent fashion
-* Currently planned algorithm:
-** Build the state first, starting with an empty state array if there is no state or loading an existing state array if there is state. For each file mentioned in the policy, check to see if it's in the state array, and if not, add its current user owner, group owner, and permissions state to the array. (TODO: How to handle capabilities? For now we can just support stripping them and not support adding them back.)
-** Next, apply the policy to the state. Copy the state array to a new array, and then change the user owner, group owner, permissions state, and capabilities to match the policy. It is important that it be done this way, because this means if the policy used to modify a file, but now no longer does, that file's original permissions state will exist in the state array, and thus will be considered part of the state that permissions-hardener applies.
-** Apply the built, policy-enhanced state to the filesystem's active state. For each file in the state array, delete the file's entry in dpkg-statoverride, then change the file's actual state to match the state array (again using dpkg-statoverride to do this)
-** To undo a policy for a file, load the state file, wipe the dpkg-statoverride entry for it, and then apply the stored state to the real file.
-* Ready for review: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-refactor
-* PR: https://github.com/Kicksecure/security-misc/pull/293
+== address Linux Installer review ==
+* some review comments about Linux installer have been sent privately
+* please address, if applicable
+* root_cmd or another function should be used instead of sudo
+** this is for the benefit of using end-of-options ("<code>--</code>")
+* <code>real_file="$(sudo realpath "${file}")"</code>
+** please do not hardcode sudo, use root_cmd
+** is variable real_file actually used for anything?
+* use shellcheck
+* All problems fixed, '''UNTESTED: DO NOT MERGE YET'''
+** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/root-cmd-improve
+** https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/dist-installer-sysmaint-polish
+*** Will test before moving this to REVIEW PLEASE
+
+== grml-debootstrap - fix UEFI bootloader updates ==
+* https://github.com/grml/grml-debootstrap/issues/297
+* please send a pull request upstream
+** Pull request: https://github.com/grml/grml-debootstrap/pull/299
+** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
+*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
+*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
+
+== user-sysmaint-split - rads integration ==
+* review Patrick's changes
+* avoid "systemctl start rads" hardcoded, if possible.
+* Reasons: Qubes does not come with rads by default. System might not have rads. User might have uninstalled rads. Difficult to check if a systemd unit is installed. (systemctl list-units | grep rads - might find a similar names systemd unit.)
 
 == user-sysmaint-split - Qubes support ==
 * user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
@@ -42,39 +59,13 @@ permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
 * That is because user sysmaint is not being created on Qubes yet.
 * /usr/bin/passwordless-root needs fixes?
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
-
-== user-sysmaint-split - Wayland support ==
-* sddm support (because that is LXQt's default login manager)
-** Can set default user account and session by modifying /var/lib/sddm/state.conf
-* Needs to use labwc as window manager instead of xfwm4 when in Wayland mode
-* Might need separate sessions for Wayland and X11, provided either by different packages or with some configurable switch
-** Patrick: multiple packages best avoided as discussed
+** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
 
 == Strong Linux User Account Isolation wiki page - add Wayland considerations ==
 * edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
 * For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
 ** Done, did necessary research and added info to the wiki.
 * please search with browser website internal search for all mentions of X11 and add Wayland equivalents documentation
-
-== qubes-template-kicksecure ==
-* https://github.com/QubesOS/qubes-issues/issues/9573
-* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
-* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
-** https://github.com/QubesOS/qubes-builderv2/
-* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
-* Documentation written and tested.
-* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and awaiting merge.
-* Fixes needed:
-** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
-*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
-**** https://github.com/ArrayBolt3/qubes-template-whonix
-**** https://github.com/ArrayBolt3/qubes-template-kicksecure
-** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
-** Add <code>user-sysmaint-split</code> to template code.
-
-== grml-debootstrap - fix UEFI bootloader updates ==
-* https://github.com/grml/grml-debootstrap/issues/297
-* please send a pull request upstream
 
 == calamares dual legacy + efi booting support ==
 * as discussed
@@ -275,9 +266,22 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
-== calamares - investigate keyboard layout issue ==
-* https://forums.kicksecure.com/t/problems-with-the-installation/836
-* Asked user for more information, cannot reproduce.
+== qubes-template-kicksecure ==
+* https://github.com/QubesOS/qubes-issues/issues/9573
+* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
+* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
+** https://github.com/QubesOS/qubes-builderv2/
+* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
+* Documentation written and tested.
+* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and awaiting merge.
+* Fixes needed:
+** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
+*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
+**** https://github.com/ArrayBolt3/qubes-template-whonix
+**** https://github.com/ArrayBolt3/qubes-template-kicksecure
+** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
+** Add <code>user-sysmaint-split</code> to template code.
+*** Requires user-sysmaint-split to be published in Kicksecure's repos
 
 == trixie port - misc ==
 * waiting for trixie to get frozen and stable enough
@@ -437,6 +441,23 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== DNS - Kicksecure Default DNS Discussion ==
+* https://www.kicksecure.com/wiki/DNS
+* https://www.kicksecure.com/wiki/DNS_Security
+* https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
+* https://forums.whonix.org/t/default-dns-provider-discussion-for-kicksecure-not-whonix/16870
+* https://forums.whonix.org/t/use-dnscrypt-by-default-in-kicksecure-not-whonix/8117
+* please read, comment, edit as applicable
+** Read, updated documentation and wrote a long comment suggesting next steps for implementing DNSSEC
+
+== document ARP related sysctl changes ==
+* please create a [[networking]] wiki page
+* https://github.com/Kicksecure/security-misc/pull/288
+* https://github.com/Kicksecure/security-misc/pull/289
+* https://github.com/Kicksecure/security-misc/pull/290
+* https://github.com/Kicksecure/security-misc/pull/291
+* Created, also tested <code>arp_ignore</code>'s effects on a common virtualization use case.
+
 == review list of remaining SUIDs ==
 {{CodeSelect|code=
 sudo find / -perm -4000 -type f -executable
@@ -474,15 +495,6 @@ sudo find / -perm -4000 -type f -executable
 * /usr/bin/qfile-unpacker: Probably still needed.
 ** Not bit-for-bit identical to /usr/lib/qubes/qfile-unpacker, and stripping SUID from this does *not* break file copying. Unsure what this is for, asked in Qubes OS Matrix room for clarification.
 
-== user-admin-split - installer sysmaint support ==
-* context: [[Linux]]
-* wrap all commands in run_as_root versus run_as_user, if useful
-* improve privilege escalation tool detection
-* sudo -u user
-* keep unrestricted admin mode / "normal" Linux distribution compatibility
-** PR with the bulk of the changes: https://github.com/Kicksecure/usability-misc/pull/13
-** Sudoers exception needed to make the above work in sysmaint mode: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/dist-installer-sysmaint
-
 == analyze pam stack ==
 * old:
 
@@ -518,6 +530,39 @@ zsh: exit 1     sudo apt update
 ** Fixed security-misc with no more /bin modifications: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/usrmerge
 
 = ARCHIVED =
+== permission-hardener refactor ==
+* Avoid lazy loading, instead build state arrays ancd apply them in an idempotent fashion
+* Currently planned algorithm:
+** Build the state first, starting with an empty state array if there is no state or loading an existing state array if there is state. For each file mentioned in the policy, check to see if it's in the state array, and if not, add its current user owner, group owner, and permissions state to the array. (TODO: How to handle capabilities? For now we can just support stripping them and not support adding them back.)
+** Next, apply the policy to the state. Copy the state array to a new array, and then change the user owner, group owner, permissions state, and capabilities to match the policy. It is important that it be done this way, because this means if the policy used to modify a file, but now no longer does, that file's original permissions state will exist in the state array, and thus will be considered part of the state that permissions-hardener applies.
+** Apply the built, policy-enhanced state to the filesystem's active state. For each file in the state array, delete the file's entry in dpkg-statoverride, then change the file's actual state to match the state array (again using dpkg-statoverride to do this)
+** To undo a policy for a file, load the state file, wipe the dpkg-statoverride entry for it, and then apply the stored state to the real file.
+* Ready for review: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-refactor
+* PR: https://github.com/Kicksecure/security-misc/pull/293
+
+== user-admin-split - installer sysmaint support ==
+* context: [[Linux]]
+* wrap all commands in run_as_root versus run_as_user, if useful
+* improve privilege escalation tool detection
+* sudo -u user
+* keep unrestricted admin mode / "normal" Linux distribution compatibility
+** PR with the bulk of the changes: https://github.com/Kicksecure/usability-misc/pull/13
+** Sudoers exception needed to make the above work in sysmaint mode: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/dist-installer-sysmaint
+
+== user-sysmaint-split - Wayland support ==
+* sddm support (because that is LXQt's default login manager)
+** Can set default user account and session by modifying /var/lib/sddm/state.conf
+* Needs to use labwc as window manager instead of xfwm4 when in Wayland mode
+* Might need separate sessions for Wayland and X11, provided either by different packages or with some configurable switch
+** Patrick: multiple packages best avoided as discussed
+* Implementation (SDDM tested, Wayland untested): https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/wayland-sddm-support
+* Will be difficult to fully test until Kicksecure's Trixie port is underway
+
+== calamares - investigate keyboard layout issue ==
+* https://forums.kicksecure.com/t/problems-with-the-installation/836
+* Asked user for more information, cannot reproduce.
+* No response, archiving.
+
 == report research results to purism ==
 * as discussed
 * Done.

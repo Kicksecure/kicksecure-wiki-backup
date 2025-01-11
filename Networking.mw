@@ -1,0 +1,27 @@
+{{Header}}
+{{title|title=
+Networking
+}}
+{{intro|
+Information about networking-related features and concepts in Kicksecure.
+}}
+
+= Introduction =
+
+For the most part, {{project_name_short}} adheres to Debian's networking configuration and does not introduce major differences from how Debian works. If a particular networking setup works well with Debian, it will probably work well with Kicksecure too. However, some networking configuration options have been hardened for security, and this can result in problems in certain situations. This page documents how {{project_name_short}}'s networking configuration is hardened, and how to undo each hardened setting if needed.
+
+== Modified sysctl settings ==
+Further documentation on each of the below settings can be found in the Linux kernel documentation on IP-related sysctl settings.<ref>https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt</ref> Most of these settings are inspired by the ANSSI's Linux system configuration recommendations.<ref>https://cyber.gouv.fr/sites/default/files/document/linux_configuration-en-v2.pdf</ref>
+
+=== ARP sysctl settings ===
+* <code>net.ipv4.conf.*.drop_gratuitous_arp=1</code> is set, thus gratuitous ARP packets are ignored.<ref>https://github.com/Kicksecure/security-misc/pull/291</ref> This makes local network man-in-the-middle attacks much more difficult to execute, but can cause severe issues if there are machines on the network that may change their MAC address for legitimate reasons. This configuration can be undone by setting <code>net.ipv4.conf.*.drop_gratuitous_arp=1</code> in <code>/etc/sysctl.d</code>.
+* <code>net.ipv4.conf.*.arp_ignore=2</code> is set, thus ARP requests are accepted only if the requester and the requested IP address are on the same subnet on the same physical interface.<ref>https://github.com/Kicksecure/security-misc/pull/290</ref> In other words, if a machine on network A asks a {{project_name_short}} system if it is in possession of an IP address that belongs to network B, {{project_name_short}} will ignore that request, even if the system does indeed own that IP address. This prevents an attacker on the local network from enumerating all IP addresses in use on the system, which can be useful to avoid information leaks when using VPNs.<ref>https://github.com/mullvad/mullvadvpn-app/blob/main/audits/2024-12-10-X41-D-Sec.md#mllvd-cr-24-03-virtual-ip-address-of-tunnel-device-leaks-to-network-adjacent-participant-severity-medium</ref> This may break certain networking setups, such as when running virtual machines within {{project_name_short}} with bridged networking, however it does not seem to negatively affect libvirt virtual machines using NAT networking (which is the default when using virt-manager). This configuration can be undone by setting <code>net.ipv4.conf.*.arp_ignore=0</code> in <code>/etc/sysctl.d</code>.
+* <code>net.ipv4.conf.*.arp_filter=1</code> is set. thus ARP filtering is enabled.<ref>https://github.com/Kicksecure/security-misc/pull/289</ref> If a machine has two physical network interfaces that are part of the same subnet, an ARP request for one of those interface's IPs will only be answered if packets from that IP would be routed out that interface. In other words, a machine on the local network can't learn how to talk to interface A by talking to interface B. This provides further IP address leak prevention on top of the <code>arp_ignore</code> setting discussed above. This configuration can be undone by setting <code>net.ipv4.conf.*.arp_filter=0</code> in <code>/etc/sysctl.d</code>.
+
+=== IPv4 sysctl settings ===
+* <code>net.ipv4.conf.*.shared_media=0</code> is set, thus shared media redirects are disabled.<ref>https://github.com/Kicksecure/security-misc/pull/288</ref> This helps reduce the risk of IP spoofing attacks. This shouldn't cause any problems in general, but it may reduce networking performance in some situations. This configuration can be undone by setting <code>net.ipv4.conf.*.shared_media=1</code> in <code>/etc/sysctl.d</code>.
+
+= Footnotes =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]
