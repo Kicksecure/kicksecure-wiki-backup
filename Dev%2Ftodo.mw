@@ -10,32 +10,81 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== address Linux Installer review ==
-* some review comments about Linux installer have been sent privately
-* please address, if applicable
-* root_cmd or another function should be used instead of sudo
-** this is for the benefit of using end-of-options ("<code>--</code>")
-* <code>real_file="$(sudo realpath "${file}")"</code>
-** please do not hardcode sudo, use root_cmd
-** is variable real_file actually used for anything?
-* use shellcheck
-* All problems fixed, '''UNTESTED: DO NOT MERGE YET'''
-** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/root-cmd-improve
-** https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/dist-installer-sysmaint-polish
-*** Will test before moving this to REVIEW PLEASE
-
 == grml-debootstrap - fix UEFI bootloader updates ==
 * https://github.com/grml/grml-debootstrap/issues/297
 * please send a pull request upstream
 ** Pull request: https://github.com/grml/grml-debootstrap/pull/299
 ** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
 *** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
+**** Aaron: Done.
 *** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
+**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
+* Patrick: please use, review the following simplification, if sane
 
-== user-sysmaint-split - rads integration ==
-* review Patrick's changes
-* avoid "systemctl start rads" hardcoded, if possible.
-* Reasons: Qubes does not come with rads by default. System might not have rads. User might have uninstalled rads. Difficult to check if a systemd unit is installed. (systemctl list-units | grep rads - might find a similar names systemd unit.)
+<pre>
+    if [ -z "$VMEFI" ]; then
+      grub_pc_package_name=grub-pc
+    else
+      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
+      # otherwise the EFI bootloader won't be automatically updated when GRUB
+      # packages are uploaded. Doing this means that the BIOS bootloader won't
+      # be automatically updated, which stinks, however the BIOS bootloader
+      # doesn't have the same security concerns as the EFI bootloader (there's
+      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
+      # better to let the BIOS bootloader lag behind and update the EFI one
+      # than to let the EFI bootloader lag behind and update the BIOS one.
+      grub_pc_package_name=grub-pc-bin
+    fi
+
+    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
+      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
+      # shellcheck disable=SC2086
+      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
+    fi
+</pre>
+
+* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
+
+<pre>
+        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
+</pre>
+
+* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
+* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
+* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
+
+== permission-hardener - restore permissions on configuration changes ==
+* bug: when package user-sysmaint-split is removed, permission-hardener fails to restore sudo and pkexec permissions
+
+== Kicksecure DNS proper /etc/resolv.conf during build process ==
+* Kicksecure DNS setting is currently "implicit" as per https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
+* It however, should be "explicit".
+* Until more secure settings are implemented (waiting for replies from unbound), a sane /etc/resolv.conf file needs to be created during the build process
+* VM builds vs ISO builds
+
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+
+== debian grub-pc with grub-efi co-installation issue bug report ==
+* please check if one already exists, report a bug or feature request against Debian for grub-pc with grub-efi co-install-ability
+
+== user-sysmaint-split - shutdown action ==
+* a systemd unit to lock the sysmaint account on shutdown
 
 == user-sysmaint-split - Qubes support ==
 * user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
@@ -46,20 +95,36 @@ TODO
 * Plan for Qubes-Whonix-Gateway?
 ** Keep [[unrestricted admin mode]] to be on par with Non-Qubes-Whonix-Gateway?
 * user documentation
-* suggestions for https://github.com/QubesOS/qubes-issues/issues/9519?
-* bug:
-
-<pre>
-permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
-permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
-permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
-permission-hardener: [ERROR]: Group from config does not exist: 'sysmaint'
-</pre>
-
-* That is because user sysmaint is not being created on Qubes yet.
+* suggestions for [https://github.com/QubesOS/qubes-issues/issues/9519 create user `admin` by default and add user `admin` to group `sudo` by default]?
 * /usr/bin/passwordless-root needs fixes?
+
+== Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 ** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
+*** Patrick: R4.2 should be sufficient?
+
+== qubes-template-kicksecure ==
+* https://github.com/QubesOS/qubes-issues/issues/9573
+* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
+* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
+** https://github.com/QubesOS/qubes-builderv2/
+* Documentation written and tested.
+* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and merged.
+** Patrick: Done.
+* Fixes needed ('''DONE'''):
+** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
+*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
+**** https://github.com/ArrayBolt3/qubes-template-whonix
+**** https://github.com/ArrayBolt3/qubes-template-kicksecure
+***** Done. Both merged.
+
+== kicksecure-meta-packages fixes for qubes-template-kicksecure ==
+* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
+* Fixes needed ('''NOT YET DONE'''):
+** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
+** Add <code>user-sysmaint-split</code> to template code.
+*** Requires user-sysmaint-split to be published in Kicksecure's repos
+**** Patrick: Done.
 
 == Strong Linux User Account Isolation wiki page - add Wayland considerations ==
 * edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
@@ -266,23 +331,6 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
-== qubes-template-kicksecure ==
-* https://github.com/QubesOS/qubes-issues/issues/9573
-* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
-* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
-** https://github.com/QubesOS/qubes-builderv2/
-* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
-* Documentation written and tested.
-* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and awaiting merge.
-* Fixes needed:
-** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
-*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
-**** https://github.com/ArrayBolt3/qubes-template-whonix
-**** https://github.com/ArrayBolt3/qubes-template-kicksecure
-** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
-** Add <code>user-sysmaint-split</code> to template code.
-*** Requires user-sysmaint-split to be published in Kicksecure's repos
-
 == trixie port - misc ==
 * waiting for trixie to get frozen and stable enough
 * 1) SSH configurations
@@ -298,22 +346,11 @@ sudo apt install serial-console-enable
 ** add ominous message to release-upgrade script
 * 5) Check if /etc/grub.d/10_linux was updated in Debian. If so, update our fork in dist-base-files.
 
+== trixie port - port to Wayland ==
+* https://github.com/Kicksecure/kicksecure-meta-packages/pull/2
+
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
-
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
 
 == calamares - make 3.3.12 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
@@ -441,23 +478,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== DNS - Kicksecure Default DNS Discussion ==
-* https://www.kicksecure.com/wiki/DNS
-* https://www.kicksecure.com/wiki/DNS_Security
-* https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
-* https://forums.whonix.org/t/default-dns-provider-discussion-for-kicksecure-not-whonix/16870
-* https://forums.whonix.org/t/use-dnscrypt-by-default-in-kicksecure-not-whonix/8117
-* please read, comment, edit as applicable
-** Read, updated documentation and wrote a long comment suggesting next steps for implementing DNSSEC
-
-== document ARP related sysctl changes ==
-* please create a [[networking]] wiki page
-* https://github.com/Kicksecure/security-misc/pull/288
-* https://github.com/Kicksecure/security-misc/pull/289
-* https://github.com/Kicksecure/security-misc/pull/290
-* https://github.com/Kicksecure/security-misc/pull/291
-* Created, also tested <code>arp_ignore</code>'s effects on a common virtualization use case.
-
 == review list of remaining SUIDs ==
 {{CodeSelect|code=
 sudo find / -perm -4000 -type f -executable
@@ -521,6 +541,41 @@ zsh: exit 1     sudo apt update
 ** Our old PAM stack ran pam_wheel for any successful authentication, which meant that anything the user tries to use that requires authentication (sudo, pkexec, su) will fail due to failed authentication. This applies even if user <code>user</code> is passwordless, in which case one will see authentication automatically fail without any other user input. sudo attempts authentication three times, so you get three failure messages.
 ** Adjusting PAM to only run pam_wheel when running su fixes the issue because now <code>su</code> is the only thing that will attempt to use pam_wheel. Anything else will ignore it, and so authentication will succeed. In the case of sudo, it will then check, see that user <code>user</code> is not part of group <code>sudo</code> and return a clear error message, rather than an authentication failure message.
 
+= ARCHIVED =
+== user-sysmaint-split - review changes ==
+* Patrick made some minor changes.
+** Reviewed, looks good to me. Will test when adding the sysmaint account lock shutdown action.
+
+== address Linux Installer review ==
+* some review comments about Linux installer have been sent privately
+* please address, if applicable
+* root_cmd or another function should be used instead of sudo
+** this is for the benefit of using end-of-options ("<code>--</code>")
+* <code>real_file="$(sudo realpath "${file}")"</code>
+** please do not hardcode sudo, use root_cmd
+** is variable real_file actually used for anything?
+* use shellcheck
+* All problems fixed:
+** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/root-cmd-improve
+** https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/dist-installer-sysmaint-polish
+
+== DNS - Kicksecure Default DNS Discussion ==
+* https://www.kicksecure.com/wiki/DNS
+* https://www.kicksecure.com/wiki/DNS_Security
+* https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
+* https://forums.whonix.org/t/default-dns-provider-discussion-for-kicksecure-not-whonix/16870
+* https://forums.whonix.org/t/use-dnscrypt-by-default-in-kicksecure-not-whonix/8117
+* please read, comment, edit as applicable
+** Read, updated documentation and wrote a long comment suggesting next steps for implementing DNSSEC
+
+== document ARP related sysctl changes ==
+* please create a [[networking]] wiki page
+* https://github.com/Kicksecure/security-misc/pull/288
+* https://github.com/Kicksecure/security-misc/pull/289
+* https://github.com/Kicksecure/security-misc/pull/290
+* https://github.com/Kicksecure/security-misc/pull/291
+* Created, also tested <code>arp_ignore</code>'s effects on a common virtualization use case.
+
 == permission-hardener - usrmerge ==
 * assume usrmerge, make it a dependency
 * simplify configuration (/bin no longer needed)
@@ -529,7 +584,12 @@ zsh: exit 1     sudo apt update
 ** No need to document for the same reason
 ** Fixed security-misc with no more /bin modifications: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/usrmerge
 
-= ARCHIVED =
+== user-sysmaint-split - rads integration ==
+* review Patrick's changes
+* avoid "systemctl start rads" hardcoded, if possible.
+* Reasons: Qubes does not come with rads by default. System might not have rads. User might have uninstalled rads. Difficult to check if a systemd unit is installed. (systemctl list-units | grep rads - might find a similar names systemd unit.)
+* Fixed, now starts rads using the systemd target instead: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/avoid-rads-in-script
+
 == permission-hardener refactor ==
 * Avoid lazy loading, instead build state arrays ancd apply them in an idempotent fashion
 * Currently planned algorithm:

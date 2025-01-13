@@ -9,7 +9,7 @@ Comparison of secureblue with Kicksecure and Development Notes
 Secureblue and Kicksecure are both hardened operating systems prioritizing security. This wiki page provides a side-by-side comparison of some of their security features, development decisions, and the rationale behind various implementations. Explore how each system addresses security challenges. This guide serves as a resource for developers, security enthusiasts, and users seeking insight into cutting-edge OS security practices.
 }}
 
-<u>Quick, preliminary analysis version 0.1</u>, only based on quote [https://github.com/secureblue/secureblue secureblue GitHub repository] README.md as of Nov 30, 2024, commit hash [https://github.com/secureblue/secureblue/blob/e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83/docs/README.md e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83] and related, linked files.
+<u>Quick, preliminary analysis version 0.1</u>, only based on quote [https://github.com/secureblue/secureblue secureblue GitHub repository] README.md as of Nov 30, 2024, commit hash [https://github.com/secureblue/secureblue/blob/e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83/docs/README.md e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83] and related, linked files. And plus a comment on [[#Unprivileged User Namespaces]] as of secureblue release 4.3.0.
 
 = Hardening =
 
@@ -291,6 +291,37 @@ set_caps_if_present "cap_sys_admin=ep" "/usr/bin/fusermount3"
 * secureblue sets <code>fusermount</code> <code>cap_sys_admin</code> is dangerous. [https://lwn.net/Articles/486306/ CAP_SYS_ADMIN: the new root]
 * Most other Linux desktop distributions: Neither SUID nor capabilities hardening.
 
+= Unprivileged User Namespaces =
+<blockquote>
+Disabling unprivileged user namespaces by default for the unconfined domain and the container domain
+</blockquote>
+
+* [https://github.com/secureblue/secureblue/releases/tag/v4.3.0 SecureBlue v4.3.0 Release Notes]
+
+This is probably useful.
+
+{{quotation
+|quote=Without this security hardening, all locally running applications could use user namespaces (<code>userns</code>) and attempt to exploit them for user-to-root escalation. With this hardening, <code>userns</code> usage is restricted to specific applications such as Chromium that explicitly require it.
+|context=[[User_Namespace|Kicksecure Unprivileged User Namespace wiki page]]
+}}
+
+Quote [https://github.com/secureblue/secureblue/blob/live/docs/USERNS.md SecureBlue documentation on SELinux-based USERNS restrictions]
+
+<blockquote>
+Since user namespaces are now restricted via selinux, we no longer need separate <code>userns</code> images.
+</blockquote>
+
+Separate <code>userns</code> enabled versus <code>userns</code> disabled images or setting would still be useful.
+
+{{quotation
+|quote=However, even with all of this hardening in place, as described in [https://ading.dev/blog/posts/chrome_sandbox_escape.html Chrome sandbox escape], if the browser gets exploited, the browser is allowed to use <code>userns</code> and the system remains vulnerable to <code>userns</code>-based attacks.
+
+Given that browsers are evolving into operating systems where users do almost everything, the effective security gain from these measures is not as significant as it might seem. Nowadays, Java isn't the "write once, run anywhere" framework we all rely on. The browser is.
+
+Therefore, completely disabling user namespaces using <code>user.max_user_namespaces=0</code> is the safer setting.
+|context=[[User_Namespace|Kicksecure Unprivileged User Namespace wiki page]]
+}}
+
 = sudoless =
 The term "sudoless" can confusing. See also [[Root#sudoless|definition of "sudoless"]].
 
@@ -308,7 +339,7 @@ Kicksecure won't be using [https://www.freedesktop.org/software/systemd/man/256/
 |context=Kicksecure developer, Aaron Rainbolt], [https://forums.whonix.org/t/replace-sudo-with-doas/17482/28 forum post]
 }}
 
-Instead, Kicksecure will implement [[Dev/user-sysmaint-split|Role-Based Boot Modes (user versus admin) for Enhanced Security]], where <code>sudo</code>, <code>su</code>, and <code>pkexec</code> will be non-executable by user <code>user</code>.
+Instead, Kicksecure will implement [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Modes for Enhanced Security)]], where <code>sudo</code>, <code>su</code>, and <code>pkexec</code> will be non-executable by account <code>user</code>.
 
 = See Also =
 * https://www.kicksecure.com/#security
@@ -317,3 +348,4 @@ Instead, Kicksecure will implement [[Dev/user-sysmaint-split|Role-Based Boot Mod
 = Footnotes =
 <references />
 {{Footer}}
+[[Category:Development]]
