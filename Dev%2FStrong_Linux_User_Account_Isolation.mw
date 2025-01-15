@@ -612,6 +612,31 @@ Related: [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_.2Fetc.2
 *** If not using procedure Prevent Malware from Sniffing the Root Password: yes, due to [[#Issues|issues]].
 ** <u>[https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks Protection against Physical Attacks]</u>: This is a mostly unrelated issue. A [https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks#Screen_Lock screen lock] might be sufficient protection from lesser adversaries. In that case, a host screen locker and a better, non-default Linux account password on the host operating system might help, as the login password will also be used for the screen lock.
 
+== Analyze PAM Stack ==
+
+Older versions:
+
+<pre>
+/usr/bin/sudo /usr/bin/apt update
+Sorry, try again.
+Sorry, try again.
+sudo: 3 incorrect password attempts
+Command exited. You may close this window safely.
+</pre>
+
+New versions:
+
+<pre>
+[template  user ~]% sudo apt update      
+Sorry, user user is not allowed to execute '/usr/bin/apt update' as root on localhost.
+zsh: exit 1     sudo apt update
+</pre>
+
+* If you open <code>/etc/pam.d/common-auth</code>, you'll see the auth stack most things that use PAM (including <code>sudo</code> and <code>su</code>) use in Debian. Critically, <code>sudo</code> shares this stack with <code>su</code>.
+* <code>pam_wheel</code> checks the user calling it to determine if that user is in a specific group. If not, access is denied. This doesn't block <code>lightdm</code> login because <code>lightdm</code> runs as root, and root is (apparently) allowed to authenticate as anyone. However, if user <code>user</code> is not in the specified group (in our case <code>sudo</code>), access is denied, ''regardless of what user <code>user</code> is trying to do.''
+* Our old PAM stack ran <code>pam_wheel</code> for any successful authentication, which meant that anything the user tries to use that requires authentication (<code>sudo</code>, <code>pkexec</code>, <code>su</code>) will fail due to failed authentication. This applies even if user <code>user</code> is passwordless, in which case one will see authentication automatically fail without any other user input. <code>sudo</code> attempts authentication three times, so you get three failure messages.
+* Adjusting PAM to only run <code>pam_wheel</code> when running <code>su</code> fixes the issue because now <code>su</code> is the only thing that will attempt to use <code>pam_wheel</code>. Anything else will ignore it, and so authentication will succeed. In the case of <code>sudo</code>, it will then check, see that user <code>user</code> is not part of group <code>sudo</code>, and return a clear error message rather than an authentication failure message.
+
 = Related Topics =
 {{Anchor|Related}}
 

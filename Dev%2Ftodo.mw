@@ -10,32 +10,20 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== permission-hardener - restore permissions on configuration changes - #2 ==
-* bug: when package user-sysmaint-split is removed, permission-hardener fails to restore sudo and pkexec permissions
-** Fix with migration alert: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-migrate
-** TODO: Need to actually write the documentation for this on the wiki!
-* Patrick:
-** Please move state file variable v2_state_file from inline to /usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded or so. That would make that file more easily maintainable.
-** Please open a PR.
-
-Instead of
+== permission-hardener - make migration code faster  ==
+* The following is too slow. Can take more than a minute on a fast system. Appears as if the system is broken.
 
 <pre>
-   echo "${v2_state_file}" > '/var/lib/permission-hardener-v2/existing_mode/statoverride'
+   readarray -t custom_hardening_arr < <(dpkg -V | awk '/permission-hardener.d/{ print $NF }')
 </pre>
-
-Replace
 
 <pre>
-   cp '/usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded' '/var/lib/permission-hardener-v2/existing_mode/statoverride'
+readarray -t custom_hardening_arr < <(find /usr/lib/permission-hardener.d /etc/permission-hardener.d -type f)
 </pre>
 
-** potential bug: Some files exist only in some situations. Legitimately.
-*** '/usr/lib/permission-hardener.d/30_ping.conf' is Whonix-only.
-*** user-sysmaint-split may or may not be installed
-*** Please make sure these situations do not result in "custom configuration detected".
-** Please INFO <code>echo</code> any custom configuration file found.
-** Please exclude new image builds from this migration code. If folder /var/lib/permission-hardener does not exist, there is no need for the migration code to run.
+* Can <code>find</code> be used?
+** <code>find</code> has many pitfalls: https://mywiki.wooledge.org/UsingFind
+** Especially when using readarray?
 
 == permission-hardener - disable action does not remove existing_mode and new_mode statoverride file ==
 * bug? as discussed.
@@ -58,27 +46,8 @@ Replace
 ** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
 ** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
 
-== debian grub-pc with grub-efi co-installation issue bug report ==
-* please check if one already exists, report a bug or feature request against Debian for grub-pc with grub-efi co-install-ability
-* https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062
-
-== legacy-dist - enable GRUB force_efi_extra_removable ==
-
-<pre>
-debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
-</pre>
-
-* please add to https://github.com/Kicksecure/legacy-dist (postinst?), if sane
-* code needs to be defensive. GRUB might not be installed. (Qubes; chroot; direct kernel boot; unknown)
-
-== user-sysmaint-split - shutdown action - #2 ==
-* a systemd unit to lock the sysmaint account on shutdown
-* https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/lock-sysmaint-on-shutdown
-* ExecStop cannot be used. Quote man page:
-** "Also note that the stop operation is always performed if the service started successfully, even if the processes in the service terminated on their own or were killed."
-** "Note that the commands specified in ExecStop= are only executed when the service started successfully first."
-* A separate, real shutdown systemd unit required. Please compare with some other shutdown related systemd units using shutdown.target.
-* Should lock unconditionally no matter what boot mode. That should be safe on shutdown.
+== publish Debian security report ==
+* as discussed
 
 == user-sysmaint-split - Qubes support ==
 * user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
@@ -92,26 +61,24 @@ debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
 * suggestions for [https://github.com/QubesOS/qubes-issues/issues/9519 create user `admin` by default and add user `admin` to group `sudo` by default]?
 * /usr/bin/passwordless-root needs fixes?
 
+== user-sysmaint-split - consider disabling polkit-agent-helper-1 ==
+* for potentially affected packages, see: "<code>apt purge polkitd</code>"
+* does it break Network Manager WiFi configuration from account "user"?
+* <code>cat usr/lib/permission-hardener.d/20_user-sysmaint-split.conf</code>
+
+<pre>
+## TODO:
+## See also:
+## /usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf
+#/usr/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
+#/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
+</pre>
+
 == Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 ** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
 *** Patrick: R4.2 should be sufficient?
 **** Aaron: New major features cannot be introduced into R4.2. Needs to be developed for R4.3.
-
-== qubes-template-kicksecure ==
-* https://github.com/QubesOS/qubes-issues/issues/9573
-* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
-* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
-** https://github.com/QubesOS/qubes-builderv2/
-* Documentation written and tested.
-* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and merged.
-** Patrick: Done.
-* Fixes needed ('''DONE'''):
-** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
-*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
-**** https://github.com/ArrayBolt3/qubes-template-whonix
-**** https://github.com/ArrayBolt3/qubes-template-kicksecure
-***** Done. Both merged.
 
 == kicksecure-meta-packages fixes for qubes-template-kicksecure ==
 * packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
@@ -146,6 +113,26 @@ debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
 == calamares dual legacy + efi booting support ==
 * as discussed
 * Draft PR opened at https://github.com/calamares/calamares/pull/2422, needs more work
+
+== legacy-dist - enable GRUB force_efi_extra_removable ==
+
+<pre>
+debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
+</pre>
+
+* please add to https://github.com/Kicksecure/legacy-dist (postinst?), if sane
+* code needs to be defensive. GRUB might not be installed. (Qubes; chroot; direct kernel boot; unknown)
+
+== calamares - enable GRUB force_efi_extra_removable ==
+* todo
+* if applicable
+
+== live-build - enable GRUB force_efi_extra_removable ==
+* todo
+* if applicable
+
+== GRUB - boot related enhancements ==
+* Are there any other boot related enhancements outstanding? If so, please create tickets for these.
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -538,6 +525,94 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+= ARCHIVED =
+== qubes-template-kicksecure ==
+* https://github.com/QubesOS/qubes-issues/issues/9573
+* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
+* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
+** https://github.com/QubesOS/qubes-builderv2/
+* Documentation written and tested.
+* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and merged.
+** Patrick: Done.
+* Fixes needed ('''DONE'''):
+** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
+*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
+**** https://github.com/ArrayBolt3/qubes-template-whonix
+**** https://github.com/ArrayBolt3/qubes-template-kicksecure
+***** Done. Both merged.
+
+== review list of remaining SUIDs ==
+/usr/lib/qubes/qfile-unpacker: Probably still needed.
+- Appears to be an integral part of file transfer between qubes, stripping SUID from this in an AppVM results in that AppVM being unable to receive files any longer. (It can still send files to other qubes though.)
+
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+- Needed for D-Bus system activation to work, see https://dbus.freedesktop.org/doc/system-activation.txt. May be vital for desktop features to work normally. Appears to have been designed with security in mind and can only be called by root or a user in the `messagebus` group (which currently has one member, namely user `messagebus`).
+
+/usr/lib/chromium/chrome-sandbox: Probably OK.
+- This is safe to disable. Chrome/Chromium now uses namespace-based sandboxing rather than a SUID sandbox for most use cases, and while the SUID sandbox is still technically supported (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_sandboxing.md), it's also virtually unused (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_suid_sandbox.md). Chromium still works fine when it is stripped of its SUID bit and rendered no longer executable, and opening `chrome://sandbox` while in this state shows that sandboxing is still working perfectly fine.
+
+/usr/lib/openssh/ssh-keysign: ?
+- Used only for SSH host-based authentication (https://linux.die.net/man/8/ssh-keysign), needed to allow access to the machine's host key for use in the authentication process. This is a non-default method of authenticating to SSH, and is likely rarely used, thus this should be safe to disable.
+
+/usr/lib/polkit-1/polkit-agent-helper-1: Should be handled in user-sysmaint-split?
+- Required for Polkit to function at all (https://polkit-devel.freedesktop.narkive.com/zXO4yEg7/documentation-on-polkit-agent-helper-1-and-suid#, https://gitlab.freedesktop.org/polkit/polkit/-/issues/168). Changing permissions here may break more than just normal privilege escalation. May be safe to disable for users other than sysmaint similar to what was done with pkexec and sudo, however even that might not be safe.
+
+/usr/sbin/pam-tmpdir-helper: ?
+- Used by the pam_tmpdir module to create a secure temporary directory for the user that is logging in. (https://manpages.ubuntu.com/manpages/oracular/man8/pam-tmpdir-helper.8.html) Apparently specific to Debian, there isn't actually any Git repo with this code in it, it's just a "floating" package in the Debian archive. Written by the same person who maintains the package. Almost certainly cannot be disabled without causing serious problems, but may be worth auditing. (Worthy of note, it doesn't seem this program takes any user input, but relies solely on the calling user's UID and GID, though this could require further review.)
+
+/usr/bin/fusermount3: ?
+- Critical component of FUSE (Filesystem in USErspace), used by things such as AppImages and Docker. If not SUID, unprivileged users will be unable to use FUSE any longer - this completely breaks AppImages, among other things. Should be left enabled to avoid causing problems.
+
+/usr/bin/qfile-unpacker: Probably still needed.
+- Not bit-for-bit identical to /usr/lib/qubes/qfile-unpacker, and stripping SUID from this does *not* break file copying. Unsure what this is for, asked in Qubes OS Matrix room for clarification.
+
+* Patrick: Migrated these comments to permission hardener configuration.
+* Patrick: Disabled SUID for chrome/chromium sandbox and SSH.
+
+== permission-hardener - restore permissions on configuration changes - #2 ==
+* bug: when package user-sysmaint-split is removed, permission-hardener fails to restore sudo and pkexec permissions
+** Fix with migration alert: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-migrate
+** TODO: Need to actually write the documentation for this on the wiki!
+* Patrick:
+** Please move state file variable v2_state_file from inline to /usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded or so. That would make that file more easily maintainable.
+** Please open a PR.
+
+Instead of
+
+<pre>
+   echo "${v2_state_file}" > '/var/lib/permission-hardener-v2/existing_mode/statoverride'
+</pre>
+
+Replace
+
+<pre>
+   cp '/usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded' '/var/lib/permission-hardener-v2/existing_mode/statoverride'
+</pre>
+
+** Aaron: Done.
+** potential bug: Some files exist only in some situations. Legitimately.
+*** '/usr/lib/permission-hardener.d/30_ping.conf' is Whonix-only.
+**** Aaron: Not a problem, the existing_state for the ping executable is the same on Kicksecure and Whonix, regardless of whether anon-apps-config is installed or not.
+*** user-sysmaint-split may or may not be installed
+**** Aaron: Also not a problem for similar reasons.
+*** Please make sure these situations do not result in "custom configuration detected".
+**** Aaron: Tested, behaves as intended now.
+** Please INFO <code>echo</code> any custom configuration file found.
+*** Aaron: Done.
+** Please exclude new image builds from this migration code. If folder /var/lib/permission-hardener does not exist, there is no need for the migration code to run.
+*** Aaron: Done, by checking for the existence of the old-style <code>/var/lib/permission-hardener</code> directory.
+* PR with all changes integrated: https://github.com/Kicksecure/security-misc/pull/295
+
+== user-sysmaint-split - shutdown action - #2 ==
+* a systemd unit to lock the sysmaint account on shutdown
+* ExecStop cannot be used. Quote man page:
+** "Also note that the stop operation is always performed if the service started successfully, even if the processes in the service terminated on their own or were killed."
+** "Note that the commands specified in ExecStop= are only executed when the service started successfully first."
+* A separate, real shutdown systemd unit required. Please compare with some other shutdown related systemd units using shutdown.target.
+* Should lock unconditionally no matter what boot mode. That should be safe on shutdown.
+* https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/lock-sysmaint-on-shutdown
+** Redone to avoid ExecStop and use a shutdown-time systemd unit instead. Also locks down unconditionally on shutdown.
+
 == Kicksecure DNS proper /etc/resolv.conf during build process ==
 * Kicksecure DNS setting is currently "implicit" as per https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
 * It however, should be "explicit".
@@ -546,43 +621,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Implemented in initializer-dist to make sure it works no matter how things leak: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/resolv-conf
 ** Patrick: Not compatible with Whonix, there /etc/resolv.conf is package managed.
 *** Patrick: Implemented in derivative-maker help-steps/chroot-raw instead.
-
-== review list of remaining SUIDs ==
-{{CodeSelect|code=
-sudo find / -perm -4000 -type f -executable
-}}
-
-<pre>
-/usr/lib/qubes/qfile-unpacker
-/usr/lib/dbus-1.0/dbus-daemon-launch-helper
-/usr/lib/chromium/chrome-sandbox
-/usr/lib/openssh/ssh-keysign
-/usr/lib/polkit-1/polkit-agent-helper-1
-/usr/sbin/pam-tmpdir-helper
-/usr/bin/fusermount3
-/usr/bin/sudo
-/usr/bin/pkexec
-/usr/bin/qfile-unpacker
-</pre>
-
-* /usr/lib/qubes/qfile-unpacker: Probably still needed.
-** Appears to be an integral part of file transfer between qubes, stripping SUID from this in an AppVM results in that AppVM being unable to receive files any longer. (It can still send files to other qubes though.)
-* /usr/lib/dbus-1.0/dbus-daemon-launch-helper
-** Needed for D-Bus system activation to work, see https://dbus.freedesktop.org/doc/system-activation.txt. May be vital for desktop features to work normally. Appears to have been designed with security in mind and can only be called by root or a user in the <code>messagebus</code> group (which currently has one member, namely user <code>messagebus</code>).
-* /usr/lib/chromium/chrome-sandbox: Probably OK.
-** '''This is safe to disable.''' Chrome/Chromium now uses namespace-based sandboxing rather than a SUID sandbox for most use cases, and while the SUID sandbox is still technically supported (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_sandboxing.md), it's also virtually unused (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_suid_sandbox.md). Chromium still works fine when it is stripped of its SUID bit and rendered no longer executable, and opening <code>chrome://sandbox</code> while in this state shows that sandboxing is still working perfectly fine.
-* /usr/lib/openssh/ssh-keysign: ?
-** Used only for SSH host-based authentication (https://linux.die.net/man/8/ssh-keysign), needed to allow access to the machine's host key for use in the authentication process. This is a non-default method of authenticating to SSH, and is likely rarely used, thus I believe this should be safe to disable.
-* /usr/lib/polkit-1/polkit-agent-helper-1: Should be handled in user-sysmaint-split?
-** Required for Polkit to function at all (https://polkit-devel.freedesktop.narkive.com/zXO4yEg7/documentation-on-polkit-agent-helper-1-and-suid#, https://gitlab.freedesktop.org/polkit/polkit/-/issues/168). Changing permissions here may break more than just normal privilege escalation. May be safe to disable for users other than sysmaint similar to what we did with pkexec and sudo, however even that might not be safe.
-* /usr/sbin/pam-tmpdir-helper: ?
-** Used by the pam_tmpdir module to create a secure temporary directory for the user that is logging in. (https://manpages.ubuntu.com/manpages/oracular/man8/pam-tmpdir-helper.8.html) Apparently specific to Debian, there isn't actually any Git repo with this code in it, it's just a "floating" package in the Debian archive. Written by the same person who maintains the package. Almost certainly cannot be disabled without causing serious problems, but may be worth auditing. (Worthy of note, it doesn't seem this program takes any user input, but relies solely on the calling user's UID and GID, though I could have missed something.)
-* /usr/bin/fusermount3: ?
-** Critical component of FUSE (Filesystem in USErspace), used by things such as AppImages and Docker. If not SUID, unprivileged users will be unable to use FUSE any longer - this completely breaks AppImages, among other things. Should be left enabled to avoid causing problems.
-* /usr/bin/sudo: Done. (Handled in user-sysmaint-split.)
-* /usr/bin/pkexec: Done. (Handled in user-sysmaint-split.)
-* /usr/bin/qfile-unpacker: Probably still needed.
-** Not bit-for-bit identical to /usr/lib/qubes/qfile-unpacker, and stripping SUID from this does *not* break file copying. Unsure what this is for, asked in Qubes OS Matrix room for clarification.
 
 == analyze pam stack ==
 * old:
@@ -605,12 +643,12 @@ zsh: exit 1     sudo apt update
 
 * due to pam wheel changes, this works better now
 * todo: why does this work better now? the pam wheel changes should not affect that.
-** If you open /etc/pam.d/common-auth, you'll see the auth stack most things that use PAM (including sudo and su) use in Debian. Critically, sudo shares this stack with su.
-** pam_wheel checks the user calling it, to determine if that user is in a specific group. If not, access is denied. This doesn't block lightdm login because lightdm runs as root, and root is (apparently) allowed to authenticate as anyone. However, if user <code>user</code> is not in the specified group (in our case <code>sudo</code>), access is denied, ''regardless of what user <code>user</code> is trying to do.''
-** Our old PAM stack ran pam_wheel for any successful authentication, which meant that anything the user tries to use that requires authentication (sudo, pkexec, su) will fail due to failed authentication. This applies even if user <code>user</code> is passwordless, in which case one will see authentication automatically fail without any other user input. sudo attempts authentication three times, so you get three failure messages.
-** Adjusting PAM to only run pam_wheel when running su fixes the issue because now <code>su</code> is the only thing that will attempt to use pam_wheel. Anything else will ignore it, and so authentication will succeed. In the case of sudo, it will then check, see that user <code>user</code> is not part of group <code>sudo</code> and return a clear error message, rather than an authentication failure message.
+* moved content here: [[Dev/Strong_Linux_User_Account_Isolation#Analyze_PAM_Stack|Analyze PAM Stack]]
 
-= ARCHIVED =
+== debian grub-pc with grub-efi co-installation issue bug report ==
+* please check if one already exists, report a bug or feature request against Debian for grub-pc with grub-efi co-install-ability
+* https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062
+
 == user-sysmaint-split - review changes ==
 * Patrick made some minor changes.
 ** Reviewed, looks good to me. Will test when adding the sysmaint account lock shutdown action.
