@@ -24,69 +24,56 @@ readarray -t custom_hardening_arr < <(find /usr/lib/permission-hardener.d /etc/p
 * Can <code>find</code> be used?
 ** <code>find</code> has many pitfalls: https://mywiki.wooledge.org/UsingFind
 ** Especially when using readarray?
-
-== permission-hardener - disable action does not remove existing_mode and new_mode statoverride file ==
-* bug? as discussed.
-
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-
-== publish Debian security report ==
-* as discussed
-
-== user-sysmaint-split - Qubes support ==
-* user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
-* Plan for Kicksecure-Qubes and Qubes-Whonix-Workstation?
-** No longer install qubes-core-agent-passwordless-root by default.
-** Install user-sysmaint-split by default in new templates.
-** Users could not really use account sysmaint due to missing X server. Instead, user needs to use a [[Root#Qubes_Root_Console|Qubes Root Console]].
-* Plan for Qubes-Whonix-Gateway?
-** Keep [[unrestricted admin mode]] to be on par with Non-Qubes-Whonix-Gateway?
-* user documentation
-* suggestions for [https://github.com/QubesOS/qubes-issues/issues/9519 create user `admin` by default and add user `admin` to group `sudo` by default]?
-* /usr/bin/passwordless-root needs fixes?
-
-== user-sysmaint-split - consider disabling polkit-agent-helper-1 ==
-* for potentially affected packages, see: "<code>apt purge polkitd</code>"
-* does it break Network Manager WiFi configuration from account "user"?
-* <code>cat usr/lib/permission-hardener.d/20_user-sysmaint-split.conf</code>
+* Aaron I'm using <code>dpkg -V</code> specifically to find ''modified'' permission-hardener files. It does a similar job to debsums. However, right now I'm letting it scan all packages on the system, when it really only has to scan security-misc, anon-apps-config, and user-sysmaint-split.
+** Commit fixing speed issues: https://github.com/ArrayBolt3/security-misc/commit/396372c1295e2a09d596f3e23fccc26794a26f05
+** Note: Not tested yet.
+* Patrick: modified_pkg_data_str might include:
 
 <pre>
-## TODO:
-## See also:
-## /usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf
-#/usr/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
-#/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
++ modified_pkg_data_str='missing     /usr/lib/permission-hardener.d/20_user-sysmaint-split.conf'
 </pre>
 
-== Qubes - Selective sudo Access ==
+* Patrick: merged. Tested. Please review my changes on top. (Theoretic only.)
+== package refactoring - kicksecure-meta-packages vs qubes-whonix ==
+* TODO: Reduce packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control thanks to the improved Qubes support by kicksecure-meta-packages, if applicable.
+
+== qubes-template-kicksecure - #2 ==
+* rebuild qubes-template-kicksecure
+* Now good enough to be built for qubes-community-testing repository by Qubes?
+* If not, please create follow-up tickets.
+
+== user-sysmaint-split - Whonix documentation review ==
+* please review https://www.whonix.org/wiki/Sysmaint
+
+== user-sysmaint-split - fix pkexec for sysmaint user ==
+* Aaron:
+** > Note, gparted and zulucrypt probably *should* work in sysmaint mode. pkexec also doesn't work in sysmaint mode. I believe the reason they don't work is because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
+
+== user-sysmaint-split - implement sudoless ==
+* [[Dev/sudo]]
+
+== user-sysmaint-split - passwordless-root fixes ==
+* <code>/usr/bin/passwordless-root</code> needs fixes?
+
+== user-sysmaint-split - enable user-sysmaint-split by default for Xfce version ==
+* for GUI (Xfce) version only:
+** Patrick: Done.
+* and for VM images as "loose packages"
+** Patrick: Done.
+* not Whonix-Gateway
+** Patrick: Done.
+* ISO: TODO
+
+<pre>
+   #--sysmaint-enable \\
+   #--unrestricted-admin-enable \\
+</pre>
+
+== user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 ** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
 *** Patrick: R4.2 should be sufficient?
 **** Aaron: New major features cannot be introduced into R4.2. Needs to be developed for R4.3.
-
-== kicksecure-meta-packages fixes for qubes-template-kicksecure ==
-* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
-* Fixes needed ('''NOT YET DONE'''):
-** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
-** Add <code>user-sysmaint-split</code> to template code.
-*** Requires user-sysmaint-split to be published in Kicksecure's repos
-**** Patrick: Done.
 
 == Strong Linux User Account Isolation wiki page - add Wayland considerations ==
 * edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
@@ -114,22 +101,15 @@ readarray -t custom_hardening_arr < <(find /usr/lib/permission-hardener.d /etc/p
 * as discussed
 * Draft PR opened at https://github.com/calamares/calamares/pull/2422, needs more work
 
-== legacy-dist - enable GRUB force_efi_extra_removable ==
-
-<pre>
-debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
-</pre>
-
-* please add to https://github.com/Kicksecure/legacy-dist (postinst?), if sane
-* code needs to be defensive. GRUB might not be installed. (Qubes; chroot; direct kernel boot; unknown)
+== live-build - --debian-installer-distribution git security impact research ==
+* TODO research: would <code>--debian-installer-distribution git</code> verify software signatures or still be vulnerable to HTTP / HTTPS based attacks?
 
 == calamares - enable GRUB force_efi_extra_removable ==
 * todo
 * if applicable
 
-== live-build - enable GRUB force_efi_extra_removable ==
-* todo
-* if applicable
+== GRUB - Debian packages grub-pc and grub-efi co-install-ability ==
+* please submit a patch to Debian to make grub-pc and grub-efi co-installable
 
 == GRUB - boot related enhancements ==
 * Are there any other boot related enhancements outstanding? If so, please create tickets for these.
@@ -145,18 +125,6 @@ debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
 * contact people involved previously, if that makes sense
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
-
-== implement sudoless ==
-* [[Dev/sudo]]
-
-== user-sysmaint-split - enable user-sysmaint-split by default for Xfce version ==
-<pre>
-   #--sysmaint-enable \\
-   #--unrestricted-admin-enable \\
-</pre>
-
-* and for VM images as "loose packages"
-* not for Whonix-Gateway?
 
 == default password ==
 * rationale: virtual console based login attempts. An attacker could connect a keyboard to a server to login.
@@ -329,6 +297,24 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+
 == grml-debootstrap - fix UEFI bootloader updates ==
 * https://github.com/grml/grml-debootstrap/issues/297
 * please send a pull request upstream
@@ -377,6 +363,7 @@ sudo apt install serial-console-enable
 * ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
 ** Done, actually I just removed ARM_EFI_TARGET entirely.
 * CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
+* related PR: https://github.com/grml/grml-debootstrap/pull/302
 
 == trixie port - misc ==
 * waiting for trixie to get frozen and stable enough
@@ -526,6 +513,84 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 
 = REVIEW PLEASE =
 = ARCHIVED =
+== user-sysmaint-split - Qubes support ==
+* user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
+** Patrick: Done.
+* Plan for Kicksecure-Qubes and Qubes-Whonix-Workstation?
+** No longer install qubes-core-agent-passwordless-root by default.
+*** Patrick: Done.
+** Install user-sysmaint-split by default in new Qubes-Whonix-Workstation templates.
+*** Patrick: Done.
+** Install qubes-core-agent-passwordless-root by default in new Qubes-Whonix-Gateway templates.
+*** Patrick: Done.
+** Users could not really use account <code>sysmaint</code> due to missing X server. Instead, user needs to use a [[Root#Qubes_Root_Console|Qubes Root Console]].
+*** Patrick: Done.
+* Plan for Qubes-Whonix-Gateway?
+** Keep [[unrestricted admin mode]] to be on par with Non-Qubes-Whonix-Gateway?
+*** Patrick: Done.
+* user documentation
+** Patrick. Done: https://www.whonix.org/wiki/Sysmaint
+* suggestions for [https://github.com/QubesOS/qubes-issues/issues/9519 create user `admin` by default and add user `admin` to group `sudo` by default]?
+
+== legacy-dist - enable GRUB force_efi_extra_removable ==
+
+<pre>
+debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
+</pre>
+
+* please add to https://github.com/Kicksecure/legacy-dist (postinst?), if sane
+* code needs to be defensive. GRUB might not be installed. (Qubes; chroot; direct kernel boot; unknown)
+* Risky to do for existing users (might overwrite other bootloaders). Therefore not doing this.
+
+== kicksecure-meta-packages fixes for qubes-template-kicksecure ==
+* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
+* Fixes needed ('''NOT YET DONE'''):
+** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
+** Add <code>user-sysmaint-split</code> to template code.
+*** Requires user-sysmaint-split to be published in Kicksecure's repos
+**** Patrick: Done.
+* Branch with enhanced metapackages: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/kicksecure-qubes
+** Was not able to test this locally, couldn't figure out how to get a locally built package to be used in a Kicksecure build. Need to research that further in the future. I was able to build the package with genmkfile though.
+*** Patrick: Merged, built and uploaded and tested. (No bugs found.)
+
+== user-sysmaint-split - consider disabling polkit-agent-helper-1 ==
+* for potentially affected packages, see: "<code>apt purge polkitd</code>"
+* does it break Network Manager WiFi configuration from account "user"?
+* <code>cat usr/lib/permission-hardener.d/20_user-sysmaint-split.conf</code>
+
+<pre>
+## TODO:
+## See also:
+## /usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf
+#/usr/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
+#/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
+</pre>
+
+* Current verdict: '''I believe this is likely safe to disable.'''
+** Affected applications I tested were gparted, zulucrypt, and the NetworkManager widget.
+** NetworkManager "just works" even with this executable's permissions hardened.
+** gparted and zulucrypt are both broken for both user <code>user</code> and user <code>sysmaint</code> even without this executable's permissions hardened.
+*** Note, gparted and zulucrypt probably *should* work in sysmaint mode. pkexec also doesn't work in sysmaint mode. I believe the reason they don't work is because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
+**** Patrick: follow-up ticket created
+* Patrick: disabled
+
+== live-build - enable GRUB force_efi_extra_removable ==
+* todo
+* if applicable
+* Already done in 2800_create-lb-iso. Shouldn't need any further changes to live-build to make work.
+
+== permission-hardener - disable action does not remove existing_mode and new_mode statoverride file ==
+* bug? as discussed.
+** Neither database should be ''removed'' wholesale.
+** existing_mode should keep tabs on any file permission-hardener touches, recording the original file modes as appropriate. It's fine for it to not be modified when disabling hardening on a file.
+** Removing entries from existing_mode is potentially dangerous since it can make it impossible for the user to disable permission hardening on a file if a bug is encountered that re-hardens the file after hardening has been disabled.
+** On my system, new_mode is appropriately modified when disabling one or all files. However, new_mode had some problems (it wasn't being copied forward to the new v2 location, thus rendering it useless, and the original file had some corruption issues), so I put a migration system in place for new_mode that is similar to the one we created for existing_mode.
+** https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/more-permission-hardener
+
+== publish Debian security report ==
+* as discussed
+* Published: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718225#115
+
 == qubes-template-kicksecure ==
 * https://github.com/QubesOS/qubes-issues/issues/9573
 * try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
@@ -1486,6 +1551,9 @@ error: `/grub2/fonts/unicode.pf2' not found
 [[Dev/todo/archived]]
 
 = backlog - one day =
+== Debian Installer Verification ==
+* after live-build review queue made progress maybe
+
 == Qubes doas ticket ==
 * feature request doas support for Qubes
 * ask if Qubes would accept doas configuration snippets
