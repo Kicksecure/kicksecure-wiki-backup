@@ -5,19 +5,21 @@
 {{intro|
 {{project_name_short}} Qubes OS related development documentation.
 }}
-= Building the Template =
+
+= Kicksecure Template =
+== Building the Template ==
 
 {{project_name_short}} has a Qubes OS template available that can be built and installed using <code>qubes-builderv2</code>. This allows Kicksecure to be installed into Qubes OS without the need for distribution morphing.
 
 '''WARNING:''' The Kicksecure Qubes OS template is still in development and may be unstable or prone to issues. Use at your own risk.
 
-== Setting up qubes-builderv2 ==
+=== Setting up qubes-builderv2 ===
 
 It is recommended to use a Fedora-based App Qube for building the Kicksecure template. This is because upstream Qubes uses Fedora-based App Qubes to build Qubes Templates.
 
 Determine which Fedora template is used for the <code>default-dvm</code> DVM template. For the purposes of this document, we will assume it is <code>fedora-40-xfce</code>.
 
-=== Installing dependencies ===
+==== Installing dependencies ====
 
 1. Launch a terminal in the <code>fedora-40-xfce</code> template.
 
@@ -36,7 +38,7 @@ sudo dnf install git
 
 4. Shut down the template once you have completed installing all dependencies.
 
-=== Prepare App Qube ===
+==== Prepare App Qube ====
 
 '''WARNING:''' It is not recommended to reuse an existing App Qube for running the template build. You will be transferring the built template to dom0 and installing it when you are complete. If the App Qube used for running the builder is compromised, the template may become compromised as well. Templates are simply RPM packages, meaning ''they can run arbitrary code as root during installation.'' This means that a compromised template can, and probably will, compromise dom0. To reduce the risk of this happening, you should use a fresh App Qube for the build process.
 
@@ -96,7 +98,7 @@ qvm-prefs work-qubesos default_dispvm qubes-builder-dvm
 
 Once this is done, all configuration should be complete, and you are now ready to install and use <code>qubes-builderv2</code>.
 
-=== Installing qubes-builderv2 ===
+==== Installing qubes-builderv2 ====
 
 1. Ensure that <code>fedora-40-xfce</code>, <code>qubes-builder-dvm</code>, and <code>work-qubesos</code> are all shut down. This ensures that all changes made to the templates apply to any new AppVMs and DispVMs launched during the build process.
 
@@ -171,25 +173,39 @@ sudo qvm-template install --nogpgcheck ./qubes-template-kicksecure...rpm
 
 11. You should now see a <code>kicksecure-17</code> template available in the application menu, under the "Templates" section.
 
-= Known Issues =
+== Known Issues ==
 
 Currently, the <code>user</code> account does not have sudo rights, not in the template and not in AppVMs based on the template. If you need to run commands as root, you should open a [[Root#Qubes_Root_Console|Qubes Root Console]] using <code>qvm-run</code>.
+
+Icons seem to be missing from Thunar's context menu. This appears to be because of a configuration issue or missing package, but it is still not known why this is happening. Discussion thread at https://forum.xfce.org/viewtopic.php?pid=78113#p78113
+
+There seem to be some missing fonts - view the Wikipedia home page in Firefox ESR and you'll see some characters fail to render properly. Similar things happen with desktop Kicksecure, so this isn't a blocker and can probably be fixed in both places at once if it's considered necessary to fix.
+
+== Resolved Issues ==
+The Kicksecure repository used to not be enabled by default. The bug that was behind this has been resolved.
 
 <code>qubes-core-agent-networking</code> is not pre-installed. As a result, AppVMs based on Kicksecure will have no Internet access. <code>apt</code> will still work inside of the template though. To resolve this, get a root shell within the template, and run <code>apt install qubes-core-agent-networking</code>.
 
 <code>qubes-core-agent-thunar</code> is also not pre-installed, thus copying files from the Kicksecure AppVMs to other VMs will not work easily. This can be solved by installing it in the template. If Thunar's context menu still doesn't show inter-VM copying features after installing this, shut down the template and all AppVMs based on it, then boot a Kicksecure AppVM and run <code>sudo rm -rf ~/.config/Thunar</code>. Thunar should now show the correct buttons in this AppVM.
 
-Icons seem to be missing from Thunar's context menu. There's likely an icon theme package missing.
-
-There seem to be some missing fonts - view the Wikipedia home page in Firefox ESR and you'll see some characters fail to render properly.
-
-= Resolved Issues =
-The Kicksecure repository used to not be enabled by default. The bug that was behind this has been resolved.
-
-= See Also =
+== See Also ==
 * [[Qubes|Kicksecure for Qubes - User Documentation]]
 * Qubes feature request: [https://github.com/QubesOS/qubes-issues/issues/9573 build Kicksecure Qubes Template #9573]
 * qubes-builder-v2 pull request: [https://github.com/QubesOS/qubes-builderv2/pull/170 Add Kicksecure template support #170]
+
+= Root Privilege Isolation and libxenvchan =
+
+Context: Qubes issue: [https://github.com/QubesOS/qubes-issues/issues/9717 Harden insecure permissions inside <code>/dev/xen</code> folder / research security impact of the Qubes <code>/dev/xen</code> folder permissions]
+
+Qubes OS currently uses an in-qube security model that essentially assumes that gaining root within an individual qube is not a risk. This makes sense, since Qubes OS is designed to enforce isolation with AppVMs, not user accounts. However, as a form of defense-in-depth, it is worthwhile to prevent software from being able to get passwordless root access within a qube even though this isn't directly useful for isolating data from an attacker. The main reason for this is that most attacks that would allow breaking out of a VM into dom0 require that an attacker be able to get root in a VM first. Making this a hurdle could at least significantly increase the difficulty of an attack and potentially save users from becoming compromised when they otherwise would have been.
+
+In order to allow Qubes OS's qrexec functionality to work, Qubes OS currently allows all devices under <code>/dev/xen</code> inside of a qube to be accessed by any user in the group <code>qubes</code>. This group includes the default user account, <code>user</code>. The reason this is necessary is because qrexec uses Xen's libxenvchan to allow data transfer between VMs. libxenvchan uses Xen ''grants'' in the background, which are a mechanism for sharing memory pages between VMs. Sharing memory to other VMs and gaining access to memory shared by other VMs requires the ability to use the <code>/dev/xen</code> devices (specifically gntdev, gntalloc, and privcmd), so they have to be accessible by everything that works with qrexec, including things that don't or shouldn't run as root. Each grant has a ''grant reference'', which is basically an ID number used to refer to that grant.
+
+The issue with Xen grants is that they only secure inasmuch as a block of memory shared with a particular VM will only be able to be accessed by the specified VM. Xen's grants are guest-agnostic, and so while they do prevent a malicious guest from gaining access to another guest's shared memory, they do not prevent processes from interfering with each other's grants. There is no concept of processes in Xen grants; the guest has to "do the right thing" with the memory it gives and receives, whatever "the right thing" is in each context.
+
+This can potentially be used to corrupt data. A malicious process in a VM can very likely guess the grant ID used by a privileged component of the system (such as blkfront, Xen's virtual disk driver), and use it in unexpected ways. For instance, blkfront uses grants to communicate with dom0 for allowing disk contents to be sent back and forth. If a malicious process can guess a grant used by blkfront, it can attempt to tell other things in dom0 to use that same grant for other purposes (for instance, providing it to dom0 for use with qrexec). This should usually result in an error since two things will be trying to use the same area of memory at the same time, but it can potentially result in data corruption, which could potentially be used to gain kernel-level privileges within a qube.
+
+Preventing this within the Linux kernel will probably require a driver that can provide functionality similar to libxenvchan but without requiring grant functionality to be exposed directly. This would allow qrexec to function without requiring the grant management devices to be directly accessible to almost everything in a qube. The kernel would still use grants in the background, but they would be abstracted away from the end user, and channel IDs would be managed separately from grant references.
 
 {{Footer}}
 [[Category:Documentation]]

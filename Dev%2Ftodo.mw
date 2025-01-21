@@ -10,36 +10,269 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== continuous review ==
-* before merging newer derivative-maker git tag, please [[Dev/git#Compare|compare]] doing theoretic review
-* please discuss and/or open tickets in case commentary is applicable
+== qubes-template-kicksecure - #3 ==
+* rebuild qubes-template-kicksecure
+* Now good enough to be built for qubes-community-testing repository by Qubes?
+* If not, please create follow-up tickets.
+* Patrick: Moved Thunar issue into its own ticket since not a blocker.
+* Patrick: Next goal is to update https://github.com/QubesOS/qubes-issues/issues/9573 by posting a comment. Such as requesting that Qubes builds the Template for the community-testing repository. Selective broken applications are acceptable (such as Thunar). This is to allow upstream Qubes time to review, try to build the template, notify downstream Kicksecure of potentially yet unknown issues.
 
-== user-sysmaint-split - research Qubes user to root isolation ==
-* todo: read, comment if applicable
-* https://qubes-os.org/doc/vm-sudo/
-* https://www.qubes-os.org/doc/vm-sudo-implementation/
-* https://github.com/QubesOS/qubes-issues/issues/8823
-** https://github.com/QubesOS/qubes-issues/issues/8823#issuecomment-1953115546
-*** has a small mention of /dev/xen
-**** reported as bug: https://github.com/QubesOS/qubes-issues/issues/9717
-* https://github.com/QubesOS/qubes-issues/issues/2695
-* https://forum.qubes-os.org/t/passwordless-sudo-selinux-understanding-security-logic/22446
+== qube-template-kicksecure - Thunar - icons missing ==
+* ran into serious issues with icons in Thunar, see https://forum.xfce.org/viewtopic.php?id=18054
+
+== user-sysmaint-split - sysmaint-boot.target should allow SSH ==
+* todo
+
+== permission-hardener v2 - add easy debug feature ==
+* permission-hardener could use an easy debug feature. Once run, it collects relevant outputs from permission-hardener (print-policy, state files and anything else that may be required), prints them to stdout.
+* would have been useful for the following bug report
+
+== permission-hardener v2 - repetitive polkit-agent-helper-1 messages ==
+* background: The polkit-agent-helper-1 config snippet went thorough 2 several revisions. 1) usrmerge was dropped 2) symlink /usr/lib/policykit-1/polkit-agent-helper-1 that links to actual SUID /usr/lib/polkit-1/polkit-agent-helper-1.
+** The bug already happened after revision 1. (Maybe even earlier.)
+* on every run:
+
+<pre>
+permission-hardener enable
+permission-hardener: [NOTICE]: Executing: dpkg-statoverride --add --update root root 4755 /lib/policykit-1/polkit-agent-helper-1
+permission-hardener: [NOTICE]: Executing: dpkg-statoverride --admindir /var/lib/permission-hardener-v2/new_mode --add root root 4755 /lib/policykit-1/polkit-agent-helper-1
+permission-hardener: [NOTICE]: Executing: dpkg-statoverride --add --update root sysmaint 4750 /usr/lib/polkit-1/polkit-agent-helper-1
+permission-hardener: [NOTICE]: Executing: dpkg-statoverride --admindir /var/lib/permission-hardener-v2/new_mode --add root sysmaint 4750 /usr/lib/polkit-1/polkit-agent-helper-1
+permission-hardener: [NOTICE]: Executing: dpkg-statoverride --add --update root root 4755 /usr/lib/policykit-1/polkit-agent-helper-1
+permission-hardener: [NOTICE]: Executing: dpkg-statoverride --admindir /var/lib/permission-hardener-v2/new_mode --add root root 4755 /usr/lib/policykit-1/polkit-agent-helper-1
+permission-hardener: [NOTICE]: To compare the current and previous permission modes, install 'meld' (or preferred diff tool) for comparison of file mode changes:
+    sudo apt install --no-install-recommends meld
+    meld /var/lib/permission-hardener-v2/existing_mode/statoverride /var/lib/permission-hardener-v2/new_mode/statoverride
+</pre>
+
+<pre>
+permission-hardener print-policy
+File    User    Group   Mode    Capabilities
+/usr/bin/sudo   root    sysmaint        4750
+/usr/bin/pkexec root    sysmaint        4750
+/usr/lib/polkit-1/polkit-agent-helper-1 root    sysmaint        4750
+/usr/bin/mount  root    root    755
+/usr/bin/umount root    root    755
+/usr/bin/passwd root    root    0755
+/home   root    root    0755
+/root   root    root    0700
+/boot   root    root    0700
+/etc/permission-hardener.d      root    root    0600
+/usr/lib/modules        root    root    0700
+/usr/src        root    root    0700
+/etc/cups/cupsd.conf    root    root    0400
+/etc/crontab    root    root    0600
+/etc/cron.d     root    root    0700
+/etc/cron.daily root    root    0700
+/etc/sudoers.d  root    root    0700
+/etc/cron.hourly        root    root    0700
+/etc/cron.weekly        root    root    0700
+/etc/cron.monthly       root    root    0700
+/etc/group      root    root    0644
+/etc/group-     root    root    0644
+/etc/hosts.allow        root    root    0644
+/etc/hosts.deny root    root    0644
+/etc/issue      root    root    0644
+/etc/issue.net  root    root    0644
+/etc/motd       root    root    0644
+/etc/passwd     root    root    0644
+/etc/passwd-    root    root    0644
+/usr/bin/expiry root    shadow  744
+/usr/bin/gpasswd        root    root    744
+/usr/bin/newgrp root    root    744
+/usr/bin/su     root    root    744
+/usr/bin/chage  root    shadow  744
+/usr/bin/chsh   root    root    744
+/usr/bin/chfn   root    root    744
+</pre>
+
+* only /usr/lib/polkit-1/polkit-agent-helper-1 shows up in print-policy, as expected
+
+<pre>
+permission-hardener print-state
+File    User    Group   Mode
+/etc/passwd-    root    root    644
+/etc/cron.monthly       root    root    755
+/etc/sudoers.d  root    root    755
+/usr/bin/expiry root    shadow  2755
+/usr/bin/umount root    root    4755
+/usr/bin/gpasswd        root    root    4755
+/lib/policykit-1/polkit-agent-helper-1  root    root    4755
+/usr/lib/modules        root    root    755
+/etc/issue.net  root    root    644
+/etc/group-     root    root    644
+/usr/bin/newgrp root    root    4755
+/etc/cron.weekly        root    root    755
+/etc/cups/cupsd.conf    root    root    400
+/usr/lib/polkit-1/polkit-agent-helper-1 root    sysmaint        4750
+/etc/hosts.deny root    root    644
+/usr/bin/pkexec root    root    4755
+/usr/bin/su     root    root    4755
+/etc/hosts.allow        root    root    644
+/root   root    root    700
+/etc/cron.daily root    root    755
+/bin/ping       root    root    755
+/etc/motd       root    root    777
+/etc/crontab    root    root    600
+/boot   root    root    755
+/home   root    root    755
+/usr/bin/chage  root    shadow  2755
+/usr/bin/chsh   root    root    4755
+/usr/bin/passwd root    root    4755
+/usr/bin/chfn   root    root    4755
+/etc/group      root    root    644
+/etc/permission-hardener.d      root    root    755
+/usr/bin/sudo   root    root    4755
+/etc/passwd     root    root    644
+/usr/lib/policykit-1/polkit-agent-helper-1      root    root    4755
+/usr/src        root    root    755
+/usr/bin/mount  root    root    4755
+/etc/cron.hourly        root    root    700
+/etc/issue      root    root    777
+/etc/cron.d     root    root    755
+</pre>
+
+<pre>
+permission-hardener print-state | grep agent-helper
+/lib/policykit-1/polkit-agent-helper-1  root    root    4755
+/usr/lib/polkit-1/polkit-agent-helper-1 root    sysmaint        4750
+/usr/lib/policykit-1/polkit-agent-helper-1      root    root    4755
+</pre>
+
+* bug: older revisions still show up in state, but should not?
+
+<pre>
+permission-hardener print-policy-applied-state
+File    User    Group   Mode
+/etc/passwd-    root    root    0644
+/etc/cron.monthly       root    root    0700
+/etc/sudoers.d  root    root    0700
+/usr/bin/expiry root    shadow  744
+/usr/bin/umount root    root    755
+/usr/bin/gpasswd        root    root    744
+/lib/policykit-1/polkit-agent-helper-1  root    root    4755
+/usr/lib/modules        root    root    0700
+/etc/issue.net  root    root    0644
+/etc/group-     root    root    0644
+/usr/bin/newgrp root    root    744
+/etc/cron.weekly        root    root    0700
+/etc/cups/cupsd.conf    root    root    0400
+/usr/lib/polkit-1/polkit-agent-helper-1 root    sysmaint        4750
+/etc/hosts.deny root    root    0644
+/usr/bin/pkexec root    sysmaint        4750
+/usr/bin/su     root    root    744
+/etc/hosts.allow        root    root    0644
+/root   root    root    0700
+/etc/cron.daily root    root    0700
+/bin/ping       root    root    755
+/etc/motd       root    root    0644
+/etc/crontab    root    root    0600
+/boot   root    root    0700
+/home   root    root    0755
+/usr/bin/chage  root    shadow  744
+/usr/bin/chsh   root    root    744
+/usr/bin/passwd root    root    0755
+/usr/bin/chfn   root    root    744
+/etc/group      root    root    0644
+/etc/permission-hardener.d      root    root    0600
+/usr/bin/sudo   root    sysmaint        4750
+/etc/passwd     root    root    0644
+/usr/lib/policykit-1/polkit-agent-helper-1      root    root    4755
+/usr/src        root    root    0700
+/usr/bin/mount  root    root    755
+/etc/cron.hourly        root    root    0700
+/etc/issue      root    root    0644
+/etc/cron.d     root    root    0700
+</pre>
+
+<pre>
+permission-hardener print-policy-applied-state | grep agent-helper 
+/lib/policykit-1/polkit-agent-helper-1  root    root    4755
+/usr/lib/polkit-1/polkit-agent-helper-1 root    sysmaint        4750
+/usr/lib/policykit-1/polkit-agent-helper-1      root    root    4755
+</pre>
+
+<pre>
+cat /var/lib/permission-hardener-v2/existing_mode/statoverride
+root root 644 /etc/passwd-
+root root 755 /etc/cron.monthly
+root root 755 /etc/sudoers.d
+root shadow 2755 /usr/bin/expiry
+root root 4755 /usr/bin/umount
+root root 4755 /usr/bin/gpasswd
+root root 4755 /lib/policykit-1/polkit-agent-helper-1
+root root 755 /usr/lib/modules
+root root 644 /etc/issue.net
+root root 644 /etc/group-
+root root 4755 /usr/bin/newgrp
+root root 755 /etc/cron.weekly
+root root 400 /etc/cups/cupsd.conf
+root sysmaint 4750 /usr/lib/polkit-1/polkit-agent-helper-1
+root root 644 /etc/hosts.deny
+root root 4755 /usr/bin/pkexec
+root root 4755 /usr/bin/su
+root root 644 /etc/hosts.allow
+root root 700 /root
+root root 755 /etc/cron.daily
+root root 755 /bin/ping
+root root 777 /etc/motd
+root root 600 /etc/crontab
+root root 755 /boot
+root root 755 /home
+root shadow 2755 /usr/bin/chage
+root root 4755 /usr/bin/chsh
+root root 4755 /usr/bin/passwd
+root root 4755 /usr/bin/chfn
+root root 644 /etc/group
+root root 755 /etc/permission-hardener.d
+root root 4755 /usr/bin/sudo
+root root 644 /etc/passwd
+root root 4755 /usr/lib/policykit-1/polkit-agent-helper-1
+root root 755 /usr/src
+root root 4755 /usr/bin/mount
+root root 700 /etc/cron.hourly
+root root 777 /etc/issue
+root root 755 /etc/cron.d
+</pre>
+
+<pre>
+cat /var/lib/permission-hardener-v2/new_mode/statoverride
+root root 700 /etc/cron.monthly
+root root 700 /etc/sudoers.d
+root shadow 744 /usr/bin/expiry
+root root 755 /usr/bin/umount
+root root 744 /usr/bin/gpasswd
+root root 4755 /lib/policykit-1/polkit-agent-helper-1
+root root 700 /usr/lib/modules
+root root 744 /usr/bin/newgrp
+root root 700 /etc/cron.weekly
+root sysmaint 4750 /usr/lib/polkit-1/polkit-agent-helper-1
+root sysmaint 4750 /usr/bin/pkexec
+root root 744 /usr/bin/su
+root root 700 /etc/cron.daily
+root root 755 /bin/ping
+root root 644 /etc/motd
+root _ssh 744 /usr/bin/ssh-agent
+root root 700 /boot
+root shadow 744 /usr/bin/chage
+root root 744 /usr/lib/openssh/ssh-keysign
+root root 744 /usr/bin/chsh
+root root 755 /usr/bin/passwd
+root root 744 /usr/bin/chfn
+root root 600 /etc/permission-hardener.d
+root sysmaint 4750 /usr/bin/sudo
+root root 4755 /usr/lib/policykit-1/polkit-agent-helper-1
+root root 700 /usr/src
+root root 755 /usr/bin/mount
+root root 644 /etc/issue
+root root 700 /etc/cron.d
+</pre>
 
 == user-sysmaint-split - implement sudoless ==
 * [[Dev/sudo]]
 ** Ready for review:
 *** https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/sudoless
 *** https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/sudoless
-
-== user-sysmaint-split - passwordless-root fixes ==
-* <code>/usr/bin/passwordless-root</code> needs fixes?
-* add <code>dummy-dependency --cached</code> option to avoid creating the dummy package at every boot
-** Patrick: Done.
-* store in a persistent directory
-** Patrick: Done. <code>/var/lib/dummy-dependency/dummy-user-sysmaint-split_99_all.deb</code>
-* make directory persistent using Qubes bind-dirs
-** TODO
-** which package would be suitable for the bind-dirs snippet?
 
 == user-sysmaint-split - enable user-sysmaint-split by default for Xfce version ==
 * for GUI (Xfce) version only:
@@ -65,6 +298,10 @@ TODO
 ** What would be the usual mechanism to start it when booting into normal mode? Let's suppose the answer is "a systemd unit". In this case, wouldn't it be less surprising, easier to understand, cleaner to use the name mechanism when booting into sysmaint mode?
 ** Please either use the same mechanism or add a comment why this specific mechanism has been selected.
 ** Please document.
+
+== user-sysmaint-split - Qubes - sysmaint-boot.target - upstream feature request ==
+* What would need to happen to make sysmaint-boot.target available in Qubes? Please discuss with Qubes, open a Qubes ticket, if applicable.
+* related Qubes ticket: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
@@ -163,6 +400,54 @@ TODO
 ** The ISO won't build initially because the dm-verity building code is trying to find the live filesystem in the wrong location
 ** dracut isn't configured to include systemd-veritysetup-generator, needed for verifying the root FS in the first place
 ** No kernel command line options are added to the ISO for verity setup
+
+== package refactoring - kicksecure-meta-packages vs qubes-whonix - #2 ==
+* TODO: Reduce packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control thanks to the improved Qubes support by kicksecure-meta-packages, if applicable.
+** https://github.com/ArrayBolt3/qubes-whonix/tree/arraybolt3/kicksecure-qubes-merge
+** https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/kicksecure-qubes-merge
+* Patrick: merged, tested and reverted
+* Gateway:
+
+<pre>
+sudo apt dist-upgrade --no-install-recommends 
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Calculating upgrade... Done
+The following package was automatically installed and is no longer required:
+  qubes-core-agent-passwordless-root
+Use 'sudo apt autoremove' to remove it.
+The following NEW packages will be installed:
+  codecrypt cython3 diceware dmeventd dosfstools extrepo fuse3 geoip-database kicksecure-cli kicksecure-default-applications-cli
+  kicksecure-qubes-cli libaio1 libbytes-random-secure-perl libclone-perl libcrypt-passwdmd5-perl libcrypt-random-seed-perl
+  libcrypto++8 libcryptx-perl libdevmapper-event1.02.1 libfftw3-double3 libfile-listing-perl libfuse3-3 libgeoip1 libhtml-parser-perl
+  libhtml-tagset-perl libhtml-tree-perl libhttp-cookies-perl libhttp-date-perl libhttp-message-perl libhttp-negotiate-perl
+  libio-html-perl libio-socket-ssl-perl liblvm2cmd2.03 liblwp-mediatypes-perl liblwp-protocol-https-perl libmath-random-isaac-perl
+  libnet-http-perl libnet-ssleay-perl libntfs-3g89 libsnappy1v5 libtry-tiny-perl libwww-perl libwww-robotrules-perl
+  libyaml-libyaml-perl lvm2 magic-wormhole makepasswd ntfs-3g perl-openssl-defaults pwgen python3-attr python3-autobahn
+  python3-automat python3-base58 python3-bcrypt python3-cbor python3-click python3-colorama python3-constantly python3-cryptography
+  python3-ecdsa python3-flatbuffers python3-geoip python3-hamcrest python3-hkdf python3-humanize python3-hyperlink
+  python3-incremental python3-lz4 python3-mnemonic python3-msgpack python3-nacl python3-openssl python3-packaging python3-passlib
+  python3-pyasn1 python3-pyasn1-modules python3-pyqrcode python3-service-identity python3-setuptools python3-snappy
+  python3-sortedcontainers python3-spake2 python3-tqdm python3-trie python3-twisted python3-txaio python3-txtorcon python3-u-msgpack
+  python3-ubjson python3-ujson python3-wsaccel python3-zope.interface
+</pre>
+
+* Workstation:
+
+<pre>
+sudo apt dist-upgrade --no-install-recommends
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Calculating upgrade... Done
+The following package was automatically installed and is no longer required:
+  qubes-core-agent-passwordless-root
+Use 'sudo apt autoremove' to remove it.
+The following NEW packages will be installed:
+  dmeventd dosfstools firefox-esr kicksecure-cli kicksecure-desktop-applications-recommended kicksecure-qubes-cli kicksecure-qubes-gui libaio1 libdevmapper-event1.02.1 libgarcon-1-0
+  libgarcon-common liblvm2cmd2.03 libntfs-3g89 libupower-glib3 libxklavier16 lvm2 ntfs-3g xfce4-helpers xfce4-settings
+</pre>
 
 == Split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
 * https://github.com/Kicksecure/security-misc/issues/187
@@ -294,12 +579,6 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
-== qubes-template-kicksecure - #2 ==
-* rebuild qubes-template-kicksecure
-* Now good enough to be built for qubes-community-testing repository by Qubes?
-* If not, please create follow-up tickets.
-** Not fully ready, ran into serious issues with icons in Thunar, see https://forum.xfce.org/viewtopic.php?id=18054
-
 == review and test IPv6 support pull requests ==
 * https://forums.whonix.org/t/add-ipv6-support/19893
 * https://www.whonix.org/wiki/Dev/ipv6
@@ -520,16 +799,40 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Beta-quality code: https://github.com/ArrayBolt3/privleap
 ** Extensively tested, but still needs battle-tested in real-world use and tested by someone other than just me.
 
+= ARCHIVED =
+== user-sysmaint-split - research Qubes user to root isolation ==
+* todo: read, comment if applicable
+* https://qubes-os.org/doc/vm-sudo/
+* https://www.qubes-os.org/doc/vm-sudo-implementation/
+* https://github.com/QubesOS/qubes-issues/issues/8823
+** https://github.com/QubesOS/qubes-issues/issues/8823#issuecomment-1953115546
+*** has a small mention of /dev/xen
+**** reported as bug: https://github.com/QubesOS/qubes-issues/issues/9717
+* https://github.com/QubesOS/qubes-issues/issues/2695
+* https://forum.qubes-os.org/t/passwordless-sudo-selinux-understanding-security-logic/22446
+* Researched, discussed with Qubes OS devs. Put research and discussion results here: https://www.kicksecure.com/wiki/Dev/Qubes#Root_Privilege_Isolation_and_libxenvchan
+
+== user-sysmaint-split - passwordless-root fixes ==
+* <code>/usr/bin/passwordless-root</code> needs fixes?
+* add <code>dummy-dependency --cached</code> option to avoid creating the dummy package at every boot
+** Patrick: Done.
+* store in a persistent directory
+** Patrick: Done. <code>/var/lib/dummy-dependency/dummy-user-sysmaint-split_99_all.deb</code>
+* make directory persistent using Qubes bind-dirs
+** TODO
+** which package would be suitable for the bind-dirs snippet?
+*** I don't see why helper-scripts itself is bad, we do similar things for systemcheck, legacy-dist, and sdwdate.
+*** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/dummy-dependency-qubes
+
 == security - upgrade comment ==
 * please comment as discussed
 * https://forums.kicksecure.com/t/upgrade-nonroot-privilege-escalation-issue/886/3
 
-== package refactoring - kicksecure-meta-packages vs qubes-whonix ==
-* TODO: Reduce packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control thanks to the improved Qubes support by kicksecure-meta-packages, if applicable.
-** https://github.com/ArrayBolt3/qubes-whonix/tree/arraybolt3/kicksecure-qubes-merge
-** https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/kicksecure-qubes-merge
+== continuous review ==
+* before merging newer derivative-maker git tag, please [[Dev/git#Compare|compare]] doing theoretic review
+* please discuss and/or open tickets in case commentary is applicable
+* +1, will do this regularly.
 
-= ARCHIVED =
 == permission-hardener - make migration code faster  ==
 * The following is too slow. Can take more than a minute on a fast system. Appears as if the system is broken.
 
