@@ -11,7 +11,7 @@ Boot chain and integrity guarantees. What is Verified Boot, Secure Boot, Trusted
 = What is Verified Boot? =
 Verified boot is a security feature.
 
-* '''Purpose''': Verified boot ensures that a system boots using only authorized and untampered software. Each stage of the boot process verifies the integrity and authenticity of the next stage before it is executed. This protects against attacks that modify the bootloader, kernel, or other critical parts of the system.
+* '''Purpose''': Verified boot either ensures that a system boots using only authorized and untampered software or provides means for detecting the fact of tampering. In the former case each stage of the boot process verifies the integrity and authenticity of the next stage before it is executed. The goal is to protect against attacks that modify firmware, bootloader, kernel, or other critical parts of the system or at least make a user aware of an ongoing attack.
 * '''Process''': During boot, the system checks cryptographic signatures on firmware and system components like the bootloader, kernel, and drivers. If the signatures don't match or have been tampered with, the boot process can be halted, or recovery measures can be triggered.
 
 In theory, if used right, it improves the security of the user without restricting user freedom. In practice however, for a large part, verified boot is used to enforce user-freedom restrictions.
@@ -34,10 +34,41 @@ Articles:
 * https://tech.michaelaltfield.net/2023/02/16/evil-maid-heads-pureboot/
 * https://www.solcept.ch/en/blog/critical-systems/secure-boot/
 
+= Ideological Considerations =
+Before discussing the technical implementation details and security it might make sense to lay out one's position on who should have more power. Device owners or vendors.
+
+* Should the operating system obey the user? Yes | No
+* Should the user have ultimate control? Yes | No
+* Should the operating system make guarantees to app developers in case these guarantees are to the disadvantage of the user? Yes | No
+* Does one oppose the war on War on General Purpose Computing? Yes | No
+* Does one support the right to general computing? Yes | No
+
+It is primarily a project goal and policy decision.
+
+Technical excuses are moot. If there's a commitment pro freedom and against anti-features, then there's a way. Security needs to take the backseat if it curtails user freedom. A prison cell is more secure from car accidents but yet we don't want to live in a golden cage. If you want, you will find a way, if you don't want to, you will find reasons.
+
+For example, in case of GrapheneOS non-root enforcement is a project goal and policy decision.
+
+{{Quotation
+|quote=
+It doesn't sound like you want GrapheneOS since you don't care about the core security goals. I recommend using something else.
+|context=
+[https://www.reddit.com/r/GrapheneOS/comments/du23la/rooted_or_root/?sort=old GrapheneOS lead developer] <ref>
+https://archive.ph/94YVQ
+</ref>
+}}
+
+{{Quotation
+|quote=
+GrapheneOS is not aimed at power users or hobbyists aiming to tinker with their devices more than they can via the stock OS or AOSP.
+}}
+
+([[Mobile_Operating_System_Comparison#resign-android-image|resign-android-image]] is a script that attempts to provide root access for GrapheneOS.)
+
 = User Freedom =
 Freedom Software can be compatible with verified boot. No user freedom restrictions required. While verified boot is often used to restrict user freedom, to prevent the user from modifications and installing another operating system, verified boot is not inherently bad.
 
-It depends on the details, if if the keys used to enforce verified boot are controlled by the vendor or by the user as well as on how the operating system implements verified boot. User-controlled keys are possible.
+It depends on the details: who controls the keys used to enforce verified boot (vendor vs. user) and how verified boot is enforced by an operating system (i.e., what operations are disallowed). User-controlled keys are possible.
 
 {{Quotation
 |quote=
@@ -46,7 +77,7 @@ Nexus and Pixel lines support Verified Boot with user-controlled keys
 [https://blog.torproject.org/mission-improbable-hardening-android-security-and-privacy Mike Perry, The Tor Project Blog]
 }}
 
-= Verified Boot Comparison of Third-Party Controlled versus User-Controlled =
+== Comparison of Third-Party Controlled versus User-Controlled ==
 {| class="wikitable"
 ! '''Category''' !! '''Vendor-Controlled Verified Boot''' !! '''User-Controlled Verified Boot'''
 |-
@@ -56,14 +87,14 @@ Nexus and Pixel lines support Verified Boot with user-controlled keys
 | {{Yes}}
 |-
 
-! Does not restrict user freedom
-| {{No}}
+! Restricts user freedom
 | {{Yes}}
+| {{No}}
 |-
 
-! Does not hinder the user auditing their system for compromises.
-| {{No}}
+! Hinders the user auditing system for compromises
 | {{Yes}}
+| {{No}}
 |-
 
 ! Synonym 1
@@ -88,44 +119,46 @@ Nexus and Pixel lines support Verified Boot with user-controlled keys
 
 |}
 
-= Compromised Verified Boot Vendor Key =
+== Compromised Verified Boot Vendor Keys ==
 
 * https://www.schneier.com/blog/archives/2022/12/leaked-signing-keys-are-being-used-to-sign-malware.html
 * https://www.schneier.com/blog/archives/2023/03/blacklotus-malware-hijacks-windows-secure-boot-process.html
 * https://www.binarly.io/blog/leaked-msi-source-code-with-intel-oem-keys-how-does-this-affect-industry-wide-software-supply-chain
 
-= How does verified boot work? =
-It's based on digital software signatures. Only operating systems that come with a valid digital software signature that is signed with a public key that is trusted by the device are booted. Otherwise, the device will refuse to boot.
+= How does Verified Boot work? =
+The verification can be based on digests or digital signatures (i.e., signed digests). Only components with expected digests or those signed with a private key trusted by the device are loaded and executed. Otherwise, the device can refuse to boot.
 
-Lower stage (such as firmware) and hands over control to the next level (such as bootloader). However, every stage will verify the digital software signature of the next stage.
+Lower stage (such as firmware) loads and hands over control to the next element in a boot chain (such as bootloader).  In general, every stage verifies the digital signature of the next one.
 
-The stage are approximately (simplified):
+The stages look approximately as follows (simplified):
 
-<code>hardware trust root</code> → <code>firmware</code> → <code>bootloader</code> → <code>kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>init</code>
+<code>hardware root of trust</code> → <code>firmware</code> → <code>bootloader</code> → <code>kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>init</code>
 
 Or specifically on some Linux desktop distributions:
 
-<code>hardware trust root</code> → <code>firmware</code> → <code>shim</code> -> <code>grub</code> <code>bootloader</code> → <code>Linux kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>systemd</code> <code>init</code> and <code>userland</code>
+<code>hardware root of trust</code> → <code>firmware</code> → <code>shim</code> -> <code>grub</code> <code>bootloader</code> → <code>Linux kernel</code> → <code>kernel modules</code> → <code>initrd</code> → <code>systemd</code> <code>init</code> and <code>userland</code>
 
-Should at any stage the digital software verification fail, then the boot process will be aborted.
+Should the verification fail at any stage, the boot process is aborted.
 
-There is no technical requirement for each stage to be signed with the same key. Each stage can ship its own keys and/or key management system.
+There is no technical requirement for each stage to be signed with the same key. Each stage can have a dedicated key or even key management system.
 
-= What are the advantages of verified boot? =
-Due to this integrity check, unauthorized malware will be gone after reboot (if the device is capable to revert to a clean backup image) or the device will refuse to boot.
+= Applicability of Verified Boot =
 
-Conceptually this improves security because the user runs only applications that have a valid digital signature. This obviously excludes third-party unauthorized malware since this would not be signed with a valid digital signature.
+== What are the advantages of verified boot? ==
+Thanks to the integrity check, unauthorized malware can be eliminated after a reboot (if the device is capable of reverting to a clean backup image) or the device won't boot.
 
-= What are the limitations of verified boot? =
-Unauthorized malware? Is there such a thing as authorized malware, is this even a thing? Yes. For example the pre-installed Google Play Services on Google Android. See [[Mobile_Phone_Security#Espionage_Data_Harvesting|massive espionage data harvesting on Google Android.]] Verified boot is a security technology but conceptually cannot stop [[malware]] that is built-into the operating system by its producer. That does not take away from its useful potential as a security improvement for users.
+Conceptually, this improves security because the user runs only applications with a valid digital signature. This excludes third-party unauthorized malware which would have to be signed with a valid key while infecting the system to circumvent the checks (possible if a vendor key is leaked or the system is under a targeted attack that got a hold of a key at an earlier stage).
 
-= Who uses verified boot? =
-At the time of writing, there was no Freedom Software Linux desktop distribution that implemented full verified boot which means a full chain of digital software verification starting form the hardware trust root up to all pre-installed applications that come with the Linux distribution. Only kernel module digital software verification is supported. The verified boot for initrd and beyond is not yet implemented. ([[Verified_Boot#Other_Distributions_implementing_Verified_Boot|Other Distributions implementing Verified Boot
+== What are the limitations of verified boot? ==
+Doesn't protect the system from "authorized" malware. For example, the pre-installed Google Play Services on Google Android or a malicious application that successfully passed all appstore checks. See [[Mobile_Phone_Security#Espionage_Data_Harvesting|massive espionage data harvesting on Google Android]]. Verified boot is a security technology that conceptually cannot stop [[malware]] that is built into an operating system by its producer. This does not take away from its useful potential as a security improvement for users.
+
+== Who uses verified boot? ==
+At the time of writing, there was no Freedom Software Linux desktop distribution that implemented full verified boot which means a full chain of verification starting form the hardware root of trust up to all pre-installed applications that come with the Linux distribution. Only kernel module verification is supported. The verified boot for initrd and beyond is not yet implemented. ([[Verified_Boot#Other_Distributions_implementing_Verified_Boot|Other Distributions implementing Verified Boot
 ]])
 
 By comparison, for example Android and iOS supports full verified boot.
 
-= What are the dangers of verified boot? =
+== What are the dangers of verified boot? ==
 The main risks are mistreatment of users, user software freedom restrictions, taking power away from users and handing it over to operating system and application developers.
 
 As verified boot is currently implemented, for the vast supermajority of users the key is controlled by the operating system vendor. Users enrolling their own keys in the hardware key store or at any later stage of the boot process is often literally impossible <ref>
@@ -134,21 +167,39 @@ Many Android devices come with locked bootloaders. Many Android phones could not
 
 Many user-freedom restrictions are enforced using verified boot, locked bootloaders and non-root enforcement. This includes [[Mobile_Operating_System_Comparison#Android_Anti-Features|Android Anti-Features]], prevention of replacing the stock operating system on mobile devices and [[Miscellaneous_Threats_to_User_Freedom#mobile_devices_restrictions|many other mobile devices restrictions]].
 
+== When the verification is over? ==
+
+Potential misconception:
+
+<blockquote>
+Verified boot makes sure that the boot process has not been tampered with, and then from that point on its job is done.
+</blockquote>
+
+Quote https://source.android.com/docs/security/features/verifiedboot/verified-boot
+
+<blockquote>
+verification is a continuous process happening as data is loaded into memory
+</blockquote>
+
+This means if malware manages to modify the <code>/usr/bin/mv</code> program despite immutability, then <code>dm-verity</code> would notice this the next time the user or system is attempting to execute that command.
+
+* https://tgrush.bearblog.dev/android-verified-boot/
+
 = Verified Boot Compatibility with Rooted Phones =
 Yes, verified boot can be compatible with rooted devices.
 
-Verified boot with root support and even with user-locked bootloader would be possible if support for that is built-in into the boot process (bootloader, recovery image). But how to modify the system partition without breaking verified boot? Modern root solutions such as for example Magisk support "systemless" root, via file system overlays. It's called "systemless" because Android has a partition <code>/system</code> that remains unmodified when using "systemless".
+Verified boot with root support and even with user-locked bootloader would be possible if support for that is built into the boot process (bootloader, recovery image). But how to modify the system partition without breaking verified boot? Modern root solutions such as Magisk support "systemless" root, via file system overlays. It's called "systemless" because Android has a partition <code>/system</code> that remains unmodified when using such rooting method.
 
-Verified boot would be compatible with root if an approach similar to such as for example Magisk is using built into the bootloader / recovery image prior signing it.
+Verified boot would be compatible with rooting if an approach similar to that employed by Magisk was built into the bootloader / recovery image prior signing it.
 
 Furthermore, for compatibility with verified boot, user modifications to the system partition could be reset at device reboot boot time from a known signed good image. This is technically very doable because Android already does something similar with its A/B update mechanism. <ref>
 https://source.android.com/docs/core/ota/ab
-</ref> Then how would the user make their system modifications persistent? Via file system overlays and/or automation scripts that run after the boot process. There could even be an boot menu option to boot with versus without user system modifications.
+</ref> Then how would the user make any system modifications persistent? Via file system overlays and/or automation scripts that run after the boot process. There could even be a boot menu option to boot with or without user system modifications.
 
 Related forum discussion:
 https://forums.whonix.org/t/overview-of-mobile-projects-that-focus-on-either-and-or-security-privacy-anonymity-source-available-freedom-software/4557/46
 
-= Rooted Security versus Non-Rooted Security =
+== Rooted Security versus Non-Rooted Security ==
 Quote <ref>
 https://news.ycombinator.com/item?id=28096914
 </ref>
@@ -188,65 +239,25 @@ Your note was always understood. Of course not rooting doesn't imply using the s
 Pro user freedom viewpoint.
 }}
 
-= Ideological Considerations =
-Before discussion the technical implementation details and security it might make sense to lay out one's position on who should have more power. Device owners or vendors.
+= coreboot's Measured Boot, TPM, FlashKeeper =
 
-* Should the operating system obey the user? Yes | No
-* Should the user should have ultimate control? Yes | No
-* Should the operating system make guarantees to app developers in case these guarantees are to the disadvantage of the user? Yes | No
-* Does one oppose the war on War on General Purpose Computing? Yes | No
-* Does one support the right to general computing? Yes | No
+Measured boot is a take on Verified boot that constructs a record of software components (code or data) participating in boot process. The components are hashed ("measured") by code and then passed to Trusted Platform Module (TPM) for storage. The TPM has several PCRs (Platform Configuration Registers), each of which can store measurements. TPM can also store secrets revealed only when PCRs hold a certain value. The idea is that a secret won't be released unless system is in a good state as is indicated by PCRs. It is not possible to set the TPM measurements to a specific value directly from the software level. Instead, individual hashes must be fed into the TPM in a specific order to produce the final measurement.
 
-It is primarily a project goal and policy decision.
+The boot process of coreboot involves initializing the TPM, measuring the boot block by itself, measuring intermediate stages, and eventually the RAM stage. These measurements collected during boot are passed to TPM and are also recorded in non-authoritative TPM event log. The log is stored in CBMEM, coreboot's memory area, and can be reviewed later (you often do not see the value of what is being extended, only its hash). coreboot also measures blobs and other files included in the firmware image until it reaches payload.
 
-Technical excuses are moot. If there's a commitment pro freedom and against anti-features, then there's a way. Security needs to take the backseat if it curtails user freedom. A prison cell is more secure from car accidents but yet we don't want to live in a golden cage. If you want, you will find a way, if you don't want to, you will find reasons.
+Control is then finally handed over to a payload, which can perform additional measurements directly into the TPM. The accumulated measurements are used to authenticate the system's state to the TPM. If the system can successfully authenticate itself in this way, it can unseal data within the TPM such as a TOTP (Time-based One-Time Password) secret. When the user wants to verify the system's state, whether that is with a TOTP code or remote attestation, this secret is unsealed using the TPM's actual PCR values.
 
-For example, in case of GrapheneOS non-root enforcement is a project goal and policy decision.
+Certain theoretical and practical attack vectors suggest flaws in this approach. For instance, if the boot block is compromised, it can feed any data it wants into the TPM, whether that data is representative of the system's state or not. Malicious firmware may choose to input the measurements of good firmware into the TPM in order to trick it into unsealing attestation data later. This can be prevented with mechanisms such as Intel Boot Guard or on-chip write-protection of flash chip that stores the firmware. However, write-protection is not always available or convenient and Boot Guard is not without issues. The MSI leak and TOCTOU (Time-of-Check to Time-of-Use) issues highlight its vulnerabilities.
 
-{{Quotation
-|quote=
-It doesn't sound like you want GrapheneOS since you don't care about the core security goals. I recommend using something else.
-|context=
-[https://www.reddit.com/r/GrapheneOS/comments/du23la/rooted_or_root/?sort=old GrapheneOS lead developer] <ref>
-https://archive.ph/94YVQ
-</ref>
-}}
+== TPM EK - Endorsement Key ==
 
-{{Quotation
-|quote=
-GrapheneOS is not aimed at power users or hobbyists aiming to tinker with their devices more than they can via the stock OS or AOSP.
-}}
+TPM EK (Endorsement Key) is the identity of a TPM which is used to confirm authenticity of the TPM device (i.e., that it was in fact produced by a known manufacturer). Neither EK nor TPM 2.0 changes compared to TPM 1.2 address the boot block modification issue.
 
-([[Mobile_Operating_System_Comparison#resign-android-image|resign-android-image]] is a script that attempts to provide root access for GrapheneOS.)
+TODO: Find Heads firmware ticket about TPM 2.0 and TPM EK (Endorsement Key).
 
-= Verified Boot Security =
-Potential misconception:
+The core of the problem remains that the boot block is not protected. The common narrative, and the direction the ecosystem seems to be heading with Boot Guard, is that Boot Guard relies on an external party signing the firmware. The chipset/CPU (chipset on Intel platforms, CPU on AMD platforms), using a fused (one-time-programmable) key, becomes the root of trust. In contrast, the EK represents the TPM as the root of trust. However, even without Boot Guard, the boot block must still be protected, and currently, there is no protection for the boot block outside of Boot Guard.
 
-<blockquote>
-Verified boot makes sure the code that is booted is safe, and then from that point on its job is done.
-</blockquote>
-
-Quote https://source.android.com/docs/security/features/verifiedboot/verified-boot
-
-<blockquote>
-verification is a continuous process happening as data is loaded into memory
-</blockquote>
-
-This means if malware manages to modify the file move program /usr/bin/mv despite immutability, then dm-verity would notice this the next time the user or system is attempting to execute that command.
-
-* https://tgrush.bearblog.dev/android-verified-boot/
-
-= Boot Block versus TPM =
-
-The problem with measured boot and remote attestation lies in the reliance on the TPM.
-
-Coreboot initializes interaction with the TPM either inside the boot block or later during the RAM stage. This means that the boot block has to initialize the TPM before the boot block is measured. The boot block therefore cannot be protected by measured boot and must be either blindly trusted or verified some other way. The boot block itself might get compromised, so blindly trusting the boot block is not safe.
-
-The boot process involves initializing the TPM, measuring the boot block, the ROM stage, and then the RAM stage, in sequence. These measurements are recorded in CBMEM, Coreboot's memory area, and can be reviewed later. When Coreboot completes its initialization, it also measures the payload and other files. 
-
-Control is then passed to the payload, which performs additional measurements directly into the TPM. The TPM has several PCRs (Platform Configuration Registers), each of which can store measurements about the platform's state. These measurements are used to authenticate the system's state to the TPM. If the system can successfully authenticate itself in this way, it can unseal data within the TPM such as a TOTP (Time-based One-Time Password) secret. When the user wants to verify the system's state, whether that is with a TOTP code or remote attestation, this secret is unsealed using the TPM's actual measurements for verification.
-
-Despite this, certain theoretical and practical attack vectors suggest flaws in this approach. For instance, if the boot block is compromised, it can feed any data it wants into the TPM, whether that data is representative of the system's state or not. Malicious firmware may choose to input the measurements of good firmware into the TPM in order to trick it into unsealing attestation data later. This can be prevented with mechanisms such as Intel Boot Guard. However, Boot Guard itself is problematic. The MSI leak and TOCTOU (Time-of-Check to Time-of-Use) issues highlight its vulnerabilities.
+== FlashKeeper ==
 
 This is why the FlashKeeper project was initiated. It aims to provide an external mechanism to verify the system firmware against a user-provided key while the system is actively booting, ensuring that whatever the host boots is trusted by the user. This prevents boot block compromise and other firmware compromises, greatly improving trust in the system. While Boot Guard offers an external authority to sign the firmware state, it creates a new risk: if the signing key is leaked, or the Boot Guard implementation is insecure, it could lead to a false sense of security, potentially causing even greater harm.
 
@@ -258,7 +269,7 @@ More info about FlashKeeper:
 Boot block based attacks have been discussed somewhere here in this gigantic forum thread:
 https://forum.qubes-os.org/t/discussion-on-purism/2627
 
-= Boot Block Based Attacks Against Measured Boot =
+== Boot Block Based Attacks Against Measured Boot ==
 
 Measured boot can be used in remote attestation. Remote attestation involves using measured boot or another technology to seal and unseal secrets. As of today, all of this relies on the TPM.
 
@@ -272,25 +283,13 @@ When you try to unseal a secret, you're using the current state of the measureme
 
 There is no known proof of concept for this attack yet.
 
-= TPM EK - Endorsement Key =
-
-The TPM EK (Endorsement Key) is the identity of the TPM.
-
-TODO: Find Heads firmware ticket about TPM 2.0 and TPM EK (Endorsement Key).
-
-TPM 2.0 and the TPM EK do not resolve the boot block issue either.
-
-The core of the problem remains that the boot block is not protected. The common narrative, and the direction the ecosystem seems to be heading with Boot Guard, is that Boot Guard relies on an external party signing the firmware. The CPU, using an embedded key, becomes the root of trust. In contrast, the EK represents the TPM as the root of trust. However, even without Boot Guard, the boot block must still be protected, and currently, there is no protection for the boot block outside of Boot Guard.
-
-When unsealing a secret, the TPM is queried for the final measurements stored in its PCRs. It is not possible to set the TPM measurements to a specific value directly from the software level. Instead, individual hashes must be fed into the TPM in a specific order to produce the final measurement. When examining the CBMEM log, you do not see the value of what is being extended; rather, you see the final response from the TPM after extending the provided measurement.
-
 = Qubes Specific =
 In Qubes OS,
 
-* changes made to the `/usr` directory in App Qubes disappear after every reboot. This is because `/usr` resides in the root image, which is reset on reboot.
-* bootloader, kernel, initrd, `/usr` directory could be considered trusted inside App Qube, because it is provided by the root image.
+* changes made to the <code>/usr</code> directory in App Qubes disappear after every reboot. This is because <code>/usr</code> resides in the root image, which is reset on reboot.
+* bootloader, kernel, initrd, <code>/usr</code> directory could be considered trusted inside App Qubes, because it is provided by the root image.
 
-However, verified boot is designed to detect unauthorized writes to `/usr` even before a reboot. Verified boot performs continuous verification - it does not only validate the integrity of the system at boot time but also monitors for illegitimate changes throughout runtime.
+However, verified boot is designed to detect unauthorized writes to <code>/usr</code> even before a reboot. Verified boot performs continuous verification - it does not only validate the integrity of the system at boot time but also monitors for illegitimate changes throughout runtime.
 
 = Verified Boot Discussion =
 
@@ -356,7 +355,7 @@ Specialized operating systems for example:
 * "This is a nice verified boot image, start the browser, reboot, any potential malware compromise will self-heal."
 
 == Minimal Immutable Base Images in combination with chroot ==
-Suppose there is this minimal immutable base image... And then a chroot where the user can do anything? We might not significant security benefits from that, because for example the browser binary installed inside the chroot would not be covered by verified boot.
+Suppose there is this minimal immutable base image... And then a chroot where the user can do anything? We might not get significant security benefits from that, because for example the browser binary installed inside the chroot would not be covered by verified boot.
 
 todo: https://www.perplexity.ai/search/android-apps-from-play-store-c-uy8M.d48SDSFZGstvSYFVw
 
@@ -367,13 +366,13 @@ Android app store has apps that fit into this. Debian doesn't.
 And the Freedom Software Linux distribution ecosystem doesn't really have verified boot on the radar.
 
 === Approaches from Other Distributions ===
-The approach Fedora Silverblue takes, only they also allow Flatpak and root fs modification via <code>rpm-ostree</code>. TODO: security impact?
+The approach Fedora Silverblue takes, only they also allow Flatpak and root filesystem modification via <code>rpm-ostree</code>. TODO: security impact?
 
 == Factory Reset and Verified Boot ==
 With a read-write (rw) image and verified boot, at best maybe what one could get is a simple factory reset in the boot menu. The user could choose factory reset, which resets all changes in the root image. Nice, but not that great of a security feature.
 
 === Challenges of Using dm-verity ===
-One cannot do <code>dm-verity</code> on a "normal" filesystem. Only on images, block devices. Any changes and it breaks. Quote dm-verity man page:
+One cannot do <code>dm-verity</code> on a "normal" filesystem. Only on images, block devices. Any changes and it breaks. Quote <code>dm-verity</code> man page:
 
 <blockquote>
 Device-Mapper’s “verity” target provides transparent integrity checking of block devices using a cryptographic digest provided by the kernel crypto API. This target is read-only.
@@ -398,7 +397,7 @@ Or <code>systemd-confext</code> for <code>/etc</code>.
 How useful would it be to have verified boot for Kicksecure ISO? Since it's read-only anyhow.
 
 === ISO Considerations ===
-It's hard to modify an ISO read/write. There is no public software available to really mount an ISO read/write. But it's possible in theory. The ISO should be considered read-write for attackers but read-only for the public. There is the Open Source <code>growisofs</code> tool. Also, other attacks are conceivable such as [https://wiki.debian.org/RepackBootableISO repacking the ISO], which is documented in the Debian wiki and much easier than ISO. 
+It's hard to modify an ISO read/write. There is no public software available to really mount an ISO read/write. But it's possible in theory. The ISO should be considered read-write for attackers but read-only for the public. There is the Open Source <code>growisofs</code> tool. Also, other attacks are conceivable such as [https://wiki.debian.org/RepackBootableISO repacking the ISO], which is documented in the Debian wiki and much easier than ISO.
 
 === Verified Boot for USB Installations ===
 Suppose someone writes the ISO to USB. Then the live session is compromised. By clever ISO read/write editing, the ISO compromise is made persistent. Would verified boot be able to come to the rescue here? It might.
@@ -408,7 +407,7 @@ The computer needs to have the proper Secure Boot keys somewhere to verify the I
 
 Furthermore, any shim signed my Microsoft (such as Debian's shim) would still be bootable along with other maliciously modified operating system parts (part of Debian).
 
-This approach doesn’t benefit Freedom Software Linux desktop distributions much since they must use their own key to verify the filesystem image. That image is created by the distribution, so their shim must be signed with Microsoft's key.
+This approach doesn't benefit Freedom Software Linux desktop distributions much since they must use their own key to verify the filesystem image. That image is created by the distribution, so their shim must be signed with Microsoft's key.
 
 One major issue is, that an EFI executable, such as shim, cannot have two signatures. This is an EFI design limitation.
 
@@ -416,10 +415,10 @@ Options for key management:
 
 * '''A)''' <u>Distribution signing key as hardware root of trust</u>: The distribution signs shim, and the user uses the distribution's key in the firmware (BIOS / EFI); <u>or</u>
 * '''B)''' <u>User managed keys</u>: the user manages their own keys (which is even less realistic); <u>or</u>
-* '''C)''' <u>Micorsoft key</u>: the distribution relies on the Microsoft key (e.g., the default Debian shim).
+* '''C)''' <u>Microsoft key</u>: the distribution relies on the Microsoft key (e.g., the default Debian shim).
 
 === Microsoft Signing Process ===
-There isn’t a single universal shim. Even large distributions like Pop!_OS lack Secure Boot; only major distributions (e.g., Ubuntu, Debian, Fedora, openSUSE) have implemented it.
+There isn't a single universal shim. Even large distributions like Pop!_OS lack Secure Boot; only major distributions (e.g., Ubuntu, Debian, Fedora, openSUSE) have implemented it.
 
 Microsoft would likely be willing to sign a new Linux distribution shim. The Linux distribution "just" need to fork shim and then go through the shim review process. Many distributions have managed to get their shims signed, though the requirements for doing so are strict (e.g., key storage must be physically secure and require biometric authentication).
 
@@ -427,10 +426,10 @@ This is nice to have for Secure Boot compatibility, which is a lesser goal of at
 
 It's however not much of a security feature, since:
 
-* The root of trust ultimately resides with Microsoft. Attackers with access to (leaked) Microsoft keys can bypass it. 
+* The root of trust ultimately resides with Microsoft. Attackers with access to (leaked) Microsoft keys can bypass it.
 * Attackers can also boot anything signed by Microsoft (any other Linux distribution's shim).
 
-If {{project_name_short}} would provide ISO with our our own key for signed verified boot images, we would lose compatibility to boot on standard hardware with Secure Boot and Microsoft's default key. The "only one signature allowed on an EFI binary" restriction is preventing that. {{project_name_short}} might need to maintain two different ISO's.
+If {{project_name_short}} would provide ISO with our own key for signed verified boot images, we would lose compatibility to boot on standard hardware with Secure Boot and Microsoft's default key. The "only one signature allowed on an EFI binary" restriction is preventing that. {{project_name_short}} might need to maintain two different ISO's.
 
 * A) Kicksecure hardware ISO: One ISO signed for hardware sold by {{project_name_short}} that only comes by default only with {{project_name_short}}'s key.
 * B) General Secure Boot hardware ISO: For "normal", non-Kicksecure hardware.
@@ -455,7 +454,7 @@ It’s possible to design a process where the Microsoft shim loads the kernel, t
 
 Yes. That's where measured boot comes in.
 
-Another consideration is whether removing the Microsoft key is beneficial. While it would lock systems to the Linux distribution's key for Secure Boot, this might restrict compatibility further than Microsoft’s own Secure Boot implementation. A firmware option to enable or disable Microsoft or project-specific keys could address this.
+Another consideration is whether removing the Microsoft key is beneficial. While it would lock systems to the Linux distribution's key for Secure Boot, this might restrict compatibility further than Microsoft's own Secure Boot implementation. A firmware option to enable or disable Microsoft or project-specific keys could address this.
 
 [[Measured_boot|Measured Boot]], an alternative to Secure Boot, avoids the Microsoft key issue. While Secure Boot prevents unauthorized code from running, Measured Boot provides tamper evidence, which may be sufficient for many use cases. However, implementing this requires firmware support and careful design.
 
@@ -463,7 +462,7 @@ Another consideration is whether removing the Microsoft key is beneficial. While
 A feasible workflow might involve Secure Boot launching shim (signed by Microsoft), shim launching a measured boot utility (e.g., <code>stboot</code>), and <code>stboot</code> verifying the kernel and root filesystem. This would provide a chain of trust extending from firmware to userland. However, integrating <code>stboot</code> into this process is complex.
 
 === Key Management and User Complexity ===
-Ultimately, projects relying on their own key for signing or implementing Secure Boot independently of Microsoft face significant technical and logistical hurdles. While it’s possible to use external storage for managing measurements, this increases user complexity and introduces new risks.
+Ultimately, projects relying on their own key for signing or implementing Secure Boot independently of Microsoft face significant technical and logistical hurdles. While it's possible to use external storage for managing measurements, this increases user complexity and introduces new risks.
 
 = {{project_name_short}} Verified Boot Development Ideas =
 == Verified VM Boot Sequence without Secure Boot ==
