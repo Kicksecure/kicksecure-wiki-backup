@@ -10,9 +10,62 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== grml-debootstrap - fix UEFI bootloader updates ==
+* https://github.com/grml/grml-debootstrap/issues/297
+* please send a pull request upstream
+** Pull request: https://github.com/grml/grml-debootstrap/pull/299
+** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
+*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
+**** Aaron: Done.
+*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
+**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
+* Patrick: please use, review the following simplification, if sane
+
+<pre>
+    if [ -z "$VMEFI" ]; then
+      grub_pc_package_name=grub-pc
+    else
+      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
+      # otherwise the EFI bootloader won't be automatically updated when GRUB
+      # packages are uploaded. Doing this means that the BIOS bootloader won't
+      # be automatically updated, which stinks, however the BIOS bootloader
+      # doesn't have the same security concerns as the EFI bootloader (there's
+      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
+      # better to let the BIOS bootloader lag behind and update the EFI one
+      # than to let the EFI bootloader lag behind and update the BIOS one.
+      grub_pc_package_name=grub-pc-bin
+    fi
+
+    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
+      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
+      # shellcheck disable=SC2086
+      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
+    fi
+</pre>
+
+** Integrated.
+* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
+
+<pre>
+        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
+</pre>
+
+** Discussed, elected not to do this.
+* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
+** Discussed, elected not to do this.
+* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
+** Not done yet to avoid overcomplicating the PR.
+* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
+** Done, actually I just removed ARM_EFI_TARGET entirely.
+* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
+* related PR: https://github.com/grml/grml-debootstrap/pull/302
+
 == privleap - post-review improvements ==
 * https://github.com/ArrayBolt3/privleap/issues/1
 * Discuss, implement as appropriate
+
+== review safe-print ==
+* https://github.com/Kicksecure/helper-scripts/pull/14
 
 == user-sysmaint-split - review helper-scripts ==
 * https://github.com/Kicksecure/helper-scripts/pull/13
@@ -375,56 +428,6 @@ sudo apt install serial-console-enable
 ** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
 ** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
 
-== grml-debootstrap - fix UEFI bootloader updates ==
-* https://github.com/grml/grml-debootstrap/issues/297
-* please send a pull request upstream
-** Pull request: https://github.com/grml/grml-debootstrap/pull/299
-** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
-*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
-**** Aaron: Done.
-*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
-**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
-* Patrick: please use, review the following simplification, if sane
-
-<pre>
-    if [ -z "$VMEFI" ]; then
-      grub_pc_package_name=grub-pc
-    else
-      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
-      # otherwise the EFI bootloader won't be automatically updated when GRUB
-      # packages are uploaded. Doing this means that the BIOS bootloader won't
-      # be automatically updated, which stinks, however the BIOS bootloader
-      # doesn't have the same security concerns as the EFI bootloader (there's
-      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
-      # better to let the BIOS bootloader lag behind and update the EFI one
-      # than to let the EFI bootloader lag behind and update the BIOS one.
-      grub_pc_package_name=grub-pc-bin
-    fi
-
-    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
-      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
-      # shellcheck disable=SC2086
-      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
-    fi
-</pre>
-
-** Integrated.
-* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
-
-<pre>
-        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
-</pre>
-
-** Discussed, elected not to do this.
-* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
-** Discussed, elected not to do this.
-* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
-** Not done yet to avoid overcomplicating the PR.
-* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
-** Done, actually I just removed ARM_EFI_TARGET entirely.
-* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
-* related PR: https://github.com/grml/grml-debootstrap/pull/302
-
 == trixie port - misc ==
 * waiting for trixie to get frozen and stable enough
 * 1) SSH configurations
@@ -572,12 +575,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== user-sysmaint-split - privleap - improvements ==
-* user_name validation - enforce maximum user name length: user_name variable should have a reasonable maximum string length
-* move user_name validation into a dedicated function?
-* maybe signal name could be validated using the same function?
-* Added requested features. https://github.com/ArrayBolt3/privleap/commit/6c653e64da4959de2b53b72ec49835c01808204b Rather than enforcing a maximum user name length though, I enforced a maximum client-sent message length since that was more comprehensive and easier to do in an efficient manner.
-
 == qubes-template-kicksecure - #3 ==
 * rebuild qubes-template-kicksecure
 * Now good enough to be built for qubes-community-testing repository by Qubes?
@@ -587,6 +584,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Only immediately apparent issue I see is that we still have the bookworm-testers repo specified as the Kicksecure repo to use for the build process, whereas user-sysmaint-split is only available in bookworm-developers. This makes the build fail until the template-kicksecure code repo is manually edited to specify the correct source repo.
 
 = ARCHIVED =
+== user-sysmaint-split - privleap - improvements ==
+* user_name validation - enforce maximum user name length: user_name variable should have a reasonable maximum string length
+* move user_name validation into a dedicated function?
+* maybe signal name could be validated using the same function?
+* Added requested features. https://github.com/ArrayBolt3/privleap/commit/6c653e64da4959de2b53b72ec49835c01808204b Rather than enforcing a maximum user name length though, I enforced a maximum client-sent message length since that was more comprehensive and easier to do in an efficient manner.
+
 == user-sysmaint-split - privleap - implement user switch - runas ==
 * please implement, if needed
 * already done, will use it where needed
