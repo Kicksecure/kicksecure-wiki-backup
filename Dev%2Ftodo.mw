@@ -64,61 +64,6 @@ TODO
 * https://github.com/ArrayBolt3/privleap/issues/1
 * Discuss, implement as appropriate
 
-== privleap - code improvements ==
-* Patrick:
-** Output internal configuration to stdout? At least when debug mode is enabled. This would be useful to look into what actually got parsed.
-** Worthwhile to simplify?
-<pre>
-        self.auth_user = auth_user if auth_user != "" else None
-        self.auth_group = auth_group if auth_user != "" else None
-</pre>
-
-<pre>
-        self.auth_user = auth_user
-        self.auth_group = auth_group
-</pre>
-
-<pre>
-        if desired_action.auth_user is not None:
-</pre>
-
-<pre>
-        if desired_action.auth_user is not "":
-</pre>
-
-** Print first (more likely it will succeed and leave a log entry). Run the try/except block after?
-<pre>
-                try:
-                    comm_session.send_msg(
-                        pl.PrivleapCommServerUnauthorizedMsg())
-                except Exception:
-                    print("handle_comm_session: Could not send UNAUTHORIZED")
-                    print(traceback.format_exc())
-
-                print("handle_comm_session: User is not authorized to run "
-                    "action '"
-                    + desired_action.action_name
-                    + "'")
-</pre>
-
-** Generally, do the safe action print to stdout (which ends up in journal) first. Later do things which might hang in theory.
-
-== privleap - compare what privleap is doing versus sudo and doas regarding environment ==
-
-<pre>
-    action_env["HOME"] = user_info.pw_dir
-    action_env["LOGNAME"] = user_info.pw_name
-    action_env["PWD"] = user_info.pw_dir
-    action_env["USER"] = user_info.pw_name
-</pre>
-
-* please check what sudo / doas is doing for completeness sake
-* env vars
-* any other setup?
-
-== privleap - environment variables security ==
-* consider account user setting malicious environment variables (length based buffer overflow, code substitution $(...) / `...` syntax)
-
 == review safe-print ==
 * https://github.com/Kicksecure/helper-scripts/pull/14
 
@@ -635,6 +580,92 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== privleap - compare what privleap is doing versus sudo and doas regarding environment ==
+
+<pre>
+    action_env["HOME"] = user_info.pw_dir
+    action_env["LOGNAME"] = user_info.pw_name
+    action_env["PWD"] = user_info.pw_dir
+    action_env["USER"] = user_info.pw_name
+</pre>
+
+* please check what sudo / doas is doing for completeness sake
+* env vars
+* any other setup?
+** doas (https://man.openbsd.org/doas.1):
+*** <code>HOME</code> - We're already setting this.
+*** <code>LOGNAME</code> - We're already setting this.
+*** <code>PATH</code> - Set by systemd and inherited from privleapd, this is hardcoded to a known-good value.
+*** <code>SHELL</code> - Useful to set, now hardcoded in privleapd to <code>/usr/bin/bash</code> (since that's the shell privleapd uses to run actions).
+*** <code>USER</code> - We're already setting this.
+*** <code>umask</code> - Default, inherited from systemd, probably do not want to change this.
+*** <code>DISPLAY</code> - Usually specifies the active X11 display the process is running on. privleapd runs as a service and will have no X11 display, thus this is useless for us.
+*** <code>TERM</code> - Specifies what terminal is in use. Probably also useless, processes run by privleapd are not given a PTY.
+*** <code>PWD</code> - Not changed by doas. We're setting it, but we're also not changing the process's actual current working directory, which could potentially result in malfunctions. Fixed.
+** sudo (https://man7.org/linux/man-pages/man8/sudo.8.html#ENVIRONMENT):
+*** <code>EDITOR</code> - Used by sudo, but doesn't appear to be set by it.
+*** <code>MAIL</code> - Set to the mail spool of the target user in some instances. This is empty on Kubuntu 24.04 and Kicksecure 17, and is set to <code>/var/mail/user</code> on a mostly minimal Debian 12 VM (that path doesn't actually exist on the VM though, strangely enough). Probably not useful.
+*** <code>HOME</code> - We're already setting this.
+*** <code>LOGNAME</code> - We're already setting this.
+*** <code>PATH</code> - See above in doas section.
+*** <code>SHELL</code> - See above in doas section.
+*** <code>SUDO_ASKPASS</code> - Specific to sudo, not set by sudo.
+*** <code>SUDO_COMMAND</code> - Specific to sudo, set to the command that is run by sudo. Potentially useful but also sudo-specific, probably not needed?
+*** <code>SUDO_EDITOR</code> - Specific to sudo, not set by sudo.
+*** <code>SUDO_GID</code> - Specific to sudo, set to the GID of the user who invoked sudo. Potentially useful, easy to implement in a secure manner. Desirable?
+*** <code>SUDO_PROMPT</code> - Specific to sudo, not set by sudo.
+*** <code>SUDO_PS1</code> - Specific to sudo, not set by sudo, most likely only affects interactive shells which privleap doesn't support anyway.
+*** <code>SUDO_UID</code> - Specific to sudo, set to the UID of the user who invoked sudo. Potentially useful, easy to implement in a secure manner. Desirable?
+*** <code>SUDO_USER</code> - Specific to sudo, set to the login name of the user who invoked sudo. Potentially useful, easy to implement in a secure manner, but could potentially be used for malicious purposes if the user has a Unicode-based username? See https://lwn.net/Articles/1000485/. Redundant if <code>SUDO_UID</code> is implemented, probably we shouldn't set this.
+*** <code>USER</code> - We're already setting this.
+*** <code>VISUAL</code> - Used by sudo, but doesn't appear to be set by it.
+
+== privleap - environment variables security ==
+* consider account user setting malicious environment variables (length based buffer overflow, code substitution $(...) / `...` syntax)
+** This should not be a problem. Environment variables cannot be inherited from the user that calls privleap because they are not transmitted by the client to the server. All actions launched by privleap will inherit their environment from the privleapd server, which inherits its environment directly from systemd. Environment variables that aren't inherited directly are currently derived from basic user info configured in root-owned files, thus not a security risk.
+** Will keep this in mind if more environment variables need tweaked.
+
+== privleap - code improvements ==
+* Patrick:
+** Output internal configuration to stdout? At least when debug mode is enabled. This would be useful to look into what actually got parsed.
+** Worthwhile to simplify?
+<pre>
+        self.auth_user = auth_user if auth_user != "" else None
+        self.auth_group = auth_group if auth_user != "" else None
+</pre>
+
+<pre>
+        self.auth_user = auth_user
+        self.auth_group = auth_group
+</pre>
+
+<pre>
+        if desired_action.auth_user is not None:
+</pre>
+
+<pre>
+        if desired_action.auth_user is not "":
+</pre>
+*** These are already either simplified, or can't reasonably be simplified further. In particular <code>None</code> and <code>""</code> are not interchangeable and explicitly using <code>None</code> in Python is preferable when possible.
+
+** Print first (more likely it will succeed and leave a log entry). Run the try/except block after?
+<pre>
+                try:
+                    comm_session.send_msg(
+                        pl.PrivleapCommServerUnauthorizedMsg())
+                except Exception:
+                    print("handle_comm_session: Could not send UNAUTHORIZED")
+                    print(traceback.format_exc())
+
+                print("handle_comm_session: User is not authorized to run "
+                    "action '"
+                    + desired_action.action_name
+                    + "'")
+</pre>
+
+** Generally, do the safe action print to stdout (which ends up in journal) first. Later do things which might hang in theory.
+*** Done.
+
 == qubes-template-kicksecure - #3 ==
 * rebuild qubes-template-kicksecure
 * Now good enough to be built for qubes-community-testing repository by Qubes?

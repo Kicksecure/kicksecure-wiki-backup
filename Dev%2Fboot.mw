@@ -10,6 +10,113 @@ Boot Process
 {{intro|
 Boot Process Related Development Notes
 }}
+= GRUB =
+== grub-install command responsibility ==
+
+Who should run the <code>grub-install</code> command? SystemBuildTools or Debian package maintainer scripts?
+
+As it is currently designed, it seems [https://wiki.debian.org/SystemBuildTools SystemBuildTools] are supposed to execute the <code>grub-install</code> command.
+
+<code>calamares</code> installer runs <code>grub-install</code>. <code>live-build</code> has extensive code to set up GRUB and other bootloaders. <code>mkosi</code> uses <code>grub-mkimage</code>.
+
+It's the system build tool that is responsible for setting up the bootloader, which requires running bootloader installation commands.
+
+{{quotation
+|quote=Don't call grub-install on fresh install of grub-pc. It's the job of installers to do that after a fresh install.
+|context=[https://metadata.ftp-master.debian.org/changelogs//main/g/grub2/grub2_2.12-5_changelog <code>grub2</code> package, Debian changelog, Colin Watson Nov 2020]
+}}
+
+== grub-cloud package ==
+
+{{Quotation
+|quote=You don't want to use this package outside of cloud images.
+|context=[https://packages.debian.org/bookworm/grub-cloud-amd64 <code>grub-cloud-amd64</code> package, Debian]
+}}
+
+<code>grub-cloud-amd64</code> package and <code>/etc/default/grub</code> file inclusion:
+
+{{Quotation
+|quote=<code>/etc/default/grub</code>
+|context=[https://packages.debian.org/bookworm/amd64/grub-cloud-amd64/filelist List of files]
+}}
+
+Source code references:
+
+* [https://salsa.debian.org/cloud-team/grub-cloud grub-cloud source code]
+* [https://salsa.debian.org/cloud-team/grub-cloud/-/blob/main/etc-default-amd64/grub?ref_type=heads AMD64 <code>/etc/default/grub</code>]
+* [https://salsa.debian.org/cloud-team/grub-cloud/-/blob/main/etc-default-arm64/grub?ref_type=heads ARM64 <code>/etc/default/grub</code>]
+* [https://salsa.debian.org/cloud-team/grub-cloud/-/blob/main/debian/grub-cloud-amd64.postinst?ref_type=heads AMD64 <code>postinst</code>]
+* [https://salsa.debian.org/cloud-team/grub-cloud/-/blob/main/debian/grub-cloud-arm64.postinst?ref_type=heads ARM64 <code>postinst</code>]
+
+AMD64 <code>/etc/default/grub</code> contents:
+
+<pre>
+# If you change this file, run 'update-grub' afterwards to update
+# /boot/grub/grub.cfg.
+# For full documentation of the options in this file, see:
+#   info -f grub -n 'Simple configuration'
+
+GRUB_DEFAULT=0
+GRUB_TIMEOUT=5
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2> /dev/null || echo Debian`
+GRUB_CMDLINE_LINUX_DEFAULT=""
+GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200 earlyprintk=ttyS0,115200 consoleblank=0"
+GRUB_TERMINAL_OUTPUT="gfxterm serial"
+GRUB_SERIAL_COMMAND="serial --speed=115200"
+</pre>
+
+* Potential issues with <code>grub-cloud</code> managing <code>/etc/default/grub</code>:
+** Running <code>debsums --changed --config</code> would list <code>/etc/default/grub</code> as a changed configuration file.
+** Setting <code>GRUB_CMDLINE_LINUX="console=tty0 console=ttyS0,115200 earlyprintk=ttyS0,115200 consoleblank=0"</code> can cause issues:
+*** Security concerns?
+*** Systemd log spam inside VirtualBox:
+
+<pre>
+serial-getty@ttyS0.service: Succeeded.
+serial-getty@ttyS0.service: Service RestartSec=100ms expired, scheduling restart.
+serial-getty@ttyS0.service: Scheduled restart job, restart counter is at 625.
+Stopped Serial Getty on ttyS0.
+Started Serial Getty on ttyS0.
+/dev/ttyS0: not a tty
+serial-getty@ttyS0.service: Succeeded.
+serial-getty@ttyS0.service: Service RestartSec=100ms expired, scheduling restart.
+serial-getty@ttyS0.service: Scheduled restart job, restart counter is at 626.
+Stopped Serial Getty on ttyS0.
+Started Serial Getty on ttyS0.
+/dev/ttyS0: not a tty
+</pre>
+
+* VirtualBox: Adding a virtual disconnected serial console does not help either. This causes:
+** GRUB boot menu becoming invisible.
+** No console output for a long time.
+** Extremely slow boot times.
+
+The serial console-related issues were encountered ~5 years ago when considering "why not enable a serial console by default inside VM images."
+
+* Possible solution: If using a <code>grub-cloud</code>-based solution, it may be better to undo the serial console setup.
+* Architectural limitations: <code>grub-cloud</code> currently supports only a limited set of architectures (Intel/AMD64 and ARM64 at the time of writing). Depending on your plans for multi-architecture support (as Debian is the universal operating system), this may be a limitation.
+
+<code>grub-cloud</code> also does not solve co-installation of grub-pc and grub-efi
+
+Quote [https://salsa.debian.org/cloud-team/grub-cloud/-/blob/main/debian/control?ref_type=heads <code>debian/control</code> file]
+
+<pre>
+Package: grub-cloud-amd64
+...
+Depends: ${misc:Depends}, grub2-common (>= 2.02+dfsg1-7), grub-efi-amd64-bin, grub-efi-amd64-signed, grub-pc-bin, shim-signed
+</pre>
+
+Analysis:
+
+* <code>grub-cloud</code> also only <code>Depends:</code> on <code>grub-pc-bin</code> but not on <code>grub-pc</code>. Hence, <code>grub-cloud</code> would also suffer from missing <code>grub-pc</code> bootloader updates.
+* <code>grub-cloud</code> also only <code>Depends:</code> on <code>grub-efi-amd64-bin, grub-efi-amd64-signed</code>. It fails to <code>Depends:</code> on <code>grub-efi-amd64</code>. Hence, <code>grub-cloud</code> would also suffer from missing <code>grub-efi</code> bootloader updates.
+
+Conclusion:
+
+* <code>grub-cloud</code> won't be helpful for fixing this issue.
+* A perfect solution is impossible until Debian implements the feature request for <code>grub-pc</code> and <code>grub-efi</code> co-installability: [Allow concurrent installation of grub-pc and grub-efi-amd64](https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062).
+* <code>grub-cloud</code> seems like a worse solution than the implementation being suggested here in grml-debootstrap pull request [https://github.com/grml/grml-debootstrap/pull/299 Make bootloader updates on UEFI-based systems work].
+
 = GRUB Upstream =
 == GRUB Slow Upstream ==
 {{quotation

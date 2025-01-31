@@ -15,6 +15,8 @@ Supporting multiple command line parameters with spaces in wrapper scripts and E
 = safe echo =
 TODO
 
+There is no safe usage of <code>echo</code>, use <code>printf '%s'</code> instead.
+
 * {{VideoLink
 |videoid=lq98MM2ogBk
 |text=bash's echo command is broken 
@@ -27,24 +29,47 @@ TODO
 shellcheck bug reports:
 
 * [https://github.com/koalaman/shellcheck/issues/2674 Warn on echo "$var" when $var might be -e #2674]
-* https://github.com/koalaman/shellcheck/issues?q=is%3Aissue+is%3Aopen+echo+in%3Atitle
+* [https://github.com/koalaman/shellcheck/issues?q=is%3Aissue+is%3Aopen+echo+in%3Atitle Open shellcheck issues related to echo]
 
 helper-scripts:
 
-* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/safe_echo.sh
+* [https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/safe_echo.sh safe_echo.sh script]
 
-A drop-in replacement safe_echo would be useful to have.
+Please note that <code>printf</code> does not have a default format specifier, but treats the first positional parameter as the format. When the format is missing, the data is treated as if the format specifier is <code>%b</code>. It is always recommended to be explicit on the format being used to avoid this mistake.
 
-Based on <code>echo</code>:
+Normally, there is no need to interpret the escape sequences of a variable, therefore use the printf format specifier <code>%s</code> when the data is not printed to the terminal:
 
-* implementation: abort if first character is a <code>-</code>
-* advantage: supports colors etc.
-* disadvantage: break on legitimate output such as "--example"
+{{CodeSelect|code=
+var="$(printf '%s' "${untrusted_text}")"
+}}
 
-Based on <code>printf</code>:
+If you require escapes to be interpreted, interpret them on a per-need basis:
 
-* disadvantage: no support for colors etc.
-* advantage: does not break if first character is <code>-</code>
+{{CodeSelect|code=
+red="$(printf '%b' "\e[31m")"    # red=$'\e[31m'   # printf -v red     '%b' "\e[31m"  
+nocolor="$(printf '%b' "\e[m")"  # nocolor=$'\e[m' # printf -v nocolor '%b' "\e[m"    
+}}
+
+Escapes that are already interpreted can be printed with <code>%s</code> without making a difference:
+
+{{CodeSelect|code=
+var="$(printf '%s' "${red} ${untrusted_text} ${nocolor}")"
+}}
+
+And this is why you should use <code>stprint</code> when printing to the terminal, as it will sanitize unsafe characters while simply using <code>printf '%s'</code> is not safe when escapes are already interpreted:
+
+{{CodeSelect|code=
+stprint "${red} ${untrusted_text} ${nocolor}"
+printf '%s' "${red} ${untrusted_text} ${nocolor}" {{!}} stprint
+printf '%s' "${red} ${untrusted_text} ${nocolor}" {{!}} stprint {{!}} less -R
+}}
+
+'''Rule of thumb''':
+* <code>echo</code>: Never!
+* <code>printf</code>: Whenever the printed data is not used by a terminal.
+** Format <code>%b</code>: Only for trusted data
+** Format <code>%s</code>: With any data
+* <code>stprint</code>: Whenever the printed data is used by a terminal.
 
 = Bash Proper Whitespace Handling =
 <pre>
