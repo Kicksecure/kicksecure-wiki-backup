@@ -10,75 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== grml-debootstrap - fix UEFI bootloader updates ==
-* https://github.com/grml/grml-debootstrap/issues/297
-* please send a pull request upstream
-** Pull request: https://github.com/grml/grml-debootstrap/pull/299
-** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
-*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
-**** Aaron: Done.
-*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
-**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
-* Patrick: please use, review the following simplification, if sane
-
-<pre>
-    if [ -z "$VMEFI" ]; then
-      grub_pc_package_name=grub-pc
-    else
-      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
-      # otherwise the EFI bootloader won't be automatically updated when GRUB
-      # packages are uploaded. Doing this means that the BIOS bootloader won't
-      # be automatically updated, which stinks, however the BIOS bootloader
-      # doesn't have the same security concerns as the EFI bootloader (there's
-      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
-      # better to let the BIOS bootloader lag behind and update the EFI one
-      # than to let the EFI bootloader lag behind and update the BIOS one.
-      grub_pc_package_name=grub-pc-bin
-    fi
-
-    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
-      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
-      # shellcheck disable=SC2086
-      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
-    fi
-</pre>
-
-** Integrated.
-* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
-
-<pre>
-        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
-</pre>
-
-** Discussed, elected not to do this.
-* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
-** Discussed, elected not to do this.
-* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
-** Not done yet to avoid overcomplicating the PR.
-* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
-** Done, actually I just removed ARM_EFI_TARGET entirely.
-* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
-* related PR: https://github.com/grml/grml-debootstrap/pull/302
-
-== privleap - post-review improvements ==
-* https://github.com/ArrayBolt3/privleap/issues/1
-* Discuss, implement as appropriate
-
-== review safe-print ==
-* https://github.com/Kicksecure/helper-scripts/pull/14
-
-== user-sysmaint-split - review helper-scripts ==
-* https://github.com/Kicksecure/helper-scripts/pull/13
-* https://github.com/Kicksecure/user-sysmaint-split/pull/1
-
-== qubes-template-kicksecure - Thunar - icons missing ==
-* ran into serious issues with icons in Thunar, see https://forum.xfce.org/viewtopic.php?id=18054
-
-== user-sysmaint-split - port upgrade-nonroot to privleap ==
-* port upgrade-nonroot to privleap, if sane
-* do not add <code>Depends: privleap</code>
-* https://forums.kicksecure.com/t/upgrade-nonroot-privilege-escalation-issue/886
-
 == user-sysmaint-split - implement sudoless ==
 * [[Dev/sudo]]
 ** Ready for review:
@@ -87,10 +18,6 @@ TODO
 ** Work-in-progress:
 *** https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/sudoless-privleap
 *** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sudoless-privleap
-
-== user-sysmaint-split - Qubes - sysmaint-boot.target - upstream feature request ==
-* What would need to happen to make sysmaint-boot.target available in Qubes? Please discuss with Qubes, open a Qubes ticket, if applicable.
-* related Qubes ticket: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
 
 == user-sysmaint-split - bind-mounts based passwordless privilege escalation wrapper ==
 * implemented using overlays (bind mounts)
@@ -415,6 +342,68 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
+== user-sysmaint-split - Qubes - sysmaint-boot.target - upstream feature request ==
+* What would need to happen to make sysmaint-boot.target available in Qubes? Please discuss with Qubes, open a Qubes ticket, if applicable.
+* related Qubes ticket: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
+* Ticket filed for this specifically: https://github.com/QubesOS/qubes-issues/issues/9750
+
+== grml-debootstrap - fix UEFI bootloader updates ==
+* https://github.com/grml/grml-debootstrap/issues/297
+* please send a pull request upstream
+** Pull request: https://github.com/grml/grml-debootstrap/pull/299
+** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
+*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
+**** Aaron: Done.
+*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
+**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
+* Patrick: please use, review the following simplification, if sane
+
+<pre>
+    if [ -z "$VMEFI" ]; then
+      grub_pc_package_name=grub-pc
+    else
+      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
+      # otherwise the EFI bootloader won't be automatically updated when GRUB
+      # packages are uploaded. Doing this means that the BIOS bootloader won't
+      # be automatically updated, which stinks, however the BIOS bootloader
+      # doesn't have the same security concerns as the EFI bootloader (there's
+      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
+      # better to let the BIOS bootloader lag behind and update the EFI one
+      # than to let the EFI bootloader lag behind and update the BIOS one.
+      grub_pc_package_name=grub-pc-bin
+    fi
+
+    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
+      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
+      # shellcheck disable=SC2086
+      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
+    fi
+</pre>
+
+** Integrated.
+* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
+
+<pre>
+        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
+</pre>
+
+** Discussed, elected not to do this.
+* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
+** Discussed, elected not to do this.
+* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
+** Not done yet to avoid overcomplicating the PR.
+* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
+** Done, actually I just removed ARM_EFI_TARGET entirely.
+* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
+* related PR: https://github.com/grml/grml-debootstrap/pull/302
+
+== privleap - post-review improvements ==
+* https://github.com/ArrayBolt3/privleap/issues/1
+* Discuss, implement as appropriate
+
+== review safe-print ==
+* https://github.com/Kicksecure/helper-scripts/pull/14
+
 == review and test IPv6 support pull requests ==
 * https://forums.whonix.org/t/add-ipv6-support/19893
 * https://www.whonix.org/wiki/Dev/ipv6
@@ -580,6 +569,30 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== user-sysmaint-split - port upgrade-nonroot to privleap ==
+* port upgrade-nonroot to privleap, if sane
+* do not add <code>Depends: privleap</code>
+* https://forums.kicksecure.com/t/upgrade-nonroot-privilege-escalation-issue/886
+* Done in https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/privleap
+
+== qubes-template-kicksecure - Thunar - icons missing ==
+* ran into serious issues with icons in Thunar, see https://forum.xfce.org/viewtopic.php?id=18054
+* Should be fixed by this: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/fix-thunar-icons-qubes
+
+== qubes-template-kicksecure - #3 ==
+* rebuild qubes-template-kicksecure
+* Now good enough to be built for qubes-community-testing repository by Qubes?
+* If not, please create follow-up tickets.
+* Patrick: Moved Thunar issue into its own ticket since not a blocker.
+* Patrick: Next goal is to update https://github.com/QubesOS/qubes-issues/issues/9573 by posting a comment. Such as requesting that Qubes builds the Template for the community-testing repository. Selective broken applications are acceptable (such as Thunar). This is to allow upstream Qubes time to review, try to build the template, notify downstream Kicksecure of potentially yet unknown issues.
+** Only immediately apparent issue I see is that we still have the bookworm-testers repo specified as the Kicksecure repo to use for the build process, whereas user-sysmaint-split is only available in bookworm-developers. This makes the build fail until the template-kicksecure code repo is manually edited to specify the correct source repo.
+
+= ARCHIVED =
+== user-sysmaint-split - review helper-scripts ==
+* https://github.com/Kicksecure/helper-scripts/pull/13
+* https://github.com/Kicksecure/user-sysmaint-split/pull/1
+* Reviews complete and PRs were merged.
+
 == privleap - compare what privleap is doing versus sudo and doas regarding environment ==
 
 <pre>
@@ -666,15 +679,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Generally, do the safe action print to stdout (which ends up in journal) first. Later do things which might hang in theory.
 *** Done.
 
-== qubes-template-kicksecure - #3 ==
-* rebuild qubes-template-kicksecure
-* Now good enough to be built for qubes-community-testing repository by Qubes?
-* If not, please create follow-up tickets.
-* Patrick: Moved Thunar issue into its own ticket since not a blocker.
-* Patrick: Next goal is to update https://github.com/QubesOS/qubes-issues/issues/9573 by posting a comment. Such as requesting that Qubes builds the Template for the community-testing repository. Selective broken applications are acceptable (such as Thunar). This is to allow upstream Qubes time to review, try to build the template, notify downstream Kicksecure of potentially yet unknown issues.
-** Only immediately apparent issue I see is that we still have the bookworm-testers repo specified as the Kicksecure repo to use for the build process, whereas user-sysmaint-split is only available in bookworm-developers. This makes the build fail until the template-kicksecure code repo is manually edited to specify the correct source repo.
-
-= ARCHIVED =
 == user-sysmaint-split - privleap - improvements ==
 * user_name validation - enforce maximum user name length: user_name variable should have a reasonable maximum string length
 * move user_name validation into a dedicated function?
