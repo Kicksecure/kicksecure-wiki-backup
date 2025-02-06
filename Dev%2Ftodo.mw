@@ -10,57 +10,31 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== user-sysmaint-split - bind-mounts based passwordless privilege escalation wrapper ==
-* implemented using overlays (bind mounts)
-* passwordless privilege escalation tools in Qubes Template
-* useful error message in Non-Qubes user mode and Qubes App Qube. untested pseudocode:
-
-<pre>
-#!/bin/bash
-
-## Copyright (C) 2025 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
-## See the file COPYING for copying conditions.
-
-if test -x /path/to/real/sudo ; then
-   exec /path/to/real/sudo "$@"
-fi
-
-## Avoiding 'source'ing external libraries to avoid additional AppArmor issues.
-## 'source' is a bashism.
-#. /usr/libexec/helper-scripts/get_colors.sh
-
-if test -f /usr/share/whonix/marker ; then
-   project_website="https://www.whonix.org"
-else
-   project_website="https://www.kicksecure.com"
-fi
-
-echo 'ERROR: This account lacks administrative ("root") capabilities. See: ${project_website}/wiki/sysmaint' >&2
-
-## Let the attempt to execute 'sudo' show the actual error message.
-/path/to/real/sudo "$@"
-</pre>
-
-== user-sysmaint-split - passwordless login breaks when uninstalled ==
-* Bug: removing user-sysmaint-split from a machine causes autologin to break, user is presented with login screen on boot
-* Possibly caused by user <code>sysmaint</code> autologin handling?
-
-== user-sysmaint-split - quick uninstall boot option ==
-* Users might be confused by user-sysmaint-split and prefer using sudo and pkexec normally.
-* Using <code>sudo dummy-dependency --purge user-sysmaint-split</code> from sysmaint mode is functional but inconvenient.
-* Add option to boot menu that offers to remove user-sysmaint-split for the user, to revert back to "classic" privilege escalation.
+== user-sysmaint-split - implement sudoless ==
+* [[Dev/sudo]]
+** Ready for review:
+*** https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/sudoless-privleap
+*** https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/fix-spacing
+*** https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/sudoless-privleap
+*** https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/privleap
+*** https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/privleap
+*** https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/privleap
+*** https://github.com/ArrayBolt3/anon-gw-anonymizer-config/tree/arraybolt3/privleap
+*** https://github.com/ArrayBolt3/whonix-base-files/tree/arraybolt3/user-sysmaint-split
+*** https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/privleap
+*** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sudoless-privleap
+*** https://github.com/ArrayBolt3/tor-control-panel/tree/arraybolt3/privleap
+** Work in progress:
+*** https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/privleap
+** Additional things done:
+*** grep through entire Kicksecure and Whonix codebases for all uses of <code>sudo</code>, replace with privleap where appropriate
+*** grep through entire Kicksecure and Whonix codebases for all uses of <code>pkexec</code>, replace with privleap where appropriate
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 ** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
 *** Patrick: R4.2 should be sufficient?
 **** Aaron: New major features cannot be introduced into R4.2. Needs to be developed for R4.3.
-
-== Strong Linux User Account Isolation wiki page - add Wayland considerations ==
-* edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
-* For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
-** Done, did necessary research and added info to the wiki.
-* please search with browser website internal search for all mentions of X11 and add Wayland equivalents documentation
 
 == grml-debootstrap - GRUB installation refactoring ==
 * https://github.com/grml/grml-debootstrap/issues/258
@@ -569,6 +543,26 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== Strong Linux User Account Isolation wiki page - add Wayland considerations ==
+* edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
+* For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
+** Done, did necessary research and added info to the wiki.
+* please search with browser website internal search for all mentions of X11 and add Wayland equivalents documentation
+** Used several different search terms that could reference X11, adding additional documentation where needed.
+
+== user-sysmaint-split - quick uninstall boot option ==
+* Users might be confused by user-sysmaint-split and prefer using sudo and pkexec normally.
+* Using <code>sudo dummy-dependency --purge user-sysmaint-split</code> from sysmaint mode is functional but inconvenient.
+* Add option to boot menu that offers to remove user-sysmaint-split for the user, to revert back to "classic" privilege escalation.
+* Implemented, required changes to user-sysmaint-split and sysmaint-panel.
+** https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/uninstaller
+** https://github.com/ArrayBolt3/sysmaint-panel
+
+== user-sysmaint-split - passwordless login breaks when uninstalled ==
+* Bug: removing user-sysmaint-split from a machine causes autologin to break, user is presented with login screen on boot
+* Possibly caused by user <code>sysmaint</code> autologin handling?
+* Fixed, along with some other issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/fix-passwordless-login
+
 == user-sysmaint-split - port upgrade-nonroot to privleap ==
 * port upgrade-nonroot to privleap, if sane
 * do not add <code>Depends: privleap</code>
@@ -601,26 +595,40 @@ fi
 * File location /etc/privleapd/pid seems unusual.
 ** Aaron: We're not using /etc, we're using /run. Details shared in chat.
 
-== user-sysmaint-split - implement sudoless ==
-* [[Dev/sudo]]
-** Ready for review:
-*** https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/sudoless-privleap
-*** https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/fix-spacing
-*** https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/sudoless-privleap
-*** https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/privleap
-*** https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/privleap
-*** https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/privleap
-*** https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/privleap
-*** https://github.com/ArrayBolt3/anon-gw-anonymizer-config/tree/arraybolt3/privleap
-*** https://github.com/ArrayBolt3/whonix-base-files/tree/arraybolt3/user-sysmaint-split
-*** https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/privleap
-*** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sudoless-privleap
-*** https://github.com/ArrayBolt3/tor-control-panel/tree/arraybolt3/privleap
-** Additional things done:
-*** grep through entire Kicksecure and Whonix codebases for all uses of <code>sudo</code>, replace with privleap where appropriate
-*** grep through entire Kicksecure and Whonix codebases for all uses of <code>pkexec</code>, replace with privleap where appropriate
-
 = ARCHIVED =
+== user-sysmaint-split - bind-mounts based passwordless privilege escalation wrapper ==
+* implemented using overlays (bind mounts)
+* passwordless privilege escalation tools in Qubes Template
+* useful error message in Non-Qubes user mode and Qubes App Qube. untested pseudocode:
+
+<pre>
+#!/bin/bash
+
+## Copyright (C) 2025 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+if test -x /path/to/real/sudo ; then
+   exec /path/to/real/sudo "$@"
+fi
+
+## Avoiding 'source'ing external libraries to avoid additional AppArmor issues.
+## 'source' is a bashism.
+#. /usr/libexec/helper-scripts/get_colors.sh
+
+if test -f /usr/share/whonix/marker ; then
+   project_website="https://www.whonix.org"
+else
+   project_website="https://www.kicksecure.com"
+fi
+
+echo 'ERROR: This account lacks administrative ("root") capabilities. See: ${project_website}/wiki/sysmaint' >&2
+
+## Let the attempt to execute 'sudo' show the actual error message.
+/path/to/real/sudo "$@"
+</pre>
+
+* After attempted implementation and running into roadblocks, we no longer want to do this. It's a hack to work around missing Qubes OS features that we should be developing.
+
 == qubes-template-kicksecure - Thunar - icons missing ==
 * ran into serious issues with icons in Thunar, see https://forum.xfce.org/viewtopic.php?id=18054
 ** Patrick: Could you please update the Xfce forum thread?
