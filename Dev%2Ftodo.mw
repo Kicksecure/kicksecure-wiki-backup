@@ -10,6 +10,62 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== lintian - use lintian locally during package build process ==
+* lintian is already run during the build process.
+
+<pre>
+/usr/share/genmkfile/make-helper-one.bsh: INFO: You can find your deb file here: /home/user/derivative-binary/genmkfile-packages-result/privleap_1.3-1_all.deb
+/usr/share/genmkfile/make-helper-one.bsh: INFO: make_use_lintian='' - Autodetecting if lintian is installed...
+/usr/share/genmkfile/make-helper-one.bsh: INFO: lintian auto detected, using it...
+lintian           --suppress-tags missing-tests-control          --suppress-tags systemd-service-file-missing-documentation-key          --suppress-tags orig-tarball-missing-upstream-signature          --suppress-tags package-supports-alternative-init-but-no-init.d-script          --suppress-tags no-manual-page          --quiet          --pedantic          --info          --display-info            "/home/user/derivative-binary/genmkfile-packages-result/privleap_1.3-1_amd64.changes"
+/usr/share/genmkfile/make-helper-one.bsh: INFO: lintian exit code: 0
+/usr/share/genmkfile/make-helper-one.bsh: INFO: lintian output:
+################################################################################
+N:
+W: privleap: maintainer-script-calls-systemctl [postinst:41]
+</pre>
+
+* This breaks package build. By undocumented convention, all packages produce result in lintian exit code 0 and no lintian output. All lintian warnings are either fixed, suppressed or have lintian exception configurations.
+* Could you please add to your local build tools to run <code>genmkfile lintian</code>?
+
+== coding style - avoid which - use command -v ==
+* <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary (minor reason) and produces stdout if a binary was found, which can be slightly confusing (major reason).
+* documented on [[Dev/bash]] just now
+* task can be moved to archived after reading
+
+== user-sysmaint-split - privleap - use systemd notify ==
+* sdwdate uses sd-notify. Please look at it (or something else) as an example on how to implement it.
+* please implement sd-notify in privleap
+* reason: reliably notify systemd when the daemon is ready. This will avoid any hardcoded "sleep 1" in Debian postinst and will generally increase the reliability of privleap. Should it ever be stuck, systemd would detect this and restart privleap.
+* systemd unit file changes:
+
+<pre>
+[Service]
+Type=notify
+TimeoutSec=30 ## needs adjustment
+WatchdogSec=200m ## needs adjustment
+Restart=always
+</pre>
+
+* usr/lib/python3/dist-packages/sdwdate/sdwdate.py
+
+<pre>
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:import sdnotify
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:SDNOTIFY_OBJECT = sdnotify.SystemdNotifier()
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:SDNOTIFY_OBJECT.notify("READY=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:SDNOTIFY_OBJECT.notify("STATUS=Starting...")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:    SDNOTIFY_OBJECT.notify("STATUS=Shutting down...")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:    SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:    SDNOTIFY_OBJECT.notify("STOPPING=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:            SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:            SDNOTIFY_OBJECT.notify(msg)
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        msg_for_sdnotify = "STATUS=" + msg
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify(msg_for_sdnotify)
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+</pre>
+
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 ** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
@@ -541,6 +597,8 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+
+= ARCHIVED =
 == live-build - --debian-installer-distribution git security impact research ==
 * TODO research: would <code>--debian-installer-distribution git</code> verify software signatures or still be vulnerable to HTTP / HTTPS based attacks?
 * Aaron: Yes, this is still vulnerable. udebs are downloaded directly even when building the installer from source. Additionally, you can't use a source-built installer to create a Bookworm ISO anymore - only Trixie and newer works because Bookworm lacks udebs sufficiently new enough for the debian-installer build to work.
@@ -565,10 +623,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 
 * Patrick: This will cause issues with meta packages removal? Better to use <code>dummy-dependency --yes --purge user-sysmaint-split</code>.
 ** Aaron: Agreed, done. https://github.com/ArrayBolt3/sysmaint-panel
+* Patrick: Merged.
 
 == user-sysmaint-split - privleap - add a trigger to reload privleap once its configuration folder changed ==
 * this is to receive updated/fixed privleap configuration files once these have changed
 * Done: https://github.com/ArrayBolt3/privleap
+** Patrick: Merged.
 
 == user-sysmaint-split - privleap - start privleap after installation ==
 * if possible (to avoid issues after installation)
@@ -584,8 +644,8 @@ echo "$QREXEC_REMOTE_DOMAIN $1" | tee /tmp/sdwdate-gui-tmp-status
 ** Agreed on <code>/run/user/1000/sdwdate</code>, new code is here: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/temp-file-move
 * re-check python valid characters sanity test
 ** Rechecked and tested, appears to be correct. Add automated testing of invalid ASCII to privleap's test suite.
+* Patrick: Merged.
 
-= ARCHIVED =
 == sync fork of live-build with upstream ==
 * Some MRs made upstream have been reimplemented and the polished versions merged. Pull these changes into our fork and adjust derivative-maker accordingly.
 ** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/tree/master
