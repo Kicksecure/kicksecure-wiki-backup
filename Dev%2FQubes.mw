@@ -13,15 +13,25 @@
 
 '''WARNING:''' The Kicksecure Qubes OS template is still in development and may be unstable or prone to issues. Use at your own risk.
 
+=== Qubes Template Build Fedora Version Number ===
+
+* '''Qubes upstream requirement''': Only Fedora can be used to build Qubes Templates.
+* '''Multiple versions exist''': There might be various Fedora Template versions.
+* '''Current version at time of writing''': The Qubes Fedora Template version used at the time of writing this wiki page was: <code>{{version-fedora-build-qubes-template}}</code>
+* '''Check for newer versions''': There might be a newer Qubes Fedora Template version by the time you are reading this. Please check if there is already a newer Fedora Template version.
+* '''No special requirements for Qubes Kicksecure''': The Qubes Kicksecure Template does not have any special Qubes Fedora Template version requirements.
+* '''Follow Qubes upstream recommendations''': The same Qubes Fedora Template version that Qubes upstream uses and/or recommends to build Debian can be used to build the Qubes Kicksecure Template.
+*'''Wiki editors notice''': The version number can be updated by editing [[Template:version-fedora-build-qubes-template]].
+
 === Setting up qubes-builderv2 ===
 
 It is recommended to use a Fedora-based App Qube for building the Kicksecure template. This is because upstream Qubes uses Fedora-based App Qubes to build Qubes Templates.
 
-Determine which Fedora template is used for the <code>default-dvm</code> DVM template. For the purposes of this document, we will assume it is <code>fedora-40-xfce</code>.
+Determine which Fedora template is used for the <code>default-dvm</code> DVM template. For the purposes of this document, we will assume it is <code>fedora-{{version-fedora-build-qubes-template}}-xfce</code>.
 
 ==== Installing dependencies ====
 
-1. Launch a terminal in the <code>fedora-40-xfce</code> template.
+1. Launch a terminal in the <code>fedora-{{version-fedora-build-qubes-template}}-xfce</code> template.
 
 2. Install all dependencies for <code>qubes-builderv2</code> into the template. The dependencies are listed at:
 
@@ -42,55 +52,81 @@ sudo dnf install git
 
 '''WARNING:''' It is not recommended to reuse an existing App Qube for running the template build. You will be transferring the built template to dom0 and installing it when you are complete. If the App Qube used for running the builder is compromised, the template may become compromised as well. Templates are simply RPM packages, meaning ''they can run arbitrary code as root during installation.'' This means that a compromised template can, and probably will, compromise dom0. To reduce the risk of this happening, you should use a fresh App Qube for the build process.
 
-'''1.''' Create a new App Qube for running <code>qubes-builderv2</code>. You can name this qube anything you want; we will call it <code>work-qubesos</code> in this document. Ensure the Template is set to <code>fedora-40-xfce</code>. Using Qube Manager, set the private disk space for <code>work-qubesos</code> to something reasonably large. 32 GB should work.
+'''1.''' Create a new App Qube for running <code>qubes-builderv2</code>.
 
-'''2.''' Clone the <code>default-dvm</code> Template and name it <code>qubes-builder-dvm</code>. This DVM Template will be used for fetching and building code. Once the Template is cloned, adjust its settings with Qubes Manager and increase the private storage space to ''at least'' 30 GB (more is preferable). 
+You can name this qube anything you want; we will call it <code>work-qubesos</code> in this document. Ensure the Template is set to <code>fedora-{{version-fedora-build-qubes-template}}-xfce</code>.
 
-'''3.''' Once that's done, start a terminal in the <code>qubes-builder-dvm</code> '''Template''', then set it aside for use later.
+'''2.''' Increase <code>qubes-builderv2</code> disk space.
 
-'''4.''' Open a dom0 terminal and run:
+Using Qube Manager, set the private disk space for <code>work-qubesos</code> to something reasonably large. 32 GB should work.
+
+'''3.''' Clone the <code>default-dvm</code> Template and name it <code>qubes-builder-dvm</code>.
+
+This DVM Template will be used for fetching and building code.
+
+'''4.''' Increase <code>qubes-builder-dvm</code> disk space.
+
+Once the Template is cloned, adjust its settings with Qubes Manager and increase the private storage space to ''at least'' 30 GB (more is preferable). 
+
+'''5.''' Once that's done, start a terminal in the <code>qubes-builder-dvm</code> '''Template''', then set it aside for use later.
+
+==== dom0 Setup ====
+
+'''1.''' Open a dom0 terminal and run:
 
 {{CodeSelect|code=
 sudo nano /etc/qubes/policy.d/50-qubesbuilder.policy
 }}
 
-Type the contents of https://github.com/QubesOS/qubes-builderv2/blob/main/rpc/policy/50-qubesbuilder.policy into this file. (Note: If you have chosen names other than <code>work-qubesos</code> or <code>qubes-builder-dvm</code> for your qubes, you must adjust this configuration file to specify the correct VM names.) Save your changes with <code>Ctrl+S</code> and exit with <code>Ctrl+X</code>.
+'''2.''' Paste.
 
-'''5.''' In the still-running <code>qubes-builder-dvm</code> Template, run:
+Type the contents of https://github.com/QubesOS/qubes-builderv2/blob/main/rpc/policy/50-qubesbuilder.policy into this file. (Note: If you have chosen names other than <code>work-qubesos</code> or <code>qubes-builder-dvm</code> for your qubes, you must adjust this configuration file to specify the correct VM names.)
+
+'''3.''' Save.
+
+Save your changes with <code>Ctrl+S</code> and exit with <code>Ctrl+X</code>.
+
+==== qubes-builder-dvm setup ====
+Inside <code>qubes-builder-dvm</code> Template
+
+'''1.''' Create folders.
 
 {{CodeSelect|code=
 sudo mkdir -p /rw/bind-dirs/builder /rw/config/qubes-bind-dirs.d
 }}
 
-Then run:
+'''2.''' Open bind-dires configuration file.
 
 {{CodeSelect|code=
 sudo nano /rw/config/qubes-bind-dirs.d/builder.conf
 }}
 
-and type:
+'''3.''' Paste.
 
 {{CodeSelect|code=
 binds+=('/builder')
 }}
 
-into this file. Save and close the file when this is done.
+'''4.''' Save.
 
-'''6.''' Next, run:
+'''5.''' Open rc.local file.
 
 {{CodeSelect|code=
 sudo nano /rw/config/rc.local
 }}
 
-and add the command:
+'''6.''' Paste.
 
 {{CodeSelect|code=
 mount /builder -o dev,suid,remount
 }}
 
-to the file. Once this is done, shut down the Template.
+'''7.''' Save.
 
-'''7.''' In a dom0 terminal, run:
+'''8.''' Shut down the Template.
+
+==== dom0 Setup Continued ====
+'''1.''' In a dom0 terminal, run:
 
 {{CodeSelect|code=
 qvm-prefs work-qubesos default_dispvm qubes-builder-dvm
@@ -100,7 +136,7 @@ Once this is done, all configuration should be complete, and you are now ready t
 
 ==== Installing qubes-builderv2 ====
 
-1. Ensure that <code>fedora-40-xfce</code>, <code>qubes-builder-dvm</code>, and <code>work-qubesos</code> are all shut down. This ensures that all changes made to the templates apply to any new AppVMs and DispVMs launched during the build process.
+1. Ensure that <code>fedora-{{version-fedora-build-qubes-template}}-xfce</code>, <code>qubes-builder-dvm</code>, and <code>work-qubesos</code> are all shut down. This ensures that all changes made to the templates apply to any new AppVMs and DispVMs launched during the build process.
 
 2. Start <code>work-qubesos</code> and open a terminal in it. Install and verify the authenticity of the Qubes Security Pack by following the instructions at https://www.qubes-os.org/security/pack/. This is necessary to verify the authenticity of the <code>qubes-builderv2</code> source code.
 
@@ -132,7 +168,9 @@ git checkout HEAD^
 
 Then try to verify the repository's authenticity again. If the signature comes back bad, the repository is corrupted (or compromised) and should be discarded immediately.
 
-7. Create a new file named <code>builder.yml</code> under the <code>qubes-builderv2</code> directory, and fill it with the following contents:
+== Template Build ==
+
+1. Create a new file named <code>builder.yml</code> under the <code>qubes-builderv2</code> directory, and fill it with the following contents:
 
 <pre>
 include:
@@ -143,7 +181,7 @@ use-qubes-repo:
   version: 4.2
 </pre>
 
-8. To build the template, run:
+2. To build the template, run:
 
 {{CodeSelect|code=
 sudo ./qb package fetch prep build && sudo ./qb -t kicksecure-17 template fetch prep build
@@ -155,7 +193,10 @@ This will download the code needed to build the template and then build the temp
 qubes-builderv2/artifacts/templates/rpm
 </code>
 
-9. Copy the template RPM file to dom0:
+== Template Installation ==
+To install the manually built Template.
+
+1. Copy the template RPM file to dom0:
 
 <u>Note:</u> Substitute the real name of the RPM file (this name includes a timestamp and will thus be different for each build).
 
@@ -163,7 +204,7 @@ qubes-builderv2/artifacts/templates/rpm
 qvm-run --pass-io work-qubesos 'cat /home/user/qubes-builderv2/artifacts/templates/rpm/qubes-template-kicksecure...rpm' > qubes-template-kicksecure...rpm
 }}
 
-10. Install the template with:
+2. Install the template with:
 
 {{CodeSelect|code=
 sudo qvm-template install --nogpgcheck ./qubes-template-kicksecure...rpm
@@ -171,34 +212,17 @@ sudo qvm-template install --nogpgcheck ./qubes-template-kicksecure...rpm
 
 '''WARNING: This action can execute arbitrary code as root on dom0! Only do this if you fully trust the App Qube used to build this template!'''
 
-11. You should now see a <code>kicksecure-17</code> template available in the application menu, under the "Templates" section.
+3. You should now see a <code>kicksecure-17</code> template available in the application menu, under the "Templates" section.
 
-== Known Issues ==
+= Related =
+{{Anchor|Root Privilege Isolation and libxenvchan}}
 
-Currently, the <code>user</code> account does not have sudo rights, not in the template and not in AppVMs based on the template. If you need to run commands as root, you should open a [[Root#Qubes_Root_Console|Qubes Root Console]] using <code>qvm-run</code>.
+* [https://github.com/QubesOS/qubes-issues/issues/9717 Harden insecure permissions inside <code>/dev/xen</code> folder / research security impact of the Qubes <code>/dev/xen</code> folder permissions]
 
-Icons seem to be missing from Thunar's context menu. This appears to be because of a configuration issue or missing package, but it is still not known why this is happening. Discussion thread at https://forum.xfce.org/viewtopic.php?pid=78113#p78113
-
-There seem to be some missing fonts - view the Wikipedia home page in Firefox ESR and you'll see some characters fail to render properly. Similar things happen with desktop Kicksecure, so this isn't a blocker and can probably be fixed in both places at once if it's considered necessary to fix.
-
-== See Also ==
+= See Also =
 * [[Qubes|Kicksecure for Qubes - User Documentation]]
 * Qubes feature request: [https://github.com/QubesOS/qubes-issues/issues/9573 build Kicksecure Qubes Template #9573]
 * qubes-builder-v2 pull request: [https://github.com/QubesOS/qubes-builderv2/pull/170 Add Kicksecure template support #170]
-
-= Root Privilege Isolation and libxenvchan =
-
-Context: Qubes issue: [https://github.com/QubesOS/qubes-issues/issues/9717 Harden insecure permissions inside <code>/dev/xen</code> folder / research security impact of the Qubes <code>/dev/xen</code> folder permissions]
-
-Qubes OS currently uses an in-qube security model that essentially assumes that gaining root within an individual qube is not a risk. This makes sense, since Qubes OS is designed to enforce isolation with AppVMs, not user accounts. However, as a form of defense-in-depth, it is worthwhile to prevent software from being able to get passwordless root access within a qube even though this isn't directly useful for isolating data from an attacker. The main reason for this is that most attacks that would allow breaking out of a VM into dom0 require that an attacker be able to get root in a VM first. Making this a hurdle could at least significantly increase the difficulty of an attack and potentially save users from becoming compromised when they otherwise would have been.
-
-In order to allow Qubes OS's qrexec functionality to work, Qubes OS currently allows all devices under <code>/dev/xen</code> inside of a qube to be accessed by any user in the group <code>qubes</code>. This group includes the default user account, <code>user</code>. The reason this is necessary is because qrexec uses Xen's libxenvchan to allow data transfer between VMs. libxenvchan uses Xen ''grants'' in the background, which are a mechanism for sharing memory pages between VMs. Sharing memory to other VMs and gaining access to memory shared by other VMs requires the ability to use the <code>/dev/xen</code> devices (specifically gntdev, gntalloc, and privcmd), so they have to be accessible by everything that works with qrexec, including things that don't or shouldn't run as root. Each grant has a ''grant reference'', which is basically an ID number used to refer to that grant.
-
-The issue with Xen grants is that they only secure inasmuch as a block of memory shared with a particular VM will only be able to be accessed by the specified VM. Xen's grants are guest-agnostic, and so while they do prevent a malicious guest from gaining access to another guest's shared memory, they do not prevent processes from interfering with each other's grants. There is no concept of processes in Xen grants; the guest has to "do the right thing" with the memory it gives and receives, whatever "the right thing" is in each context.
-
-This can potentially be used to corrupt data. A malicious process in a VM can very likely guess the grant ID used by a privileged component of the system (such as blkfront, Xen's virtual disk driver), and use it in unexpected ways. For instance, blkfront uses grants to communicate with dom0 for allowing disk contents to be sent back and forth. If a malicious process can guess a grant used by blkfront, it can attempt to tell other things in dom0 to use that same grant for other purposes (for instance, providing it to dom0 for use with qrexec). This should usually result in an error since two things will be trying to use the same area of memory at the same time, but it can potentially result in data corruption, which could potentially be used to gain kernel-level privileges within a qube.
-
-Preventing this within the Linux kernel will probably require a driver that can provide functionality similar to libxenvchan but without requiring grant functionality to be exposed directly. This would allow qrexec to function without requiring the grant management devices to be directly accessible to almost everything in a qube. The kernel would still use grants in the background, but they would be abstracted away from the end user, and channel IDs would be managed separately from grant references.
 
 {{Footer}}
 [[Category:Documentation]]
