@@ -10,6 +10,9 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== user-sysmaint-split - account bob breaks upgrade ==
+* todo
+
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 ** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
@@ -26,6 +29,11 @@ TODO
 * implement [https://github.com/QubesOS/qubes-issues/issues/9750 Polish support for booting qubes with custom kernel command line parameters]
 * related: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
 ** Does this obsolete selective sudo access? No, probably not.
+* Wrote several iterations of a spec, updating with input from Marek for each iteration.
+
+== user-sysmaint-split - consider using policy-rcd-declarative-deny-all or alike in sysmaint mode ==
+* Would using policy-rcd-declarative-deny-all (or similar) be useful in sysmaint mode to avoid unneeded systemd units from starting in sysmaint mode?
+* related: https://github.com/QubesOS/qubes-issues/issues/2238
 
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
@@ -60,10 +68,6 @@ TODO
 * potential bug / difficult to follow cod paths: chroot-script seems to set up grub-pc in some cases only. But if it does, then <code>--vmefi</code> would be skipped.
 * Better code documentation?
 
-== calamares dual legacy + efi booting support ==
-* as discussed
-* Draft PR opened at https://github.com/calamares/calamares/pull/2422, needs more work
-
 == calamares - enable GRUB force_efi_extra_removable ==
 * todo
 * if applicable
@@ -73,10 +77,6 @@ TODO
 
 == GRUB - boot related enhancements ==
 * Are there any other boot related enhancements outstanding? If so, please create tickets for these.
-
-== Qubes kloak-alike tickets ==
-* please comment on https://github.com/QubesOS/qubes-issues/issues/1850 and other related tickets as sensible
-* What other steps are required to enable Qubes kloak-alike for Qubes-Whonix? Please create tickets.
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -322,6 +322,19 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
+== Qubes kloak-alike tickets ==
+* please comment on https://github.com/QubesOS/qubes-issues/issues/1850 and other related tickets as sensible
+** https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2655357292
+** https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2655358902
+** https://github.com/vmonaco/kloak/issues/74#issuecomment-2655362546
+* What other steps are required to enable Qubes kloak-alike for Qubes-Whonix? Please create tickets.
+** https://github.com/QubesOS/qubes-issues/issues/9771
+
+== calamares dual legacy + efi booting support ==
+* as discussed
+* Draft PR opened at https://github.com/calamares/calamares/pull/2422, needs more work
+* PR is close to done, requested preliminary review so I can make the hopefully final iteration.
+
 == grml-debootstrap - fix UEFI bootloader updates ==
 * https://github.com/grml/grml-debootstrap/issues/297
 * please send a pull request upstream
@@ -525,10 +538,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Bug reports:
 ** https://github.com/linux-pam/linux-pam/issues/842
 ** https://github.com/sudo-project/sudo/issues/415
-
-== live-build - local repository support ==
-* add support to build from local repository
-* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+* Once we go sudoless, this will no longer be a concern except for VMs that aren't sudoless.
 
 == live-build - grub.cfg GRUB configuration - loopback.cfg ==
 * add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
@@ -544,20 +554,13 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== user-sysmaint-split - test sudoless upgrade-nonroot ==
-* ensure sudoless upgrade-nonroot doesn't damage system if privleapd is restarted during installation
-* if output at restart is confusing, consider how to make it less confusing if such a restart occurs
-* Details of issues and ideas on how to resolve them shared in chat
-* Reverted back to sudo-based upgrade-nonroot, only works under user sysmaint. Also fixed some other bugs. https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/misc-fixes
-* Other fixes made while working on this:
-** dist-base-files (allow sysmaint to use privleap): https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/sysmaint-privleap
-** privleap (fix install failure): https://github.com/ArrayBolt3/privleap
-** user-sysmaint-split (fix race condition that sometimes resulted in sysmaint login during normal boot): https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/race-fix
 
+= ARCHIVED =
 == user-sysmaint-split - remove dependency on lightdm ==
 * lightdm is not installed on Qubes OS VMs and should not be installed.
 * desktop VM users may prefer sddm, which we are attempting to support.
 * Done: https://github.com/ArrayBolt3/sysmaint-panel
+** Patrick: merged
 
 == user-sysmaint-split - Qubes tb-updater - fix disposable VM support ==
 * https://forums.whonix.org/t/latest-update-breaks-tor-browser-in-disposables/21183
@@ -565,8 +568,34 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** cf995c1d666fe3142f368afb243bd8be5be30734
 ** 814438e9f8a68da3ae3545f028e3850cac91e474
 *** Reverts reverted and root cause fixed in https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/sudoless-fix
+**** Patrick: merged
 
-= ARCHIVED =
+== user-sysmaint-split - test sudoless upgrade-nonroot ==
+* ensure sudoless upgrade-nonroot doesn't damage system if privleapd is restarted during installation
+* if output at restart is confusing, consider how to make it less confusing if such a restart occurs
+* Details of issues and ideas on how to resolve them shared in chat
+* Reverted back to sudo-based upgrade-nonroot, only works under user sysmaint. Also fixed some other bugs. https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/misc-fixes
+** Patrick: merged
+* Other fixes made while working on this:
+** dist-base-files (allow sysmaint to use privleap): https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/sysmaint-privleap
+** Patrick: merged
+** privleap (fix install failure): https://github.com/ArrayBolt3/privleap
+** Patrick: merged
+** user-sysmaint-split (fix race condition that sometimes resulted in sysmaint login during normal boot): https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/race-fix
+** Patrick: merged
+
+== read 3mdeb RAM decay research ==
+* https://blog.3mdeb.com/2025/2025-01-24-ram-data-decay-research-part2/
+* [[Cold Boot Attack Defense]]
+* [[Ram-wipe]]
+* [[Dev/RAM Wipe]]
+* Read, added notes to [[Cold Boot Attack Defense]].
+
+== live-build - local repository support ==
+* add support to build from local repository
+* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+* Alternate implementation merged by rclobus, we're now using upstream's version in derivative-maker.
+
 == user-sysmaint-split - Qubes - sysmaint-boot.target - upstream feature request ==
 * What would need to happen to make sysmaint-boot.target available in Qubes? Please discuss with Qubes, open a Qubes ticket, if applicable.
 * related Qubes ticket: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
