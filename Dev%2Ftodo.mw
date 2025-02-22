@@ -10,114 +10,8 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== privleap postinst deb-systemd-invoke bug ==
-
-<pre>
-#####################################################################
-## INFO: BEGIN: privleap postinst configure' '3:1.7-1
-#####################################################################
-'
-+ case "$1" in
-+ deb-systemd-helper enable privleapd.service
-+ deb-systemd-helper enable leapctl@.service
-+ start_privleapd
-+ deb-systemd-invoke restart privleapd.service
-Could not execute systemctl:  at /usr/bin/deb-systemd-invoke line 145.
-</pre>
-
-* Can't reproduce, but may be resolved by https://github.com/ArrayBolt3/privleap/commit/17d4caa0a84499559c8f18dbd90076ef0172501d
-* only reproduced so far: Qubes Whonix-Gateway Template
-* not reproducible in: Qubes Kicksecure / Qubes Whonix-Workstation Template
-
-<pre>
-[template gateway user ~]% sudo DEBDEBUG=1 dpkg --configure -a
-Setting up privleap (3:1.9-1) ...
-++ [[ -v disable_echo ]]
-++ disable_echo=
-++ '[' '' = true ']'
-++ colors
-++ alt=
-++ ealt=
-++ hide=
-++ show=
-++ save=
-++ load=
-++ bold=
-++ stout=
-++ estout=
-++ under=
-++ eunder=
-++ reset=
-++ blink=
-++ italic=
-++ eitalic=
-++ red=
-++ green=
-++ yellow=
-++ blue=
-++ magenta=
-++ cyan=
-++ white=
-++ default=
-++ eed=
-++ eel=
-++ ebl=
-++ ewl=
-++ draw=
-++ back=
-++ test -n ''
-++ test -n ''
-++ [[ -v TERM ]]
-++ '[' xterm-256color = '' ']'
-++ [[ -t 2 ]]
-+++ type -t exception_handler_general
-++ '[' '' = function ']'
-+++ trap -p ERR
-++ '[' '' = '' ']'
-++ trap error_handler_pre ERR
-++ bash -n /usr/libexec/helper-scripts/pre.bsh
-++ bash -n /var/lib/dpkg/info/privleap.postinst
-++ own_filename=privleap.postinst
-++ source_config_folder
-++ [[ -v DPKG_MAINTSCRIPT_PACKAGE ]]
-++ '[' privleap = '' ']'
-++ pre_bsh_settings_folder=privleap_maint.d
-++ shopt -s nullglob
-++ local i
-++ true 'folder 1: /etc/privleap_maint.d/*.conf'
-++ true 'folder 2: /usr/local/etc/privleap_maint.d/*.conf'
-++ shopt -u nullglob
-++ check_scripts_to_skip
-++ [[ -v SKIP_SCRIPTS ]]
-++ SKIP_SCRIPTS=
-++ local skip_script
-+ set -e
-+ true '
-#####################################################################
-## INFO: BEGIN: privleap postinst configure' '3:1.7-1
-#####################################################################
-'
-+ restarted_once=no
-+ case "$1" in
-+ deb-systemd-helper enable privleapd.service
-+ deb-systemd-helper enable leapctl@.service
-+ start_privleapd
-+ '[' no = yes ']'
-++ command -v systemctl
-+ '[' '!' -x /usr/bin/systemctl ']'
-+ deb-systemd-invoke restart privleapd.service
-Could not execute systemctl:  at /usr/bin/deb-systemd-invoke line 145.
-++ error_handler_pre
-</pre>
-
-== privleap - run config check from postinst ==
-* to make broken configurations more easily visible
-
 == privleap - harden and polish ==
 * Continue fixing and discussing issues found by Ben Grande and others.
-
-== privleap - change action header format ==
-* https://github.com/ArrayBolt3/privleap/issues/4
 
 == privleap - abolish simple all users allowed fallback ==
 
@@ -128,10 +22,6 @@ Command=echo 'Hi!'
 
 * Some sort of AuthorizedGroups=sudo or AuthorizedUsers= should always be existing.
 * If all users should be able to, this might be best implemented with a special keyword.
-
-== privleap - implement config reload without restart ==
-* https://github.com/ArrayBolt3/privleap/issues/12
-* configuration fast hash based?
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
@@ -144,12 +34,6 @@ Command=echo 'Hi!'
 *** https://github.com/QubesOS/qubes-issues/issues/5853
 *** https://github.com/QubesOS/qubes-issues/issues/2695
 *** https://github.com/QubesOS/qubes-issues/issues/9512
-
-== privleap - document policy-rc.d ==
-* todo
-
-== privleap - derivative-maker versus policy-rc.d ==
-* derivative-maker also modifies policy-rc.d, might conflict with privleap
 
 == user-sysmaint-split - Qubes - sysmaint boot features ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9750 Polish support for booting qubes with custom kernel command line parameters]
@@ -690,13 +574,151 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== fix up policy-rc.d script in user-sysmaint-split ==
+* Conflicts with derivative-maker, needs derivative-maker changes to avoid
+** Fixed, required changes to derivative-maker and live-build
+*** https://github.com/ArrayBolt3/derivative-maker/tree/master
+*** https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+* Missing proper copyright header
+** Fixed: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/policy-rcd
+* Check other policy-rc.d helpers in Debian if they exist to see if they would be better suited to this?
+** It appears the only helpers are policyrcd-script-zg2 and policy-rcd-declarative, both of which have been studied and appear unfit for our use case. (Based on the results of <code>apt-cache search policy | grep rcd</code>)
+
+== privleap - implement config reload without restart ==
+* https://github.com/ArrayBolt3/privleap/issues/12
+* configuration fast hash based?
+* Current implementation works via an explicit restart command that can be sent by leapctl. Performance doesn't seem to be an issue doing a total reload each time, can revisit hashing if performance becomes a problem.
+
+== user-sysmaint-split - document policy-rc.d ==
+* todo
+* Documented at https://www.kicksecure.com/w/index.php?title=Sysmaint&stable=0, with a new bullet point "Inhibition of non-critical services".
+
+= ARCHIVED =
+== privleap postinst deb-systemd-invoke bug ==
+
+<pre>
+#####################################################################
+## INFO: BEGIN: privleap postinst configure' '3:1.7-1
+#####################################################################
+'
++ case "$1" in
++ deb-systemd-helper enable privleapd.service
++ deb-systemd-helper enable leapctl@.service
++ start_privleapd
++ deb-systemd-invoke restart privleapd.service
+Could not execute systemctl:  at /usr/bin/deb-systemd-invoke line 145.
+</pre>
+
+* Can't reproduce, but may be resolved by https://github.com/ArrayBolt3/privleap/commit/17d4caa0a84499559c8f18dbd90076ef0172501d
+* only reproduced so far: Qubes Whonix-Gateway Template
+* not reproducible in: Qubes Kicksecure / Qubes Whonix-Workstation Template
+
+<pre>
+[template gateway user ~]% sudo DEBDEBUG=1 dpkg --configure -a
+Setting up privleap (3:1.9-1) ...
+++ [[ -v disable_echo ]]
+++ disable_echo=
+++ '[' '' = true ']'
+++ colors
+++ alt=
+++ ealt=
+++ hide=
+++ show=
+++ save=
+++ load=
+++ bold=
+++ stout=
+++ estout=
+++ under=
+++ eunder=
+++ reset=
+++ blink=
+++ italic=
+++ eitalic=
+++ red=
+++ green=
+++ yellow=
+++ blue=
+++ magenta=
+++ cyan=
+++ white=
+++ default=
+++ eed=
+++ eel=
+++ ebl=
+++ ewl=
+++ draw=
+++ back=
+++ test -n ''
+++ test -n ''
+++ [[ -v TERM ]]
+++ '[' xterm-256color = '' ']'
+++ [[ -t 2 ]]
++++ type -t exception_handler_general
+++ '[' '' = function ']'
++++ trap -p ERR
+++ '[' '' = '' ']'
+++ trap error_handler_pre ERR
+++ bash -n /usr/libexec/helper-scripts/pre.bsh
+++ bash -n /var/lib/dpkg/info/privleap.postinst
+++ own_filename=privleap.postinst
+++ source_config_folder
+++ [[ -v DPKG_MAINTSCRIPT_PACKAGE ]]
+++ '[' privleap = '' ']'
+++ pre_bsh_settings_folder=privleap_maint.d
+++ shopt -s nullglob
+++ local i
+++ true 'folder 1: /etc/privleap_maint.d/*.conf'
+++ true 'folder 2: /usr/local/etc/privleap_maint.d/*.conf'
+++ shopt -u nullglob
+++ check_scripts_to_skip
+++ [[ -v SKIP_SCRIPTS ]]
+++ SKIP_SCRIPTS=
+++ local skip_script
++ set -e
++ true '
+#####################################################################
+## INFO: BEGIN: privleap postinst configure' '3:1.7-1
+#####################################################################
+'
++ restarted_once=no
++ case "$1" in
++ deb-systemd-helper enable privleapd.service
++ deb-systemd-helper enable leapctl@.service
++ start_privleapd
++ '[' no = yes ']'
+++ command -v systemctl
++ '[' '!' -x /usr/bin/systemctl ']'
++ deb-systemd-invoke restart privleapd.service
+Could not execute systemctl:  at /usr/bin/deb-systemd-invoke line 145.
+++ error_handler_pre
+</pre>
+
+== privleap - run config check from postinst ==
+* to make broken configurations more easily visible
+* Done in https://github.com/ArrayBolt3/privleap/commit/29580c1bc4991a87f03bdc7fc92738b36371ca37, may also resolve some of the other weird behavior we've been seeing.
+
 == privleap - bug duplicate action tor-verify-config ==
 <pre>
 Feb 20 05:37:04 host privleapd[15069]: parse_config_files: CRITICAL: Error parsing config: '/etc/privleap/conf.d/systemcheck.conf:26:error:Duplicate action found: 'tor-verify-config''
 </pre>
 * This was resolved by https://github.com/Whonix/anon-gw-anonymizer-config/commit/778625b7c1dd4ef3c0afd9b839d31684b85f4bee, does anon-gw-anonymizer-config need a new upload or is the machine this is happening on out-of-date?
+* Further fix at https://github.com/ArrayBolt3/privleap/commit/dd776782aedf176b3f2538e8b8b78db73504ba43
 
-= ARCHIVED =
+== privleap - change action header format ==
+* https://github.com/ArrayBolt3/privleap/issues/4
+* Done:
+** privleap: https://github.com/ArrayBolt3/privleap/commit/b482a05a1970b1be0bbad784753a1019730e0b0c
+** sdwdate: https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/pl-actions
+** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/pl-actions
+** anon-connection-wizard: https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/pl-actions
+** setup-dist: https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/pl-actions
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/pl-actions
+** tb-starter: https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/pl-actions
+** tb-updater: https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/pl-actions
+** anon-gw-anonymizer-config https://github.com/ArrayBolt3/anon-gw-anonymizer-config/tree/arraybolt3/pl-actions
+* Patrick: Merged.
+
 == user-sysmaint-split - consider using policyrcd-script-zg2 ==
 * todo
 * Aaron: Looks like it introduces more complexity than it fixes:
