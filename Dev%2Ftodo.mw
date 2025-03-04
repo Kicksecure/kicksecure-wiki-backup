@@ -10,10 +10,89 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== privleap - consider using end-of-options ==
+<pre>
+        ["/usr/bin/bash", "-c", desired_action.action_command],
+</pre>
+* minor: useful to change to...?
+<pre>
+        ["/usr/bin/bash", "-c", "--", desired_action.action_command],
+</pre>
+
+== privleap - leaprun - consider supporting end-of-options ==
+* <code>leaprun apt-get-update-simulate</code>
+* would it make sense to support
+* <code>leaprun -- apt-get-update-simulate</code>
+* it doesn't change a lot, except it allows for consistent use of end-of-options
+
+== privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
+* was happening inside Qubes Whonix-Workstation Template only
+* error happened during upgrade from developers repository
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/systemcheck.conf already looks okay
+
+<pre>
+[action:tor-bootstrap-check]
+Command=/usr/libexec/helper-scripts/tor_bootstrap_check.py
+AuthorizedGroups=sudo
+AuthorizedUsers=user,sdwdate
+TargetUser=debian-tor
+TargetGroup=debian-tor
+</pre>
+
+* was happening insid Qubes Whonix-Gateway Template only
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/anon-connection-wizard.conf:1:error:No authorized users or groups for action: 'acw-tor-control-restart'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/anon-connection-wizard.conf already looks good
+
+<pre>
+[action:acw-tor-control-restart]
+Command=/usr/libexec/anon-connection-wizard/acw-tor-control restart
+AuthorizedGroups=sudo
+AuthorizedUsers=user
+</pre>
+
+== privleap - keep trying to start leapctl@1000.service ==
+<pre>
+Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Failed with result 'exit-code'.
+Mar 03 11:09:50 host systemd[1]: Stopped leapctl@1000.service - leapctl - Enable access to privleap for each user.
+Mar 03 11:09:50 host systemd[1]: Starting leapctl@1000.service - leapctl - Enable access to privleap for each user...
+Mar 03 11:09:50 host leapctl[40455]: ERROR: Could not connect to privleapd!
+Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Main process exited, code=exited, status=1/FAILURE
+Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Failed with result 'exit-code'.
+</pre>
+
+* In case of errors, please configure the systemd unit to start trying forever but with long enough delay to keep long spam limited.
+
+== privleap - python-pam bug ==
+* error produced in anon-whonix
+
+<pre>
+sudo journalctl --boot -u privleapd
+Mar 03 11:30:21 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 03 11:30:21 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 03 11:33:06 host privleapd[671]: handle_control_create_msg: INFO: Handled CREATE message for user 'user', socket created
+Mar 03 11:33:07 host python3[671]: pam_unix(privleapd:session): session opened for user debian-tor(uid=107) by (uid=0)
+Mar 03 11:33:07 host python3[671]: pam_succeed_if(privleapd:session): requirement "uid eq 0" not met by user "debian-tor"
+Mar 03 11:33:07 host privleapd[671]: handle_control_create_msg: WARNING: User 'debian-tor' is not allowed to have a comm socket
+Mar 03 11:33:07 host privleapd[671]: handle_comm_session: INFO: Triggered action 'tor-circuit-established-check'
+</pre>
+
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
 * config-package-dev displace /etc/default/grub? Avoid "fighting" for configuration file ownership by moving the file out of the way.
-* Generate a configuration file using do_once. Probably not owned by any configuration file.
+* Generate a configuration file using do_once. Probably not owned by any package.
 * Ship a default /etc/default/grub configuration file:
 
 <pre>
@@ -551,11 +630,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+= ARCHIVED =
 == privleap - harden and polish ==
 * Continue fixing and discussing issues found by Ben Grande and others.
 * Should be done, only remaining issue that seems potentially concerning is https://github.com/ArrayBolt3/privleap/issues/11 which may or may be something that needs fixed.
+* Patrick: merged
 
-= ARCHIVED =
 == privleap - abolish simple all users allowed fallback ==
 
 <pre>
