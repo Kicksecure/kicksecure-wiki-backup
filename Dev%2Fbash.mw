@@ -12,7 +12,7 @@
 {{intro|
 Supporting multiple command line parameters with spaces in wrapper scripts and End-of-Options Parameter (<code>--</code>) for better security.
 }}
-= safe echo =
+= Safe ways to print =
 There is no safe usage of <code>echo</code>, use <code>printf '%s'</code> instead.
 
 * {{VideoLink
@@ -70,15 +70,20 @@ Resources:
 
 * https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md#echo--printf
 * https://unix.stackexchange.com/questions/65803/why-is-printf-better-than-echo
-https://pubs.opengroup.org/onlinepubs/9799919799/utilities/echo.html
+* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/echo.html
 
 = Bash Proper Whitespace Handling =
+
+* Quote variables
+* Build parameters using arrays
+* Enforce <code>nounset</code>
+
 <pre>
 #!/bin/bash
 
 ## https://yakking.branchable.com/posts/whitespace-safety/
 
-set -e
+set -eu
 
 app_user=user
 lib_dir="/tmp/test/lib/program with space/something spacy"
@@ -96,18 +101,49 @@ cmd+=("${main_app_dir}/")
 "${cmd[@]}"
 </pre>
 
+== Why <code>nounset</code> ==
+
+Because it is better to be explicit if a variable should be empty or not:
+
+<pre>
+rm -f "/$UNSET_VAR"
+</pre>
+
+Will return:
+
+<pre>
+rm: cannot remove '/': Is a directory
+</pre>
+
+Setting <code>UNSET_VAR=""</code> would not fix this issue, but that is another problem, checking if every used variable can be empty or not.
+
+== POSIX array ==
+
+On a POSIX shell, there is one array, the <code>$@</code>, which have different scopes by function or main script. You can build it with <code>set --</code>:
+
+Add items to an array:
+<pre>
+set -- a b c
+</pre>
+
+Add items to the beginning or end of the array:
+<pre>
+set -- b
+set -- a "$@" c
+</pre>
+
 = Use of End-of-Options Parameter (--) =
 
 The end-of-options parameter "<code>--</code>" is crucial because otherwise inputs might be mistaken for command options. This might even be a security risk. Here are examples using the `sponge` command:
 
 {{CodeSelect|code=
-echo test {{!}} sponge -a testfilename  
+sponge -a testfilename </dev/null
 }}
 
 Result: OK. This works because "<code>testfilename</code>" doesn't look like an option.
 
 {{CodeSelect|code=
-echo test {{!}} sponge -a --testfilename
+sponge -a --testfilename </dev/null
 }}
 
 Result: Fail. The command interprets "<code>--testfilename</code>" as a series of options:
@@ -117,11 +153,10 @@ sponge: invalid option -- '-'
 sponge: invalid option -- 't'
 sponge: invalid option -- 'e'
 ...
-test
 </pre>
 
 {{CodeSelect|code=
-echo test {{!}} sponge -a -- --testfilename
+sponge -a -- --testfilename </dev/null
 }}
 
 Result: OK. The `<code>--</code>` signals that "<code>--testfilename</code>" is a filename, not an option.
@@ -145,10 +180,10 @@ set -o nounset
 #unset HOME
 
 if [ -z "${HOME+x}" ]; then
-    echo "Error: HOME is not set."
+    printf '%s\n' "Error: HOME is not set." >&2
 fi
 
-echo "$HOME"
+printf '%s' "$HOME"
 </pre>
 
 = Safely Using Find with End-Of-Options =
@@ -171,16 +206,6 @@ Of if <code>safe_echo_nonewline</code> is available from helper-scripts.
 # shellcheck disable=SC1091
 source /usr/libexec/helper-scripts/safe_echo.sh
 safe_echo_nonewline "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
-}}
-
-Not using bash's built-in <code>echo</code>, because it does not support end-of-options ("<code>--</code>").
-
-Not using <code>/usr/bin/echo</code>, because it does not support end-of-options ("<code>--</code>").
-
-{{CodeSelect|code=
-## Broken!
-## The '-n' option is needed to avoid piping a newline to 'find'.
-echo -n -- "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
 }}
 
 = misc =
