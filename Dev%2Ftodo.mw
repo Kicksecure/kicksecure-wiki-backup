@@ -47,9 +47,6 @@ TODO
 * todo
 * if applicable
 
-== GRUB - Debian packages grub-pc and grub-efi co-install-ability ==
-* please submit a patch to Debian to make grub-pc and grub-efi co-installable
-
 == GRUB - boot related enhancements ==
 * Are there any other boot related enhancements outstanding? If so, please create tickets for these.
 
@@ -78,9 +75,6 @@ TODO
 * CLI ISO: non-existent, therefore non-issue for now
 * GUI VM images: A setup-wizard-dist popup should explain this.
 * CLI: an INFO message after login if there are any unlocked passwordless accounts
-
-== ISO - use variable flavor_meta_packages_to_install ==
-* using already existing variable flavor_meta_packages_to_install would simplify modifications
 
 == audio ==
 === audio generally ===
@@ -297,6 +291,10 @@ sudo apt install serial-console-enable
 * vm-config-dist versus autologin CLI vs GUI vs server
 
 = WAITING ON =
+== GRUB - Debian packages grub-pc and grub-efi co-install-ability ==
+* please submit a patch to Debian to make grub-pc and grub-efi co-installable
+* Submitted and awaiting review: https://salsa.debian.org/grub-team/grub/-/merge_requests/76#note_590495
+
 == user-sysmaint-split - Qubes - sysmaint boot features ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9750 Polish support for booting qubes with custom kernel command line parameters]
 * related: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
@@ -551,17 +549,47 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== investigate why debian-tor has a login on Whonix-Workstation ==
-* todo
-* Turned out to be PAM integration's fault, the default code path in PAM's config stacks assumes an interactive session.
-* Fixed in https://github.com/ArrayBolt3/privleap/commit/a22b63d4190cf8b52fb8727560f4113f80da36b2, all it does is specify a non-interactive session instead.
+== ISO - use variable flavor_meta_packages_to_install ==
+* using already existing variable flavor_meta_packages_to_install would simplify modifications
+* Done: https://github.com/ArrayBolt3/derivative-maker/commit/1653d359373963e50b8f8b16f254e6bbfe47ac90
+** Tested, both XFCE and CLI Kicksecure ISOs can be built successfully with this change.
 
+== privleap - python-pam bug ==
+* error produced in anon-whonix
+
+<pre>
+sudo journalctl --boot -u privleapd
+Mar 03 11:30:21 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 03 11:30:21 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 03 11:33:06 host privleapd[671]: handle_control_create_msg: INFO: Handled CREATE message for user 'user', socket created
+Mar 03 11:33:07 host python3[671]: pam_unix(privleapd:session): session opened for user debian-tor(uid=107) by (uid=0)
+Mar 03 11:33:07 host python3[671]: pam_succeed_if(privleapd:session): requirement "uid eq 0" not met by user "debian-tor"
+Mar 03 11:33:07 host privleapd[671]: handle_control_create_msg: WARNING: User 'debian-tor' is not allowed to have a comm socket
+Mar 03 11:33:07 host privleapd[671]: handle_comm_session: INFO: Triggered action 'tor-circuit-established-check'
+</pre>
+
+* Aaron: The PAM message is perfectly normal, it's triggered by this snippet in <code>/etc/pam.d/common-session</code>:
+
+<pre>
+session [success=1 default=ignore] pam_succeed_if.so uid eq 0
+session optional pam_umask.so umask=027
+</pre>
+
+* This snippet says "set the umask for the newly logged-in user to 027 if they ''aren't'' root. If they are root, skip over the umask setting. When running an action as debian-tor, this will end up showing a message that the UID check didn't pass, meaning that the umask will be set. This is an intentional part of how we implement stricter umask settings.
+* The issue stating that debian-tor is not allowed to have a comm socket is normal, because debian-tor (for some reason unknown to me) has a running user session in the anon-whonix VM. This means that it triggers a <code>leapctl@UID.service</code> unit for itself like any other logged-in user, but because it isn't listed as an allowed user, that service doesn't start (by design). Therefore this isn't a problem, though it's curious that debian-tor is logged in...
+
+= ARCHIVED =
 == bookworm-backports-staging ==
 * https://fasttrack.debian.net/ mentions <code>deb https://fasttrack.debian.net/debian-fasttrack/ bookworm-backports-staging main contrib</code>
 * Is this new?
 ** Aaron: Does not appear to be new, this was how things were done in Bullseye as well.
 * Since Kicksecure enables fasttrack by default, should probably enable bookworm-backports-staging by default too?
 ** Aaron: Yes, we should. "Staging" is usually scary and indicates there could be package breakage, but in this instance it's effectively identical to the normal backports repo but allows packages in that don't fit the normal backports rules (yet). This isn't a place for doing dangerous operations like I initially thought.
+
+== investigate why debian-tor has a login on Whonix-Workstation ==
+* todo
+* Turned out to be PAM integration's fault, the default code path in PAM's config stacks assumes an interactive session.
+* Fixed in https://github.com/ArrayBolt3/privleap/commit/a22b63d4190cf8b52fb8727560f4113f80da36b2, all it does is specify a non-interactive session instead.
 
 == Qubes APT pinning ticket ==
 * https://github.com/QubesOS/qubes-core-admin-linux/pull/184
@@ -598,31 +626,6 @@ Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Failed with result 'exit-
         ["/usr/bin/bash", "-c", "--", desired_action.action_command],
 </pre>
 * Done: https://github.com/ArrayBolt3/privleap/commit/61da84d033c23c74840ae953409a2c09475a0b9c
-
-== privleap - python-pam bug ==
-* error produced in anon-whonix
-
-<pre>
-sudo journalctl --boot -u privleapd
-Mar 03 11:30:21 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
-Mar 03 11:30:21 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
-Mar 03 11:33:06 host privleapd[671]: handle_control_create_msg: INFO: Handled CREATE message for user 'user', socket created
-Mar 03 11:33:07 host python3[671]: pam_unix(privleapd:session): session opened for user debian-tor(uid=107) by (uid=0)
-Mar 03 11:33:07 host python3[671]: pam_succeed_if(privleapd:session): requirement "uid eq 0" not met by user "debian-tor"
-Mar 03 11:33:07 host privleapd[671]: handle_control_create_msg: WARNING: User 'debian-tor' is not allowed to have a comm socket
-Mar 03 11:33:07 host privleapd[671]: handle_comm_session: INFO: Triggered action 'tor-circuit-established-check'
-</pre>
-
-* Aaron: The PAM message is perfectly normal, it's triggered by this snippet in <code>/etc/pam.d/common-session</code>:
-
-<pre>
-session [success=1 default=ignore] pam_succeed_if.so uid eq 0
-session optional pam_umask.so umask=027
-</pre>
-
-* This snippet says "set the umask for the newly logged-in user to 027 if they ''aren't'' root. If they are root, skip over the umask setting. When running an action as debian-tor, this will end up showing a message that the UID check didn't pass, meaning that the umask will be set. This is an intentional part of how we implement stricter umask settings.
-* The issue stating that debian-tor is not allowed to have a comm socket is normal, because debian-tor (for some reason unknown to me) has a running user session in the anon-whonix VM. This means that it triggers a <code>leapctl@UID.service</code> unit for itself like any other logged-in user, but because it isn't listed as an allowed user, that service doesn't start (by design). Therefore this isn't a problem, though it's curious that debian-tor is logged in...
-
 == privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
 * was happening inside Qubes Whonix-Workstation Template only
 * error happened during upgrade from developers repository
@@ -663,7 +666,6 @@ AuthorizedUsers=user
 
 * Aaron: Attempted to fully upgrade a clean pair of Whonix-Gateway and Whonix-Workstation templates on Qubes OS R4.3 using the bookworm-developers repository. Cannot reproduce either bug, privleap installs, sets up, and has triggers run for it without issues, service is properly started and systemcheck works without errors.
 
-= ARCHIVED =
 == privleap - harden and polish ==
 * Continue fixing and discussing issues found by Ben Grande and others.
 * Should be done, only remaining issue that seems potentially concerning is https://github.com/ArrayBolt3/privleap/issues/11 which may or may be something that needs fixed.
