@@ -10,6 +10,56 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
+* was happening inside Qubes Whonix-Workstation Template only
+* error happened during upgrade from developers repository
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/systemcheck.conf already looks okay
+
+<pre>
+[action:tor-bootstrap-check]
+Command=/usr/libexec/helper-scripts/tor_bootstrap_check.py
+AuthorizedGroups=sudo
+AuthorizedUsers=user,sdwdate
+TargetUser=debian-tor
+TargetGroup=debian-tor
+</pre>
+
+* was happening insid Qubes Whonix-Gateway Template only
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/anon-connection-wizard.conf:1:error:No authorized users or groups for action: 'acw-tor-control-restart'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/anon-connection-wizard.conf already looks good
+
+<pre>
+[action:acw-tor-control-restart]
+Command=/usr/libexec/anon-connection-wizard/acw-tor-control restart
+AuthorizedGroups=sudo
+AuthorizedUsers=user
+</pre>
+
+* Aaron: Attempted to fully upgrade a clean pair of Whonix-Gateway and Whonix-Workstation templates on Qubes OS R4.3 using the bookworm-developers repository. Cannot reproduce either bug, privleap installs, sets up, and has triggers run for it without issues, service is properly started and systemcheck works without errors.
+* Got another report from a user using the testers repository.
+
+<pre>
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for
+ action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd. Run configura
+tion check using: privleapd --check-config
+</pre>
+
+* This is perhaps because config check runs before new configuration files have been installed? Solution, run config check after installation of configuration files, i.e. after DEBHELPER token?
+
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
 * config-package-dev displace /etc/default/grub? Avoid "fighting" for configuration file ownership by moving the file out of the way.
@@ -552,6 +602,8 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+
+= ARCHIVED =
 == ISO - use variable flavor_meta_packages_to_install ==
 * using already existing variable flavor_meta_packages_to_install would simplify modifications
 * Done: https://github.com/ArrayBolt3/derivative-maker/commit/1653d359373963e50b8f8b16f254e6bbfe47ac90
@@ -581,7 +633,6 @@ session optional pam_umask.so umask=027
 * This snippet says "set the umask for the newly logged-in user to 027 if they ''aren't'' root. If they are root, skip over the umask setting. When running an action as debian-tor, this will end up showing a message that the UID check didn't pass, meaning that the umask will be set. This is an intentional part of how we implement stricter umask settings.
 * The issue stating that debian-tor is not allowed to have a comm socket is normal, because debian-tor (for some reason unknown to me) has a running user session in the anon-whonix VM. This means that it triggers a <code>leapctl@UID.service</code> unit for itself like any other logged-in user, but because it isn't listed as an allowed user, that service doesn't start (by design). Therefore this isn't a problem, though it's curious that debian-tor is logged in...
 
-= ARCHIVED =
 == bookworm-backports-staging ==
 * https://fasttrack.debian.net/ mentions <code>deb https://fasttrack.debian.net/debian-fasttrack/ bookworm-backports-staging main contrib</code>
 * Is this new?
@@ -629,46 +680,6 @@ Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Failed with result 'exit-
         ["/usr/bin/bash", "-c", "--", desired_action.action_command],
 </pre>
 * Done: https://github.com/ArrayBolt3/privleap/commit/61da84d033c23c74840ae953409a2c09475a0b9c
-== privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
-* was happening inside Qubes Whonix-Workstation Template only
-* error happened during upgrade from developers repository
-
-<pre>
-Setting up privleap (3:2.3-1) ...
-/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for action: 'tor-bootstrap-check'
-WARNING: privleap configuration invalid. Not restarting privleapd.
-</pre>
-
-* file /etc/privleap/conf.d/systemcheck.conf already looks okay
-
-<pre>
-[action:tor-bootstrap-check]
-Command=/usr/libexec/helper-scripts/tor_bootstrap_check.py
-AuthorizedGroups=sudo
-AuthorizedUsers=user,sdwdate
-TargetUser=debian-tor
-TargetGroup=debian-tor
-</pre>
-
-* was happening insid Qubes Whonix-Gateway Template only
-
-<pre>
-Setting up privleap (3:2.3-1) ...
-/etc/privleap/conf.d/anon-connection-wizard.conf:1:error:No authorized users or groups for action: 'acw-tor-control-restart'
-WARNING: privleap configuration invalid. Not restarting privleapd.
-</pre>
-
-* file /etc/privleap/conf.d/anon-connection-wizard.conf already looks good
-
-<pre>
-[action:acw-tor-control-restart]
-Command=/usr/libexec/anon-connection-wizard/acw-tor-control restart
-AuthorizedGroups=sudo
-AuthorizedUsers=user
-</pre>
-
-* Aaron: Attempted to fully upgrade a clean pair of Whonix-Gateway and Whonix-Workstation templates on Qubes OS R4.3 using the bookworm-developers repository. Cannot reproduce either bug, privleap installs, sets up, and has triggers run for it without issues, service is properly started and systemcheck works without errors.
-
 == privleap - harden and polish ==
 * Continue fixing and discussing issues found by Ben Grande and others.
 * Should be done, only remaining issue that seems potentially concerning is https://github.com/ArrayBolt3/privleap/issues/11 which may or may be something that needs fixed.
