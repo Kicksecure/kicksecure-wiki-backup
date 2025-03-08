@@ -10,55 +10,32 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
-* was happening inside Qubes Whonix-Workstation Template only
-* error happened during upgrade from developers repository
+== unbreak repository-dist ==
+* Likely caused by recent repository-dist changes. Issue visible on both new ISO and VBox builds of Kicksecure.
+** Note that patches for default password/autologin security were applied to my build, but this failure appears to be unrelated.
+* <code>systemctl status repository-dist-initializer.service</code>:
 
 <pre>
-Setting up privleap (3:2.3-1) ...
-/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for action: 'tor-bootstrap-check'
-WARNING: privleap configuration invalid. Not restarting privleapd.
+× repository-dist-initializer.service - /etc/apt/sources.list.d/derivative.list initializer
+     Loaded: loaded (/lib/systemd/system/repository-dist-initializer.service; enabled; preset: enabled)
+     Active: failed (Result: exit-code) since Fri 2025-03-07 17:31:20 CST; 35s ago
+    Process: 968 ExecStart=/usr/libexec/repository-dist/repository-dist-initializer (code=exited, status=1/FAILURE)
+   Main PID: 968 (code=exited, status=1/FAILURE)
+        CPU: 5ms
+
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + set -e
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + test -r /var/lib/repository-dist/derivative_apt_repository_opts
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + test -e /var/lib/repository-dist/initializer.done
+Mar 07 17:31:20 localhost repository-dist-initializer[1016]: ++ cat /var/lib/repository-dist/derivative_apt_repository_opts
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + repository_dist_arguments='--enable --codename bookworm'
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + repository-dist --enable --codename bookworm
+Mar 07 17:31:20 localhost repository-dist-initializer[1027]: /usr/bin/repository-dist: line 362: under: unbound variable
+Mar 07 17:31:20 localhost systemd[1]: repository-dist-initializer.service: Main process exited, code=exited, status=1/FAILURE
+Mar 07 17:31:20 localhost systemd[1]: repository-dist-initializer.service: Failed with result 'exit-code'.
+Mar 07 17:31:20 localhost systemd[1]: Failed to start repository-dist-initializer.service - /etc/apt/sources.list.d/derivative.list initializer.
 </pre>
 
-* file /etc/privleap/conf.d/systemcheck.conf already looks okay
-
-<pre>
-[action:tor-bootstrap-check]
-Command=/usr/libexec/helper-scripts/tor_bootstrap_check.py
-AuthorizedGroups=sudo
-AuthorizedUsers=user,sdwdate
-TargetUser=debian-tor
-TargetGroup=debian-tor
-</pre>
-
-* was happening insid Qubes Whonix-Gateway Template only
-
-<pre>
-Setting up privleap (3:2.3-1) ...
-/etc/privleap/conf.d/anon-connection-wizard.conf:1:error:No authorized users or groups for action: 'acw-tor-control-restart'
-WARNING: privleap configuration invalid. Not restarting privleapd.
-</pre>
-
-* file /etc/privleap/conf.d/anon-connection-wizard.conf already looks good
-
-<pre>
-[action:acw-tor-control-restart]
-Command=/usr/libexec/anon-connection-wizard/acw-tor-control restart
-AuthorizedGroups=sudo
-AuthorizedUsers=user
-</pre>
-
-* Aaron: Attempted to fully upgrade a clean pair of Whonix-Gateway and Whonix-Workstation templates on Qubes OS R4.3 using the bookworm-developers repository. Cannot reproduce either bug, privleap installs, sets up, and has triggers run for it without issues, service is properly started and systemcheck works without errors.
-* Got another report from a user using the testers repository.
-
-<pre>
-/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for
- action: 'tor-bootstrap-check'
-WARNING: privleap configuration invalid. Not restarting privleapd. Run configura
-tion check using: privleapd --check-config
-</pre>
-
-* This is perhaps because config check runs before new configuration files have been installed? Solution, run config check after installation of configuration files, i.e. after DEBHELPER token?
+* <code>/etc/apt/sources.list.d/derivative.list</code> does not exist.
 
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
@@ -111,20 +88,6 @@ tion check using: privleapd --check-config
 * contact people involved previously, if that makes sense
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
-
-== default password ==
-* rationale: virtual console based login attempts. An attacker could connect a keyboard to a server to login.
-* review wiki: [[Default Passwords]]
-* helper-scripts: add a tool that looks user accounts with empty passwords, if feasible
-* GUI ISO: calamares.
-** link to documentation
-** choices:
-*** default: none (user must choose)
-*** passwordless
-*** set a password
-* CLI ISO: non-existent, therefore non-issue for now
-* GUI VM images: A setup-wizard-dist popup should explain this.
-* CLI: an INFO message after login if there are any unlocked passwordless accounts
 
 == set default shell for user sysmaint to zsh ==
 * todo
@@ -602,6 +565,85 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== default password ==
+* rationale: virtual console based login attempts. An attacker could connect a keyboard to a server to login.
+* review wiki: [[Default Passwords]]
+* helper-scripts: add a tool that looks user accounts with empty passwords, if feasible
+* GUI ISO: calamares.
+** link to documentation
+** choices:
+*** default: none (user must choose)
+*** passwordless
+*** set a password
+*** Aaron: We decided to skip doing this in calamares to reduce code duplication and maintenance burden.
+* CLI ISO: non-existent, therefore non-issue for now
+* GUI VM images: A setup-wizard-dist popup should explain this.
+** Good for systems installed from ISO also.
+* CLI: an INFO message after login if there are any unlocked passwordless accounts
+* Implemented, ready for review, testing, ''maybe'' merge?:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/autologin
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/autologin
+** usability-misc: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/autologin
+** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/autologin
+** setup-dist: https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/autologin
+** initializer-dist: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/autologin
+** msgcollector: https://github.com/ArrayBolt3/msgcollector/tree/arraybolt3/autologin
+* Things that still need fixed:
+** Wording changes necessary? autologinchange talks about 'sysmaint mode' rather than 'PERSISTENT mode SYSMAINT' which may be bad.
+
+== privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
+* was happening inside Qubes Whonix-Workstation Template only
+* error happened during upgrade from developers repository
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/systemcheck.conf already looks okay
+
+<pre>
+[action:tor-bootstrap-check]
+Command=/usr/libexec/helper-scripts/tor_bootstrap_check.py
+AuthorizedGroups=sudo
+AuthorizedUsers=user,sdwdate
+TargetUser=debian-tor
+TargetGroup=debian-tor
+</pre>
+
+* was happening insid Qubes Whonix-Gateway Template only
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/anon-connection-wizard.conf:1:error:No authorized users or groups for action: 'acw-tor-control-restart'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/anon-connection-wizard.conf already looks good
+
+<pre>
+[action:acw-tor-control-restart]
+Command=/usr/libexec/anon-connection-wizard/acw-tor-control restart
+AuthorizedGroups=sudo
+AuthorizedUsers=user
+</pre>
+
+* Aaron: Attempted to fully upgrade a clean pair of Whonix-Gateway and Whonix-Workstation templates on Qubes OS R4.3 using the bookworm-developers repository. Cannot reproduce either bug, privleap installs, sets up, and has triggers run for it without issues, service is properly started and systemcheck works without errors.
+* Got another report from a user using the testers repository.
+
+<pre>
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for
+ action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd. Run configura
+tion check using: privleapd --check-config
+</pre>
+
+* This is perhaps because config check runs before new configuration files have been installed? Solution, run config check after installation of configuration files, i.e. after DEBHELPER token?
+* Figured out why this is likely happening - upgrades that change the config file format will trigger this because the conffiles of packages ''other than privleap'' are unlikely to be unpacked by the time privleap is configuring itself. This is normal, expected behavior that can't be avoided and shouldn't cause problems in practice.
+* Fixed the cosmetic part of the issue in https://github.com/ArrayBolt3/privleap/commit/78698e8ae40d2b5ea3e0f11e32f8ffe0b2e6793e
 
 = ARCHIVED =
 == ISO - use variable flavor_meta_packages_to_install ==
