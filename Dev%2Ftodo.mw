@@ -10,11 +10,31 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== Kicksecure default browser ==
-* please read prior discussions, comment, edit if applicable
-* https://www.kicksecure.com/wiki/Dev/Default_Browser
-* https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388
-* https://github.com/Kicksecure/security-misc/issues/192
+== privleap - logging improvements ==
+* please rewrite "user" -> "account" (This is to avoid phrases like "user user".)
+
+<pre>
+Mar 14 09:05:56 host privleapd[18294]: handle_comm_session: INFO: Triggered action 'apt-get-update'
+</pre>
+<pre>
+Mar 14 09:28:52 host privleapd[17481]: auth_signal_request: WARNING: Could not find action 'test'
+</pre>
+
+* Should privleap mention which account triggered an action? By comparison, sudo does log this.
+
+<pre>
+Mar 14 09:25:49 host sudo[24600]:     user : TTY=pts/2 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/ls
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for user root
+</pre>
+
+* Privacy should be alright because journal can only be accessible by root. (Unless systemcheck --verbose leaks it. But logging, able to find bugs/DOS seems more important than log privacy.)
+* We don't necessarily needs the same logging format as sudo.
+** TTY: probably irrelevant.
+** PWD: probably irrelevant.
+** command: privleap already logs it.
+** account: missing
+* Should be done in https://github.com/ArrayBolt3/privleap/commit/abf878dfe55d49bb930fdbba2ed9542db9d4aa93, may need a more careful audit to ensure all cases that need changed are changed
 
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
@@ -56,6 +76,33 @@ TODO
 == GRUB - boot related enhancements ==
 * Are there any other boot related enhancements outstanding? If so, please create tickets for these.
 
+== lightweight update notifications ==
+* Qubes vs non-Qubes:
+** should not conflict with Qubes internal updater (multiple APT background processes blocking each other) - do this only inside Non-Qubes?
+** on the other hand, systemcheck contains many tests that are useful inside Qubes as well
+** Qubes developers do not wish the user to see a lot duplicate passive popups, active progress bars and active popups
+* non-Qubes: GUI vs CLI?
+** GUI: Implement this for the GUI version only?
+** CLI: msgcollector supports writing to tty1 even for daemons (systemcheck) started in the background but this is probably confusing and disruptive. (Was defaultt in the past.)
+* as a stopgap until one day [[Dev/Automatic_Updates|Dev/Automatic Updates]] gets implemented
+* re-use systemcheck for this? Could consider to re-enable autostart of systemcheck by default as it contains already lots of tests. "systemcheck --gui" currently shows:
+
+<pre>
+INFO: Kicksecure APT Repository: Enabled. When the Kicksecure team releases BOOKWORM-DEVELOPERS updates, they will be AUTOMATICALLY installed (when you run apt-get dist-upgrade) along with updated packages from the Debian team. Please read https://www.kicksecure.com/wiki/Trust to understand the risk. If you want to change this, use: 
+dom0 -> Start Menu -> Template: kicksecure-bookworm -> Derivative Repository
+
+WARNING: Debian Package Update Check Result: apt-get reports that packages can be updated. 
+Please update your 'kicksecure-bookworm' TemplateVM. 
+1. Open a TemplateVM terminal. (dom0 -> Start Menu -> Template: kicksecure-bookworm -> Terminal) 
+2. Update. 
+upgrade-nonroot
+3. Shutdown your TemplateVM. (dom0 -> Qubes VM Manager -> right click 'kicksecure-bookworm' -> Shutdown VM) 
+4. Shutdown and restart this TemplateBased AppVM. (dom0 -> Qubes VM Manager -> right click 'work-main' -> Shutdown VM)
+</pre>
+
+* The first "INFO: Kicksecure APT Repository" might be too noisy and could easily be disabled in GUI output by default.
+* git history contains /usr/libexec/systemcheckdaemon
+
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -76,6 +123,7 @@ TODO
 ** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
 ** Might use kernel parameters using systemd features that may be available in trixie?
 * since no response from systemd, needs to be fixed without systemd upstream support
+* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
 
 == audio ==
 === audio generally ===
@@ -543,6 +591,63 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== privleap - umask ==
+* please consider privleap in context of https://github.com/Kicksecure/security-misc/issues/185
+* How to handle privleap versus umask? Leave it to (python) PAM? Probably best.
+* Please lightweight document.
+* Discovered that PAM umask customization was causing problems, by changing the umask of the entire privleapd process (thus affecting even actions that are run as root). Fixed by adding an extra shim between privleapd and PAM. Fixes are in https://github.com/ArrayBolt3/privleap as usual.
+
+== privleap - upgrade systemd unit issue ==
+* Qubes, Whonix-Workstation, developers repository
+
+<pre>
+Mar 14 09:05:15 host systemd[1]: Stopping leapctl@1000.service - leapctl - Enable access to privleap for each user...
+Mar 14 09:05:15 host systemd[1]: Stopping privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 14 09:05:15 host systemd[1]: privleapd.service: Deactivated successfully.
+Mar 14 09:05:15 host systemd[1]: Stopped privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 14 09:05:15 host systemd[1]: privleapd.service: Consumed 2.205s CPU time.
+Mar 14 09:05:15 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 14 09:05:15 host leapctl[18293]: ERROR: Could not connect to privleapd!
+Mar 14 09:05:15 host systemd[1]: leapctl@1000.service: Control process exited, code=exited, status=1/FAILURE
+Mar 14 09:05:15 host systemd[1]: leapctl@1000.service: Failed with result 'exit-code'.
+Mar 14 09:05:15 host systemd[1]: Stopped leapctl@1000.service - leapctl - Enable access to privleap for each user.
+Mar 14 09:05:15 host systemd[1]: Starting leapctl@1000.service - leapctl - Enable access to privleap for each user...
+Mar 14 09:05:15 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 14 09:05:15 host privleapd[18294]: handle_control_create_msg: INFO: Handled CREATE message for user 'user', socket created
+Mar 14 09:05:15 host leapctl[18296]: Comm socket created for user 'user'.
+Mar 14 09:05:15 host systemd[1]: Finished leapctl@1000.service - leapctl - Enable access to privleap for each user.
+</pre>
+
+* Mostly a cosmetic issue. But a problem as this error ends up in <code>systemcheck --verbose --function check_journal</code>.
+* No actually broken functionality.
+* Most likely not a configuration issue.
+* Potential bug: Does leapctl@1000.service try use privleapd.service before it was restarted?
+* <code>/usr/lib/systemd/system/leapctl@.service</code> - Does it lack <code>After=</code>?
+
+<pre>
+[Unit]
+Description=leapctl - Enable access to privleap for each user
+Requires=privleapd.service user@.service
+
+## Useful to add...?
+After=privleapd.service user@.service
+</pre>
+
+* Looks like the <code>After=</code> was indeed good to have and missing. Added, tested, works. https://github.com/ArrayBolt3/privleap/commit/c1e9730e5ff3988db610d5603f1b14d8e16ebd2d
+
+== kernel module loading disabling exit zero or non-zero comment ==
+* please comment here: https://github.com/Kicksecure/security-misc/issues/303
+* Researched and commented.
+
+== Kicksecure default browser ==
+* please read prior discussions, comment, edit if applicable
+* https://www.kicksecure.com/wiki/Dev/Default_Browser
+** Aaron: Reorganized some stuff, filled in some missing documentation on projects.
+* https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388
+** Aaron: Read through and commented.
+* https://github.com/Kicksecure/security-misc/issues/192
+*** Aaron: Read through, didn't have much to add here, I put everything I had to add on the Whonix forum.
+
 == user-sysmaint-split - sysmaint login failure when autologin disabled ==
 * If sysmaint autologin is disabled, the first attempt to log in as account <code>sysmaint</code> in PERSISTENT mode SYSMAINT will fail because it will try to sign into a normal desktop session.
 * Investigate ways to resolve this, is there a system-wide state file for lightdm we can overwrite?
