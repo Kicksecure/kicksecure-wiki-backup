@@ -10,80 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== user-sysmaint-split - set default shell for account sysmaint to zsh ==
-* todo
-* Done in https://github.com/ArrayBolt3/user-sysmaint-split/commit/779a483f8c83fd7dfb15f3532a8eb5285115dc05
-* Patrick: Merged.
-* please refactor / de-duplicate code dist-base-files versus user-sysmaint-split
-* Done:
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/user-create
-*** Patrick: Merged.
-** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/user-create
-*** Patrick: Merged.
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/user-create
-*** Patrick: Merged. There was a merge conflict. Could you please check if it was resolved correctly?
-
-== user-sysmaint-split - systemcheck ==
-* If user-sysmaint-split is installed, systemcheck function check_login_security cannot use
-<pre>
-/usr/libexec/user-sysmaint-split/sysmaint-boot query-sysmaint-autologin
-</pre>
-* Perhaps that function would be better if available in helper-scripts? Because it currently results in an error.
-
-<pre>
-            if [ -x /usr/libexec/user-sysmaint-split/sysmaint-boot ]; then
-               if [ "$(/usr/libexec/user-sysmaint-split/sysmaint-boot query-sysmaint-autologin 2>/dev/null)" = 'yes' ]; then
-                  echo 'Enabled'
-               else
-                  echo 'Disabled'
-               fi
-            else
-              echo 'Error'
-            fi
-</pre>
-* The problem is "echo 'Error'".
-* User sysmaint might exist but user-sysmaint-split might have been uninstalled using user-sysmaint-split.
-* Skip check_login_security inside Qubes?
-
-== user-sysmaint-split - setup-dist - improve error handling ==
-<pre>
-check_passwords() {
-   if grep -q -- 'Absent' < <(leaprun get-password-status-list); then
-      printf '%b\n' "[${yellow}WARNING${nocolor}] Some user accounts on this system are passwordless. Run 'systemcheck' for more information."
-   fi
-}
-</pre>
-* bug: subshell cannot handle errors
-* please implement without subshell
-* leaprun should run outside of "if"
-* WARNING -> NOTICE?
-
-== privleap - logging improvements ==
-* please rewrite "user" -> "account" (This is to avoid phrases like "user user".)
-
-<pre>
-Mar 14 09:05:56 host privleapd[18294]: handle_comm_session: INFO: Triggered action 'apt-get-update'
-</pre>
-<pre>
-Mar 14 09:28:52 host privleapd[17481]: auth_signal_request: WARNING: Could not find action 'test'
-</pre>
-
-* Should privleap mention which account triggered an action? By comparison, sudo does log this.
-
-<pre>
-Mar 14 09:25:49 host sudo[24600]:     user : TTY=pts/2 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/ls
-Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
-Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for user root
-</pre>
-
-* Privacy should be alright because journal can only be accessible by root. (Unless systemcheck --verbose leaks it. But logging, able to find bugs/DOS seems more important than log privacy.)
-* We don't necessarily needs the same logging format as sudo.
-** TTY: probably irrelevant.
-** PWD: probably irrelevant.
-** command: privleap already logs it.
-** account: missing
-* Should be done in https://github.com/ArrayBolt3/privleap/commit/abf878dfe55d49bb930fdbba2ed9542db9d4aa93, may need a more careful audit to ensure all cases that need changed are changed
-
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
 * config-package-dev displace /etc/default/grub? Avoid "fighting" for configuration file ownership by moving the file out of the way.
@@ -393,14 +319,6 @@ sudo apt install serial-console-enable
 * Submitted and awaiting review: https://salsa.debian.org/grub-team/grub/-/merge_requests/76#note_590495
 * Unfortunately this is not going to be able to make it into Trixie, it will have to wait for Forky before it makes it into Debian Stable.
 
-== user-sysmaint-split - Qubes - sysmaint boot features ==
-* implement [https://github.com/QubesOS/qubes-issues/issues/9750 Polish support for booting qubes with custom kernel command line parameters]
-* related: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
-** Replied here with some relevant info.
-** Does this obsolete selective sudo access? No, probably not.
-* Wrote several iterations of a spec, updating with input from Marek for each iteration.
-* Implemented, going back and forth with reviews with Marek.
-
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 * Likely going to end up implementing [https://github.com/QubesOS/qubes-issues/issues/2695 Automate vm sudo authorization setup]
@@ -427,60 +345,6 @@ sudo apt install serial-console-enable
 * as discussed
 * PR opened at https://github.com/calamares/calamares/pull/2422
 * PR is awaiting review.
-
-== grml-debootstrap - fix UEFI bootloader updates ==
-* https://github.com/grml/grml-debootstrap/issues/297
-* please send a pull request upstream
-** Pull request: https://github.com/grml/grml-debootstrap/pull/299
-** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
-*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
-**** Aaron: Done.
-*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
-**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
-* Patrick: please use, review the following simplification, if sane
-
-<pre>
-    if [ -z "$VMEFI" ]; then
-      grub_pc_package_name=grub-pc
-    else
-      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
-      # otherwise the EFI bootloader won't be automatically updated when GRUB
-      # packages are uploaded. Doing this means that the BIOS bootloader won't
-      # be automatically updated, which stinks, however the BIOS bootloader
-      # doesn't have the same security concerns as the EFI bootloader (there's
-      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
-      # better to let the BIOS bootloader lag behind and update the EFI one
-      # than to let the EFI bootloader lag behind and update the BIOS one.
-      grub_pc_package_name=grub-pc-bin
-    fi
-
-    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
-      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
-      # shellcheck disable=SC2086
-      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
-    fi
-</pre>
-
-** Integrated.
-* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
-
-<pre>
-        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
-</pre>
-
-** Discussed, elected not to do this.
-* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
-** Discussed, elected not to do this.
-* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
-** Not done yet to avoid overcomplicating the PR.
-* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
-** Done, actually I just removed ARM_EFI_TARGET entirely.
-* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
-* related PR: https://github.com/grml/grml-debootstrap/pull/302
-
-== privleap - post-review improvements ==
-* https://github.com/ArrayBolt3/privleap/issues/1
-* Discuss, implement as appropriate
 
 == review safe-print ==
 * https://github.com/Kicksecure/helper-scripts/pull/14
@@ -639,6 +503,162 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== privleap - logging improvements ==
+* please rewrite "user" -> "account" (This is to avoid phrases like "user user".)
+
+<pre>
+Mar 14 09:05:56 host privleapd[18294]: handle_comm_session: INFO: Triggered action 'apt-get-update'
+</pre>
+<pre>
+Mar 14 09:28:52 host privleapd[17481]: auth_signal_request: WARNING: Could not find action 'test'
+</pre>
+
+* Should privleap mention which account triggered an action? By comparison, sudo does log this.
+
+<pre>
+Mar 14 09:25:49 host sudo[24600]:     user : TTY=pts/2 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/ls
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for user root
+</pre>
+
+* Privacy should be alright because journal can only be accessible by root. (Unless systemcheck --verbose leaks it. But logging, able to find bugs/DOS seems more important than log privacy.)
+* We don't necessarily needs the same logging format as sudo.
+** TTY: probably irrelevant.
+** PWD: probably irrelevant.
+** command: privleap already logs it.
+** account: missing
+* Should be done in https://github.com/ArrayBolt3/privleap/commit/abf878dfe55d49bb930fdbba2ed9542db9d4aa93, may need a more careful audit to ensure all cases that need changed are changed
+* Audited, made another commit with missed bits caught: https://github.com/ArrayBolt3/privleap/commit/b9ea564089d3f825a2f08364807dfc1c7c278eb8
+
+== user-sysmaint-split - systemcheck ==
+* If user-sysmaint-split is installed, systemcheck function check_login_security cannot use
+<pre>
+/usr/libexec/user-sysmaint-split/sysmaint-boot query-sysmaint-autologin
+</pre>
+* Perhaps that function would be better if available in helper-scripts? Because it currently results in an error.
+
+<pre>
+            if [ -x /usr/libexec/user-sysmaint-split/sysmaint-boot ]; then
+               if [ "$(/usr/libexec/user-sysmaint-split/sysmaint-boot query-sysmaint-autologin 2>/dev/null)" = 'yes' ]; then
+                  echo 'Enabled'
+               else
+                  echo 'Disabled'
+               fi
+            else
+              echo 'Error'
+            fi
+</pre>
+* The problem is "echo 'Error'".
+* User sysmaint might exist but user-sysmaint-split might have been uninstalled using user-sysmaint-split.
+* Skip check_login_security inside Qubes?
+* Please avoid subshells because these interfere with error handling. (I did not do it to avoid merge conflicts.)
+
+<pre>
+   readarray -t user_list < <(/usr/libexec/helper-scripts/get-user-list)
+</pre>
+
+<pre>
+if ! output="$(/usr/libexec/helper-scripts/get-user-list)"; then
+    echo "ERROR: Failed to get user list!" >&2
+    exit 1
+fi
+
+readarray -t user_list <<< "$output"
+</pre>
+* please use grep with end-of-options
+* All issues should now be fixed. Repos changed:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/autologin
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/autologin
+
+== pwchange migration packaging bug ==
+<pre>
+dpkg -l | grep usability      
+ii  usability-misc                                3:26.2-1                             all          Misc usability improvements
+</pre>
+
+<pre>
+dpkg: error processing archive /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb (--unpack):
+ trying to overwrite '/usr/sbin/pwchange', which is also in package usability-misc 3:26.2-1
+Errors were encountered while processing:
+ /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb
+</pre>
+
+* Patrick renamed pwchange to pwchange_ as a stopgap.
+* Patrick made some improvements to pwchange_.
+* If this is difficult to fix, we can just move pwchange back to usability-misc perhaps until release upgrade (if that simplifies things).
+* Discussed cause and solution with Patrick, file shouldn't need to be moved back to usability-misc.
+
+= ARCHIVED =
+== privleap - post-review improvements ==
+* https://github.com/ArrayBolt3/privleap/issues/1
+* Discuss, implement as appropriate
+* Done, remaining issues on the bug tracker are very low priority and not blockers.
+
+== grml-debootstrap - fix UEFI bootloader updates ==
+* https://github.com/grml/grml-debootstrap/issues/297
+* please send a pull request upstream
+** Pull request: https://github.com/grml/grml-debootstrap/pull/299 merged.
+** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
+*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
+**** Aaron: Done.
+*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
+**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
+* Patrick: please use, review the following simplification, if sane
+
+<pre>
+    if [ -z "$VMEFI" ]; then
+      grub_pc_package_name=grub-pc
+    else
+      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
+      # otherwise the EFI bootloader won't be automatically updated when GRUB
+      # packages are uploaded. Doing this means that the BIOS bootloader won't
+      # be automatically updated, which stinks, however the BIOS bootloader
+      # doesn't have the same security concerns as the EFI bootloader (there's
+      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
+      # better to let the BIOS bootloader lag behind and update the EFI one
+      # than to let the EFI bootloader lag behind and update the BIOS one.
+      grub_pc_package_name=grub-pc-bin
+    fi
+
+    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
+      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
+      # shellcheck disable=SC2086
+      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
+    fi
+</pre>
+
+** Integrated.
+* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
+
+<pre>
+        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
+</pre>
+
+** Discussed, elected not to do this.
+* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
+** Discussed, elected not to do this.
+* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
+** Not done yet to avoid overcomplicating the PR.
+* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
+** Done, actually I just removed ARM_EFI_TARGET entirely.
+* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
+* related PR: https://github.com/grml/grml-debootstrap/pull/302
+
+== user-sysmaint-split - Qubes - sysmaint boot features ==
+* implement [https://github.com/QubesOS/qubes-issues/issues/9750 Polish support for booting qubes with custom kernel command line parameters]
+* related: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
+** Replied here with some relevant info.
+** Does this obsolete selective sudo access? No, probably not.
+* Wrote several iterations of a spec, updating with input from Marek for each iteration.
+* Implemented, going back and forth with reviews with Marek.
+* PR list:
+** qubes-core-admin: https://github.com/QubesOS/qubes-core-admin/pull/653
+*** Also made https://github.com/QubesOS/qubes-core-admin/pull/666 to fix a bug after the above PR was merged slightly too early.
+** qubes-manager: https://github.com/QubesOS/qubes-manager/pull/407
+** qubes-core-admin-client: https://github.com/QubesOS/qubes-core-admin-client/pull/342
+* All PRs merged.
 
 == default password ==
 * rationale: virtual console based login attempts. An attacker could connect a keyboard to a server to login.
@@ -708,7 +728,34 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** See inline comments above.
 *** Aaron: Addressed.
 
-= ARCHIVED =
+== user-sysmaint-split - setup-dist - improve error handling ==
+<pre>
+check_passwords() {
+   if grep -q -- 'Absent' < <(leaprun get-password-status-list); then
+      printf '%b\n' "[${yellow}WARNING${nocolor}] Some user accounts on this system are passwordless. Run 'systemcheck' for more information."
+   fi
+}
+</pre>
+* bug: subshell cannot handle errors
+* please implement without subshell
+* leaprun should run outside of "if"
+* WARNING -> NOTICE?
+* Patrick: Done.
+
+== user-sysmaint-split - set default shell for account sysmaint to zsh ==
+* todo
+* Done in https://github.com/ArrayBolt3/user-sysmaint-split/commit/779a483f8c83fd7dfb15f3532a8eb5285115dc05
+* Patrick: Merged.
+* please refactor / de-duplicate code dist-base-files versus user-sysmaint-split
+* Done:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/user-create
+*** Patrick: Merged.
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/user-create
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/user-create
+*** Patrick: Merged. There was a merge conflict. Could you please check if it was resolved correctly?
+**** Aaron: Reproduced conflict on my end, resolved it, then checked the difference with git difftool. Looks fine to me.
+
 == user-sysmaint-split - sysmaint login failure when autologin disabled ==
 * If sysmaint autologin is disabled, the first attempt to log in as account <code>sysmaint</code> in PERSISTENT mode SYSMAINT will fail because it will try to sign into a normal desktop session.
 * Investigate ways to resolve this, is there a system-wide state file for lightdm we can overwrite?

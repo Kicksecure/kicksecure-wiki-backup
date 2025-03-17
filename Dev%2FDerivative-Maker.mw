@@ -108,19 +108,23 @@ apt-cacher-ng is used by default.
 * Why not make it optional? It's not easy to design the build script in a way that it does not use apt-cacher-ng by default but uses it when using some option. This is because use of apt-cacher-ng requires to use syntax <code>http://HTTPS///</code> in APT sources used for the build process.
 
 = Repository Caching Debugging =
-
 '''1.''' {{Install Package
 |package=apt-cacher-ng
 }}
 
-'''2.''' Acquire apt-cacher-ng compatible Debian sources lists files.
+'''2.''' apt-cacher-ng configuration
 
-From derivative-maker source code folder.
+{{CodeSelect|code=
+echo "AllowUserPorts: 0" {{!}} sudo tee -a "/etc/apt-cacher-ng/acng.conf
+}}
 
-* '''A)''' {{CodeSelect|inline=true|code=build_sources/debian_stable_current_clearnet.list}}, <u>or</u>
-* '''B)''' {{CodeSelect|inline=true|code=build_sources/debian_stable_current_onion.list}},
+'''3.''' apt-cacher-ng restart
 
-'''3.''' Backup <code>/etc/apt/sources.list.d/debian.list</code>.
+{{CodeSelect|code=
+sudo systemctl restart apt-cacher-ng
+}}
+
+'''4.''' Backup <code>/etc/apt/sources.list.d/debian.list</code>.
 
 If existing. Existing only in Kicksecure, Whonix.
 
@@ -130,7 +134,22 @@ Copy <code>/etc/apt/sources.list.d/debian.list</code> to user home folder.
 cp /etc/apt/sources.list.d/debian.list ~/
 }}
 
-'''4.''' todo
+'''5.''' Acquire apt-cacher-ng compatible Debian sources lists files.
+
+From derivative-maker source code folder.
+
+* '''A)''' {{CodeSelect|inline=true|code=build_sources/debian_stable_current_clearnet.list}}, <u>or</u>
+* '''B)''' {{CodeSelect|inline=true|code=build_sources/debian_stable_current_onion.list}},
+
+{{CodeSelect|code=
+sudo cp ~/derivative-maker/build_sources/debian_stable_current_clearnet.list /etc/apt/sources.list.d/debian.list
+}}
+
+'''6.''' APT update command.
+
+{{CodeSelect|code=
+sudo env REPO_PROXY="http://127.0.0.1:3142" http_proxy=${REPO_PROXY} https_proxy=${REPO_PROXY} ALL_PROXY=${REPO_PROXY} apt-get -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 update
+}}
 
 = Custom Packages =
 [[Untested]].
