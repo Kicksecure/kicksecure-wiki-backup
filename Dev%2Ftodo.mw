@@ -10,6 +10,82 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== privleap - pwd bug ==
+* Qubes, sys-whonix
+<pre>
+[gateway user ~]% leaprun tor-verify-config                
+Mar 17 06:38:26.693 [notice] Tor 0.4.8.13 running on Linux with Libevent 2.1.12-stable, OpenSSL 3.0.15, Zlib 1.2.13, Liblzma 5.4.1, Libzstd 1.5.4 and Glibc 2.36 as libc.
+Mar 17 06:38:26.693 [notice] Tor can't help you if you use it wrong! Learn how to be safe at https://support.torproject.org/faq/staying-anonymous/
+Mar 17 06:38:26.693 [notice] Read configuration file "/etc/tor/torrc".
+Mar 17 06:38:26.694 [notice] Processing configuration path "/etc/torrc.d/*.conf" at recursion level 1.
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/60_network.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/65_gateway.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/65_leak_tests.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/70_workstation.conf".
+Mar 17 06:38:26.694 [notice] Processing configuration path "/usr/share/tor/tor-service-defaults-torrc.anondist" at recursion level 2.
+Mar 17 06:38:26.694 [notice] Including configuration file "/usr/share/tor/tor-service-defaults-torrc.anondist".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/95_whonix.conf".
+Mar 17 06:38:26.694 [notice] Processing configuration path "/usr/local/etc/torrc.d/*.conf" at recursion level 2.
+Mar 17 06:38:26.694 [notice] Including configuration file "/usr/local/etc/torrc.d/40_tor_control_panel.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/usr/local/etc/torrc.d/50_user.conf".
+Mar 17 06:38:26.695 [notice] You configured a non-loopback address '10.137.0.10:5300' for DNSPort. This allows everybody on your local network to use your machine as a proxy. Make sure this is what you wanted.
+Mar 17 06:38:26.695 [notice] You configured a non-loopback address '10.137.0.10:9040' for TransPort. This allows everybody on your local network to use your machine as a proxy. Make sure this is what you wanted.
+Mar 17 06:38:26.695 [warn] Directory /home/user/.tor cannot be read: Permission denied
+Mar 17 06:38:26.695 [warn] Failed to parse/validate config: Couldn't access private data directory "/home/user/.tor"
+Mar 17 06:38:26.695 [err] Reading config failed--see warnings above.
+zsh: exit 1     leaprun tor-verify-config
+</pre>
+
+* In file /usr/libexec/systemcheck/check-env I appended:
+
+<pre>
+pwd
+env
+</pre>
+
+* result:
+
+<pre>
+leaprun check-privleap-environment-variables
+/home/user
+SHELL=/usr/bin/bash
+WATCHDOG_USEC=10000000
+PWD=/home/user
+LOGNAME=user
+SYSTEMD_EXEC_PID=902
+TEMPDIR=/tmp/user/0
+HOME=/home/user
+LANG=en_US.UTF-8
+TMPDIR=/tmp/user/0
+INVOCATION_ID=675ad997bbec4d37ad4ab6339af8a388
+USER=user
+WATCHDOG_PID=902
+NOTIFY_SOCKET=/run/systemd/notify
+TEMP=/tmp/user/0
+SHLVL=1
+JOURNAL_STREAM=8:3035
+TMP=/tmp/user/0
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+_=/usr/bin/env
+</pre>
+
+* conclusions:
+** output of <code>pwd</code> is wrong
+** environment variables wrong:
+*** PWD
+*** HOME
+*** TMPDIR
+*** TEMP
+*** USER
+*** PATH
+
+== user-sysmaint-split - GUI vs CLI ==
+* GUI (login manager) versus CLI (tty login)
+* clarify autologinchange GUI vs CLI
+* clarify inside systemcheck
+* check systemcheck CLI autologin in separate column, if feasible (separate columns for GUI vs CLI autologin)
+* test login (non-automatic) into sysmaint CLI tty1
+
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
 * config-package-dev displace /etc/default/grub? Avoid "fighting" for configuration file ownership by moving the file out of the way.
@@ -26,6 +102,17 @@ TODO
 </pre>
 
 * minor comment on link: <code><nowiki>https://www.kicksecure.com/wiki/grub (lower case) vs https://www.kicksecure.com/wiki/Grub</nowiki></code> (normal case) is OK. Preferring lower case for simplicity thanks to MediaWiki extension SaneCase.
+* Implemented for the most part in https://github.com/ArrayBolt3/derivative-maker/commit/8b9cc4b290e8862e34fdca8b3d22a9454c79c185, though the comment at the top was not added yet because no other method of image generation we do adds that link and we cannot safely divert and replace this file. Details explained in chat.
+* Patrick: Pending discussion.
+
+== user-sysmaint-split - advertise boot modes in Qubes OS ==
+* Add needed files for advertising supported boot modes in Whonix-Workstation
+* Whonix-Gateway will not be using user-sysmaint-split by default and thus should NOT have these files unless the user manually installs the needed packages
+
+== user-sysmaint-split - Qubes support ==
+* Ensure template provides sudo access and allows normal system maintenance, while AppVM doesn't.
+* Ensure sysmaint-panel works properly
+* Workarounds may be needed so that the <code>sysmaint</code> account is used by default in sysmaint mode rather than <code>user</code>.
 
 == grml-debootstrap - GRUB installation refactoring ==
 * https://github.com/grml/grml-debootstrap/issues/258
@@ -55,9 +142,11 @@ TODO
 ** should not conflict with Qubes internal updater (multiple APT background processes blocking each other) - do this only inside Non-Qubes?
 ** on the other hand, systemcheck contains many tests that are useful inside Qubes as well
 ** Qubes developers do not wish the user to see a lot duplicate passive popups, active progress bars and active popups
+*** Aaron: Qubes already shows upgrade notifications for VMs, so I would say this feature should not be added to Kicksecure or Whonix under Qubes OS. It's redundant and potentially conflicting.
 * non-Qubes: GUI vs CLI?
 ** GUI: Implement this for the GUI version only?
-** CLI: msgcollector supports writing to tty1 even for daemons (systemcheck) started in the background but this is probably confusing and disruptive. (Was defaultt in the past.)
+** CLI: msgcollector supports writing to tty1 even for daemons (systemcheck) started in the background but this is probably confusing and disruptive. (Was default in the past.)
+*** Aaron: Agreed, should be a GUI-only feature. CLI users can just run apt commands manually easily enough.
 * as a stopgap until one day [[Dev/Automatic_Updates|Dev/Automatic Updates]] gets implemented
 * re-use systemcheck for this? Could consider to re-enable autostart of systemcheck by default as it contains already lots of tests. "systemcheck --gui" currently shows:
 
@@ -76,6 +165,7 @@ upgrade-nonroot
 
 * The first "INFO: Kicksecure APT Repository" might be too noisy and could easily be disabled in GUI output by default.
 * git history contains /usr/libexec/systemcheckdaemon
+** Aaron: systemcheck shows a lot of info about multiple components, much of which a user may skip over or be tempted to skip over. I would prefer implementing this in such a way that a typical desktop notification (such as what <code>notify-send</code> can produce) is shown to the user when there are updates.
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -503,33 +593,25 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== privleap - logging improvements ==
-* please rewrite "user" -> "account" (This is to avoid phrases like "user user".)
-
+== pwchange migration packaging bug ==
 <pre>
-Mar 14 09:05:56 host privleapd[18294]: handle_comm_session: INFO: Triggered action 'apt-get-update'
-</pre>
-<pre>
-Mar 14 09:28:52 host privleapd[17481]: auth_signal_request: WARNING: Could not find action 'test'
+dpkg -l | grep usability      
+ii  usability-misc                                3:26.2-1                             all          Misc usability improvements
 </pre>
 
-* Should privleap mention which account triggered an action? By comparison, sudo does log this.
-
 <pre>
-Mar 14 09:25:49 host sudo[24600]:     user : TTY=pts/2 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/ls
-Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
-Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for user root
+dpkg: error processing archive /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb (--unpack):
+ trying to overwrite '/usr/sbin/pwchange', which is also in package usability-misc 3:26.2-1
+Errors were encountered while processing:
+ /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb
 </pre>
 
-* Privacy should be alright because journal can only be accessible by root. (Unless systemcheck --verbose leaks it. But logging, able to find bugs/DOS seems more important than log privacy.)
-* We don't necessarily needs the same logging format as sudo.
-** TTY: probably irrelevant.
-** PWD: probably irrelevant.
-** command: privleap already logs it.
-** account: missing
-* Should be done in https://github.com/ArrayBolt3/privleap/commit/abf878dfe55d49bb930fdbba2ed9542db9d4aa93, may need a more careful audit to ensure all cases that need changed are changed
-* Audited, made another commit with missed bits caught: https://github.com/ArrayBolt3/privleap/commit/b9ea564089d3f825a2f08364807dfc1c7c278eb8
+* Patrick renamed pwchange to pwchange_ as a stopgap.
+* Patrick made some improvements to pwchange_.
+* If this is difficult to fix, we can just move pwchange back to usability-misc perhaps until release upgrade (if that simplifies things).
+* Discussed cause and solution with Patrick, file shouldn't need to be moved back to usability-misc.
 
+= ARCHIVED =
 == user-sysmaint-split - systemcheck ==
 * If user-sysmaint-split is installed, systemcheck function check_login_security cannot use
 <pre>
@@ -568,29 +650,42 @@ readarray -t user_list <<< "$output"
 * please use grep with end-of-options
 * All issues should now be fixed. Repos changed:
 ** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+*** Patrick: Merged.
 ** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/autologin
+*** Patrick: Merged.
 ** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+*** Patrick: Merged.
 ** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/autologin
+*** Patrick: Merged.
 
-== pwchange migration packaging bug ==
-<pre>
-dpkg -l | grep usability      
-ii  usability-misc                                3:26.2-1                             all          Misc usability improvements
-</pre>
+== privleap - logging improvements ==
+* please rewrite "user" -> "account" (This is to avoid phrases like "user user".)
 
 <pre>
-dpkg: error processing archive /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb (--unpack):
- trying to overwrite '/usr/sbin/pwchange', which is also in package usability-misc 3:26.2-1
-Errors were encountered while processing:
- /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb
+Mar 14 09:05:56 host privleapd[18294]: handle_comm_session: INFO: Triggered action 'apt-get-update'
+</pre>
+<pre>
+Mar 14 09:28:52 host privleapd[17481]: auth_signal_request: WARNING: Could not find action 'test'
 </pre>
 
-* Patrick renamed pwchange to pwchange_ as a stopgap.
-* Patrick made some improvements to pwchange_.
-* If this is difficult to fix, we can just move pwchange back to usability-misc perhaps until release upgrade (if that simplifies things).
-* Discussed cause and solution with Patrick, file shouldn't need to be moved back to usability-misc.
+* Should privleap mention which account triggered an action? By comparison, sudo does log this.
 
-= ARCHIVED =
+<pre>
+Mar 14 09:25:49 host sudo[24600]:     user : TTY=pts/2 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/ls
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for user root
+</pre>
+
+* Privacy should be alright because journal can only be accessible by root. (Unless systemcheck --verbose leaks it. But logging, able to find bugs/DOS seems more important than log privacy.)
+* We don't necessarily needs the same logging format as sudo.
+** TTY: probably irrelevant.
+** PWD: probably irrelevant.
+** command: privleap already logs it.
+** account: missing
+* Should be done in https://github.com/ArrayBolt3/privleap/commit/abf878dfe55d49bb930fdbba2ed9542db9d4aa93, may need a more careful audit to ensure all cases that need changed are changed
+* Audited, made another commit with missed bits caught: https://github.com/ArrayBolt3/privleap/commit/b9ea564089d3f825a2f08364807dfc1c7c278eb8
+* Patrick: Merged.
+
 == privleap - post-review improvements ==
 * https://github.com/ArrayBolt3/privleap/issues/1
 * Discuss, implement as appropriate
