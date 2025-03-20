@@ -30,15 +30,17 @@ It's the system build tool that is responsible for setting up the bootloader, wh
 
 {{Quotation
 |quote=You don't want to use this package outside of cloud images.
-|context=[https://packages.debian.org/bookworm/grub-cloud-amd64 <code>grub-cloud-amd64</code> package, Debian]
+|context=[https://packages.debian.org/{{Stable project version based on Debian codename}}/grub-cloud-amd64 <code>grub-cloud-amd64</code> package, Debian]
 }}
 
 <code>grub-cloud-amd64</code> package and <code>/etc/default/grub</code> file inclusion:
 
 {{Quotation
 |quote=<code>/etc/default/grub</code>
-|context=[https://packages.debian.org/bookworm/amd64/grub-cloud-amd64/filelist List of files]
+|context=[https://packages.debian.org/{{Stable project version based on Debian codename}}/amd64/grub-cloud-amd64/filelist List of files]
 }}
+
+<u>Non-issue:</u> <code>grub-cloud</code>, while it has "cloud" in its name, and while it may be suitable for installation on cloud servers, has no additional networking or cloud features not found in "standard" GRUB packages. <code>grub-cloud</code> does not "interact with the cloud". It does not boot from the cloud or have other problematic cloud features. Such features are not planned either. Its source code is minimal and consists only of Debian packaging files and a <code>/etc/default/grub</code> configuration file. The <code>grub-cloud</code> package is a workaround for the lack of <code>grub-pc</code> and <code>grub-efi</code> co-installability, a workaround for Debian bug [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 grub-efi-amd64: Allow concurrent installation of grub-pc and grub-efi-amd64].
 
 Source code references:
 
@@ -96,31 +98,15 @@ The serial console-related issues were encountered ~5 years ago when considering
 * Possible solution: If using a <code>grub-cloud</code>-based solution, it may be better to undo the serial console setup.
 * Architectural limitations: <code>grub-cloud</code> currently supports only a limited set of architectures (Intel/AMD64 and ARM64 at the time of writing). Depending on your plans for multi-architecture support (as Debian is the universal operating system), this may be a limitation.
 
-<code>grub-cloud</code> also does not solve co-installation of grub-pc and grub-efi
+Related Debian issues:
 
-Quote [https://salsa.debian.org/cloud-team/grub-cloud/-/blob/main/debian/control?ref_type=heads <code>debian/control</code> file]
+* bug report: <code>grub-pc</code> and <code>grub-efi</code> co-installability: [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 grub-efi-amd64: Allow concurrent installation of grub-pc and grub-efi-amd64]
+* bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1094977 grub-cloud-amd64: Ships /etc/default/grub, which installers need to be able to modify]
+* bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1094977 grub-cloud-amd64: not co-installable with grub-pc due to incompatible /etc/default/grub handling]
 
-<pre>
-Package: grub-cloud-amd64
-...
-Depends: ${misc:Depends}, grub2-common (>= 2.02+dfsg1-7), grub-efi-amd64-bin, grub-efi-amd64-signed, grub-pc-bin, shim-signed
-</pre>
+Related Debian pull requests:
 
-Analysis:
-
-* <code>grub-cloud</code> also only <code>Depends:</code> on <code>grub-pc-bin</code> but not on <code>grub-pc</code>. Hence, <code>grub-cloud</code> would also suffer from missing <code>grub-pc</code> bootloader updates.
-* <code>grub-cloud</code> also only <code>Depends:</code> on <code>grub-efi-amd64-bin, grub-efi-amd64-signed</code>. It fails to <code>Depends:</code> on <code>grub-efi-amd64</code>. Hence, <code>grub-cloud</code> would also suffer from missing <code>grub-efi</code> bootloader updates.
-
-Conclusion:
-
-* <code>grub-cloud</code> won't be helpful for fixing this issue.
-* A perfect solution is impossible until Debian implements the feature request for <code>grub-pc</code> and <code>grub-efi</code> co-installability: [Allow concurrent installation of grub-pc and grub-efi-amd64](https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062).
-* <code>grub-cloud</code> seems like a worse solution than the implementation being suggested here in grml-debootstrap pull request [https://github.com/grml/grml-debootstrap/pull/299 Make bootloader updates on UEFI-based systems work].
-
-Related Debian bug report:
-
-* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1094977 grub-cloud-amd64: Ships /etc/default/grub, which installers need to be able to modify]
-* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1094977 grub-cloud-amd64: not co-installable with grub-pc due to incompatible /etc/default/grub handling]
+* [https://salsa.debian.org/grub-team/grub/-/merge_requests/76 Remove ucf conffile conflict between grub-pc and grub-efi-{amd64,ia32}]
 
 == GRUB Debian ==
 * Debian for grub-pc with grub-efi co-install-ability feature request: [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 Allow concurrent installation of grub-pc and grub-efi-amd64]
@@ -193,14 +179,40 @@ At time of writing, systemd-boot as can be soon on https://packages.debian.org/t
 * https://cryptsetup-team.pages.debian.net/cryptsetup/encrypted-boot.html
 
 = Kicksecure Specific =
-
-* {{CodeSelect|inline=true|code=/etc/grub.d/10_linux}}
-** has been forked by [https://github.com/Kicksecure/dist-base-files <code>dist-base-files</code>]
-** [https://github.com/Kicksecure/dist-base-files/blob/master/etc/grub.d/10_00_linux_dist <code>/etc/grub.d/10_00_linux_dist</code>]
-* {{CodeSelect|inline=true|code=<code>/etc/grub.d/10_01_linux_live}}
+== GRUB - File Names ==
+* {{CodeSelect|inline=true|code=/etc/grub.d/10_00_linux_dist}}
+** {{CodeSelect|inline=true|code=/etc/grub.d/10_linux}} has been forked by [https://github.com/Kicksecure/dist-base-files <code>dist-base-files</code>]
+*** [https://github.com/Kicksecure/dist-base-files/blob/master/etc/grub.d/10_00_linux_dist <code>/etc/grub.d/10_00_linux_dist</code>]
+* {{CodeSelect|inline=true|code=/etc/grub.d/10_01_linux_live}}
 ** part of [[grub-live]]
-** [https://github.com/Kicksecure/grub-live <code>grub-live</code>]
-** legacy file name: <code>/etc/grub.d/11_linux_live</code>
+*** [https://github.com/Kicksecure/grub-live <code>grub-live</code>]
+*** legacy file name: <code>/etc/grub.d/11_linux_live</code>
+
+== /etc/default/grub.d/20_dist-base-files.cfg ==
+
+File {{CodeSelect|inline=true|code=
+/etc/default/grub.d/20_dist-base-files.cfg
+}} is used to undo the opinionated default configuration set by the Debian package [[Dev/boot#grub-cloud_package|grub-cloud package]].
+
+Why is the folder <code>/usr/share/derivative-base-files</code> used? Why is the file copied using derivative-maker during the build process? Why not simply ship the file as <code>/etc/default/grub.d/20_dist-base-files.cfg</code> as part of package <code>dist-base-files</code>? Because it is not applicable to all image creation and installation methods. This should only be done when building a VM image that uses grub-cloud (which is utilized by <code>grml-debootstrap</code>).
+
+<u>VM images:</u>
+
+File [https://github.com/Kicksecure/dist-base-files/blob/master/usr/share/derivative-base-files/20_dist-base-files.cfg <code>/usr/share/derivative-base-files/20_dist-base-files.cfg</code>] is copied by derivative-maker during the build process to <code>/etc/default/grub.d/20_dist-base-files.cfg</code>.
+
+<u>Kicksecure's ISO:</u>
+
+The ISO does not need <code>/etc/default/grub.d/20_dist-base-files.cfg</code> because it does not use <code>grub-cloud</code>. (The ISO is build using <code>live-build</code>, not <code>grml-debootstrap</code>.)
+
+<u>Calamares:</u>
+
+The installer used by Kicksecure's ISO, Calamares, edits the file <code>/etc/default/grub</code> by adding <code>rd.luks.uuid</code> to <code>GRUB_CMDLINE_LINUX_DEFAULT</code>. For example:
+
+<pre>
+GRUB_CMDLINE_LINUX_DEFAULT='quiet rd.luks.uuid=dc1f531b-eea8-47b0-86f2-a841d6d61a4e'
+</pre>
+
+If the file <code>/etc/default/grub.d/20_dist-base-files.cfg</code> were shipped unconditionally, it might break the boot process.
 
 = grub config file - calamares - grub unlocks full disk encrypted hard drive =
 
