@@ -151,6 +151,58 @@ sudo cp ~/derivative-maker/build_sources/debian_stable_current_clearnet.list /et
 sudo env REPO_PROXY="http://127.0.0.1:3142" http_proxy=${REPO_PROXY} https_proxy=${REPO_PROXY} ALL_PROXY=${REPO_PROXY} apt-get -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 update
 }}
 
+'''7.''' Check apt-cacher-ng configuration.
+
+The following command outputs apt-cacher-ng configuration excluding comments and duplicate newlines.
+
+{{CodeSelect|code=
+cat /etc/apt-cacher-ng/acng.conf {{!}} grep --invert-match "#" {{!}} cat -s
+}}
+
+Expected as of Debian bookworm:
+
+<pre>
+CacheDir: /var/cache/apt-cacher-ng
+
+LogDir: /var/log/apt-cacher-ng
+
+SupportDir: /usr/lib/apt-cacher-ng
+
+Remap-secdeb: security.debian.org security.debian.org/debian-security deb.debian.org/debian-security /debian-security cdn-fastly.deb.debian.org/debian-security ; deb.debian.org/debian-security security.debian.org cdn-fastly.deb.debian.org/debian-security
+
+ReportPage: acng-report.html
+
+ExThreshold: 4
+
+FollowIndexFileRemoval: 1
+
+LocalDirs: acng-doc /usr/share/doc/apt-cacher-ng
+
+AllowUserPorts: 0
+</pre>
+
+'''8.''' Check apt-cacher-ng log.
+
+{{CodeSelect|code=
+sudo journalctl --boot --output cat -u apt-cacher-ng
+}}
+
+'''9.''' apt-cacher-ng cache folder reset.
+
+{{CodeSelect|code=
+sudo systemctl stop apt-cacher-ng
+
+sudo mkdir --parents /var/cache/apt-cacher-ng
+
+sudo find /var/cache/apt-cacher-ng -mindepth 1 -print0 {{!}} xargs -0 sudo safe-rm --verbose -r -f
+
+sudo chown --recursive apt-cacher-ng:apt-cacher-ng /var/cache/apt-cacher-ng
+
+sudo systemctl restart apt-cacher-ng
+}}
+
+This script has been added as <code>help-steps/apt-cacher-ng-reset</code> to git master: https://github.com/Kicksecure/derivative-maker/blob/master/help-steps/apt-cacher-ng-reset
+
 = Custom Packages =
 [[Untested]].
 
