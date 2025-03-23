@@ -47,6 +47,79 @@ TODO
 == GRUB - boot related enhancements ==
 * Are there any other boot related enhancements outstanding? If so, please create tickets for these.
 
+== live-build - initramfs-tools is needlessly installed ==
+* please avoid, if feasible, as this prolonged build times, specifically for cross builds (arm64 on amd64)
+* non-issue: initramfs-tools inside final ISO. In other words: initramfs-tools later gets replaced by dracut. initramfs-tools is just needlessly intermediately installed.
+
+<pre>
+[2025-03-22 13:50:59] lb chroot_includes_before_packages --verbose --debug
+D: Reading configuration file config/common
+D: Reading configuration file config/bootstrap
+D: Reading configuration file config/chroot
+D: Reading configuration file config/binary
+D: Reading configuration file config/source
+P: Begin copying chroot includes before packages have been installed...
+P: Copying includes.chroot_before_packages into chroot using rsync...
+sending incremental file list
+etc/dracut.conf.d/
+etc/dracut.conf.d/50-reproducible.conf
+
+sent 215 bytes  received 40 bytes  510.00 bytes/sec
+total size is 17  speedup is 0.07
+[2025-03-22 13:51:00] lb chroot_package-lists install --verbose --debug
+D: Reading configuration file config/common
+D: Reading configuration file config/bootstrap
+D: Reading configuration file config/chroot
+D: Reading configuration file config/binary
+D: Reading configuration file config/source
+P: Begin queueing installation of package lists (install pass)...
+D: Executing: dpkg-query -s dctrl-tools
+D: Executing: apt-get install -o APT::Install-Recommends=false -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 -o Dpkg::Options::=--force-confnew --yes --allow-remove-essential -o APT::Color=true  dctrl-tools
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Suggested packages:
+  debtags
+The following NEW packages will be installed:
+  dctrl-tools
+0 upgraded, 1 newly installed, 0 to remove and 0 not upgraded.
+Need to get 101 kB of archives.
+After this operation, 418 kB of additional disk space will be used.
+Get:1 http://HTTPS///deb.debian.org/debian bookworm/main arm64 dctrl-tools arm64 2.24-3 [101 kB]
+Fetched 101 kB in 0s (780 kB/s)       
+debconf: delaying package configuration, since apt-utils is not installed
+Selecting previously unselected package dctrl-tools.
+(Reading database ... 8628 files and directories currently installed.)
+Preparing to unpack .../dctrl-tools_2.24-3_arm64.deb ...
+Unpacking dctrl-tools (2.24-3) ...
+Setting up dctrl-tools (2.24-3) ...
+D: Executing: apt-get remove --auto-remove --purge -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 -o Dpkg::Options::=--force-confnew --yes --allow-remove-essential -o APT::Color=true  dctrl-tools
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following packages will be REMOVED:
+  dctrl-tools*
+0 upgraded, 0 newly installed, 1 to remove and 0 not upgraded.
+After this operation, 418 kB disk space will be freed.
+(Reading database ... 8668 files and directories currently installed.)
+Removing dctrl-tools (2.24-3) ...
+(Reading database ... 8628 files and directories currently installed.)
+Purging configuration files for dctrl-tools (2.24-3) ...
+[2025-03-22 13:51:10] lb chroot_install-packages install --verbose --debug
+D: Reading configuration file config/common
+D: Reading configuration file config/bootstrap
+D: Reading configuration file config/chroot
+D: Reading configuration file config/binary
+D: Reading configuration file config/source
+P: Begin installing packages (install pass)...
+D: Executing: xargs --max-args 1 --arg-file=/root/packages.chroot apt-get -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 -o Dpkg::Options::=--force-confnew --yes --allow-remove-essential -o APT::Color=true install
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following additional packages will be installed:
+  cpio initramfs-tools initramfs-tools-core klibc-utils kmod libklibc libkmod2 linux-base linux-image-6.1.0-32-arm64 udev
+</pre>
+
 == lightweight update notifications ==
 * Qubes vs non-Qubes:
 ** should not conflict with Qubes internal updater (multiple APT background processes blocking each other) - do this only inside Non-Qubes?
@@ -76,6 +149,9 @@ upgrade-nonroot
 * The first "INFO: Kicksecure APT Repository" might be too noisy and could easily be disabled in GUI output by default.
 * git history contains /usr/libexec/systemcheckdaemon
 ** Aaron: systemcheck shows a lot of info about multiple components, much of which a user may skip over or be tempted to skip over. I would prefer implementing this in such a way that a typical desktop notification (such as what <code>notify-send</code> can produce) is shown to the user when there are updates.
+** Patrick:
+*** It's possible to run select functions only, for example: <code>systemcheck --verbose --function check_operating_system</code>.
+*** Other functions might be useful as well such as <code>check_package_manager_running</code> and <code>check_dpkg</code>.
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
