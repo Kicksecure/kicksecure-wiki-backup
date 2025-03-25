@@ -26,8 +26,10 @@ It's the system build tool that is responsible for setting up the bootloader, wh
 |context=[https://metadata.ftp-master.debian.org/changelogs//main/g/grub2/grub2_2.12-5_changelog <code>grub2</code> package, Debian changelog, Colin Watson Nov 2020]
 }}
 
-== grub-cloud package ==
+== Core Bootloader Packages ==
+Kicksecure uses different metapackages to provide the bootloader for different systems. grub-cloud is used on Kicksecure VMs, while grub-efi and grub-pc-bin are used by the ISO.
 
+=== grub-cloud package ===
 {{Quotation
 |quote=You don't want to use this package outside of cloud images.
 |context=[https://packages.debian.org/{{Stable project version based on Debian codename}}/grub-cloud-amd64 <code>grub-cloud-amd64</code> package, Debian]
@@ -108,8 +110,91 @@ Related Debian pull requests:
 
 * [https://salsa.debian.org/grub-team/grub/-/merge_requests/76 Remove ucf conffile conflict between grub-pc and grub-efi-{amd64,ia32}]
 
-== GRUB Debian ==
+=== grub-efi and grub-pc ===
 * Debian for grub-pc with grub-efi co-install-ability feature request: [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 Allow concurrent installation of grub-pc and grub-efi-amd64]
+
+== Bootloader-related Kicksecure and Whonix packages ==
+The following packages directly affect the bootloader or bootloader configuration used by Kicksecure.
+
+=== live-config-dist ===
+* Purpose: Used to provide installer and live ISO configuration.
+* Effects on bootloader:
+** Sets the distro name and version shown on the boot menu of the live ISO.
+** Ensures a menu entry for accessing UEFI firmware settings is added to the live ISO.
+** Ensures the GRUB fallback bootloader is properly installed.
+** Assists with initial bootloader installation on machines installed from the ISO.
+
+=== dist-base-files ===
+* Provides base configuration used by both Kicksecure and Whonix.
+* Effects on bootloader:
+** Provides customized versions of the grub-mkconfig scripts in order to reorganize the bootloader menu so that normal boot modes appear at the top, and "Advanced options" boot modes appear at the bottom.
+** Provides common files for the Kicksecure and Whonix GRUB themes.
+** For VM images (not ISO-installed systems), overrides non-ideal GRUB bootloader settings from grub-cloud, putting the kernel in quiet mode and disabling the serial console.
+
+=== grub-live ===
+* Provides a live boot mode. Changes made to the root filesystem in this mode are ephemeral and will be lost on reboot.
+* Effects on bootloader:
+** Adds entries to the boot menu for booting in live mode.
+** Adds additional debugging info to the output of grub-mkconfig.
+
+=== serial-console-enable ===
+* Adds a TTY that can be accessed via the serial console.
+* Effects on bootloader:
+** Enables GRUB bootloader serial console output.
+** Adds kernel parameters to the Linux kernel command line to enable a TTY on the serial console.
+
+=== security-misc ===
+* Enables a plethora of hardening features to increase the security of Kicksecure and Whonix.
+* Effects on bootloader:
+** Enables strong CPU vulnerability mitigations via the kernel command line.
+** Enables several general kernel hardening features via the kernel command line.
+** Puts the kernel into quiet logging mode via kernel parameters to avoid leaking sensitive info on the console during boot.
+** Disables Dracut-based recovery features via kernel parameters to make it more difficult to get a root shell improperly.
+
+=== usability-misc ===
+* Provides miscellaneous usability improvements for Kicksecure.
+* Effects on bootloader: Sets the default display resolution during early boot to 1024x768. (Note that this is NOT a hard limit; the end-user can set their resolution to whatever they want once the system is booted.)
+
+=== debug-misc ===
+* Enables a wide variety of debugging features. Not installed by default and should NOT be installed on systems where security is a concern.
+* Effects on bootloader:
+** Removes kernel parameters that would otherwise disable message printing on the console during early boot.
+** Enables verbose debugging output in initramfs-tools, dracut, systemd, and the Linux kernel via kernel parameters.
+** Disables SELinux enforcement via a kernel parameter. Kicksecure itself doesn't use SELinux by default, but debug-misc may be used on some other distro or a user might enable SELinux later, which could interfere with debugging.
+
+=== kicksecure-base-files ===
+* Provides base configuration specific to Kicksecure.
+* Effects on bootloader:
+** Sets the distro name shown on the boot menu of installed systems.
+** Provides the Kicksecure-specific components of the GRUB theme.
+** Sets the GRUB theme in GRUB itself.
+** Sets the screen resolution for the GRUB menu to 1280x720 on EFI systems, and 1024x768 on BIOS systems.
+
+=== user-sysmaint-split ===
+* Prevents standard user accounts from using privilege escalation tools to obtain root and provides a special sysmaint boot mode in which root access can be obtained.
+* Effects on bootloader:
+** Adds a boot entry for booting into sysmaint mode.
+** Adds a boot entry for uninstalling user-sysmaint-split quickly and with minimal effort.
+
+=== whonix-base-files ===
+* Whonix-only. Provides base configuration specific to Whonix.
+* Effects on bootloader: Sets the distro name shown on the boot menu of installed systems to a generic "Whonix" value. This is usually overridden by one of anon-ws-base-files or anon-gw-base-files.
+
+=== anon-ws-base-files ===
+* Whonix-only. Provides base configuration specific to Whonix-Workstation.
+* Effects on bootloader:
+** Sets the distro name shown on the boot menu of installed systems.
+** Provides the Whonix-Workstation-specific components of the GRUB theme.
+** Sets the GRUB theme in GRUB itself.
+** Sets the screen resolution for the GRUB menu to 1280x720 on EFI systems, and 1024x768 on BIOS systems.
+
+=== anon-gw-base-files ===
+* Whonix-only. Provides base configuration specific to Whonix-Gateway.
+* Effects on bootloader:
+** Sets the distro name shown on the boot menu of installed systems.
+** Provides the Whonix-Gateway-specific components of the GRUB theme.
+** Sets the GRUB theme in GRUB itself.
+** Sets the screen resolution for the GRUB menu to 1280x720 on EFI systems, and 1024x768 on BIOS systems.
 
 = GRUB Upstream =
 == GRUB Slow Upstream ==

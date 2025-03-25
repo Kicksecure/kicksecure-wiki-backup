@@ -3010,34 +3010,42 @@ Result
 ## {{CustomRepo|Sitenotice.css}}
 ## {{CustomRepo|Sitenotice.js}}
 ## [[Template:Sitenotice_id]]
+## [[Template:Header]]
 # Sitenotice is excluded from search engine indexing via [[#Exclusion_of_text_parts_from_search_engine_indexing]]
 # NoJS: For NoJS users there is no option to close the siteNotice
-# Update info
-## In the past there were more rules for sitenotice, but this has change due to the new solution. All rules are given below. Also some more files were important back then, not anymore.
-## In the past we used [[MediaWiki:Sitenotice_id]]. However updating this ID came in conflict with the https://www.mediawiki.org/wiki/Extension:FlaggedRevs that we're using. That's why it has been replaced with [[Template:Sitenotice_id]] which serves the same purpose
-# History of solution stack
-## Previously we used the [https://www.mediawiki.org/wiki/Extension:DismissableSiteNotice Extension:DismissableSiteNotice], but this is no longer the case. We have our own solution which enables the sitenotice to be dismissable
-## The solution needed to be dismissable. Therefore Javascript was involved
-## But if dismissed banners are closed by Javascript this is too late if the page is loaded because the page will "jump" and have a bad lighthouse content shift score. Therefore the page is hidden by user cookie which is set to the server on request and rendered as a body class which then hides the cookie immediately. This is done by [[Dev/mediawiki#Extension_CookieToBodyClass Extension:CookieToBodyClass]] which our SiteNotice solution therefore is dependent on
-### If the user dismisses a banner he gets a cookie which is active 1 month and then auto-deletes which shows the banner again
+# '''History of solution stack / current solution'''
+## In the past there were more rules for sitenotice, but this has change due to the new solution.
+##* All rules are given below.
+##* Also some more files were important back then, not anymore.
+## In the past we used [[MediaWiki:Sitenotice_id]].
+##* However updating this ID came in conflict with the https://www.mediawiki.org/wiki/Extension:FlaggedRevs that we're using.
+##* That's why it has been replaced with [[Template:Sitenotice_id]] which serves the same purpose
+## Previously we used the [https://www.mediawiki.org/wiki/Extension:DismissableSiteNotice Extension:DismissableSiteNotice], but this is no longer the case
+## '''We now have our own solution''' which needed to be dismissable. Therefore Javascript was involved
+##* But if dismissed banners are closed by Javascript this is too late if the page is loaded because the page will "jump" and have a bad lighthouse content shift score.
+## Therefore the page is hidden by user cookie which is set to the server on request and rendered as a body class which then hides the cookie immediately.
+##* This is done by [[Dev/mediawiki#Extension_CookieToBodyClass|Extension:CookieToBodyClass]] which our SiteNotice solution therefore is dependent on
+##* If the user dismisses a banner he gets a cookie which is active 1 month and then auto-deletes which shows the banner again
+##* The ID based CSS style according to the [[Template:Sitenotice_id]] which enables the pre-javascript hiding is done in [[Template:Header]] via the [https://www.mediawiki.org/wiki/Extension:CSS Extension:CSS] which our SiteNotice solution therefore is dependent on
+##* And we needed a way to force new banners upon the user - for example if there is an emergency but the user has dismissed the old banner less than a month ago.
+##** Therefore we use [[Template:Sitenotice_id]]. This ID corresponds to the banner that should be displayed
+##** If this id is changed to a new banner id then the user cookie will see the new banner which he might dismiss again. The "dismissable" is linked to an ID
 ## We also needed a way to make banners active and non-active. So we introduced a Template. This template in turn uses the widget because widgets can do some things in mediawiki that templates can't
-## Then we also needed a possibility to not show a banner if it's expired. That is also implemented
-## And we needed a way to force new banners upon the user - for example if there is an emergency but the user has dismissed the old banner less than a month ago. Therefore we used Sitenotice_id. If this id is changed then the user cookie will not longer hide the banner and he sees the new one which he might dismiss again
+## Then we also needed a possibility to automatically hide a banner if it's expired. That is also implemented
 # '''USAGE'''
 ## You usually only touch [[MediaWiki:Sitenotice]], [[Template:Sitenotice_id]] and occasionally {{CustomRepo|Sitenotice.css}}. Everything else is maintained by core developers of this wiki
 ## '''CREATE BANNER''' : Open [[MediaWiki:Sitenotice]] and create a new instance of [[Template:SitenoticeBanner]] with these parameters
+### '''id (mandatory)''' : Gives the banner an id-attribute which determines its visibility. Only the banner with the same ID as in [[Template:Sitenotice_id]] will be visible. This id can also be used for for styling. It is recommended to add the individual styles of a banner to {{CustomRepo|Sitenotice.css}} or {{CustomRepo|alt=/blob/master/mediawiki-shared/src/kicksecure/LocalSkin.css LocalSkin.css}} using <code><nowiki>#siteNotice .sitenotice-banner[data-banner-id="<<<banner-id>>>"]</nowiki></code>
 ### '''html (mandatory)''' : The content of the banner. You can omit it, but the banner in most cases makes no sense without HTML to fill it
-### '''active (optional, default: unset)''' : This is NECESSARY if you want to activate (show) a banner. If this parameter is omitted or false then the banner will '''not even be rendered'''. Use "|active=true" (or True or TRUE) to show the banner. To explicitely state that the banner is inactive you can also write "|active=false"
 ### '''href (optional)''' : If it's given then the html is rendered inside of an a-element with href-attribute as href
 ### '''expires (optional)''' : This is a UNIX timestamp in seconds. If the banner needs to end on a specific date and the creator does not want to check all of the time this happens automatically and the banner will not even be rendered after this date
-### '''id (optional)''' : Gives the banner an id-attribute for styling. It is recommended to add the individual styles of a banner to {{CustomRepo|Sitenotice.css}} or {{CustomRepo|alt=/blob/master/mediawiki-shared/src/kicksecure/LocalSkin.css LocalSkin.css}}
-## '''Banner visibility''' is global. If the user has dismissed your banner ALL of your banners will be invisible for one month. If you want to reset the banner visibility go to [[Template:Sitenotice_id]] and change the ID to a new string. Then whichever current banner (seen or not seen) will be visible again for ALL users
+## '''Banner visibility''' is global. If the user has dismissed your banner ALL of your banners will be invisible for one month.
+##* If you want to reset the banner visibility go to [[Template:Sitenotice_id]] and change the ID to a new string. If no banner matches the ID then no banner will be shown
 ## Example code {{CodeSelect|code={{SitenoticeBanner
-{{!}}active=true
+{{!}}id=my-banner-id
 {{!}}html=<img class="full-size" decoding="async" loading="lazy" src="/w/images/7/7d/Banner-dev-wanted-slim.jpg" width="960" height="140" alt="Developer wanted for Kicksecure ISO development">
 {{!}}href=/wiki/Contribute
 {{!}}expires=16776808891
-{{!}}id=my-banner-id
 }}
 }}
 ## '''Additional JS functionality''': If you need special functionality for some banners put them in {{CustomRepo|Sitenotice.js}} under "B : Custom Banners Functionality"

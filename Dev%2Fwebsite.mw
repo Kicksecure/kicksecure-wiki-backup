@@ -117,17 +117,108 @@ report only
 ** The stage server becomes the master server for code files. That way new scripts can be developed and tested on the stage server without disrupting the normal production use of the public wikis. Once a new feature is ready it can be multiwiki deployed from the stage server (master) to the slave wikis
 * For content pages the Kicksecure wiki might still be the master however
 
+== check this stuff ==
+
+* https://www.debugbear.com
+** Pricing 99/249/699 per month, no free plan (only 14 day trial)
+** Probably too expensive
+** There are probably free alternatives
+* https://www.speedcurve.com/
+** Pricing 12/576/1680 per month, no free plan (only trial)
+** Probably too expensive
+* https://developer.chrome.com/docs/devtools/application/back-forward-cache/
+** This is a browser dev tools functionality
+** Checks if a page stays in cache forwards and backwards
+** Dev has tested this on both wikis on hp, about, download, docs and donate - works fine everywhere
+** Does probably not need to be documented because Lighthouse does this automatically and gives error messages if not working
+** A site note: They explain that cache-control: no-store should be used only for pages that have private information, everything else no-cache
+* https://www.mediawiki.org/wiki/Snippets/Load_an_additional_JavaScript_or_stylesheet_file_on_all_pages
+** This gives another method to load styles and javascript for all pages
+** This is not needed because we already have our own build process and headscript
+* https://marketingpipeline.github.io/CSS-Image-Loader/index.html
+** Here is the main link https://github.com/MarketingPipeline/CSS-Image-Loader
+** This is a topic that Dev research a while ago
+** It's basically a hack. That hack might become an HTMl feature in the future, it would make sense. But for now it's using a common browser W3C-non-conformity (i. e. images may not have after or before pseudo elements).
+** The author himself states <blockquote>Note: this is just a proof of concept. You should still provide a fallback source for your images using an onerror etc. As iOS / Webkit devices do NOT currently support the CSS attribute ::before needed for the fallback error image.</blockquote>
+** Conclusion: Not recommended to use currently.
+* https://medium.com/free-code-camp/using-svg-as-placeholders-more-image-loading-techniques-bed1b810ab2c
+** In this article some best practices for image are discussed
+** We use some of the techniques already (for example for the preloaded hero images
+** Dev did see nothing that we would need to implement right now
+* https://github.com/fogleman/primitive
+** This seems like a pretty brilliant technique. Could also be considered an art style
+** Dev used something similar (but not as advanced) to create the hero image svg previews
+** The question for us if we want to use it in the future is: How easy is it to use? How much control do we get over the interations?
+** If it works with the command line so easily that could be great (needs to be tested)
+** Judging by the possible flags Dev thinks it could be useful
+** So yes, great find. Needs to be tested though.
+* https://github.com/kizule/mediawiki-extensions-Kicksecure
+** This is just a hello world right now. Not sure what should be accomplished here?
+* https://textoptimizer.com/
+** Seems like an interesting tool
+** Appears to be a "tag cloud from the internet"
+** Dev not sure how useful. Can be good for SEO, but needs a lot of work, because those words cannot be just pasted in
+** The tool also offers an AI assistent, but it's probably risky to "AI-ify" the whole website just for (questionable) SEO improvements
+** Also this tool is free for now which is suspicious. Probably a venture capitalist project with a lot of VC money which will cost a lot in the future
+* https://github.com/vozlt/nginx-module-vts
+** Seems very interesting
+** Probably a more "basic" but also much cheeper alternative to https://www.speedcurve.com/
+
+'''DEV'''
+* DONE
+* See notes above
+
+== Server forcing browser cache clear methods ==
+
+'''DEV'''
+* As discussed with admin a method for forcing the browser to reload a document by the server is needed - especially for the mobile browsers. They sometimes don't even reload the document, but just the headers and they seem to ignore or misinterpret our cache headers
+* Suggestions: Admin could use
+** <code>cache-control: no-store</code> : This would be a very aggressive anti cache strategy that prevents any caching. It's maybe too aggressive, but mentioned for completeness
+** <code>cache-control: no-cache, must-revalidate</code> : no-cache does not prevent the use of caching, but forces the browser to revalidate with the origin server
+** <code>ETag: [versionId]</code> : The Etag header could be used. This is basically a version number header for the document
+* Opinion
+** We are currently using: <code>cache-control: s-maxage=86400, must-revalidate, max-age=0</code>
+** Dev thinks that we are missing the <code>no-cache</code> value. This should be tried first. All the big platforms seem to have it https://fred-gu.medium.com/fix-the-annoying-web-page-caching-issue-permanently-5d16527d0b5a
+** ETag also seems like an interesting method. The article above does not mention ETag, but it might be there. But browsers could also ignore ETag
+** No-store seems too aggressive and can maybe only be used if the request has the <code>?debug=true</code> query. But on the other hand our developer bypasses are good enough Dev thinks
+* For more information
+** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
+* different per resource:
+** https://www.kicksecure.com/mw-autogen/mw-combined-skincss.min.css?css-extension=1&hsversion_from_server_replacement_unixtime=1742808625&hsversion_from_server_replacement_unixtime=1742808625
+** https://www.kicksecure.com
+* backend server vs frontend server
+* goals: caching users versus debugging developers
+
 = TODO DEV =
+== OCSP-Stapling not provided ==
+'''DEV'''
+* FYI: The opion <code>--cert-status</code> was removed from the build file "request-servers-to-fetch-and-deploy"
+* Currently it seems the servers are configured to not give a OCSP response
+* Patrick: Was disabled. If not causing issues, please move to archived.
+
 == pay what you want modal - add legal text ==
 * "There are five ways to support Kicksecure financially: (1.) [...]"
 ** todo: discuss shortening of the text on [[Donate]] so it gets easier to re-use it for the pay what you want modal
 * similar as on [[Donate]]
 
-== wiki banner - close dismiss button broken ==
-* steps to reproduce: 1. open a page; 2. close banner; 3. reload the page (F5)
-* expected behavior: banner is gone
-* actual behavior: bug. banner not gone. banner re-appears.
-* speculation of cause of this bug: the cookie to disable the wiki banner isn't properly set
+'''DEV'''
+* Discussion
+*# Dev suggests keeping the page Donate with more text.
+*#* This is the one page where Whonix can lay out its case for wanting the users to donate
+*#* But there is room to improve the page. Dev suggests making the page a bit like [https://www.whonix.org/wiki/Users_of_Whonix Users of Whonix] without the alternating side switches and a bit shorter. We lay out the case why its important (and great) to donate to Whonix / Kicksecure.
+*# The shorter text could be used as an intro (template?) to Donate, but should not replace the whole text of the Donate page
+*#* New Text suggestion: '''Our free software empowers users like you! Your donation helps us improve and keep it at the highest standards!'''
+*# Dev also suggests creating another brand as an umbrella for Whonix and Kicksecure. So it's easier to say "donate to XYZ", instead of donating to Whonix or Kicksecure.
+*#* The name should also strongly present the mission, which is implicitly already there - represented in Whonix and Kicksecure
+*#* A strong brand can be an even better pull for donations than Whonix or Kicksecure singularily. It's like with Firefox and Mozilla. Do you rather donate "to the software Firefox" or to the "Mozilla foundation with its great mission and all its great projects"? (Their reputation has been tarnished recently by their own doing but that's beside the point)
+*#* If the brand Whonix is still the main pull for donations than the new name could involve Whonix itself like "Whonix Initiative" or we could use something similar like "Whonity Institute / Alliance / Hub"
+
+Patrick:
+
+* This is only about legal.
+* pay what you want modal lacks legal notice. needed:
+* There are five ways to support Kicksecure financially: (1.) Sponsoring a new feature - please get in contact for details. (2.) Paying for Plus Support (3.) Paying for Plus Support in lieu of a donation. Users may send any amount of funds to Kicksecure. A consultation service commensurate with the amount contributed will be negotiated between both parties. (4.) Invest | Our Terms of Service apply. | Corporations who purchase Plus Support packages may be able to claim these as tax-deductible expenses - first consult a tax advisor, as this does not constitute tax advice. | Charitable tax-deductible donations are unsupported.
 
 == wiki header - add Forum Best Practices link to header community ==
 * please add [[Forum Best Practices]] to wiki header under menu point "community"
@@ -299,74 +390,6 @@ upcoming:
 
 = WAITING ON =
 = REVIEW PLEASE =
-
-== check this stuff ==
-
-* https://www.debugbear.com
-** Pricing 99/249/699 per month, no free plan (only 14 day trial)
-** Probably too expensive
-** There are probably free alternatives
-* https://www.speedcurve.com/
-** Pricing 12/576/1680 per month, no free plan (only trial)
-** Probably too expensive
-* https://developer.chrome.com/docs/devtools/application/back-forward-cache/
-** This is a browser dev tools functionality
-** Checks if a page stays in cache forwards and backwards
-** Dev has tested this on both wikis on hp, about, download, docs and donate - works fine everywhere
-** Does probably not need to be documented because Lighthouse does this automatically and gives error messages if not working
-** A site note: They explain that cache-control: no-store should be used only for pages that have private information, everything else no-cache
-* https://www.mediawiki.org/wiki/Snippets/Load_an_additional_JavaScript_or_stylesheet_file_on_all_pages
-** This gives another method to load styles and javascript for all pages
-** This is not needed because we already have our own build process and headscript
-* https://marketingpipeline.github.io/CSS-Image-Loader/index.html
-** Here is the main link https://github.com/MarketingPipeline/CSS-Image-Loader
-** This is a topic that Dev research a while ago
-** It's basically a hack. That hack might become an HTMl feature in the future, it would make sense. But for now it's using a common browser W3C-non-conformity (i. e. images may not have after or before pseudo elements).
-** The author himself states <blockquote>Note: this is just a proof of concept. You should still provide a fallback source for your images using an onerror etc. As iOS / Webkit devices do NOT currently support the CSS attribute ::before needed for the fallback error image.</blockquote>
-** Conclusion: Not recommended to use currently.
-* https://medium.com/free-code-camp/using-svg-as-placeholders-more-image-loading-techniques-bed1b810ab2c
-** In this article some best practices for image are discussed
-** We use some of the techniques already (for example for the preloaded hero images
-** Dev did see nothing that we would need to implement right now
-* https://github.com/fogleman/primitive
-** This seems like a pretty brilliant technique. Could also be considered an art style
-** Dev used something similar (but not as advanced) to create the hero image svg previews
-** The question for us if we want to use it in the future is: How easy is it to use? How much control do we get over the interations?
-** If it works with the command line so easily that could be great (needs to be tested)
-** Judging by the possible flags Dev thinks it could be useful
-** So yes, great find. Needs to be tested though.
-* https://github.com/kizule/mediawiki-extensions-Kicksecure
-** This is just a hello world right now. Not sure what should be accomplished here?
-* https://textoptimizer.com/
-** Seems like an interesting tool
-** Appears to be a "tag cloud from the internet"
-** Dev not sure how useful. Can be good for SEO, but needs a lot of work, because those words cannot be just pasted in
-** The tool also offers an AI assistent, but it's probably risky to "AI-ify" the whole website just for (questionable) SEO improvements
-** Also this tool is free for now which is suspicious. Probably a venture capitalist project with a lot of VC money which will cost a lot in the future
-* https://github.com/vozlt/nginx-module-vts
-** Seems very interesting
-** Probably a more "basic" but also much cheeper alternative to https://www.speedcurve.com/
-
-'''DEV'''
-* DONE
-* See notes above
-
-== Server forcing browser cache clear methods ==
-
-'''DEV'''
-* As discussed with admin a method for forcing the browser to reload a document by the server is needed - especially for the mobile browsers. They sometimes don't even reload the document, but just the headers and they seem to ignore or misinterpret our cache headers
-* Suggestions: Admin could use
-** <code>cache-control: no-store</code> : This would be a very aggressive anti cache strategy that prevents any caching. It's maybe too aggressive, but mentioned for completeness
-** <code>cache-control: no-cache, must-revalidate</code> : no-cache does not prevent the use of caching, but forces the browser to revalidate with the origin server
-** <code>ETag: [versionId]</code> : The Etag header could be used. This is basically a version number header for the document
-* Opinion
-** We are currently using: <code>cache-control: s-maxage=86400, must-revalidate, max-age=0</code>
-** Dev thinks that we are missing the <code>no-cache</code> value. This should be tried first. All the big platforms seem to have it https://fred-gu.medium.com/fix-the-annoying-web-page-caching-issue-permanently-5d16527d0b5a
-** ETag also seems like an interesting method. The article above does not mention ETag, but it might be there. But browsers could also ignore ETag
-** No-store seems too aggressive and can maybe only be used if the request has the <code>?debug=true</code> query. But on the other hand our developer bypasses are good enough Dev thinks
-* For more information
-** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
 
 = Footnotes =
 {{reflist|close=1}}
