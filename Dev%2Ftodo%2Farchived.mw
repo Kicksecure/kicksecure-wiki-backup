@@ -10,7 +10,2582 @@ ToDo for Developers (archived)
 Archived TODOs
 }}
 
-= ARCHIVED =
+= ARCHIVED 2 =
+== user-sysmaint-split - Qubes support ==
+* Ensure template provides sudo access and allows normal system maintenance, while AppVM doesn't.
+* Ensure sysmaint-panel works properly
+* Workarounds may be needed so that the <code>sysmaint</code> account is used by default in sysmaint mode rather than <code>user</code>.
+* Qubes upstream PR needed for sysmaint-related changes to work: https://github.com/QubesOS/qubes-core-qrexec/pull/194
+** PR is merged upstream.
+* Changed packages:
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/qubes-sysmaint
+*** Patrick: Merged.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/qubes-sysmaint
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-sysmaint
+*** Patrick: Merged.
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/qubes-sysmaint
+*** Patrick: Merged.
+
+== user-sysmaint-split - advertise boot modes in Qubes OS ==
+* Add needed files for advertising supported boot modes in Whonix-Workstation
+* Whonix-Gateway will not be using user-sysmaint-split by default and thus should NOT have these files unless the user manually installs the needed packages
+** Code done in the same branches listed under https://www.kicksecure.com/wiki/Dev/todo#user-sysmaint-split_-_Qubes_support.
+
+== grml-debootstrap - review #332 ==
+* https://github.com/grml/grml-debootstrap/pull/332
+* please do a theoretic review if it might have adverse effects
+* Aaron: Thoroughly reviewed and tested with derivative-maker. Looks good, works just fine.
+
+== grml-debootstrap - dual grub-pc and grub-efi compatibility ==
+* now default by grml-debootstrap? does above PR effect it?
+* Aaron: PR does not appear to affect hybrid BIOS+UEFI boot compatibility at all. I was able to build a Kicksecure VirtualBox VM that was both BIOS and UEFI-bootable using the <code>zeha/grub-once</code> branch the PR is in.
+
+== grml-debootstrap - GRUB installation refactoring ==
+* https://github.com/grml/grml-debootstrap/issues/258
+* The following line is very difficult to follow.
+
+<pre>
+  # Has chroot-script installed GRUB to MBR using grub-install (successfully), already?
+  # chroot-script skips installation for unset ${GRUB}
+  if [[ -z "${GRUB}" ]] || ! dd if="${GRUB}" bs=512 count=1 2>/dev/null | cat -v | grep -Fq GRUB; then
+</pre>
+
+* Split into multiple conditions?
+* More informational output.
+* Possible to leave GRUB installation to grml-deboostrap and leave it out from chroot-script?
+* potential bug / difficult to follow cod paths: chroot-script seems to set up grub-pc in some cases only. But if it does, then <code>--vmefi</code> would be skipped.
+* Better code documentation?
+* Looked at the code, concluded the best way to refactor it out was to implement https://github.com/grml/grml-debootstrap/issues/320 since it didn't serve any useful purpose other than working around a needless redundancy anyway.
+** PR: https://github.com/grml/grml-debootstrap/pull/331
+** Merged.
+
+== live-build - initramfs-tools is needlessly installed ==
+* please avoid, if feasible, as this prolonged build times, specifically for cross builds (arm64 on amd64)
+* non-issue: initramfs-tools inside final ISO. In other words: initramfs-tools later gets replaced by dracut. initramfs-tools is just needlessly intermediately installed.
+* Reduced unnecessary initramfs rebuilds in https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+** Patrick: merged
+* Got rid of initramfs-tools and installed dracut earlier in the build process in https://github.com/ArrayBolt3/derivative-maker/commit/8ce944308b767c328c443dcf15d5f6b1fba57dec
+** Patrick: merged
+
+== GRUB - improve developer documentation ==
+* see [[Dev/boot]] and related wiki pages in mininav (links on top of the wiki page)
+* document which tools are writing to important files such as /etc/default/grub
+* Documented all Kicksecure and Whonix packages that make meaningful changes to GRUB configuration or setup.
+
+== calamares - use /etc/default/grub.d drop-in folder instead of /etc/default/grub file ==
+* This is to avoid the issue of multiple files attempting to write to /etc/default/grub, dpkg interactive conflict resolution dialogs, ucf.
+* if applicable
+* This feature already exists in Calamares, but is sadly broken. PR to fix at https://github.com/calamares/calamares/pull/2445
+* This can be worked around in the short term using a shellprocess. Code with workaround: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/grubcfg Tested and appears to work on my end.
+* Patrick: Merged.
+
+== Qubes kloak-alike tickets ==
+* please comment on https://github.com/QubesOS/qubes-issues/issues/1850 and other related tickets as sensible
+** https://github.com/QubesOS/qubes-issues/issues/1850#issuecomment-2655357292
+** https://github.com/QubesOS/qubes-issues/issues/8541#issuecomment-2655358902
+** https://github.com/vmonaco/kloak/issues/74#issuecomment-2655362546
+* What other steps are required to enable Qubes kloak-alike for Qubes-Whonix? Please create tickets.
+** https://github.com/QubesOS/qubes-issues/issues/9771
+*** Implemented in https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/20, handling in a separate task.
+** https://github.com/QubesOS/qubes-issues/issues/9861
+
+== calamares dual legacy + efi booting support ==
+* as discussed
+* PR opened at https://github.com/calamares/calamares/pull/2422
+* Merged.
+
+== Verified Boot 3mdeb Git ==
+* please review and comment
+* Reviewed, commented where appropriate, will keep up-to-date with future changes.
+
+== pwchange migration packaging bug ==
+<pre>
+dpkg -l | grep usability      
+ii  usability-misc                                3:26.2-1                             all          Misc usability improvements
+</pre>
+
+<pre>
+dpkg: error processing archive /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb (--unpack):
+ trying to overwrite '/usr/sbin/pwchange', which is also in package usability-misc 3:26.2-1
+Errors were encountered while processing:
+ /var/cache/apt/archives/helper-scripts_3%3a27.8-1_all.deb
+</pre>
+
+* Patrick renamed pwchange to pwchange_ as a stopgap.
+* Patrick made some improvements to pwchange_.
+* If this is difficult to fix, we can just move pwchange back to usability-misc perhaps until release upgrade (if that simplifies things).
+* Discussed cause and solution with Patrick, file shouldn't need to be moved back to usability-misc.
+
+<pre>
+helper-scripts debian/changelog:
+
+    helper-scripts (3:28.2-1) unstable; urgency=medium
+    ...
+
+usability-misc debian/changelog:
+
+    usability-misc (3:26.4-1) unstable; urgency=medium
+    ....
+
+helper-scripts debian/control:
+
+    Package: helper-scripts
+    ...
+    Breaks: usability-misc (<< 3:26.4-1)
+    Replaces: usability-misc (<< 3:26.4-1)
+    ...
+
+usability-misc debian/control:
+
+    Package: usability-misc
+    ...
+    Depends: ... helper-scripts (>= 3:28.2-1) ...
+    ...
+</pre>
+
+== systemcheck - improve login security output format ==
+* current table format is confusing, rework as discussed
+* Improved in https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+** Patrick: Merged.
+* Also found an autologinchange bug (was trying to create /etc/sddm.conf.d without root privileges), fixed in https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+** Patrick: Merged.
+== user-sysmaint-split - GUI vs CLI ==
+* GUI (login manager) versus CLI (tty login)
+* clarify autologinchange GUI vs CLI
+* clarify inside systemcheck
+** Aaron: Implemented clarifications:
+*** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+*** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/autologin
+*** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+* check systemcheck CLI autologin in separate column, if feasible (separate columns for GUI vs CLI autologin)
+** Aaron: This looks difficult, see https://unix.stackexchange.com/questions/401759/automatically-login-on-debian-9-2-1-command-line. Console autologin has details about things like serial terminals and the like that one has to be aware of, and depending on one's systemd configuration, determining when automatic login is enabled vs. when it isn't may be tricky. Should probably be split into a separate task if we want to pursue this, noting that it may end up a modestly large job.
+* test login (non-automatic) into sysmaint CLI tty1
+** Aaron: tty1 has boot messages and RADS messages still showing on it. Does not accept user input. I can however log into the <code>sysmaint</code> account on tty2 when booted in PERSISTENT mode SYSMAINT. All I need to do is type the username and press Enter, the account is passwordless in my VM so I'm granted access without a password prompt, similar to how account <code>user</code> behaves.
+* Patrick: all merged
+
+== privleap - pwd bug ==
+* Qubes, sys-whonix
+<pre>
+[gateway user ~]% leaprun tor-verify-config                
+Mar 17 06:38:26.693 [notice] Tor 0.4.8.13 running on Linux with Libevent 2.1.12-stable, OpenSSL 3.0.15, Zlib 1.2.13, Liblzma 5.4.1, Libzstd 1.5.4 and Glibc 2.36 as libc.
+Mar 17 06:38:26.693 [notice] Tor can't help you if you use it wrong! Learn how to be safe at https://support.torproject.org/faq/staying-anonymous/
+Mar 17 06:38:26.693 [notice] Read configuration file "/etc/tor/torrc".
+Mar 17 06:38:26.694 [notice] Processing configuration path "/etc/torrc.d/*.conf" at recursion level 1.
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/60_network.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/65_gateway.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/65_leak_tests.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/70_workstation.conf".
+Mar 17 06:38:26.694 [notice] Processing configuration path "/usr/share/tor/tor-service-defaults-torrc.anondist" at recursion level 2.
+Mar 17 06:38:26.694 [notice] Including configuration file "/usr/share/tor/tor-service-defaults-torrc.anondist".
+Mar 17 06:38:26.694 [notice] Including configuration file "/etc/torrc.d/95_whonix.conf".
+Mar 17 06:38:26.694 [notice] Processing configuration path "/usr/local/etc/torrc.d/*.conf" at recursion level 2.
+Mar 17 06:38:26.694 [notice] Including configuration file "/usr/local/etc/torrc.d/40_tor_control_panel.conf".
+Mar 17 06:38:26.694 [notice] Including configuration file "/usr/local/etc/torrc.d/50_user.conf".
+Mar 17 06:38:26.695 [notice] You configured a non-loopback address '10.137.0.10:5300' for DNSPort. This allows everybody on your local network to use your machine as a proxy. Make sure this is what you wanted.
+Mar 17 06:38:26.695 [notice] You configured a non-loopback address '10.137.0.10:9040' for TransPort. This allows everybody on your local network to use your machine as a proxy. Make sure this is what you wanted.
+Mar 17 06:38:26.695 [warn] Directory /home/user/.tor cannot be read: Permission denied
+Mar 17 06:38:26.695 [warn] Failed to parse/validate config: Couldn't access private data directory "/home/user/.tor"
+Mar 17 06:38:26.695 [err] Reading config failed--see warnings above.
+zsh: exit 1     leaprun tor-verify-config
+</pre>
+
+* In file /usr/libexec/systemcheck/check-env I appended:
+
+<pre>
+pwd
+env
+</pre>
+
+* result:
+
+<pre>
+leaprun check-privleap-environment-variables
+/home/user
+SHELL=/usr/bin/bash
+WATCHDOG_USEC=10000000
+PWD=/home/user
+LOGNAME=user
+SYSTEMD_EXEC_PID=902
+TEMPDIR=/tmp/user/0
+HOME=/home/user
+LANG=en_US.UTF-8
+TMPDIR=/tmp/user/0
+INVOCATION_ID=675ad997bbec4d37ad4ab6339af8a388
+USER=user
+WATCHDOG_PID=902
+NOTIFY_SOCKET=/run/systemd/notify
+TEMP=/tmp/user/0
+SHLVL=1
+JOURNAL_STREAM=8:3035
+TMP=/tmp/user/0
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+_=/usr/bin/env
+</pre>
+
+* conclusions:
+** output of <code>pwd</code> is wrong
+** environment variables wrong:
+*** PWD
+*** HOME
+*** TMPDIR
+*** TEMP
+*** USER
+*** PATH
+* This happened when I refactored the PAM integration out into a separate shim - I got the calling user and target user mixed up and the regression tests didn't catch it.
+* Fixed in https://github.com/ArrayBolt3/privleap/commit/e8d7023b44d770d7b9c76ff217b975da0e9d0d05, regression tests added to catch similar bugs in the future.
+== user-sysmaint-split - systemcheck ==
+* If user-sysmaint-split is installed, systemcheck function check_login_security cannot use
+<pre>
+/usr/libexec/user-sysmaint-split/sysmaint-boot query-sysmaint-autologin
+</pre>
+* Perhaps that function would be better if available in helper-scripts? Because it currently results in an error.
+
+<pre>
+            if [ -x /usr/libexec/user-sysmaint-split/sysmaint-boot ]; then
+               if [ "$(/usr/libexec/user-sysmaint-split/sysmaint-boot query-sysmaint-autologin 2>/dev/null)" = 'yes' ]; then
+                  echo 'Enabled'
+               else
+                  echo 'Disabled'
+               fi
+            else
+              echo 'Error'
+            fi
+</pre>
+* The problem is "echo 'Error'".
+* User sysmaint might exist but user-sysmaint-split might have been uninstalled using user-sysmaint-split.
+* Skip check_login_security inside Qubes?
+* Please avoid subshells because these interfere with error handling. (I did not do it to avoid merge conflicts.)
+
+<pre>
+   readarray -t user_list < <(/usr/libexec/helper-scripts/get-user-list)
+</pre>
+
+<pre>
+if ! output="$(/usr/libexec/helper-scripts/get-user-list)"; then
+    echo "ERROR: Failed to get user list!" >&2
+    exit 1
+fi
+
+readarray -t user_list <<< "$output"
+</pre>
+* please use grep with end-of-options
+* All issues should now be fixed. Repos changed:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+*** Patrick: Merged.
+** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/autologin
+*** Patrick: Merged.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/autologin
+*** Patrick: Merged.
+
+== privleap - logging improvements ==
+* please rewrite "user" -> "account" (This is to avoid phrases like "user user".)
+
+<pre>
+Mar 14 09:05:56 host privleapd[18294]: handle_comm_session: INFO: Triggered action 'apt-get-update'
+</pre>
+<pre>
+Mar 14 09:28:52 host privleapd[17481]: auth_signal_request: WARNING: Could not find action 'test'
+</pre>
+
+* Should privleap mention which account triggered an action? By comparison, sudo does log this.
+
+<pre>
+Mar 14 09:25:49 host sudo[24600]:     user : TTY=pts/2 ; PWD=/home/user ; USER=root ; COMMAND=/usr/bin/ls
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1000)
+Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for user root
+</pre>
+
+* Privacy should be alright because journal can only be accessible by root. (Unless systemcheck --verbose leaks it. But logging, able to find bugs/DOS seems more important than log privacy.)
+* We don't necessarily needs the same logging format as sudo.
+** TTY: probably irrelevant.
+** PWD: probably irrelevant.
+** command: privleap already logs it.
+** account: missing
+* Should be done in https://github.com/ArrayBolt3/privleap/commit/abf878dfe55d49bb930fdbba2ed9542db9d4aa93, may need a more careful audit to ensure all cases that need changed are changed
+* Audited, made another commit with missed bits caught: https://github.com/ArrayBolt3/privleap/commit/b9ea564089d3f825a2f08364807dfc1c7c278eb8
+* Patrick: Merged.
+
+== privleap - post-review improvements ==
+* https://github.com/ArrayBolt3/privleap/issues/1
+* Discuss, implement as appropriate
+* Done, remaining issues on the bug tracker are very low priority and not blockers.
+
+== grml-debootstrap - fix UEFI bootloader updates ==
+* https://github.com/grml/grml-debootstrap/issues/297
+* please send a pull request upstream
+** Pull request: https://github.com/grml/grml-debootstrap/pull/299 merged.
+** This is specific to how grml-debootstrap works, Kicksecure will need some extra code of its own to work properly here since we use a different bootloader ID than Debian does (ours is <code>kicksecure</code>, theirs is <code>debian</code>).
+*** Patrick: Please make bootloader ID configurable in grml-debootstrap. (They'll probably accept that because grml is an independent Linux distribution, might have use for that too and are generally easy to work with.)
+**** Aaron: Done.
+*** Patrick: Please patch derivative-maker to make use of this new feature and set custom bootloader ID.
+**** Aaron: Will wait to do this until the patch is merged upstream, unless things take long enough that we have a good reason to fork.
+* Patrick: please use, review the following simplification, if sane
+
+<pre>
+    if [ -z "$VMEFI" ]; then
+      grub_pc_package_name=grub-pc
+    else
+      # We install grub-pc-bin instead of grub-pc when EFI is enabled, because
+      # otherwise the EFI bootloader won't be automatically updated when GRUB
+      # packages are uploaded. Doing this means that the BIOS bootloader won't
+      # be automatically updated, which stinks, however the BIOS bootloader
+      # doesn't have the same security concerns as the EFI bootloader (there's
+      # no Secure Boot to grapple with when using legacy BIOS boot) so it's
+      # better to let the BIOS bootloader lag behind and update the EFI one
+      # than to let the EFI bootloader lag behind and update the BIOS one.
+      grub_pc_package_name=grub-pc-bin
+    fi
+
+    if ! clean_chroot "${MNTPOINT}" dpkg --list "$grub_pc_package_name" 2>/dev/null | grep -q '^ii' ; then
+      echo "Notice: '$grub_pc_package_name' package not present yet, installing it therefore."
+      # shellcheck disable=SC2086
+      clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS "$grub_pc_package_name"
+    fi
+</pre>
+
+** Integrated.
+* Patrick: Please consider using numbers and lowering priority. Since it's unlikely that any other configuration file changes EFI ID, specifically by the time grml-debootstrap runs, maximum priority is unnecessary. Always best to keep free space for hypothetical derivatives.
+
+<pre>
+        echo "GRUB_DISTRIBUTOR='${EFI_ID}'" > "${MNTPOINT}"/etc/default/grub.d/z-grml-debootstrap-efi-id.cfg
+</pre>
+
+** Discussed, elected not to do this.
+* Run <code>clean_chroot "$MNTPOINT" debconf-set-selections <<< 'grub-efi-amd64 grub2/force_efi_extra_removable boolean true'</code> unconditionally in all cases? That would make it easier to add an option in case upstream does not wish to enable that by default.
+** Discussed, elected not to do this.
+* Avoid repetitive <code>clean_chroot "$MNTPOINT" DEBIAN_FRONTEND=$DEBIAN_FRONTEND apt-get -y --no-install-recommends install $DPKG_OPTIONS</code> command in source code, only set package name so the source code has this command only once to install the GRUB package? Not sure it is a good idea to mix this refactoring into this pull request. Might be better to do that later in a follow-up pull request once that one was merged.
+** Not done yet to avoid overcomplicating the PR.
+* ARM_EFI_TARGET: Assume that works similarly, use the new debconf-set-selections method?
+** Done, actually I just removed ARM_EFI_TARGET entirely.
+* CI testing: https://github.com/Kicksecure/grml-debootstrap/pull/1
+* related PR: https://github.com/grml/grml-debootstrap/pull/302
+
+== user-sysmaint-split - Qubes - sysmaint boot features ==
+* implement [https://github.com/QubesOS/qubes-issues/issues/9750 Polish support for booting qubes with custom kernel command line parameters]
+* related: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
+** Replied here with some relevant info.
+** Does this obsolete selective sudo access? No, probably not.
+* Wrote several iterations of a spec, updating with input from Marek for each iteration.
+* Implemented, going back and forth with reviews with Marek.
+* PR list:
+** qubes-core-admin: https://github.com/QubesOS/qubes-core-admin/pull/653
+*** Also made https://github.com/QubesOS/qubes-core-admin/pull/666 to fix a bug after the above PR was merged slightly too early.
+** qubes-manager: https://github.com/QubesOS/qubes-manager/pull/407
+** qubes-core-admin-client: https://github.com/QubesOS/qubes-core-admin-client/pull/342
+* All PRs merged.
+
+== default password ==
+* rationale: virtual console based login attempts. An attacker could connect a keyboard to a server to login.
+* review wiki: [[Default Passwords]]
+* helper-scripts: add a tool that looks user accounts with empty passwords, if feasible
+* GUI ISO: calamares.
+** link to documentation
+** choices:
+*** default: none (user must choose)
+*** passwordless
+*** set a password
+*** Aaron: We decided to skip doing this in calamares to reduce code duplication and maintenance burden.
+* CLI ISO: non-existent, therefore non-issue for now
+* GUI VM images: A setup-wizard-dist popup should explain this.
+** Good for systems installed from ISO also.
+* CLI: an INFO message after login if there are any unlocked passwordless accounts
+* Implemented, ready for review, testing, ''maybe'' merge?:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologin
+*** Rename variable <code>file</code> to <code>file_name</code>. (Because <code>`file`</code> is a utility.)
+*** Please simplify string parsing. Create a file <code>/etc/user-sysmaint-split.d/40_autologin_username</code> when enabling autologin. Point out that the file was auto generated by $SCRIPTNAME and might get deleted by the same. To enable autologin, create a file. To disable autologin, delete the file.
+**** Aaron: Currently this is not done because it would potentially cause severe bugs to do things this way, especially with the KDE desktop environment. Autologin configuration can get badly out of sync without the more complicated sting parsing.
+*** Lightweight self-document what the script is doing on a technical level. ("Created file ...")
+*** Drop <code>if [ "${default_display_manager}" = 'lightdm' ]; then</code> and <code>elif [ "${default_display_manager}" = 'sddm' ]; then</code>. Always apply all autologin enabling and disabling actions to all supported display manager configurations.
+*** What if there are user configured autologin settings? Detect these, point out the configuration file path and tell the user that the autologin script does not support that? Advice the user to keep manual configuration or delete the custom configuration?
+**** Aaron: Not necessary, because we're doing more complex string parsing.
+*** Aaron: Done except for points that are marked as skipped.
+**** Patrick: Merged.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/autologin
+*** Patrick: Merged.
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/autologin
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/autologin
+*** Patrick: Merged.
+*** Aaron: Needs re-merged, more changes were made.
+*** Patrick: Merged.
+** usability-misc: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/autologin
+*** <code>rm_conffile /etc/lightdm/lightdm.conf.d/40_autologin.conf</code> missing? Probably not. I guess this is on purpose. Otherwise, this would disable autologin for existing users, which would be confusing.
+**** Aaron: Correct, we want to leave this file here.
+***** Patrick: Merged.
+** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/autologin
+*** Patrick: Merged.
+** setup-dist: https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/autologin
+*** Please use grep with end of options.
+*** Aaron: Done.
+*** Patrick: Merged.
+** initializer-dist: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/autologin
+*** Please document in script comments: Why is this a chroot script instead of a postinst script with do_once? Because otherwise, do_once in postinst, this might enable sysmaint autologin for already existing users that are upgrading that had already disabled autologin, which would be bad from their perspective.
+*** Use call the autologin script to enable autologin instead using sponge directly. This would be useful in the future if porting to a different display manager. The autologin script will need a non-interactive / command line use method
+*** Aaron: Both tasks done.
+*** Patrick: Merged.
+** msgcollector: https://github.com/ArrayBolt3/msgcollector/tree/arraybolt3/autologin
+*** Unnecessary? This should better be implemented at the level of https://github.com/Kicksecure/open-link-confirmation?
+*** Aaron: Done, required changes to two repos:
+**** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/tree/arraybolt3/autologin
+**** user-sysmaint-split (listed above)
+**** Patrick: Merged.
+* Things that still need fixed:
+** Wording changes necessary? autologinchange talks about 'sysmaint mode' rather than 'PERSISTENT mode SYSMAINT' which may be bad.
+** Patrick: Should be OK.
+* Review by Patrick #1:
+** Please reword from "user user" to "account user".
+*** Aaron: Done.
+** Replace /etc/user-sysmaint-split.conf by drop-in folder.
+*** Aaron: Done, modified user-sysmaint-split, helper-scripts, initializer-dist, systemcheck, and derivative-maker to make this work.
+**** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/tree/master
+***** Patrick: Merged.
+** See inline comments above.
+*** Aaron: Addressed.
+
+== user-sysmaint-split - setup-dist - improve error handling ==
+<pre>
+check_passwords() {
+   if grep -q -- 'Absent' < <(leaprun get-password-status-list); then
+      printf '%b\n' "[${yellow}WARNING${nocolor}] Some user accounts on this system are passwordless. Run 'systemcheck' for more information."
+   fi
+}
+</pre>
+* bug: subshell cannot handle errors
+* please implement without subshell
+* leaprun should run outside of "if"
+* WARNING -> NOTICE?
+* Patrick: Done.
+
+== user-sysmaint-split - set default shell for account sysmaint to zsh ==
+* todo
+* Done in https://github.com/ArrayBolt3/user-sysmaint-split/commit/779a483f8c83fd7dfb15f3532a8eb5285115dc05
+* Patrick: Merged.
+* please refactor / de-duplicate code dist-base-files versus user-sysmaint-split
+* Done:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/user-create
+*** Patrick: Merged.
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/user-create
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/user-create
+*** Patrick: Merged. There was a merge conflict. Could you please check if it was resolved correctly?
+**** Aaron: Reproduced conflict on my end, resolved it, then checked the difference with git difftool. Looks fine to me.
+
+== user-sysmaint-split - sysmaint login failure when autologin disabled ==
+* If sysmaint autologin is disabled, the first attempt to log in as account <code>sysmaint</code> in PERSISTENT mode SYSMAINT will fail because it will try to sign into a normal desktop session.
+* Investigate ways to resolve this, is there a system-wide state file for lightdm we can overwrite?
+* Fixed in user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/autologin
+* Patrick: Merged.
+
+== kernel module loading disabling exit zero or non-zero comment ==
+* please comment here: https://github.com/Kicksecure/security-misc/issues/303
+* Researched and commented.
+
+== Kicksecure default browser ==
+* please read prior discussions, comment, edit if applicable
+* https://www.kicksecure.com/wiki/Dev/Default_Browser
+** Aaron: Reorganized some stuff, filled in some missing documentation on projects.
+* https://forums.whonix.org/t/chromium-browser-for-kicksecure-discussions-not-whonix/10388
+** Aaron: Read through and commented.
+* https://github.com/Kicksecure/security-misc/issues/192
+*** Aaron: Read through, didn't have much to add here, I put everything I had to add on the Whonix forum.
+
+== automatic updates wiki editing ==
+* please add notes to, edit [[Dev/Automatic_Updates]]
+** Only things I could see to add was the bit about Lubuntu Update and a note about making an update notifier that didn't handle update installation. Otherwise this seemed pretty thorough and not in need of further revision at the moment. I think Kicksecure would need something more robust than Lubuntu Update, but that it would still provide somewhere to start for implementing something like this (probably in Python).
+== privleap - umask ==
+* please consider privleap in context of https://github.com/Kicksecure/security-misc/issues/185
+* How to handle privleap versus umask? Leave it to (python) PAM? Probably best.
+* Please lightweight document.
+* Discovered that PAM umask customization was causing problems, by changing the umask of the entire privleapd process (thus affecting even actions that are run as root). Fixed by adding an extra shim between privleapd and PAM. Fixes are in https://github.com/ArrayBolt3/privleap as usual.
+* Patrick: merged
+
+== privleap - upgrade systemd unit issue ==
+* Qubes, Whonix-Workstation, developers repository
+
+<pre>
+Mar 14 09:05:15 host systemd[1]: Stopping leapctl@1000.service - leapctl - Enable access to privleap for each user...
+Mar 14 09:05:15 host systemd[1]: Stopping privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 14 09:05:15 host systemd[1]: privleapd.service: Deactivated successfully.
+Mar 14 09:05:15 host systemd[1]: Stopped privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 14 09:05:15 host systemd[1]: privleapd.service: Consumed 2.205s CPU time.
+Mar 14 09:05:15 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 14 09:05:15 host leapctl[18293]: ERROR: Could not connect to privleapd!
+Mar 14 09:05:15 host systemd[1]: leapctl@1000.service: Control process exited, code=exited, status=1/FAILURE
+Mar 14 09:05:15 host systemd[1]: leapctl@1000.service: Failed with result 'exit-code'.
+Mar 14 09:05:15 host systemd[1]: Stopped leapctl@1000.service - leapctl - Enable access to privleap for each user.
+Mar 14 09:05:15 host systemd[1]: Starting leapctl@1000.service - leapctl - Enable access to privleap for each user...
+Mar 14 09:05:15 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 14 09:05:15 host privleapd[18294]: handle_control_create_msg: INFO: Handled CREATE message for user 'user', socket created
+Mar 14 09:05:15 host leapctl[18296]: Comm socket created for user 'user'.
+Mar 14 09:05:15 host systemd[1]: Finished leapctl@1000.service - leapctl - Enable access to privleap for each user.
+</pre>
+
+* Mostly a cosmetic issue. But a problem as this error ends up in <code>systemcheck --verbose --function check_journal</code>.
+* No actually broken functionality.
+* Most likely not a configuration issue.
+* Potential bug: Does leapctl@1000.service try use privleapd.service before it was restarted?
+* <code>/usr/lib/systemd/system/leapctl@.service</code> - Does it lack <code>After=</code>?
+
+<pre>
+[Unit]
+Description=leapctl - Enable access to privleap for each user
+Requires=privleapd.service user@.service
+
+## Useful to add...?
+After=privleapd.service user@.service
+</pre>
+
+* Looks like the <code>After=</code> was indeed good to have and missing. Added, tested, works. https://github.com/ArrayBolt3/privleap/commit/c1e9730e5ff3988db610d5603f1b14d8e16ebd2d
+* Patrick: merged
+
+== privleap - tb-starter issue ==
+* stable repository
+* https://forums.whonix.org/t/home-user-cache-permission-issue-in-recent-updates/21427
+* Fix: https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/cache-fix
+** Tested, .cache is no longer owned by root, Remmina starts properly
+* Patrick: Merged.
+
+== privleap - error - No authorized users or groups for action: 'tor-bootstrap-check' ==
+* was happening inside Qubes Whonix-Workstation Template only
+* error happened during upgrade from developers repository
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/systemcheck.conf already looks okay
+
+<pre>
+[action:tor-bootstrap-check]
+Command=/usr/libexec/helper-scripts/tor_bootstrap_check.py
+AuthorizedGroups=sudo
+AuthorizedUsers=user,sdwdate
+TargetUser=debian-tor
+TargetGroup=debian-tor
+</pre>
+
+* was happening insid Qubes Whonix-Gateway Template only
+
+<pre>
+Setting up privleap (3:2.3-1) ...
+/etc/privleap/conf.d/anon-connection-wizard.conf:1:error:No authorized users or groups for action: 'acw-tor-control-restart'
+WARNING: privleap configuration invalid. Not restarting privleapd.
+</pre>
+
+* file /etc/privleap/conf.d/anon-connection-wizard.conf already looks good
+
+<pre>
+[action:acw-tor-control-restart]
+Command=/usr/libexec/anon-connection-wizard/acw-tor-control restart
+AuthorizedGroups=sudo
+AuthorizedUsers=user
+</pre>
+
+* Aaron: Attempted to fully upgrade a clean pair of Whonix-Gateway and Whonix-Workstation templates on Qubes OS R4.3 using the bookworm-developers repository. Cannot reproduce either bug, privleap installs, sets up, and has triggers run for it without issues, service is properly started and systemcheck works without errors.
+* Got another report from a user using the testers repository.
+
+<pre>
+/etc/privleap/conf.d/systemcheck.conf:33:error:No authorized users or groups for
+ action: 'tor-bootstrap-check'
+WARNING: privleap configuration invalid. Not restarting privleapd. Run configura
+tion check using: privleapd --check-config
+</pre>
+
+* This is perhaps because config check runs before new configuration files have been installed? Solution, run config check after installation of configuration files, i.e. after DEBHELPER token?
+* Figured out why this is likely happening - upgrades that change the config file format will trigger this because the conffiles of packages ''other than privleap'' are unlikely to be unpacked by the time privleap is configuring itself. This is normal, expected behavior that can't be avoided and shouldn't cause problems in practice.
+* Fixed the cosmetic part of the issue in https://github.com/ArrayBolt3/privleap/commit/78698e8ae40d2b5ea3e0f11e32f8ffe0b2e6793e
+* Patrick: Merged.
+
+== unbreak repository-dist ==
+* Likely caused by recent repository-dist changes. Issue visible on both new ISO and VBox builds of Kicksecure.
+** Note that patches for default password/autologin security were applied to my build, but this failure appears to be unrelated.
+* <code>systemctl status repository-dist-initializer.service</code>:
+
+<pre>
+× repository-dist-initializer.service - /etc/apt/sources.list.d/derivative.list initializer
+     Loaded: loaded (/lib/systemd/system/repository-dist-initializer.service; enabled; preset: enabled)
+     Active: failed (Result: exit-code) since Fri 2025-03-07 17:31:20 CST; 35s ago
+    Process: 968 ExecStart=/usr/libexec/repository-dist/repository-dist-initializer (code=exited, status=1/FAILURE)
+   Main PID: 968 (code=exited, status=1/FAILURE)
+        CPU: 5ms
+
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + set -e
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + test -r /var/lib/repository-dist/derivative_apt_repository_opts
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + test -e /var/lib/repository-dist/initializer.done
+Mar 07 17:31:20 localhost repository-dist-initializer[1016]: ++ cat /var/lib/repository-dist/derivative_apt_repository_opts
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + repository_dist_arguments='--enable --codename bookworm'
+Mar 07 17:31:20 localhost repository-dist-initializer[968]: + repository-dist --enable --codename bookworm
+Mar 07 17:31:20 localhost repository-dist-initializer[1027]: /usr/bin/repository-dist: line 362: under: unbound variable
+Mar 07 17:31:20 localhost systemd[1]: repository-dist-initializer.service: Main process exited, code=exited, status=1/FAILURE
+Mar 07 17:31:20 localhost systemd[1]: repository-dist-initializer.service: Failed with result 'exit-code'.
+Mar 07 17:31:20 localhost systemd[1]: Failed to start repository-dist-initializer.service - /etc/apt/sources.list.d/derivative.list initializer.
+</pre>
+
+* <code>/etc/apt/sources.list.d/derivative.list</code> does not exist.
+* Patrick: Fixed.
+
+== deb822 sources list comment ==
+* please comment on https://forums.kicksecure.com/t/apt-sources-list-one-line-format-versus-deb822-style-format/267/1
+
+== ISO - use variable flavor_meta_packages_to_install ==
+* using already existing variable flavor_meta_packages_to_install would simplify modifications
+* Done: https://github.com/ArrayBolt3/derivative-maker/commit/1653d359373963e50b8f8b16f254e6bbfe47ac90
+** Tested, both XFCE and CLI Kicksecure ISOs can be built successfully with this change.
+
+== privleap - python-pam bug ==
+* error produced in anon-whonix
+
+<pre>
+sudo journalctl --boot -u privleapd
+Mar 03 11:30:21 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Mar 03 11:30:21 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Mar 03 11:33:06 host privleapd[671]: handle_control_create_msg: INFO: Handled CREATE message for user 'user', socket created
+Mar 03 11:33:07 host python3[671]: pam_unix(privleapd:session): session opened for user debian-tor(uid=107) by (uid=0)
+Mar 03 11:33:07 host python3[671]: pam_succeed_if(privleapd:session): requirement "uid eq 0" not met by user "debian-tor"
+Mar 03 11:33:07 host privleapd[671]: handle_control_create_msg: WARNING: User 'debian-tor' is not allowed to have a comm socket
+Mar 03 11:33:07 host privleapd[671]: handle_comm_session: INFO: Triggered action 'tor-circuit-established-check'
+</pre>
+
+* Aaron: The PAM message is perfectly normal, it's triggered by this snippet in <code>/etc/pam.d/common-session</code>:
+
+<pre>
+session [success=1 default=ignore] pam_succeed_if.so uid eq 0
+session optional pam_umask.so umask=027
+</pre>
+
+* This snippet says "set the umask for the newly logged-in user to 027 if they ''aren't'' root. If they are root, skip over the umask setting. When running an action as debian-tor, this will end up showing a message that the UID check didn't pass, meaning that the umask will be set. This is an intentional part of how we implement stricter umask settings.
+* The issue stating that debian-tor is not allowed to have a comm socket is normal, because debian-tor (for some reason unknown to me) has a running user session in the anon-whonix VM. This means that it triggers a <code>leapctl@UID.service</code> unit for itself like any other logged-in user, but because it isn't listed as an allowed user, that service doesn't start (by design). Therefore this isn't a problem, though it's curious that debian-tor is logged in...
+
+== bookworm-backports-staging ==
+* https://fasttrack.debian.net/ mentions <code>deb https://fasttrack.debian.net/debian-fasttrack/ bookworm-backports-staging main contrib</code>
+* Is this new?
+** Aaron: Does not appear to be new, this was how things were done in Bullseye as well.
+* Since Kicksecure enables fasttrack by default, should probably enable bookworm-backports-staging by default too?
+** Aaron: Yes, we should. "Staging" is usually scary and indicates there could be package breakage, but in this instance it's effectively identical to the normal backports repo but allows packages in that don't fit the normal backports rules (yet). This isn't a place for doing dangerous operations like I initially thought.
+
+== investigate why debian-tor has a login on Whonix-Workstation ==
+* todo
+* Turned out to be PAM integration's fault, the default code path in PAM's config stacks assumes an interactive session.
+* Fixed in https://github.com/ArrayBolt3/privleap/commit/a22b63d4190cf8b52fb8727560f4113f80da36b2, all it does is specify a non-interactive session instead.
+
+== Qubes APT pinning ticket ==
+* https://github.com/QubesOS/qubes-core-admin-linux/pull/184
+* https://www.kicksecure.com/wiki/Dev/APT_Pinning
+* Please comment, if applicable.
+* Commented, also looked over code and didn't have anything to add beyond what Ben already added.
+
+== privleap - keep trying to start leapctl@1000.service ==
+<pre>
+Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Failed with result 'exit-code'.
+Mar 03 11:09:50 host systemd[1]: Stopped leapctl@1000.service - leapctl - Enable access to privleap for each user.
+Mar 03 11:09:50 host systemd[1]: Starting leapctl@1000.service - leapctl - Enable access to privleap for each user...
+Mar 03 11:09:50 host leapctl[40455]: ERROR: Could not connect to privleapd!
+Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Main process exited, code=exited, status=1/FAILURE
+Mar 03 11:09:50 host systemd[1]: leapctl@1000.service: Failed with result 'exit-code'.
+</pre>
+
+* In case of errors, please configure the systemd unit to start trying forever but with long enough delay to keep long spam limited.
+* Done in https://github.com/ArrayBolt3/privleap/commit/b4a84a8660fe8a5380e42b9df930ac718cb2dd34
+
+== privleap - leaprun - consider supporting end-of-options ==
+* <code>leaprun apt-get-update-simulate</code>
+* would it make sense to support
+* <code>leaprun -- apt-get-update-simulate</code>
+* it doesn't change a lot, except it allows for consistent use of end-of-options
+* Done: https://github.com/ArrayBolt3/privleap/commit/0db59e476e606481b979331060a3cc53cd73da99
+
+== privleap - consider using end-of-options ==
+<pre>
+        ["/usr/bin/bash", "-c", desired_action.action_command],
+</pre>
+* minor: useful to change to...?
+<pre>
+        ["/usr/bin/bash", "-c", "--", desired_action.action_command],
+</pre>
+* Done: https://github.com/ArrayBolt3/privleap/commit/61da84d033c23c74840ae953409a2c09475a0b9c
+== privleap - harden and polish ==
+* Continue fixing and discussing issues found by Ben Grande and others.
+* Should be done, only remaining issue that seems potentially concerning is https://github.com/ArrayBolt3/privleap/issues/11 which may or may be something that needs fixed.
+* Patrick: merged
+
+== privleap - abolish simple all users allowed fallback ==
+
+<pre>
+[command:echo-hello]
+Command=echo 'Hi!'
+</pre>
+
+* Some sort of AuthorizedGroups=sudo or AuthorizedUsers= should always be existing.
+* If all users should be able to, this might be best implemented with a special keyword.
+* Done in https://github.com/ArrayBolt3/privleap/commit/415190bed64add132fdb38e886ce868286c4da77, special keyword can be added later if needed.
+* Repos that needed additional changes:
+** anon-connection-wizard: https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/privleap-strict-auth
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/privleap-strict-auth
+* Patrick: Merged.
+
+== fix up policy-rc.d script in user-sysmaint-split ==
+* Conflicts with derivative-maker, needs derivative-maker changes to avoid
+** Fixed, required changes to derivative-maker and live-build
+*** https://github.com/ArrayBolt3/derivative-maker/tree/master
+*** https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+* Missing proper copyright header
+** Fixed: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/policy-rcd
+* Check other policy-rc.d helpers in Debian if they exist to see if they would be better suited to this?
+** It appears the only helpers are policyrcd-script-zg2 and policy-rcd-declarative, both of which have been studied and appear unfit for our use case. (Based on the results of <code>apt-cache search policy | grep rcd</code>)
+* Patrick: Merged.
+
+== privleap - implement config reload without restart ==
+* https://github.com/ArrayBolt3/privleap/issues/12
+* configuration fast hash based?
+* Current implementation works via an explicit restart command that can be sent by leapctl. Performance doesn't seem to be an issue doing a total reload each time, can revisit hashing if performance becomes a problem.
+* {{CodeSelect|code=
+sudo systemctl reload privleapd
+}}
+
+== user-sysmaint-split - document policy-rc.d ==
+* todo
+* Documented at https://www.kicksecure.com/w/index.php?title=Sysmaint&stable=0, with a new bullet point "Inhibition of non-critical services".
+
+== privleap postinst deb-systemd-invoke bug ==
+
+<pre>
+#####################################################################
+## INFO: BEGIN: privleap postinst configure' '3:1.7-1
+#####################################################################
+'
++ case "$1" in
++ deb-systemd-helper enable privleapd.service
++ deb-systemd-helper enable leapctl@.service
++ start_privleapd
++ deb-systemd-invoke restart privleapd.service
+Could not execute systemctl:  at /usr/bin/deb-systemd-invoke line 145.
+</pre>
+
+* Can't reproduce, but may be resolved by https://github.com/ArrayBolt3/privleap/commit/17d4caa0a84499559c8f18dbd90076ef0172501d
+* only reproduced so far: Qubes Whonix-Gateway Template
+* not reproducible in: Qubes Kicksecure / Qubes Whonix-Workstation Template
+
+<pre>
+[template gateway user ~]% sudo DEBDEBUG=1 dpkg --configure -a
+Setting up privleap (3:1.9-1) ...
+++ [[ -v disable_echo ]]
+++ disable_echo=
+++ '[' '' = true ']'
+++ colors
+++ alt=
+++ ealt=
+++ hide=
+++ show=
+++ save=
+++ load=
+++ bold=
+++ stout=
+++ estout=
+++ under=
+++ eunder=
+++ reset=
+++ blink=
+++ italic=
+++ eitalic=
+++ red=
+++ green=
+++ yellow=
+++ blue=
+++ magenta=
+++ cyan=
+++ white=
+++ default=
+++ eed=
+++ eel=
+++ ebl=
+++ ewl=
+++ draw=
+++ back=
+++ test -n ''
+++ test -n ''
+++ [[ -v TERM ]]
+++ '[' xterm-256color = '' ']'
+++ [[ -t 2 ]]
++++ type -t exception_handler_general
+++ '[' '' = function ']'
++++ trap -p ERR
+++ '[' '' = '' ']'
+++ trap error_handler_pre ERR
+++ bash -n /usr/libexec/helper-scripts/pre.bsh
+++ bash -n /var/lib/dpkg/info/privleap.postinst
+++ own_filename=privleap.postinst
+++ source_config_folder
+++ [[ -v DPKG_MAINTSCRIPT_PACKAGE ]]
+++ '[' privleap = '' ']'
+++ pre_bsh_settings_folder=privleap_maint.d
+++ shopt -s nullglob
+++ local i
+++ true 'folder 1: /etc/privleap_maint.d/*.conf'
+++ true 'folder 2: /usr/local/etc/privleap_maint.d/*.conf'
+++ shopt -u nullglob
+++ check_scripts_to_skip
+++ [[ -v SKIP_SCRIPTS ]]
+++ SKIP_SCRIPTS=
+++ local skip_script
++ set -e
++ true '
+#####################################################################
+## INFO: BEGIN: privleap postinst configure' '3:1.7-1
+#####################################################################
+'
++ restarted_once=no
++ case "$1" in
++ deb-systemd-helper enable privleapd.service
++ deb-systemd-helper enable leapctl@.service
++ start_privleapd
++ '[' no = yes ']'
+++ command -v systemctl
++ '[' '!' -x /usr/bin/systemctl ']'
++ deb-systemd-invoke restart privleapd.service
+Could not execute systemctl:  at /usr/bin/deb-systemd-invoke line 145.
+++ error_handler_pre
+</pre>
+
+== privleap - run config check from postinst ==
+* to make broken configurations more easily visible
+* Done in https://github.com/ArrayBolt3/privleap/commit/29580c1bc4991a87f03bdc7fc92738b36371ca37, may also resolve some of the other weird behavior we've been seeing.
+
+== privleap - bug duplicate action tor-verify-config ==
+<pre>
+Feb 20 05:37:04 host privleapd[15069]: parse_config_files: CRITICAL: Error parsing config: '/etc/privleap/conf.d/systemcheck.conf:26:error:Duplicate action found: 'tor-verify-config''
+</pre>
+* This was resolved by https://github.com/Whonix/anon-gw-anonymizer-config/commit/778625b7c1dd4ef3c0afd9b839d31684b85f4bee, does anon-gw-anonymizer-config need a new upload or is the machine this is happening on out-of-date?
+* Further fix at https://github.com/ArrayBolt3/privleap/commit/dd776782aedf176b3f2538e8b8b78db73504ba43
+
+== privleap - change action header format ==
+* https://github.com/ArrayBolt3/privleap/issues/4
+* Done:
+** privleap: https://github.com/ArrayBolt3/privleap/commit/b482a05a1970b1be0bbad784753a1019730e0b0c
+** sdwdate: https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/pl-actions
+** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/pl-actions
+** anon-connection-wizard: https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/pl-actions
+** setup-dist: https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/pl-actions
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/pl-actions
+** tb-starter: https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/pl-actions
+** tb-updater: https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/pl-actions
+** anon-gw-anonymizer-config https://github.com/ArrayBolt3/anon-gw-anonymizer-config/tree/arraybolt3/pl-actions
+* Patrick: Merged.
+
+== user-sysmaint-split - consider using policyrcd-script-zg2 ==
+* todo
+* Aaron: Looks like it introduces more complexity than it fixes:
+** It doesn't actually support drop directories as hoped. It just looks for a script in:
+*** Whatever location is specified by a hardcoded config file <code>/etc/zg-policy-rc.d.conf</code>
+*** Whatever location is specified by a hardcoded environment variable <code>CONFFILE</code>
+*** One of two hardcoded locations (<code>/usr/local/sbin/policy-rc.d</code> or <code>/etc/policy-rc.d</code>)
+** It only executes one script. Ultimately this is no better than the functionality given by just using update-alternatives.
+** It warns in the manpage that there may be many bugs. The script isn't that long, but it has lots of (seemingly unnecessary?) automake stuff surrounding it, which worries me.
+** IMO, it will be easier to just fiddle with update-alternatives when we need to tweak policy-rc.d than to use this.
+
+== sdwdate-gui - port qrexec temporary file to tmpfiles.d ==
+* replace <code>mkdir --parents -- /run/user/1000</code>
+* replace <code>/run/user/1000/sdwdate</code>
+* prefer using <code>/usr/lib/tmpfiles.d/sdwdate-gui.conf</code>, if possible
+** Done: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/run-user-1000
+* as a fallback (if still needed, if above is not possible, use <code>mkdir --mode</code>)
+** Not needed.
+
+== sdwdate-gui - /run/user/1000 owned by wrong user ==
+* https://forums.whonix.org/t/some-recent-change-breaks-starting-whonix-workstation-on-qubes-privleap-suspected/21170/13
+* Should be fixed by https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/run-user-1000
+* Patrick: Merged.
+
+== user-sysmaint-split - consider using policy-rcd-declarative-deny-all or alike in sysmaint mode ==
+* Would using policy-rcd-declarative-deny-all (or similar) be useful in sysmaint mode to avoid unneeded systemd units from starting in sysmaint mode?
+* related: https://github.com/QubesOS/qubes-issues/issues/2238
+* policy-rcd-declarative-deny-all itself did not appear suitable, however a custom policy-rc.d appears to work.
+* Implemented in https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/policy-rcd
+* Patrick: Merged.
+
+== privleap - start early before other systemd units such as sdwdate ==
+* if sane, doable
+* to avoid sdwdate and others needing to use systemd After=privleapd.service
+* Done, now starts before basic.target comes up, which should be early enough for sdwdate and most other services
+* https://github.com/ArrayBolt3/privleap/commit/46f1ad00587cd1b34ee43fd14abf55b271cf8182
+* Patrick: Merged.
+
+== privleap - investigate qubes crashes ==
+* https://forums.whonix.org/t/some-recent-change-breaks-starting-whonix-workstation-on-qubes-privleap-suspected/21170/13
+* Issue found, fixed: https://github.com/ArrayBolt3/anon-gw-anonymizer-config/commit/778625b7c1dd4ef3c0afd9b839d31684b85f4bee
+* Patrick: Merged.
+
+== user-sysmaint-split - account bob breaks upgrade ==
+* todo
+* Should now be fixed, also made a bunch of other improvements, closing issues filed by Ben Grande.
+
+== user-sysmaint-split - remove dependency on lightdm ==
+* lightdm is not installed on Qubes OS VMs and should not be installed.
+* desktop VM users may prefer sddm, which we are attempting to support.
+* Done: https://github.com/ArrayBolt3/sysmaint-panel
+** Patrick: merged
+
+== user-sysmaint-split - Qubes tb-updater - fix disposable VM support ==
+* https://forums.whonix.org/t/latest-update-breaks-tor-browser-in-disposables/21183
+* revert the reverts:
+** cf995c1d666fe3142f368afb243bd8be5be30734
+** 814438e9f8a68da3ae3545f028e3850cac91e474
+*** Reverts reverted and root cause fixed in https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/sudoless-fix
+**** Patrick: merged
+
+== user-sysmaint-split - test sudoless upgrade-nonroot ==
+* ensure sudoless upgrade-nonroot doesn't damage system if privleapd is restarted during installation
+* if output at restart is confusing, consider how to make it less confusing if such a restart occurs
+* Details of issues and ideas on how to resolve them shared in chat
+* Reverted back to sudo-based upgrade-nonroot, only works under user sysmaint. Also fixed some other bugs. https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/misc-fixes
+** Patrick: merged
+* Other fixes made while working on this:
+** dist-base-files (allow sysmaint to use privleap): https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/sysmaint-privleap
+** Patrick: merged
+** privleap (fix install failure): https://github.com/ArrayBolt3/privleap
+** Patrick: merged
+** user-sysmaint-split (fix race condition that sometimes resulted in sysmaint login during normal boot): https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/race-fix
+** Patrick: merged
+
+== read 3mdeb RAM decay research ==
+* https://blog.3mdeb.com/2025/2025-01-24-ram-data-decay-research-part2/
+* [[Cold Boot Attack Defense]]
+* [[Ram-wipe]]
+* [[Dev/RAM Wipe]]
+* Read, added notes to [[Cold Boot Attack Defense]].
+
+== live-build - local repository support ==
+* add support to build from local repository
+* Merge request: https://salsa.debian.org/live-team/live-build/-/merge_requests/369
+* Alternate implementation merged by rclobus, we're now using upstream's version in derivative-maker.
+
+== user-sysmaint-split - Qubes - sysmaint-boot.target - upstream feature request ==
+* What would need to happen to make sysmaint-boot.target available in Qubes? Please discuss with Qubes, open a Qubes ticket, if applicable.
+* related Qubes ticket: [https://github.com/QubesOS/qubes-issues/issues/2238 Debian template: disable newly (all) installed services by default]
+* Ticket filed for this specifically: https://github.com/QubesOS/qubes-issues/issues/9750
+
+== privleap - add crash recovery ==
+* If privleapd crashes on a system with user-sysmaint-split installed, the user will be left with no way to run privileged operations until the next reboot. Even without user-sysmaint-split, many of the sudoless application ports will function improperly if privleapd isn't running.
+* Make privleapd resilient to crashes:
+** Add a watchdog timeout to the systemd unit
+** Add code to privleapd that occasionally pings systemd to let it know it's still running via sdnotify
+** Handle user login/logout comm sockets using a systemd service template so that non-persistent user sockets can be automatically recreated on restart
+* Code changes:
+** privleap: https://github.com/ArrayBolt3/privleap
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/privleap
+*** Patrick: both merged
+
+== user-sysmaint-split - privleap - use systemd notify ==
+* sdwdate uses sd-notify. Please look at it (or something else) as an example on how to implement it.
+* please implement sd-notify in privleap
+* reason: reliably notify systemd when the daemon is ready. This will avoid any hardcoded "sleep 1" in Debian postinst and will generally increase the reliability of privleap. Should it ever be stuck, systemd would detect this and restart privleap.
+* systemd unit file changes:
+
+<pre>
+[Service]
+Type=notify
+TimeoutSec=30 ## needs adjustment
+WatchdogSec=200m ## needs adjustment
+Restart=always
+</pre>
+
+* usr/lib/python3/dist-packages/sdwdate/sdwdate.py
+
+<pre>
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:import sdnotify
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:SDNOTIFY_OBJECT = sdnotify.SystemdNotifier()
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:SDNOTIFY_OBJECT.notify("READY=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:SDNOTIFY_OBJECT.notify("STATUS=Starting...")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:    SDNOTIFY_OBJECT.notify("STATUS=Shutting down...")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:    SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:    SDNOTIFY_OBJECT.notify("STOPPING=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:            SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:            SDNOTIFY_OBJECT.notify(msg)
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        msg_for_sdnotify = "STATUS=" + msg
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify(msg_for_sdnotify)
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+usr/lib/python3/dist-packages/sdwdate/sdwdate.py:        SDNOTIFY_OBJECT.notify("WATCHDOG=1")
+</pre>
+
+* Added basic support, also got the postinst script working properly and passing lintian. I don't know if watchdog support is desirable, since comm sockets will be lost during a restart and automatically recreating them may not always be desirable.
+* Patrick: merged
+
+== coding style - avoid which - use command -v ==
+* <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary (minor reason) and produces stdout if a binary was found, which can be slightly confusing (major reason).
+* documented on [[Dev/bash]] just now
+* task can be moved to archived after reading
+* Aaron: Will do.
+
+== lintian - use lintian locally during package build process ==
+* lintian is already run during the build process.
+
+<pre>
+/usr/share/genmkfile/make-helper-one.bsh: INFO: You can find your deb file here: /home/user/derivative-binary/genmkfile-packages-result/privleap_1.3-1_all.deb
+/usr/share/genmkfile/make-helper-one.bsh: INFO: make_use_lintian='' - Autodetecting if lintian is installed...
+/usr/share/genmkfile/make-helper-one.bsh: INFO: lintian auto detected, using it...
+lintian           --suppress-tags missing-tests-control          --suppress-tags systemd-service-file-missing-documentation-key          --suppress-tags orig-tarball-missing-upstream-signature          --suppress-tags package-supports-alternative-init-but-no-init.d-script          --suppress-tags no-manual-page          --quiet          --pedantic          --info          --display-info            "/home/user/derivative-binary/genmkfile-packages-result/privleap_1.3-1_amd64.changes"
+/usr/share/genmkfile/make-helper-one.bsh: INFO: lintian exit code: 0
+/usr/share/genmkfile/make-helper-one.bsh: INFO: lintian output:
+################################################################################
+N:
+W: privleap: maintainer-script-calls-systemctl [postinst:41]
+</pre>
+
+* This breaks package build. By undocumented convention, all packages produce result in lintian exit code 0 and no lintian output. All lintian warnings are either fixed, suppressed or have lintian exception configurations.
+* Could you please add to your local build tools to run <code>genmkfile lintian</code>?
+* Aaron: Will do, usually I use <code>genmkfile deb-pkg</code> which runs this but I've been ignoring the output incorrectly.
+
+== live-build - --debian-installer-distribution git security impact research ==
+* TODO research: would <code>--debian-installer-distribution git</code> verify software signatures or still be vulnerable to HTTP / HTTPS based attacks?
+* Aaron: Yes, this is still vulnerable. udebs are downloaded directly even when building the installer from source. Additionally, you can't use a source-built installer to create a Bookworm ISO anymore - only Trixie and newer works because Bookworm lacks udebs sufficiently new enough for the debian-installer build to work.
+
+== user-sysmaint-split - quick uninstall boot option ==
+* Users might be confused by user-sysmaint-split and prefer using sudo and pkexec normally.
+* Using <code>sudo dummy-dependency --purge user-sysmaint-split</code> from sysmaint mode is functional but inconvenient.
+* Add option to boot menu that offers to remove user-sysmaint-split for the user, to revert back to "classic" privilege escalation.
+* Implemented, required changes to user-sysmaint-split and sysmaint-panel.
+** https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/uninstaller
+*** Patrick: Merged.
+** https://github.com/ArrayBolt3/sysmaint-panel
+*** Patrick: Merged.
+
+<pre>
+    def uninstall():
+        subprocess.run(["/usr/libexec/helper-scripts/terminal-wrapper",
+                       "/usr/bin/sudo", "/usr/bin/apt", "purge",
+                       "user-sysmaint-split"])
+        subprocess.run(["/usr/sbin/reboot"])
+</pre>
+
+* Patrick: This will cause issues with meta packages removal? Better to use <code>dummy-dependency --yes --purge user-sysmaint-split</code>.
+** Aaron: Agreed, done. https://github.com/ArrayBolt3/sysmaint-panel
+* Patrick: Merged.
+
+== user-sysmaint-split - privleap - add a trigger to reload privleap once its configuration folder changed ==
+* this is to receive updated/fixed privleap configuration files once these have changed
+* Done: https://github.com/ArrayBolt3/privleap
+** Patrick: Merged.
+
+== user-sysmaint-split - privleap - start privleap after installation ==
+* if possible (to avoid issues after installation)
+* Did as part of adding a trigger to privleap.
+
+== user-sysmaint-split - privleap - sdwdate-gui - temp folder ==
+
+<pre>
+echo "$QREXEC_REMOTE_DOMAIN $1" | tee /tmp/sdwdate-gui-tmp-status
+</pre>
+
+* consider use of a more secure folder
+** Agreed on <code>/run/user/1000/sdwdate</code>, new code is here: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/temp-file-move
+* re-check python valid characters sanity test
+** Rechecked and tested, appears to be correct. Add automated testing of invalid ASCII to privleap's test suite.
+* Patrick: Merged.
+
+== sync fork of live-build with upstream ==
+* Some MRs made upstream have been reimplemented and the polished versions merged. Pull these changes into our fork and adjust derivative-maker accordingly.
+** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/tree/master
+*** Patrick: Merged.
+** live-build: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+*** Patrick: Merged.
+* Aaron: Both of these need re-merged, the fix I did for isomd5sum turned out to be a workaround for a configuration issue. Upstream helped me discover the real problem there.
+** Patrick: Both merged.
+
+== user-sysmaint-split - privleap - breaks Qubes gui ==
+* whonix-workstation-17-dvm is no longer starting, likely due to the issue below
+* Tested, seems to now be resolved.
+
+== user-sysmaint-split - privleap - close stdin ==
+* close stdin, since not available anyhow
+* this is to avoid programs waiting for input forever, which will never come
+* Done in latest privleap code.
+
+== user-sysmaint-split - privleap - usability-misc privleap configuration bug ==
+<pre>
+Feb 06 18:32:29 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Feb 06 18:32:29 host privleapd[877]: parse_config_files: CRITICAL: Failed to load config file '/etc/privleap/conf.d/usability-misc.conf'!
+Feb 06 18:32:29 host privleapd[877]: Traceback (most recent call last):
+Feb 06 18:32:29 host privleapd[877]:   File "/usr/lib/python3/dist-packages/privleap/privleapd.py", line 595, in parse_config_files
+Feb 06 18:32:29 host privleapd[877]:     = pl.PrivleapCommon.parse_config_file(f.read())
+Feb 06 18:32:29 host privleapd[877]:       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 06 18:32:29 host privleapd[877]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 1010, in parse_config_file
+Feb 06 18:32:29 host privleapd[877]:     action_output_list.append(PrivleapAction(current_action_name,
+Feb 06 18:32:29 host privleapd[877]:                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Feb 06 18:32:29 host privleapd[877]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 830, in __init__
+Feb 06 18:32:29 host privleapd[877]:     raise ValueError(f"User '{raw_auth_user}' specified by "
+Feb 06 18:32:29 host privleapd[877]: ValueError: User 'sysmaint' specified by field 'AuthorizedUsers' of action 'upgrade-nonroot-wrapper' does not exist!
+Feb 06 18:32:29 host systemd[1]: privleapd.service: Main process exited, code=exited, status=1/FAILURE
+Feb 06 18:32:29 host systemd[1]: privleapd.service: Failed with result 'exit-code'.
+</pre>
+
+* Latest changes from https://github.com/ArrayBolt3/privleap should resolve this.
+
+== user-sysmaint-split - privleap - setup-dist and anon-connection-wizard ==
+* Patrick: in progress by Patrick
+* port to privleap incomplete
+* will cause the same issue as this: https://forums.whonix.org/t/getting-setup-dist-error-in-whonix-gateway/21162
+* Whonix-Gateway CLI, no desktop. policykit may not be designed for this.
+
+<pre>
+debian/control:         pkexec,
+usr/lib/python3/dist-packages/anon_connection_wizard/tor_status.py:    command = ['pkexec', '/usr/libexec/anon-connection-wizard/acw-write-torrc', temp_file_path]
+usr/lib/python3/dist-packages/anon_connection_wizard/anon_connection_wizard.py:                    command = ['pkexec', '/usr/libexec/anon-connection-wizard/acw-write-torrc', Common.torrc_tmp_file_path]
+</pre>
+
+* tor-control-panel:
+
+<pre>
+packages/kicksecure/tor-control-panel/debian/control:         pkexec,
+</pre>
+
+* Patrick: Done. setup-dist is now using privleap for Tor enable/disable. Please review and move to archived if OK.
+* Aaron: Makes sense to me, don't see any problems with it.
+
+== user-sysmaint-split - implement sudoless ==
+* [[Dev/sudo]]
+** Ready for review:
+*** https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/sudoless-privleap
+**** Patrick: Merged. (Didn't merge branch "sudoless".)
+*** https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/fix-spacing
+**** Patrick: Not merged. But used autopeop. Merged branch "sudoless" instead.
+*** https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/sudoless-privleap
+**** Patrick: Merged.
+*** https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/privleap
+**** Patrick: Merged.
+*** https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/privleap
+**** Patrick: Merged.
+*** https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/privleap
+**** Patrick: Merged.
+** https://github.com/ArrayBolt3/anon-gw-anonymizer-config/tree/arraybolt3/privleap
+*** Patrick: Merged.
+** https://github.com/ArrayBolt3/whonix-base-files/tree/arraybolt3/user-sysmaint-split
+*** Patrick: Merged.
+** https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/privleap
+*** Patrick: Merged.
+** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sudoless-privleap
+*** Patrick: Merged.
+** https://github.com/ArrayBolt3/tor-control-panel/tree/arraybolt3/privleap
+*** Patrick: Merged.
+** https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/privleap
+*** Patrick: Merged.
+* Patrick: Please move to archived if everything got merged as expected.
+** Aaron: Looks good.
+
+== user-sysmaint-split - implement sudoless #2 ==
+
+** Additional things done:
+*** grep through entire Kicksecure and Whonix codebases for all uses of <code>sudo</code>, replace with privleap where appropriate
+*** grep through entire Kicksecure and Whonix codebases for all uses of <code>pkexec</code>, replace with privleap where appropriate
+
+Port maybe needed? What should happen if a user runs repository-dist in user mode?
+
+<pre>
+packages/kicksecure/repository-dist/debian/control:Depends: pkexec,
+packages/kicksecure/repository-dist/usr/lib/python3/dist-packages/repository_dist_wizard/repository_dist_wizard.py:                    command = ['pkexec', 'repository-dist', '--disable']
+packages/kicksecure/repository-dist/usr/lib/python3/dist-packages/repository_dist_wizard/repository_dist_wizard.py:                command = ['pkexec', 'repository-dist', '--enable'] + repository
+</pre>
+
+Port not needed because runs in sysmaint mode:
+
+<pre>
+packages/kicksecure/calamares-settings-debian/calamares-install-debian:pkexec calamares
+packages/kicksecure/calamares-settings-debian/debian/control:         pkexec,
+
+packages/kicksecure/live-config-dist/debian/control:Depends: helper-scripts, pkexec, rsync, libglib2.0-bin, xdg-user-dirs,
+packages/kicksecure/live-config-dist/usr/bin/install-host:if ! [ -x '/usr/bin/pkexec' ] || ! [ -x '/usr/bin/sudo' ]; then
+packages/kicksecure/live-config-dist/usr/bin/install-host:The pkexec or sudo command is not executable by the current user. Installation cannot proceed. You may need to log in as user 'sysmaint' to resolve this.
+packages/kicksecure/live-config-dist/usr/bin/install-host:pkexec install-host-calamares-wrapper
+packages/kicksecure/live-config-dist/usr/share/polkit-1/actions/com.kicksecure.install-host-calamares-wrapper.policy: <action id="com.kicksecure.install-host-calamares-wrapper.policy.pkexec.run">
+'/usr/bin/pkexec'
+</pre>
+
+Will cause issue https://forums.whonix.org/t/getting-setup-dist-error-in-whonix-gateway/21162 - separate ticket created:
+
+<pre>
+packages/kicksecure/tor-control-panel/debian/control:         pkexec,
+
+packages/kicksecure/anon-connection-wizard/debian/control:         pkexec,
+packages/kicksecure/anon-connection-wizard/usr/lib/python3/dist-packages/anon_connection_wizard/tor_status.py:    command = ['pkexec', '/usr/libexec/anon-connection-wizard/acw-write-torrc', temp_file_path]
+packages/kicksecure/anon-connection-wizard/usr/lib/python3/dist-packages/anon_connection_wizard/anon_connection_wizard.py:                    command = ['pkexec', '/usr/libexec/anon-connection-wizard/acw-write-torrc', Common.torrc_tmp_file_path]
+</pre>
+
+Port not needed (runs in sysmaint mode or not important):
+
+<pre>
+packages/kicksecure/kicksecure-meta-packages/debian/control:         pkexec,
+packages/kicksecure/sysmaint-panel/debian/control:         pkexec,
+
+packages/kicksecure/tb-starter/usr/bin/torbrowser:      if ! pkexec /usr/share/tb-profile-i2p/enable-i2p; then
+packages/kicksecure/tb-starter/usr/bin/torbrowser:Most likely user-sysmaint-split is installed and you are booted into 'PERSISTENT mode USER' or 'LIVE mode USER'. To enable i2p, reboot and select 'PERSISTENT mode SYSMAINT', then open a terminal and run 'pkexec /usr/share/tb-profile-i2p/enable-i2p'. More info: <a href=https://www.kicksecure.com/wiki/Sysmaint>https://www.kicksecure.com/wiki/Sysmaint</a>"
+packages/kicksecure/tb-starter/usr/bin/torbrowser:   ## This effectively results in a one time pkexec prompt for users of
+</pre>
+
+Port not needed, not really using pkexec:
+
+<pre>
+packages/kicksecure/user-sysmaint-split/debian/control: pkexec) inaccessible to limited user accounts such as user "user".
+packages/kicksecure/user-sysmaint-split/usr/lib/permission-hardener.d/20_user-sysmaint-split.conf:/usr/bin/pkexec 4750 root sysmaint
+
+packages/kicksecure/security-misc/debian/security-misc.postinst:   if [ "$(stat --format '%G' /usr/bin/pkexec)" = 'sysmaint' ]; then
+packages/kicksecure/security-misc/debian/security-misc.postinst:      if ! [[ "${dpkg_statoverride_list}" =~ '/usr/bin/pkexec' ]]; then
+packages/kicksecure/security-misc/debian/security-misc.postinst:         dpkg-statoverride --admindir "${new_mode_dir}" --add 'root' 'sysmaint' '4750' 
+
+packages/kicksecure/developer-meta-files/usr/bin/dm-packaging-helper-script:      'Depends: pkexec' \
+packages/kicksecure/security-misc/debian/security-misc.undisplace:/usr/bin/pkexec.security-misc
+packages/kicksecure/security-misc/usr/lib/systemd/system-preset/50-security-misc.preset:## Disable due to pkexec issues.
+packages/kicksecure/security-misc/usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf:/usr/bin/pkexec exactwhitelist
+packages/kicksecure/security-misc/usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf:/usr/bin/pkexec.security-misc-orig exactwhitelist
+packages/kicksecure/security-misc/usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf:## May be safe to disable for users other than sysmaint similar to what was done with pkexec and sudo,
+packages/kicksecure/security-misc/usr/share/lintian/overrides/security-misc:security-misc: no-manual-page [usr/bin/pkexec.security-misc]
+packages/kicksecure/security-misc/usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded:root root 4755 /usr/bin/pkexec
+</pre>
+
+== user-sysmaint-split - passwordless login breaks when uninstalled ==
+* Bug: removing user-sysmaint-split from a machine causes autologin to break, user is presented with login screen on boot
+* Possibly caused by user <code>sysmaint</code> autologin handling?
+* Fixed, along with some other issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/fix-passwordless-login
+** Patrick: Merged.
+
+== Strong Linux User Account Isolation wiki page - add Wayland considerations ==
+* edit [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]] and point out differences in X11 versus Wayland in applicable chapters
+* For example, chapter [[Dev/Strong_Linux_User_Account_Isolation#Console_Login_Attacks|Console Login Attacks]] currently only discusses X11. Please separate the description of X11 from Wayland.
+** Done, did necessary research and added info to the wiki.
+* please search with browser website internal search for all mentions of X11 and add Wayland equivalents documentation
+** Used several different search terms that could reference X11, adding additional documentation where needed.
+
+== user-sysmaint-split - port upgrade-nonroot to privleap ==
+* port upgrade-nonroot to privleap, if sane
+* do not add <code>Depends: privleap</code>
+* https://forums.kicksecure.com/t/upgrade-nonroot-privilege-escalation-issue/886
+* Done in https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/privleap
+** Patrick: Merged.
+* Patrick: refactored upgrade-nonroot. Could the following if needed please be improved, moved to its dedicated wrapper script to avoid code duplication?
+
+<pre>
+if ! [ -f "/etc/privleapd/pid" ] ; then
+  echo "$0: ERROR: code 1: TODO"
+  exit 1
+fi
+
+if ! [ -d "/proc/$(cat /etc/privleapd/pid)" ] ; then
+  echo "$0: ERROR: code 2: TODO"
+  exit 1
+fi
+
+if ! [ -e "/etc/privleapd/comm/$(id -nu)" ]; then
+  echo "$0: ERROR: code 3: TODO"
+  exit 1
+fi
+</pre>
+
+* Aaron: The version merged appears to have some bugs. Fixed version here: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/privleap
+** Patrick: Merged.
+* Aaron: Also needs accompanying update in helper-scripts to fully fix, this also provides warnings if privleap isn't usable like shown above: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sudoless-privleap
+** Patrick: Merged.
+== user-sysmaint-split - avoid /etc as pid file location ==
+* File location /etc/privleapd/pid seems unusual.
+** Aaron: We're not using /etc, we're using /run. Details shared in chat.
+
+== user-sysmaint-split - bind-mounts based passwordless privilege escalation wrapper ==
+* implemented using overlays (bind mounts)
+* passwordless privilege escalation tools in Qubes Template
+* useful error message in Non-Qubes user mode and Qubes App Qube. untested pseudocode:
+
+<pre>
+#!/bin/bash
+
+## Copyright (C) 2025 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+if test -x /path/to/real/sudo ; then
+   exec /path/to/real/sudo "$@"
+fi
+
+## Avoiding 'source'ing external libraries to avoid additional AppArmor issues.
+## 'source' is a bashism.
+#. /usr/libexec/helper-scripts/get_colors.sh
+
+if test -f /usr/share/whonix/marker ; then
+   project_website="https://www.whonix.org"
+else
+   project_website="https://www.kicksecure.com"
+fi
+
+echo 'ERROR: This account lacks administrative ("root") capabilities. See: ${project_website}/wiki/sysmaint' >&2
+
+## Let the attempt to execute 'sudo' show the actual error message.
+/path/to/real/sudo "$@"
+</pre>
+
+* After attempted implementation and running into roadblocks, we no longer want to do this. It's a hack to work around missing Qubes OS features that we should be developing.
+
+== qubes-template-kicksecure - Thunar - icons missing ==
+* ran into serious issues with icons in Thunar, see https://forum.xfce.org/viewtopic.php?id=18054
+** Patrick: Could you please update the Xfce forum thread?
+*** Thread updated and marked as solved.
+* Should be fixed by this: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/fix-thunar-icons-qubes
+** Patrick: Merged.
+
+== qubes-template-kicksecure - #3 ==
+* rebuild qubes-template-kicksecure
+* Now good enough to be built for qubes-community-testing repository by Qubes?
+* If not, please create follow-up tickets.
+* Patrick: Moved Thunar issue into its own ticket since not a blocker.
+* Patrick: Next goal is to update https://github.com/QubesOS/qubes-issues/issues/9573 by posting a comment. Such as requesting that Qubes builds the Template for the community-testing repository. Selective broken applications are acceptable (such as Thunar). This is to allow upstream Qubes time to review, try to build the template, notify downstream Kicksecure of potentially yet unknown issues.
+** Only immediately apparent issue I see is that we still have the bookworm-testers repo specified as the Kicksecure repo to use for the build process, whereas user-sysmaint-split is only available in bookworm-developers. This makes the build fail until the template-kicksecure code repo is manually edited to specify the correct source repo.
+
+== user-sysmaint-split - review helper-scripts ==
+* https://github.com/Kicksecure/helper-scripts/pull/13
+* https://github.com/Kicksecure/user-sysmaint-split/pull/1
+* Reviews complete and PRs were merged.
+
+== privleap - compare what privleap is doing versus sudo and doas regarding environment ==
+
+<pre>
+    action_env["HOME"] = user_info.pw_dir
+    action_env["LOGNAME"] = user_info.pw_name
+    action_env["PWD"] = user_info.pw_dir
+    action_env["USER"] = user_info.pw_name
+</pre>
+
+* please check what sudo / doas is doing for completeness sake
+* env vars
+* any other setup?
+** doas (https://man.openbsd.org/doas.1):
+*** <code>HOME</code> - We're already setting this.
+*** <code>LOGNAME</code> - We're already setting this.
+*** <code>PATH</code> - Set by systemd and inherited from privleapd, this is hardcoded to a known-good value.
+*** <code>SHELL</code> - Useful to set, now hardcoded in privleapd to <code>/usr/bin/bash</code> (since that's the shell privleapd uses to run actions).
+*** <code>USER</code> - We're already setting this.
+*** <code>umask</code> - Default, inherited from systemd, probably do not want to change this.
+*** <code>DISPLAY</code> - Usually specifies the active X11 display the process is running on. privleapd runs as a service and will have no X11 display, thus this is useless for us.
+*** <code>TERM</code> - Specifies what terminal is in use. Probably also useless, processes run by privleapd are not given a PTY.
+*** <code>PWD</code> - Not changed by doas. We're setting it, but we're also not changing the process's actual current working directory, which could potentially result in malfunctions. Fixed.
+** sudo (https://man7.org/linux/man-pages/man8/sudo.8.html#ENVIRONMENT):
+*** <code>EDITOR</code> - Used by sudo, but doesn't appear to be set by it.
+*** <code>MAIL</code> - Set to the mail spool of the target user in some instances. This is empty on Kubuntu 24.04 and Kicksecure 17, and is set to <code>/var/mail/user</code> on a mostly minimal Debian 12 VM (that path doesn't actually exist on the VM though, strangely enough). Probably not useful.
+*** <code>HOME</code> - We're already setting this.
+*** <code>LOGNAME</code> - We're already setting this.
+*** <code>PATH</code> - See above in doas section.
+*** <code>SHELL</code> - See above in doas section.
+*** <code>SUDO_ASKPASS</code> - Specific to sudo, not set by sudo.
+*** <code>SUDO_COMMAND</code> - Specific to sudo, set to the command that is run by sudo. Potentially useful but also sudo-specific, probably not needed?
+*** <code>SUDO_EDITOR</code> - Specific to sudo, not set by sudo.
+*** <code>SUDO_GID</code> - Specific to sudo, set to the GID of the user who invoked sudo. Potentially useful, easy to implement in a secure manner. Desirable?
+*** <code>SUDO_PROMPT</code> - Specific to sudo, not set by sudo.
+*** <code>SUDO_PS1</code> - Specific to sudo, not set by sudo, most likely only affects interactive shells which privleap doesn't support anyway.
+*** <code>SUDO_UID</code> - Specific to sudo, set to the UID of the user who invoked sudo. Potentially useful, easy to implement in a secure manner. Desirable?
+*** <code>SUDO_USER</code> - Specific to sudo, set to the login name of the user who invoked sudo. Potentially useful, easy to implement in a secure manner, but could potentially be used for malicious purposes if the user has a Unicode-based username? See https://lwn.net/Articles/1000485/. Redundant if <code>SUDO_UID</code> is implemented, probably we shouldn't set this.
+*** <code>USER</code> - We're already setting this.
+*** <code>VISUAL</code> - Used by sudo, but doesn't appear to be set by it.
+
+== privleap - environment variables security ==
+* consider account user setting malicious environment variables (length based buffer overflow, code substitution $(...) / `...` syntax)
+** This should not be a problem. Environment variables cannot be inherited from the user that calls privleap because they are not transmitted by the client to the server. All actions launched by privleap will inherit their environment from the privleapd server, which inherits its environment directly from systemd. Environment variables that aren't inherited directly are currently derived from basic user info configured in root-owned files, thus not a security risk.
+** Will keep this in mind if more environment variables need tweaked.
+
+== privleap - code improvements ==
+* Patrick:
+** Output internal configuration to stdout? At least when debug mode is enabled. This would be useful to look into what actually got parsed.
+** Worthwhile to simplify?
+<pre>
+        self.auth_user = auth_user if auth_user != "" else None
+        self.auth_group = auth_group if auth_user != "" else None
+</pre>
+
+<pre>
+        self.auth_user = auth_user
+        self.auth_group = auth_group
+</pre>
+
+<pre>
+        if desired_action.auth_user is not None:
+</pre>
+
+<pre>
+        if desired_action.auth_user is not "":
+</pre>
+*** These are already either simplified, or can't reasonably be simplified further. In particular <code>None</code> and <code>""</code> are not interchangeable and explicitly using <code>None</code> in Python is preferable when possible.
+
+** Print first (more likely it will succeed and leave a log entry). Run the try/except block after?
+<pre>
+                try:
+                    comm_session.send_msg(
+                        pl.PrivleapCommServerUnauthorizedMsg())
+                except Exception:
+                    print("handle_comm_session: Could not send UNAUTHORIZED")
+                    print(traceback.format_exc())
+
+                print("handle_comm_session: User is not authorized to run "
+                    "action '"
+                    + desired_action.action_name
+                    + "'")
+</pre>
+
+** Generally, do the safe action print to stdout (which ends up in journal) first. Later do things which might hang in theory.
+*** Done.
+
+== user-sysmaint-split - privleap - improvements ==
+* user_name validation - enforce maximum user name length: user_name variable should have a reasonable maximum string length
+* move user_name validation into a dedicated function?
+* maybe signal name could be validated using the same function?
+* Added requested features. https://github.com/ArrayBolt3/privleap/commit/6c653e64da4959de2b53b72ec49835c01808204b Rather than enforcing a maximum user name length though, I enforced a maximum client-sent message length since that was more comprehensive and easier to do in an efficient manner.
+
+== user-sysmaint-split - privleap - implement user switch - runas ==
+* please implement, if needed
+* already done, will use it where needed
+
+== privleap ==
+* todo
+* Beta-quality code: https://github.com/ArrayBolt3/privleap
+** Extensively tested, but still needs battle-tested in real-world use and tested by someone other than just me.
+
+== user-sysmaint-split - enable user-sysmaint-split by default for Xfce version ==
+* for GUI (Xfce) version only:
+** Patrick: Done.
+* and for VM images as "loose packages"
+** Patrick: Done.
+* not Whonix-Gateway
+** Patrick: Done.
+* ISO: TODO
+** Done: https://github.com/ArrayBolt3/derivative-maker Tested, works
+
+== user-sysmaint-split - refactor pkexec support ==
+* in https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/polkit <code>/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1</code> gets hardcoded, started by a script
+** Is this a good mechanism?
+** What would be the usual mechanism to start it when booting into normal mode? Let's suppose the answer is "a systemd unit". In this case, wouldn't it be less surprising, easier to understand, cleaner to use the name mechanism when booting into sysmaint mode?
+** Please either use the same mechanism or add a comment why this specific mechanism has been selected.
+** Please document.
+*** This does have to use a different mechanism, which is now documented: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/polkit
+
+== user-sysmaint-split - sysmaint-boot.target should allow SSH ==
+* todo
+* https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/ssh
+
+== permission-hardener v2 - add easy debug feature ==
+* permission-hardener could use an easy debug feature. Once run, it collects relevant outputs from permission-hardener (print-policy, state files and anything else that may be required), prints them to stdout.
+* would have been useful for the following bug report
+* Diagnostics command added: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-diag
+
+== permission-hardener v2 - repetitive polkit-agent-helper-1 messages ==
+* background: The polkit-agent-helper-1 config snippet went thorough 2 several revisions. 1) usrmerge was dropped 2) symlink /usr/lib/policykit-1/polkit-agent-helper-1 that links to actual SUID /usr/lib/polkit-1/polkit-agent-helper-1.
+** The bug already happened after revision 1. (Maybe even earlier.)
+* on every run:
+* only /usr/lib/polkit-1/polkit-agent-helper-1 shows up in print-policy, as expected
+* bug: older revisions still show up in state, but should not?
+* Bug fix: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-symlink-fix Fully resolves symlinks, rejects hardlinks.
+
+== user-sysmaint-split - research Qubes user to root isolation ==
+* todo: read, comment if applicable
+* https://qubes-os.org/doc/vm-sudo/
+* https://www.qubes-os.org/doc/vm-sudo-implementation/
+* https://github.com/QubesOS/qubes-issues/issues/8823
+** https://github.com/QubesOS/qubes-issues/issues/8823#issuecomment-1953115546
+*** has a small mention of /dev/xen
+**** reported as bug: https://github.com/QubesOS/qubes-issues/issues/9717
+* https://github.com/QubesOS/qubes-issues/issues/2695
+* https://forum.qubes-os.org/t/passwordless-sudo-selinux-understanding-security-logic/22446
+* Researched, discussed with Qubes OS devs. Put research and discussion results here: https://www.kicksecure.com/wiki/Dev/Qubes#Root_Privilege_Isolation_and_libxenvchan
+
+== user-sysmaint-split - passwordless-root fixes ==
+* <code>/usr/bin/passwordless-root</code> needs fixes?
+* add <code>dummy-dependency --cached</code> option to avoid creating the dummy package at every boot
+** Patrick: Done.
+* store in a persistent directory
+** Patrick: Done. <code>/var/lib/dummy-dependency/dummy-user-sysmaint-split_99_all.deb</code>
+* make directory persistent using Qubes bind-dirs
+** TODO
+** which package would be suitable for the bind-dirs snippet?
+*** I don't see why helper-scripts itself is bad, we do similar things for systemcheck, legacy-dist, and sdwdate.
+*** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/dummy-dependency-qubes
+
+== security - upgrade comment ==
+* please comment as discussed
+* https://forums.kicksecure.com/t/upgrade-nonroot-privilege-escalation-issue/886/3
+
+== continuous review ==
+* before merging newer derivative-maker git tag, please [[Dev/git#Compare|compare]] doing theoretic review
+* please discuss and/or open tickets in case commentary is applicable
+* +1, will do this regularly.
+
+== permission-hardener - make migration code faster  ==
+* The following is too slow. Can take more than a minute on a fast system. Appears as if the system is broken.
+
+<pre>
+   readarray -t custom_hardening_arr < <(dpkg -V | awk '/permission-hardener.d/{ print $NF }')
+</pre>
+
+<pre>
+readarray -t custom_hardening_arr < <(find /usr/lib/permission-hardener.d /etc/permission-hardener.d -type f)
+</pre>
+
+* Can <code>find</code> be used?
+** <code>find</code> has many pitfalls: https://mywiki.wooledge.org/UsingFind
+** Especially when using readarray?
+* Aaron I'm using <code>dpkg -V</code> specifically to find ''modified'' permission-hardener files. It does a similar job to debsums. However, right now I'm letting it scan all packages on the system, when it really only has to scan security-misc, anon-apps-config, and user-sysmaint-split.
+** Commit fixing speed issues: https://github.com/ArrayBolt3/security-misc/commit/396372c1295e2a09d596f3e23fccc26794a26f05
+** Note: Not tested yet.
+* Patrick: modified_pkg_data_str might include:
+
+<pre>
++ modified_pkg_data_str='missing     /usr/lib/permission-hardener.d/20_user-sysmaint-split.conf'
+</pre>
+
+* Patrick: merged. Tested. Please review my changes on top. (Theoretic only.)
+** Aaron: Reviewed, recommended changes at https://github.com/Kicksecure/security-misc/compare/master...ArrayBolt3:security-misc:master
+*** Patrick: Merged.
+
+== user-sysmaint-split - fix pkexec for sysmaint user ==
+* Aaron:
+** Note, gparted and zulucrypt probably *should* work in sysmaint mode. pkexec also doesn't work in sysmaint mode. I believe the reason they don't work is 
+because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
+* Fixed, turns out it was a missing user-side startup process. https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/polkit
+** Patrick: Merged.
+
+== user-sysmaint-split - Whonix documentation review ==
+* please review https://www.whonix.org/wiki/Sysmaint
+** Fixed some typographical errors, otherwise looks good to me.
+
+== user-sysmaint-split - Qubes support ==
+* user-sysmaint-split - useful to install in Qubes for Kicksecure or Qubes-Whonix? Probably yes, due to sudo hardening.
+** Patrick: Done.
+* Plan for Kicksecure-Qubes and Qubes-Whonix-Workstation?
+** No longer install qubes-core-agent-passwordless-root by default.
+*** Patrick: Done.
+** Install user-sysmaint-split by default in new Qubes-Whonix-Workstation templates.
+*** Patrick: Done.
+** Install qubes-core-agent-passwordless-root by default in new Qubes-Whonix-Gateway templates.
+*** Patrick: Done.
+** Users could not really use account <code>sysmaint</code> due to missing X server. Instead, user needs to use a [[Root#Qubes_Root_Console|Qubes Root Console]].
+*** Patrick: Done.
+* Plan for Qubes-Whonix-Gateway?
+** Keep [[unrestricted admin mode]] to be on par with Non-Qubes-Whonix-Gateway?
+*** Patrick: Done.
+* user documentation
+** Patrick. Done: https://www.whonix.org/wiki/Sysmaint
+* suggestions for [https://github.com/QubesOS/qubes-issues/issues/9519 create user `admin` by default and add user `admin` to group `sudo` by default]?
+
+== legacy-dist - enable GRUB force_efi_extra_removable ==
+
+<pre>
+debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
+</pre>
+
+* please add to https://github.com/Kicksecure/legacy-dist (postinst?), if sane
+* code needs to be defensive. GRUB might not be installed. (Qubes; chroot; direct kernel boot; unknown)
+* Risky to do for existing users (might overwrite other bootloaders). Therefore not doing this.
+
+== kicksecure-meta-packages fixes for qubes-template-kicksecure ==
+* packages in https://github.com/Whonix/qubes-whonix/blob/master/debian/control need to be re-implemented in kicksecure-meta-packages as appropriate
+* Fixes needed ('''NOT YET DONE'''):
+** Add <code>qubes-core-agent-networking</code>, <code>qubes-core-agent-thunar</code>, and <code>xfce4-settings</code> to package <code>kicksecure-qubes-gui</code>.
+** Add <code>user-sysmaint-split</code> to template code.
+*** Requires user-sysmaint-split to be published in Kicksecure's repos
+**** Patrick: Done.
+* Branch with enhanced metapackages: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/kicksecure-qubes
+** Was not able to test this locally, couldn't figure out how to get a locally built package to be used in a Kicksecure build. Need to research that further in the future. I was able to build the package with genmkfile though.
+*** Patrick: Merged, built and uploaded and tested. (No bugs found.)
+
+== user-sysmaint-split - consider disabling polkit-agent-helper-1 ==
+* for potentially affected packages, see: "<code>apt purge polkitd</code>"
+* does it break Network Manager WiFi configuration from account "user"?
+* <code>cat usr/lib/permission-hardener.d/20_user-sysmaint-split.conf</code>
+
+<pre>
+## TODO:
+## See also:
+## /usr/lib/permission-hardener.d/25_default_whitelist_policykit.conf
+#/usr/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
+#/lib/policykit-1/polkit-agent-helper-1 4750 root sysmaint
+</pre>
+
+* Current verdict: '''I believe this is likely safe to disable.'''
+** Affected applications I tested were gparted, zulucrypt, and the NetworkManager widget.
+** NetworkManager "just works" even with this executable's permissions hardened.
+** gparted and zulucrypt are both broken for both user <code>user</code> and user <code>sysmaint</code> even without this executable's permissions hardened.
+*** Note, gparted and zulucrypt probably *should* work in sysmaint mode. pkexec also doesn't work in sysmaint mode. I believe the reason they don't work is because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
+**** Patrick: follow-up ticket created
+* Patrick: disabled
+
+== live-build - enable GRUB force_efi_extra_removable ==
+* todo
+* if applicable
+* Already done in 2800_create-lb-iso. Shouldn't need any further changes to live-build to make work.
+
+== permission-hardener - disable action does not remove existing_mode and new_mode statoverride file ==
+* bug? as discussed.
+** Neither database should be ''removed'' wholesale.
+** existing_mode should keep tabs on any file permission-hardener touches, recording the original file modes as appropriate. It's fine for it to not be modified when disabling hardening on a file.
+** Removing entries from existing_mode is potentially dangerous since it can make it impossible for the user to disable permission hardening on a file if a bug is encountered that re-hardens the file after hardening has been disabled.
+** On my system, new_mode is appropriately modified when disabling one or all files. However, new_mode had some problems (it wasn't being copied forward to the new v2 location, thus rendering it useless, and the original file had some corruption issues), so I put a migration system in place for new_mode that is similar to the one we created for existing_mode.
+** https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/more-permission-hardener
+
+== publish Debian security report ==
+* as discussed
+* Published: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=718225#115
+
+== qubes-template-kicksecure ==
+* https://github.com/QubesOS/qubes-issues/issues/9573
+* try if https://github.com/Kicksecure/qubes-template-kicksecure can be built locally
+* document on [[Dev/Qubes]] how to download, verify Qubes builder v'''2''' (or fix upstream documentation if that seems more feasible)
+** https://github.com/QubesOS/qubes-builderv2/
+* Documentation written and tested.
+* Upstream PR at https://github.com/QubesOS/qubes-builderv2/pull/170, approved and merged.
+** Patrick: Done.
+* Fixes needed ('''DONE'''):
+** Figure out why repository-dist isn't being called, environment variable seems to not be getting through
+*** Fixed in qubes-builderv2 PR, also required fixes to the Kicksecure and Whonix templates.
+**** https://github.com/ArrayBolt3/qubes-template-whonix
+**** https://github.com/ArrayBolt3/qubes-template-kicksecure
+***** Done. Both merged.
+
+== review list of remaining SUIDs ==
+/usr/lib/qubes/qfile-unpacker: Probably still needed.
+- Appears to be an integral part of file transfer between qubes, stripping SUID from this in an AppVM results in that AppVM being unable to receive files any longer. (It can still send files to other qubes though.)
+
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+- Needed for D-Bus system activation to work, see https://dbus.freedesktop.org/doc/system-activation.txt. May be vital for desktop features to work normally. Appears to have been designed with security in mind and can only be called by root or a user in the `messagebus` group (which currently has one member, namely user `messagebus`).
+
+/usr/lib/chromium/chrome-sandbox: Probably OK.
+- This is safe to disable. Chrome/Chromium now uses namespace-based sandboxing rather than a SUID sandbox for most use cases, and while the SUID sandbox is still technically supported (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_sandboxing.md), it's also virtually unused (https://chromium.googlesource.com/chromium/src/+/0e94f26e8/docs/linux_suid_sandbox.md). Chromium still works fine when it is stripped of its SUID bit and rendered no longer executable, and opening `chrome://sandbox` while in this state shows that sandboxing is still working perfectly fine.
+
+/usr/lib/openssh/ssh-keysign: ?
+- Used only for SSH host-based authentication (https://linux.die.net/man/8/ssh-keysign), needed to allow access to the machine's host key for use in the authentication process. This is a non-default method of authenticating to SSH, and is likely rarely used, thus this should be safe to disable.
+
+/usr/lib/polkit-1/polkit-agent-helper-1: Should be handled in user-sysmaint-split?
+- Required for Polkit to function at all (https://polkit-devel.freedesktop.narkive.com/zXO4yEg7/documentation-on-polkit-agent-helper-1-and-suid#, https://gitlab.freedesktop.org/polkit/polkit/-/issues/168). Changing permissions here may break more than just normal privilege escalation. May be safe to disable for users other than sysmaint similar to what was done with pkexec and sudo, however even that might not be safe.
+
+/usr/sbin/pam-tmpdir-helper: ?
+- Used by the pam_tmpdir module to create a secure temporary directory for the user that is logging in. (https://manpages.ubuntu.com/manpages/oracular/man8/pam-tmpdir-helper.8.html) Apparently specific to Debian, there isn't actually any Git repo with this code in it, it's just a "floating" package in the Debian archive. Written by the same person who maintains the package. Almost certainly cannot be disabled without causing serious problems, but may be worth auditing. (Worthy of note, it doesn't seem this program takes any user input, but relies solely on the calling user's UID and GID, though this could require further review.)
+
+/usr/bin/fusermount3: ?
+- Critical component of FUSE (Filesystem in USErspace), used by things such as AppImages and Docker. If not SUID, unprivileged users will be unable to use FUSE any longer - this completely breaks AppImages, among other things. Should be left enabled to avoid causing problems.
+
+/usr/bin/qfile-unpacker: Probably still needed.
+- Not bit-for-bit identical to /usr/lib/qubes/qfile-unpacker, and stripping SUID from this does *not* break file copying. Unsure what this is for, asked in Qubes OS Matrix room for clarification.
+
+* Patrick: Migrated these comments to permission hardener configuration.
+* Patrick: Disabled SUID for chrome/chromium sandbox and SSH.
+
+== permission-hardener - restore permissions on configuration changes - #2 ==
+* bug: when package user-sysmaint-split is removed, permission-hardener fails to restore sudo and pkexec permissions
+** Fix with migration alert: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-migrate
+** TODO: Need to actually write the documentation for this on the wiki!
+* Patrick:
+** Please move state file variable v2_state_file from inline to /usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded or so. That would make that file more easily maintainable.
+** Please open a PR.
+
+Instead of
+
+<pre>
+   echo "${v2_state_file}" > '/var/lib/permission-hardener-v2/existing_mode/statoverride'
+</pre>
+
+Replace
+
+<pre>
+   cp '/usr/share/security-misc/permission-hardener-existing-mode-legacy-hardcoded' '/var/lib/permission-hardener-v2/existing_mode/statoverride'
+</pre>
+
+** Aaron: Done.
+** potential bug: Some files exist only in some situations. Legitimately.
+*** '/usr/lib/permission-hardener.d/30_ping.conf' is Whonix-only.
+**** Aaron: Not a problem, the existing_state for the ping executable is the same on Kicksecure and Whonix, regardless of whether anon-apps-config is installed or not.
+*** user-sysmaint-split may or may not be installed
+**** Aaron: Also not a problem for similar reasons.
+*** Please make sure these situations do not result in "custom configuration detected".
+**** Aaron: Tested, behaves as intended now.
+** Please INFO <code>echo</code> any custom configuration file found.
+*** Aaron: Done.
+** Please exclude new image builds from this migration code. If folder /var/lib/permission-hardener does not exist, there is no need for the migration code to run.
+*** Aaron: Done, by checking for the existence of the old-style <code>/var/lib/permission-hardener</code> directory.
+* PR with all changes integrated: https://github.com/Kicksecure/security-misc/pull/295
+
+== user-sysmaint-split - shutdown action - #2 ==
+* a systemd unit to lock the sysmaint account on shutdown
+* ExecStop cannot be used. Quote man page:
+** "Also note that the stop operation is always performed if the service started successfully, even if the processes in the service terminated on their own or were killed."
+** "Note that the commands specified in ExecStop= are only executed when the service started successfully first."
+* A separate, real shutdown systemd unit required. Please compare with some other shutdown related systemd units using shutdown.target.
+* Should lock unconditionally no matter what boot mode. That should be safe on shutdown.
+* https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/lock-sysmaint-on-shutdown
+** Redone to avoid ExecStop and use a shutdown-time systemd unit instead. Also locks down unconditionally on shutdown.
+
+== Kicksecure DNS proper /etc/resolv.conf during build process ==
+* Kicksecure DNS setting is currently "implicit" as per https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
+* It however, should be "explicit".
+* Until more secure settings are implemented (waiting for replies from unbound), a sane /etc/resolv.conf file needs to be created during the build process
+* VM builds vs ISO builds
+* Implemented in initializer-dist to make sure it works no matter how things leak: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/resolv-conf
+** Patrick: Not compatible with Whonix, there /etc/resolv.conf is package managed.
+*** Patrick: Implemented in derivative-maker help-steps/chroot-raw instead.
+
+== analyze pam stack ==
+* old:
+
+<pre>
+/usr/bin/sudo /usr/bin/apt update
+Sorry, try again.
+Sorry, try again.
+sudo: 3 incorrect password attempts
+Command exited. You may close this window safely.
+</pre>
+
+* new:
+
+<pre>
+[template  user ~]% sudo apt update      
+Sorry, user user is not allowed to execute '/usr/bin/apt update' as root on localhost.
+zsh: exit 1     sudo apt update
+</pre>
+
+* due to pam wheel changes, this works better now
+* todo: why does this work better now? the pam wheel changes should not affect that.
+* moved content here: [[Dev/Strong_Linux_User_Account_Isolation#Analyze_PAM_Stack|Analyze PAM Stack]]
+
+== debian grub-pc with grub-efi co-installation issue bug report ==
+* please check if one already exists, report a bug or feature request against Debian for grub-pc with grub-efi co-install-ability
+* https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062
+
+== user-sysmaint-split - review changes ==
+* Patrick made some minor changes.
+** Reviewed, looks good to me. Will test when adding the sysmaint account lock shutdown action.
+
+== address Linux Installer review ==
+* some review comments about Linux installer have been sent privately
+* please address, if applicable
+* root_cmd or another function should be used instead of sudo
+** this is for the benefit of using end-of-options ("<code>--</code>")
+* <code>real_file="$(sudo realpath "${file}")"</code>
+** please do not hardcode sudo, use root_cmd
+** is variable real_file actually used for anything?
+* use shellcheck
+* All problems fixed:
+** https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/root-cmd-improve
+** https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/dist-installer-sysmaint-polish
+
+== DNS - Kicksecure Default DNS Discussion ==
+* https://www.kicksecure.com/wiki/DNS
+* https://www.kicksecure.com/wiki/DNS_Security
+* https://forums.kicksecure.com/t/dns-nameserver-10-139-1-1/858/15
+* https://forums.whonix.org/t/default-dns-provider-discussion-for-kicksecure-not-whonix/16870
+* https://forums.whonix.org/t/use-dnscrypt-by-default-in-kicksecure-not-whonix/8117
+* please read, comment, edit as applicable
+** Read, updated documentation and wrote a long comment suggesting next steps for implementing DNSSEC
+
+== document ARP related sysctl changes ==
+* please create a [[networking]] wiki page
+* https://github.com/Kicksecure/security-misc/pull/288
+* https://github.com/Kicksecure/security-misc/pull/289
+* https://github.com/Kicksecure/security-misc/pull/290
+* https://github.com/Kicksecure/security-misc/pull/291
+* Created, also tested <code>arp_ignore</code>'s effects on a common virtualization use case.
+
+== permission-hardener - usrmerge ==
+* assume usrmerge, make it a dependency
+* simplify configuration (/bin no longer needed)
+* Distribution morphing: document, if applicable
+** No need to depend on usrmerge, Bookworm requires merged /usr
+** No need to document for the same reason
+** Fixed security-misc with no more /bin modifications: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/usrmerge
+
+== user-sysmaint-split - rads integration ==
+* review Patrick's changes
+* avoid "systemctl start rads" hardcoded, if possible.
+* Reasons: Qubes does not come with rads by default. System might not have rads. User might have uninstalled rads. Difficult to check if a systemd unit is installed. (systemctl list-units | grep rads - might find a similar names systemd unit.)
+* Fixed, now starts rads using the systemd target instead: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/avoid-rads-in-script
+
+== permission-hardener refactor ==
+* Avoid lazy loading, instead build state arrays ancd apply them in an idempotent fashion
+* Currently planned algorithm:
+** Build the state first, starting with an empty state array if there is no state or loading an existing state array if there is state. For each file mentioned in the policy, check to see if it's in the state array, and if not, add its current user owner, group owner, and permissions state to the array. (TODO: How to handle capabilities? For now we can just support stripping them and not support adding them back.)
+** Next, apply the policy to the state. Copy the state array to a new array, and then change the user owner, group owner, permissions state, and capabilities to match the policy. It is important that it be done this way, because this means if the policy used to modify a file, but now no longer does, that file's original permissions state will exist in the state array, and thus will be considered part of the state that permissions-hardener applies.
+** Apply the built, policy-enhanced state to the filesystem's active state. For each file in the state array, delete the file's entry in dpkg-statoverride, then change the file's actual state to match the state array (again using dpkg-statoverride to do this)
+** To undo a policy for a file, load the state file, wipe the dpkg-statoverride entry for it, and then apply the stored state to the real file.
+* Ready for review: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/permission-hardener-refactor
+* PR: https://github.com/Kicksecure/security-misc/pull/293
+
+== user-admin-split - installer sysmaint support ==
+* context: [[Linux]]
+* wrap all commands in run_as_root versus run_as_user, if useful
+* improve privilege escalation tool detection
+* sudo -u user
+* keep unrestricted admin mode / "normal" Linux distribution compatibility
+** PR with the bulk of the changes: https://github.com/Kicksecure/usability-misc/pull/13
+** Sudoers exception needed to make the above work in sysmaint mode: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/dist-installer-sysmaint
+
+== user-sysmaint-split - Wayland support ==
+* sddm support (because that is LXQt's default login manager)
+** Can set default user account and session by modifying /var/lib/sddm/state.conf
+* Needs to use labwc as window manager instead of xfwm4 when in Wayland mode
+* Might need separate sessions for Wayland and X11, provided either by different packages or with some configurable switch
+** Patrick: multiple packages best avoided as discussed
+* Implementation (SDDM tested, Wayland untested): https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/wayland-sddm-support
+* Will be difficult to fully test until Kicksecure's Trixie port is underway
+
+== calamares - investigate keyboard layout issue ==
+* https://forums.kicksecure.com/t/problems-with-the-installation/836
+* Asked user for more information, cannot reproduce.
+* No response, archiving.
+
+== report research results to purism ==
+* as discussed
+* Done.
+
+== pam wheel - review ==
+* please review Patrick's new pam wheel implementation
+** Reviewed and tested, looks good and works as intended on my end.
+
+== sysmaint-panel - Qubes support ==
+* bug: when qubes-core-agent-passwordless-root is not installed but user-sysmaint-split is not installed, sysmaint-panel fails to notify the user that root escalation is failing
+
+<pre>
+/usr/bin/sudo /usr/bin/apt update
+Sorry, try again.
+Sorry, try again.
+sudo: 3 incorrect password attempts
+Command exited. You may close this window safely.
+</pre>
+
+* issue introduced by Kicksecure. not applicable with Qubes <code>qvm-template install debian-12-minimal</code>
+* Issue caused by security-misc/usr/share/pam-configs/wheel-security-misc. If user <code>user</code> is not in group <code>sudo</code>, this check fails and causes PAM authentication to fail, even if <code>user</code> has no password.
+** This file seems obsolete - the file states that it prevents users who aren't part of group <code>wheel</code> from using <code>su</code>, but <code>su</code> isn't even executable by anyone other than root due to permission hardening.
+** Issue should be resolvable by adding <code>user</code> to <code>sudo</code> in the template, or by removing this config file.
+** After discussion with Patrick, preferred solution is to create a script that can detect if the `su` command is being called, and only ensure that the user account in use is in the `sudo` group if this is the case.
+** After further research, <code>su</code> actually has a PAM configuration file that can be used here, allowing us to use pam_wheel as intended without causing conflicts.
+* Fix: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/fix-sudo
+** Patrick: not merged. implemented with a different implementation. follow-up ticket created.
+
+== ISO - ARM64 build failing ==
+<pre>
+./derivative-maker --target iso --flavor kicksecure-xfce --repo true --remote-derivative-packages true --arch arm64
+</pre>
+
+<pre>
+Setting up python3-pil:arm64 (9.4.0-1.1+deb12u1) ...
+Traceback (most recent call last):
+  File "/usr/bin/py3compile", line 323, in <module>
+    main()
+  File "/usr/bin/py3compile", line 302, in main
+    compile(files, versions,
+  File "/usr/bin/py3compile", line 187, in compile
+    cfn = interpreter.cache_file(fn, version)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/share/python3/debpython/interpreter.py", line 212, in cache_file
+    (fname[:-3], self.magic_tag(version), last_char))
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/share/python3/debpython/interpreter.py", line 246, in magic_tag
+    return self._execute('import imp; print(imp.get_tag())', version)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/share/python3/debpython/interpreter.py", line 359, in _execute
+    raise Exception('{} failed with status code {}'.format(command, output['returncode']))
+Exception: ('python3.11', '-c', 'import imp; print(imp.get_tag())') failed with status code -11
+dpkg: error processing package python3-pil:arm64 (--configure):
+ installed python3-pil:arm64 package post-installation script subprocess returned error exit status 1
+</pre>
+
+* This appears to be a bug in either Xen or QEMU. python3 intermittently segfaults when run in an arm64 chroot emulated on an amd64 machine. To reproduce simply, boot into Qubes OS, open a Debian 12 AppVM, ensure <code>qemu-user-static</code> and <code>mmdebstrap</code> are installed in the AppVM, then run <code>sudo mmdebstrap --architecture=arm64 bookworm armtest</code>. Then bind-mount important dirs with <code>sudo mount --bind /dev armtest/dev && sudo mount --bind /dev/pts armtest/dev/pts && sudo mount --bind /proc armtest/proc && sudo mount --bint /sys armtest/sys</code>. Then chroot in, run <code>apt update && apt install python3</code>, and then finally run the following segfault reproducer:
+
+<pre>
+for i in {1..800}; do
+   python3 -c 'import imp; print(imp.get_magic())' >/dev/null 2>/dev/null
+   exit_code="$?"
+   echo "$exit_code"
+   if [ "$exit_code" != '0' ]; then
+      break
+   fi
+done
+</pre>
+
+* This should output a lot of zeros, but eventually it should segfault and return non-zero. This usually happens at least once in 400 runs for me, but it's possible that it won't happen that soon, thus why the above reproducer tries 800 times.
+* This issue only occurs under Qubes OS for me. In a KVM VM, even 1600 attempts does not segfault on my machine.
+* The version of QEMU in bookworm-backports appears to have solved this. Run <code>sudo apt install -t bookworm-backports qemu-user-static</code> in your Debian 12 (or Kicksecure) template, shut down the template and reboot affected AppVMs, then attempt the above reproduction steps again. It should not segfault even with 1600 attempts. I have also confirmed that an ISO build succeeds when doing this.
+* Worth reporting to Debian as a bug report against Bookworm specifically? (This probably doesn't affect Sid since it's using a newer QEMU version, approximately the same version as in bookworm-backports.)
+* Worth enhancing the derivative-maker dependency installation code to allow specifying specific packages from backports so that we can ensure that qemu-user-static from bookworm-backports is used?
+
+== iso - calamares - Argon2id ==
+* are we using Argon2id because it is a cryptsetup default?
+* please follow-up if useful on these tickets
+* https://github.com/calamares/calamares/issues/2127
+* https://invent.kde.org/system/kpmcore/-/merge_requests/43
+* We are currently using Argon2id, but only because it is the default in Debian's cryptsetup.
+* Followed up at https://invent.kde.org/system/kpmcore/-/merge_requests/43#note_1084941. No follow up needed on the Calamares ticket, the choice of which version of LUKS to use is already configurable and there's a good reason for Calamares to not default to LUKS2 yet.
+* Waiting on a response from the original MR creator. Will make an MR of my own if allowed or if the original author doesn't respond in a week or so.
+* Original MR creator did not respond, filed my own MR: https://invent.kde.org/system/kpmcore/-/merge_requests/56
+* Merged upstream.
+
+== heads ticket ==
+* https://github.com/linuxboot/heads/issues/1881
+* https://mjg59.dreamwidth.org/70630.html
+** Potentially useful for the remote use case scenario, not useful for the local scenario, will add to wiki
+* content useful for [[Verified Boot]]?
+** Added.
+
+== user-sysmaint-split - ISO - sysmaint mode - #3 ==
+* follow-up
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+*** Patrick: Not merged. Needs revision to be compatible with "traditional boot mode" when user-sysmaint-split is not installed -> copied to new ticket
+**** Aaron: Fixed.
+
+== research verified boot and measured boot ==
+* https://www.kicksecure.com/wiki/Dev/About_Computer_(In)Security
+* https://www.kicksecure.com/wiki/Hardware_Wallet_Security
+* https://www.kicksecure.com/wiki/Verified_Boot
+* https://www.kicksecure.com/wiki/Measured_boot
+* review, watch, improve, keep notes
+* in preparation for consultation with firmware developer
+
+Update #1:
+
+Please review:
+
+* https://www.kicksecure.com/wiki/Verified_Boot#Boot_Block_versus_TPM
+** Aaron: Reviewed, updated. Note, the TPM doesn't use XOR when extending PCR values, and banks don't really matter half so much as PCRs, based on my research.
+* https://www.kicksecure.com/wiki/Verified_Boot#Boot_Block_Based_Attacks_Against_Measured_Boot
+** Aaron: Reviewed, updated, but I'm not sure where the fake TPM comes into play so I'm not sure I correctly understood this.
+* https://www.kicksecure.com/wiki/Verified_Boot#TPM_EK_-_Endorsement_Key
+** Aaron: Reviewed, updated.
+
+Considered:
+
+How does android implement relock bootloader with user custom keys?
+
+* Document shortcomings with a vendor-provided, no-true-ROM solution
+** There may not be serious shortcomings with this after all.
+* Android trusts the hardcoded android hardcoded bootloader?
+** The firmware does appear to be implicitly trusted. It is possible that the device SoC cryptographically verifies the firmware similar to Boot Guard, but if so, this isn't documented anywhere obvious, and it doesn't appear that Android Verified Boot considers malicious system firwmare in the threat model.
+* https://android.stackexchange.com/questions/238980/why-is-it-possible-to-re-lock-the-bootloader-after-installing-a-custom-rom-on-s
+* [https://source.android.com/docs/security/features/verifiedboot/device-state#user-settable-root-of-trust Android: User-settable root of trust]
+* [https://source.android.com/docs/security/features/verifiedboot/boot-flow Android: Boot Flow]
+* [https://source.android.com/static/docs/security/images/verified-boot-flow.png Android: Figure 1. Verified boot flow.]
+* rollback protection
+* theft protection
+* factory reset protection
+* watch some videos on how Android is flashed, locked, unlocked, relocked
+* Figure out how Heads avoids relay attacks with firmware verification, if it does -> https://github.com/linuxboot/heads/issues/1881
+* android hardware keystore (HSM)
+** This is of questionable use for verified boot. It might be useful for factory reset protection but there may be better ways to do that. It also relies on an ARM TrustZone "secure world" which is scary.
+* See if adding some sort of secure, append-only storage is useful and work it in if so (hardware keystore hsm)
+** Most likely is useful for rollback protection, documented. It could be implemented using a "secure world" similar to TrustZone but it seems better to implement it in hardware, potentially.
+* TPM MITM issue
+** This is only really a problem if the attacker can modify the motherboard, which is a threat model that is extremely difficult to defend against and should probably be considered out-of-scope.
+* offline theft protection
+* online theft protection (remote locking)
+** Likely too difficult. Requires a cloud service in the middle, which is bad for privacy and a potential security hole itself.
+* compare TOTP vs challenge response based (NitroKey). Or "nothing" (Android)?
+** TOTP and HOTP are both potentially vulnerable to relay attacks, HOTP less so if used carefully. Better yet still would be a data signature challenge (i.e. here's a blob of random data, sign it and send it back to me so I can check that your signature is good).
+
+<pre>
+gpg: WARNING: This key is not certified with a trusted signature!
+gpg:          There is no indication that the signature belongs to the owner.
+</pre>
+
+<pre>
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the RSA key sent by the remote host is
+6e:45:f9:a8:af:38:3d:a1:a5:c7:76:1d:02:f8:77:00.
+Please contact your system administrator.
+Add correct host key in /home/hostname /.ssh/known_hosts to get rid of this message.
+Offending RSA key in /var/lib/sss/pubconf/known_hosts:4
+RSA host key for pong has changed and you have requested strict checking.
+Host key verification failed.
+</pre>
+
+* either send own hardware or TOFU
+** Send own hardware is highly preferable
+* maybe solvable if cloud vendor reveals TPM EK fingerprint beforehand?
+** Not sufficient. The TPM can be fooled by firmware if Boot Guard isn't in use, and the user can't be sure that Boot Guard is in use unless they can either remotely verify the authenticity of the CPU (likely not possible unless using Intel TDX or AMD SEV) or they can verify it locally.
+* explain how others do it, compare: With Android, where companies are protecting themselves from the user, the same thing is true. The "owner" (manufacturer) can provision the system the way they want and the "attacker" (user) can't do anything about it ([[Miscellaneous_Threats_to_User_Freedom#Device_Attestation_such_as_SafetyNet|Device Attestation such as SafetyNet]])
+* remote attestation is possible without verified boot? if known, please document, if unknown answer, please mention.
+** Yes, it is possible, see https://safeboot.dev/attestation/. It appears that TPM measurements are used by the machine being attested to prove its identity to the machine doing the attesting.
+* custom kernel modules? re-invent MOK?
+** If we're using UEFI Secure Boot like our current plan states, we can just use the MOK mechanism as-is. We also could have the user sign their kernel modules so they pass Secure Boot normally.
+* boot guard -> dasharo (3MDEB) firmware -> heads (?) -> verify Debian's kernel against Debian's key?
+** No need for Heads, we're just using UEFI.
+* maybe the unchangeable root of trust would be well placed with boot guard, dasharo. the hopefully socially incorruptible organisation becoming the caretaker of taking care the most difficult parts.
+** Easier to have no single root of trust, instead have toggleable roots of trust for each distro and also allow the user to set their own root of trust.
+* key management could be done at a "simpler level". at the level of heads (or similar).
+** Some sort of key management tooling will be needed, and since we're using UEFI directly this may be difficult. Perhaps a UEFI application can be made that will make this easier? Or do we just need special firmware features? (We may need some way for the user to change Secure Boot keys remotely for the purposes of credential rotation, although this might not be needed and could be scary.
+
+Concept improvements:
+
+* stage 0 - super simple, write firmware from USB, no display graphical output support, truly read-only
+* stage 1 - dasharo default firmware
+* stage 2
+* Verify distribution (Debian) kernel against distribution public key. Making use of EFI signatures but without using EFI.
+* Mention why not using EFI.
+* What if evil maid flashes using stage 0? -> Should break TOTP or similar mechanism.
+* stage 1 preinstalled dasharo/heads firmware is required to match usability of user-settable root of trust, re-lock bootloader with user key supported Android phones such as Google Pixel.
+* OS rollback protection
+* factory reset protection
+* Firmware rollback protection? if the user changes firmware keys on every update that might give us this "for free", but the key changes could be an expensive operation
+* Document the need for a true ROM for firmware installation in the current design
+* Create alternate design that involves no true ROM and vendor-provided firmware
+* Review Google's Android docs more and pull in anything that would make either design better
+* usability: at least as good as Android phones, if not better
+* no concept of OEM ROMs -> user chosen operating systems are the primary focus
+* compatibility with standard Linux distributions, if possible
+* windows compatibility? Probably not, unless there's an alternative enable EFI option in the firmware
+* android: users can their own key but they can also use images by distributions
+* replay attacks
+* relay attacks
+
+== user-sysmaint-split - remove advanced boot options for first time start ==
+* rationale: "advanced boot options" are useless (because there are no multiple kernel versions for new VM images or after ISO installation) and confusing for new users
+* helper-script: invent a new script grub-cfg-remove-advanced-boot-options to edit /boot/grub/grub.cfg directly
+* run_once:
+** chroot-scripts
+** calamares
+* document this on the [[Grub]] wiki page
+* Ended up going with a different solution that moves all of the advanced boot entries to the end of the list. Looks cleaner, all functionality is retained. Changes were made to the following packages:
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/grub-cfg
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/grub-cfg
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+
+== iso sysmaint mode - #2 ==
+* as discussed
+* Current state (WIP):
+** live-config-dist changes for unrestricted admin mode, probably shouldn't be merged until Trixie: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+*** Patrick: merged
+** user-sysmaint-split bugfix: https://github.com/ArrayBolt3/user-sysmaint-split
+*** Patrick: merged
+** sysmaint-panel Calamares support: https://github.com/ArrayBolt3/sysmaint-panel
+*** Patrick: merged
+** live-build changes to add sysmaint and unrestricted admin changes (PROBABLY SHOULD HAVE PUSHED THIS TO A DIFFERENT BRANCH, '''DO NOT MERGE'''): https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+*** Patrick: <s>merged - should <code>git revert 4f1f20bb6f86e6a8ff2ae3aed450d83eb726a55e</code>?</s> (resolved as discussed)
+** derivative-maker changes to enable sysmaint and unrestricted admin changes, probably shouldn't be merged until Trixie: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/sysmaint
+*** Patrick: <s>merged - should I <code>git revert 68a91cb9a00a5e9f00947e002e2642f3da14e800</code>?</s> (resolved as discussed)
+*** Patrick: What is the significance of Trixie here?
+**** Aaron: I had thought we wanted to wait until Trixie to enable user-sysmaint-split by default, however as we discussed we could enable it earlier.
+* Next round of changes, all should be merge-ready:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sysmaint
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+** usability-misc: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/sysmaint
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/f8db224e179ca7b32cffe7c21d8a159ef3e5abc3
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+* Patrick: all merged
+* Another batch of patches:
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+*** Patrick: merged
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/sysmaint
+*** Patrick: needs revision as discussed
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sysmaint
+*** Patrick: same as above
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sysmaint
+*** Patrick: merged
+** live-build: https://salsa.debian.org/ArrayBolt3/live-build/-/commit/8484b589775c9783d396a84babd3c6c4eb53b7c2
+*** Patrick: merged
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+*** Patrick: not merged -> but broken: breaks unrestricted admin mode
+* Patrick: TODO:
+** use config-package-dev displace for /etc/grub.d/10-linux for generic GRUB_DISTRIBUTOR setting based on already existing marker files
+*** Ended up not doing this as it was avoidable and avoiding modifying 10_linux is probably a good idea for safety and maintainability reasons.
+** live-config-dist: fix restricted admin mode
+* Revised patches:
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
+*** Patrick: Not merged. Needs revision to be compatible with "traditional boot mode" when user-sysmaint-split is not installed -> copied to new ticket
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
+*** Patrick: Merged.
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sysmaint
+*** Patrick: Merged.
+** kicksecure-base-files: none, patch deleted as it is no longer needed
+
+== review wiki - shadow and ssh ==
+* https://www.kicksecure.com/wiki/User#Meanings_of_Special_Characters_in_the_Password_Field_of_/etc/shadow_File
+* https://www.kicksecure.com/wiki/SSH#SSH_Login_Comparison_Table
+* Reviewed, added some info to both pages.
+
+== sysmaint - no autologin if password is set - #2 ==
+* If there's a password set, do not auto login. Prompt for password using normal login or display manager mechanism instead.
+* users always need an opt-in way to set passwords, disable autologin.
+* Done: https://github.com/ArrayBolt3/user-sysmaint-split
+* Patrick: bug found
+** /usr/libexec/user-sysmaint-split/sysmaint-boot. currently we're checking twice kernel boot parameter. i think the logic can be simplified.
+*** if in non-sysmaint (user) boot mode -> lock sysmaint and safe-rm any autologin config files that might exist
+** bug: and let's say "/usr/sbin/lightdm" does exist. but we're not in sysmaint mode. currently what happens: do not delete the lightdm configuration file.
+** Both issues fixed: https://github.com/ArrayBolt3/user-sysmaint-split
+
+== live-config-dist- check-unrestricted-admin TMP folder ==
+* /usr/libexec/live-config-dist/check-unrestricted-admin
+
+<pre>
+export TMPDIR='/tmp'
+</pre>
+
+* necessary? needs to be commented or removed
+* Fixed dummy-dependency and removed this from check-unrestricted-admin.
+
+== calamares - implement - Allow distros to restrict what filesystems can be used in manual partitioning ==
+* https://github.com/calamares/calamares/issues/2397
+* PR here: https://github.com/calamares/calamares/pull/2400 Awaiting full review from devs.
+* Reviewed and merged.
+
+== fix Secure Boot fallback bootloader problems ==
+* as discussed
+* Fix part 1: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/secure-boot-fix
+** Patrick: merged
+* Fix part 2: https://github.com/ArrayBolt3/derivative-maker/commit/2ddc2dd7b8275cb440223c57a95305d8fb40cddc
+** Patrick: merged
+
+== ISO - Debug chsh failure ==
+<pre>
+/var/lib/dpkg/info/dist-base-files.postinst: INFO: Setting shell for user 'user' to zsh.
+Password:
+chsh: PAM: Authentication failure
+/var/lib/dpkg/info/dist-base-files.postinst: ERROR: Command 'chsh --shell /usr/bin/zsh user' failed. This is only a minor issue.
+</pre>
+
+* Possibly caused by this commit? https://github.com/Kicksecure/dist-base-files/commit/e4ba4e8ffc43f5ec3326c742bf86d56c34f23d79
+* We're trying to set the shell to zsh before the /etc/shells file is updated. Setting zsh as a Pre-Depends of dist-base-files silently failed to resolve this, thus had to be added to Kicksecure's package list at the appropriate location.
+* Fixed: https://github.com/ArrayBolt3/derivative-maker/commit/ce6e8e5da6b3428eb36b1f7650edfab54436e5d2
+** Patrick: merged
+
+== ISO - use BUILD_INITRAMFS_PKGS ==
+* todo: could you please use $BUILD_INITRAMFS_PKGS (already existing variable) instead of hardcoding dracut as initramfs generator?
+* Done: https://github.com/ArrayBolt3/derivative-maker/tree/master
+** Patrick: merged
+
+== boot modes wiki page review ==
+* [[Dev/user-sysmaint-split]] has been updated
+* Please review.
+* Ideas for chapter [[Dev/user-sysmaint-split#Server_Support|Server Support]], and
+* chapter [[Dev/user-sysmaint-split#Todo|Todo]]?
+* Related to upcoming tasks run0, sudoless, doas.
+* I do not believe we should be implementing opt-out by having the user uninstall or delete things. Instead, let's provide a "Classic" option that the user can select at the boot menu, and provide guidance on modifying the default boot option.
+** Patrick: The "classic" option would be confusing in the boot menu. Better to make user-sysmaint-split package uninstallable: dummy-dependency user-sysmaint-split
+*** Aaron: Sounds good.
+**** Patrick: Wiki page updated.
+* Do we really want a recovery mode admin option? We specifically wanted to get rid of easy recovery mode access elsewhere.
+** Patrick: Wiki was outdated on that. Recovery mode can stay disabled. Wiki has been updated to remove recovery mode.
+* Server support can be handled by changing the default boot entry using <code>grub-set-default</code> most likely.
+** Patrick: This would mean to boot the server always into admin mode? In that case, perhaps better to go back to "classic"?
+*** Aaron: Yes, and that's included in the dummy-dependency user-sysmaint-split plan, so that's what we can do. Perhaps kicksecure-host-cli should use "classic" mode by default and kicksecure-host-xfce should use "user-sysmaint-split" by default?
+**** Patrick: Yes. Wiki page updated.
+* We need to choose what the default, topmost boot entry will become. Should that be "PERSISTENT mode User"?
+** Patrick: Yes.
+* We may want to prepend "Kicksecure" to all of these boot menu entries for clarity as to which operating system is which. For Whonix, we can prepend "Whonix" to the boot menu entries.
+** Patrick: Yes.
+* Added some more ideas, including thoughts for server support. I don't think we need a todo chapter since this dev/todo document works as that.
+
+== review USBGuard pull request ==
+* https://github.com/Kicksecure/security-misc/pull/166
+* https://usb-ids.gowdy.us/read/UC/
+* Reviewed PR, requested changes, did some simple tests to make sure it didn't cause major issues.
+
+== review ARP related network settings ==
+* https://github.com/Kicksecure/security-misc/pull/279
+* Reviewed, can document if desirable
+
+== document sysmaint warnings in wiki ==
+* as discussed
+* [[sysmaint]]
+* Documented. Didn't add a screenshot of the warnings from LightDM though since I didn't think they were worth the space on the page, I can add them if desirable.
+
+== user-sysmaint-split and sysmaint-panel improvements ==
+* rationale:
+** A single command <code>dummy-dependency --yes --purge user-sysmaint-split</code> would be sufficient to go back to classic sudo setup. Uninstallation of <code>sysmaint-panel</code> would be unnecessary. Users could use <code>sysmaint-panel</code> even in classic sudo setup.
+** sysmaint-panel should be fully independent from user-sysmaint-split. It could also be used in classic sudo mode, where user "user" has access to sudo/pkexec.
+** easier to test sysmaint-panel
+** Qubes compatible 
+
+<pre>
+   subprocess.Popen(["/usr/libexec/helper-scripts/terminal-wrapper",
+                         "/bin/sh", "-c", "$SHELL"])
+</pre>
+
+* Is <code>/bin/sh</code> needed? <code>/usr/libexec/helper-scripts/terminal-wrapper "$SHELL"</code> works for me (manually tested).
+* https://github.com/Kicksecure/sysmaint-panel/blob/master/etc/X11/Xsession.d/15_no_sysmaint_xfce
+** remove xfce from the name, if applicable
+** move to user-sysmaint-split
+* sysmaint-panel Depends: usability-misc or is that a superfluous dependency?
+
+<pre>
+echo "[Desktop]
+Session=sysmaint-session" \
+   | sponge -- '/home/sysmaint/.dmrc'
+</pre>
+
+* needs to be run under user sysmaint to avoid permission issues
+* needs Depends: safe-rm maybe?
+* sysmaint-panel folder /usr/lib/systemd/system doesn’t seem right for a gui package. Maybe...
+** user-sysmaint-split-cli
+** user-sysmaint-split-gui
+** sysmaint-panel
+*** would be a good split?
+*** But actually we can get that down to 2 packages only. user-sysmaint-split + sysmaint-panel
+* move https://github.com/Kicksecure/sysmaint-panel/blob/master/usr/libexec/sysmaint-panel/sysmaint-session
+** to user-sysmaint-split
+** How? By making sysmaint-panel a "plugin" or "extension".
+
+<pre>
+xfwm4 &
+# Needed to prevent window ordering problems
+sleep 1;
+sysmaint-panel
+</pre>
+
+* could be changed to: if available, run sysmaint-panel. otherwise, just open a terminal. Pseudo code, untested:
+
+<pre>
+xfwm4 &
+# Needed to prevent window ordering problems
+sleep 1;
+## NOTE: bashism
+if command -v sysmaint-panel &>/dev/null ; then
+  sysmaint-panel
+else
+  /usr/libexec/helper-scripts/terminal-wrapper "$SHELL"
+fi
+</pre>
+
+* add a sysmaint-panel <code>/usr/share/desktop/sysmaint-panel.desktop</code> file
+* check file <code>help-steps/pre</code> function <code>root_check</code>
+** something similar is required for sysmaint-panel
+** if sudo cannot be executed -> show an error message, explain to boot into sysmaint, show a link
+* sysmaint-panel: honor signal sigterm
+* https://github.com/ArrayBolt3/sysmaint-panel
+** Patrick: merged
+* https://github.com/ArrayBolt3/user-sysmaint-split
+** Patrick: merged
+* https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
+** Patrick: merged
+
+== investigate dracut-config-generic ==
+* VM images use dracut-config-generic because help-steps/variables has:
+
+<pre>
+[ -n "$BUILD_INITRAMFS_DRACUT" ] || BUILD_INITRAMFS_DRACUT="dracut dracut-live dracut-config-generic binutils dmsetup pigz"
+</pre>
+
+* ISO images do not have dracut-config-generic
+
+<pre>
+apt-file list dracut-config-generic 
+dracut-config-generic: /etc/dracut.conf.d/20-generic-image.conf
+cat /etc/dracut.conf.d/20-generic-image.conf
+hostonly="no"
+</pre>
+
+* TODO: Would it be useful to have this package also on the ISO? Specifically since it would be useful if this package ends up on the installed system to always have a generic initial ramdisk as well as for feature/bug parity with VM images.
+* Patrick: Seems actually already done as per:
+
+<pre>
+live-build/scripts/build/config:                        NEEDED_PACKAGES="live-config live-config-systemd systemd-sysv dracut-live dracut-config-generic dracut"
+</pre>
+
+* Aaron: Confirmed, chrooting into the squashfs on a live-build-built Kicksecure ISO and running <code>dpkg-query -s dracut-config-generic</code> shows that it is <code>install ok installed</code>. Furthermore the <code>20-generic-image.conf</code> file exists on the ISO.
+
+== investigate sudoless ==
+* https://github.com/secureblue/secureblue/releases/tag/v4.2.0
+* https://www.kicksecure.com/wiki/Dev/secureblue#sudoless
+* Could we go sudoless by default?
+* <code>sudo</code> no longer readable/executable by user <code>user</code> should be equally good or better as sudoless? sudo SUID issues would not be a problem if user <code>user</code> cannot execute sudo anymore? Only user admin would be allowed to execute <code>sudo</code>.
+* In case going "sudoless" (actually similar to sudoless), it would not even be required to port to either run0 or doas?
+* This would require finding solutions for existing sudoers.d exceptions. This is can be drafted on the [[Dev/sudo]] wiki page.
+* Sudoless desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/sudoless Ready for merge whenever desirable.
+** Patrick: Was merged.
+* '''WIP''' Persistent admin mode (EDIT: this is now bitrotten and is not the direction we're going in to implement this):
+** Currently missing separate user account support!
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/sudoless Adds an admin mode boot entry.
+*** This may be the wrong package to put this in, do we want a new package for this?
+**** Patrick: grub configuration looks good but requires dedicated package.
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sudoless Actually implements the permissions changes for user and admin modes.
+*** Patrick: Does not really? Does not belong into security-misc. Dedicated package required.
+
+== user-sysmaint-split ==
+* implement package user-sysmaint-split as per [[Dev/user-sysmaint-split]]
+* Control panel app for sysmaint mode: https://github.com/ArrayBolt3/sysmaint-panel
+* Updated user-sysmaint-split with fixes, integrates with control panel app: https://github.com/ArrayBolt3/user-sysmaint-split
+* sysmaint user account lock detection: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
+* terminal-wrapper fix for better UX: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/terminal-wrapper
+
+== pam-info improvements for user-sysmaint-split ==
+* todo
+* Done: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
+
+== admin-gui ==
+* open terminals - helper-scripts /usr/libexec/helper-scripts/terminal-wrapper
+* update software
+* reboot
+* shut down
+* Done: https://github.com/ArrayBolt3/sysmaint-panel
+
+== VirtualBox unattended installation pass-through ==
+* how does that mechanism work?
+* Short, highly simplified answer: for Debian, it finds a file on the ISO at <code>/.disk/info</code> and parses it for info. This file identifies Kicksecure ISOs as being Debian, and it's difficult to customize the contents in live-build. Needs either customization options added or downstream patches.
+* Might be worth asking the VirtualBox people if they would consider adding a feature that would allow ISOs to "opt out" of autoinstall support, so that the user can't even try to use it in autoinstall mode.
+
+== investigate dracut-config-rescue ==
+* https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487/8
+* https://packages.debian.org/bookworm/dracut-config-rescue
+<pre>
+cat /etc/dracut.conf.d/20-rescue.conf
+dracut_rescue_image="yes"
+</pre>
+* related to https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724?
+* TODO: good to keep or should be omitted?
+* There appears to be no differences between an initramfs built with <code>dracut-config-rescue</code> installed and one without it. According to the Arch Wiki (https://wiki.archlinux.org/title/Dracut), the "rescue" module is supposed to provide tools such as <code>vi</code>, <code>ping</code>, etc., which are useful in the rescue shell, but I know from experience those are NOT present in Kicksecure's initramfs images. Thus I don't think it makes any difference either way. We could remove it in order to lighten our images, I don't expect this will cause any harm.
+* Diff output between initramfs generated with <code>dracut-config-rescue</code> present (old-unpack), and initramfs generated without it (newer-unpack):
+<pre>
+root@localhost:~# diff -r -u old-unpack/ newer-unpack/
+File old-unpack/main/dev/console is a character special file while file newer-unpack/main/dev/console is a character special file
+File old-unpack/main/dev/kmsg is a character special file while file newer-unpack/main/dev/kmsg is a character special file
+File old-unpack/main/dev/null is a character special file while file newer-unpack/main/dev/null is a character special file
+File old-unpack/main/dev/random is a character special file while file newer-unpack/main/dev/random is a character special file
+File old-unpack/main/dev/urandom is a character special file while file newer-unpack/main/dev/urandom is a character special file
+diff: old-unpack/main/etc/systemd/system/initrd.target.wants/dracut-cmdline-ask.service: No such file or directory
+diff: newer-unpack/main/etc/systemd/system/initrd.target.wants/dracut-cmdline-ask.service: No such file or directory
+diff: old-unpack/main/var/lock: No such file or directory
+diff: newer-unpack/main/var/lock: No such file or directory
+</pre>
+
+== dummy-dependency purge feature ==
+<pre>
+    dummy-dependency [remove|purge] pkgname
+</pre>
+
+* Done: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/dummy-dependency-purge
+
+== dracut rescue shell disablement maybe broken - VirtualBox install unattended option result in dracut rescue shell ==
+* todo
+* Fixed: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads The ISO will no longer be detected as an autoinstallable Debian ISO any longer after merging this.
+
+== simple integrity check boot option ==
+* not hidden under utilities
+* simple hash check
+* probably an existing dracut feature
+* At ISO build time, a utility <code>implantisomd5</code> (from the package <code>isomd5sum</code>) must be run on the built ISO to embed the md5 sum into it.
+* Passing the kernel command line argument <code>rd.live.check</code> will trigger Dracut to run <code>isomd5check</code> to check the ISO's contents against this embedded md5 sum at boot time.
+* Could add this to derivative-maker or live-build. Willing to implement wherever is preferred.
+* Patrick (from chat): best upstream
+* Upstream MR: https://salsa.debian.org/live-team/live-build/-/merge_requests/392
+* live-build fork with enhancements: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+* derivative-maker change to enable the feature: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
+== ISO - GRUB - failing to boot after installation ==
+* version 17.2.8.2
+* environment VirtualBox, EFI, Secure Boot
+* ISO is booting
+* after installation, does not boot
+* Secure Boot issue: functional after disabling Secure Boot
+* Fixed: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
+== ISO - GRUB - cosmetic GRUB error message ==
+* environment: VirtualBox + EFI + Secure Boot (might be reproducible elsewhere too)
+
+<pre>
+error: prohibited by secure boot policy
+</pre>
+
+* Turns out you can't load unsigned fonts when Secure Boot is enabled. It's possible that even the default unicode.pf2 font in GRUB is unsigned.
+* Can't find an easy way to detect Secure Boot so that we can avoid running commands that will result in errors.
+* There probably isn't an easy way to fix this, combining this into the "silence cosmetic errors" task.
+
+== recovery mode disabling ==
+* https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724
+* https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727
+* Done, but bootloader password still needs implemented. https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/no-recovery-mode
+
+== ISO - GRUB boot menu - add timeout to live boot menu ==
+* todo
+* Done: https://github.com/ArrayBolt3/derivative-maker
+* Requires live-build changes from https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads for all changes to work.
+
+== ISO - GRUB boot menu - utilities option does nothing ==
+* tested where: inside Qubes OS VM
+* is memtest missing on the ISO?
+** Yes, it is. Adding it should fix this issue.
+* Done: https://github.com/ArrayBolt3/derivative-maker
+* Requires live-build changes from https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads for all changes to work.
+* note: increase RAM in Qubes VM to avoid dropping to CLI (no GUI). Full instructions are here: [[Qubes#ISO|Qubes, ISO]]
+
+== ISO - GRUB boot options text - add version number ==
+<pre>
+Kicksecure Live ISO 17.2.8.1 GNU/Linux
+</pre>
+
+<pre>
+${dist_build_type_short_pretty} Live ISO ${dist_build_version} GNU/Linux
+</pre>
+
+* remove: built
+* remove: linux
+* remove: live-build
+* remove: live-config
+* possible to use live-build-data/grub-config/splash.svg as a template, copy it to temporary folder (as usual? derivative-binary?) and adjust?
+* reason: dist_build_version is the most important if user post screenshots with this. everything else adds confusion?
+* Done: https://github.com/ArrayBolt3/derivative-maker
+* Requires live-build changes from https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads for all changes to work.
+
+== ISO - GRUB boot menu cosmetic efi related error messages ==
+* tested where: inside Qubes OS VM
+* difficult to see unless recorded on video
+
+<pre>
+error: file `/boot/grub/i386-pc/efi_gop.mod' not found.
+error: file `/boot/grub/i386-pc/efi_uga.mod' not found.
+</pre>
+
+* Debian bug for the core image? Got some search results:
+
+<pre>
+site:debian.org error: file `/boot/grub/i386-pc/efi_gop.mod' not found.
+</pre>
+
+* Maybe live-build fails to install a grub package?
+* Side effect of no longer installing Debian-Installer?
+** This is the result of fixing the missing font bug. If the unicode.pf2 font can be loaded, GRUB sets a static display resolution of 800x600 and attempts to load four different video drivers, two of which are the efi_gop.mod and efi_uga.mod drivers, and the other two of which are video_bochs and video_cirrus. If the font load fails, it allows the resolution to be automatically detected, and loads a driver called all_video. We're now ending up with the codepath involving the efi_gop and efi_uga drivers always hit since the font is now always found.
+** Coincidentally, I noticed a bug where VMs with virtio graphics would not get a fancy graphical prompt, presumably because virtio is handled by the all_video driver and not the other four drivers.
+** I think it would be best to just unconditionally use the all_video driver and autodetect resolution. The existing logic doesn't make sense to me, and because the font didn't even exist in the expected spot previously, we'd just be going back to the codepath we were hitting previously.
+** After experimentation, this didn't work well at all. Went back to old GRUB config code from upstream with a note that it does not work. Fixing this will require more study to see how to get GRUB to not show cosmetic errors like this.
+== ISO - btrfs versus grub-live bug - hotfix ==
+* bug: btrfs is persistent in grub-live mode, while it should not be
+* hotfix: please disable btrfs
+* Hotfixed and merged into Kicksecure.
+
+== derivative-maker git tag following ==
+* to empower reviewers to follow changes from one tag to another
+* as discussed
+* TODO: a generic script to reviews any (nested) git submodules going from one tag (or commit) to another
+** This turned out to be nearly impossible and definitely impractical.
+* TODO: document this on [[Dev/git]]
+* Discovered <code>git diff --submodule=diff</code>, which is useful
+* Created sample script that provides difftool-like features with meld, and shared it with Patrick.
+* Sent feature request / offer to contribute for <code>git difftool --submodule=diff</code> support in Git: https://lore.kernel.org/git/20241208030222.60e7ac70@kf-ir16/T/#u
+* Found PatchViewer tool and documented use under [[Dev/git]]
+
+== investigate run0 ==
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/28
+* https://www.freedesktop.org/software/systemd/man/256/run0.html
+* as alternative to doas
+* does run0 abolish the need for [[Dev/user-sysmaint-split]]?
+** It does not, in fact its presence may make implementing the user/admin split difficult since it means systemd is providing a "backdoor" for running programs as root even without SUID bits being used.
+*** Can be disabled using polkit config, change all auth options to <code>no</code> in the <code>org.freedesktop.systemd1.manage-units</code> section of <code>/usr/share/polkit-1/actions/org.freedesktop.systemd1.policy</code>
+* Posted reasons to avoid use at https://forums.whonix.org/t/replace-sudo-with-doas/17482/29
+
+== grub-live debian control best practices ==
+* please review, improve
+* https://github.com/Kicksecure/grub-live/blob/master/debian/control
+* Should grub-live <code>Depends: grub-live-dracut | grub-live-initramfs-tools</code>?
+** The existing setup seems fine to me. It is unfortunate that Debian lacks the ability to specify a group of packages in a dependency declaration, as the existing structure seems like an awful lot of work to depend on either dracut, or live-boot + live-tools. But, it works, and it seems to me like the best way to do this given Debian's limitations and structure.
+
+== ISO - fwupd ==
+* Add fwupd
+* fwupd-signed
+* note: architecture specific? (As it turns out, yes.)
+* Done: https://github.com/ArrayBolt3/derivative-maker/tree/master
+
+== ISO - GRUB unicode.pf2 error message ==
+<pre>
+error: `/grub2/fonts/unicode.pf2' not found
+</pre>
+
+* Please fix.
+* Should be fixed in latest derivative-maker improvements.
+
+== ISO - live-build - misc improvements ==
+* Any other misc improvements?
+* live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/d-i-disable
+* derivative-maker: https://github.com/ArrayBolt3/derivative-maker
+
+== advice on safe_echo vs dist-installer-cli ==
+* https://github.com/Kicksecure/usability-misc/blob/master/usr/bin/dist-installer-cli
+* https://forums.whonix.org/t/whonix-linux-installer-development-discussion/15917/188
+* Comment left, can work on implementing suggested fix if desired
+
+== live-build downloads ==
+* investigate
+* Handled.
+
+== review source code - str_replace file garbage bug - str_match ==
+* already fixed in git master
+* please review
+** str_replace
+** str_match
+* Determined root cause - failing to truncate file when rewriting.
+* Reviewed code, added minor improvements to reliability and performance: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/str_python_scripts
+
+== swap-file-creator improvements ==
+* https://forums.kicksecure.com/t/enhanced-heuristics-for-determining-the-swap-file-size-in-swap-file-creator/749/2
+* swap-file-creator changes: https://github.com/ArrayBolt3/swap-file-creator/tree/arraybolt3/heuristics
+* helper-scripts changes: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/heuristics
+
+== ISO - consider installing by default on ISO ==
+<pre>
+      packages_to_be_installed+=" mokutil "
+      packages_to_be_installed+=" keyutils "
+      packages_to_be_installed+=" efibootmgr "
+</pre>
+
+* mokutil is already installed.
+* How about the others?
+* Note: architecture specific. AMD64 vs PPC etc.
+* These packages don't really cause any harm if installed on a BIOS machine, and both amd64 and arm64 UEFI machines may benefit from them. I don't see any reason why not to include them by default.
+* All of these are being installed by default on both amd64 and arm64 builds, and appear to be pulled in either by Calamares or by GRUB. I think we should leave these up to live-build to choose whether to automatically install them or not, since if we end up supporting platforms that use firmware other than BIOS or UEFI in the future, these might not be relevant.
+
+== multi architecture support ==
+* the following code can be removed from build-steps.d/1200_prepare-build-machine?
+* required by grml-debootstrap for arm64 builds?
+* please add support for other architectures to build-steps.d/2800_create-lb-iso
+* just only mostly generic code. theoretical support only. no actual builds test needed for all architectures at this time.
+
+<pre>
+      ## The following grub packages are (partially) build dependencies by Debian live-build.
+      ## Certainly required for amd64 ISO images booted with shim and grub.
+      if [ "${host_architecture}" = "amd64" ]; then
+         ## These packages are all available for the amd64 platform.
+         ## "grub-mkrescue will automatically include every platform it finds." [1]
+         ## [1] https://lists.gnu.org/archive/html/grub-devel/2014-03/msg00009.html
+         ## Install them all for best compatibility and reproducible builds.
+         ## Some might be unnecessary and waste a bit space.
+         ## Maybe this can be optimized later.
+         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
+         packages_to_be_installed+=" grub-efi-amd64-signed "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+         packages_to_be_installed+=" shim-helpers-amd64-signed "
+      elif [ "${host_architecture}" = "i386" ]; then
+         packages_to_be_installed+=" grub-efi-amd64-bin grub-pc-bin grub-coreboot-bin grub-efi-ia32-bin grub-xen-bin grub-ieee1275-bin "
+         packages_to_be_installed+=" grub-efi-ia32-signed "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+         packages_to_be_installed+=" shim-helpers-i386-signed "
+      elif [ "${host_architecture}" = "ppc64el" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "ppc64" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "sparc64" ]; then
+         packages_to_be_installed+=" grub-ieee1275-bin  "
+      elif [ "${host_architecture}" = "arm64" ]; then
+         packages_to_be_installed+=" grub-efi-arm64-bin "
+         packages_to_be_installed+=" shim-unsigned shim-signed shim-signed-common "
+      elif [ "${host_architecture}" = "riscv64" ]; then
+         packages_to_be_installed+=" grub-efi-riscv64-bin  "
+      else
+         true "${red}${bold}WARNING:${reset} ${under}The ISO to be build might be unbootable!${eunder}
+- This is because bootloader support is not implemented when building on this
+  systems's host_architecture.
+- Either the build script does not know how to install the required grub '-bin'
+  package for this architecture or the package is simply unavailable.
+- Therefore ISO cross builds are unsupported. Patches welcome.
+  Might be possible to implement this by running image-to-iso using qemu.
+- There is also a small chance that host_architecture detection failed. (Using multiarch, wine?)"
+      fi
+</pre>
+
+* Better multi-arch support now at https://github.com/ArrayBolt3/derivative-maker/tree/master
+* I tested amd64 and arm64 builds to reduce the risk of breaking things, but I did not test other architectures
+
+= ARCHIVED 1 =
 == move archived tasks to Dev/todo/archived ==
 * move to [[Dev/todo/archived]]
 

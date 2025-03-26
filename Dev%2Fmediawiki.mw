@@ -712,14 +712,17 @@ This behavior is desired for small blocks of text (e.g. headings). For big chunk
 == MediaWiki Default Links - LinkToArchive Fork ==
 
 * External links in MediaWiki (starting with http or https) were previously enhanced on our wikis by using the [https://www.mediawiki.org/wiki/Extension:LinkToArchive MediaWiki LinkToArchive extension], see also their [https://github.com/Archi-Strasbourg/mediawiki-link-to-archive/ GitHub repository]
-* With this extension an external link ("'''main link'''") get an '''additional link''' following it. This additional link is slighly elevated and says <code>[archive]</code> and points to an archived version of the main link
+* With this extension an external link ("'''main link'''") gets an '''additional link''' following it. This additional link is slighly elevated and says <code>[archive]</code> and points to an archived version of the main link
 * However we created '''our own fork of this extension to address our specific needs''', see [https://github.com/adrelanos/mediawiki-link-to-archive LinkToArchive fork]
-*# We wanted an icon instead of the text <code>[archive]</code> to represent the archive link
-*# We used a couple of different HTML constructions and added a class "ext-link-to-archive" to be consistent with our other modules on the website
-*# We wanted to analyse if the link is already an archive link (<code>web.archive.com/web</code>) or an <code>.onion</code> link. In those cases the additional link changes in some significant ways
-*#* In the '''normal''' case: The additional link is set to the web archive with the whole main url as a suffix. The additional link icon is the archive icon. The additional link title becomes "Link to archived version".
-*#* In the '''archive''' case: The additional link gets just the main url (because it's already an archive link). The additional link icon is the archive icon. The additional link title becomes "This is a web.archive.org link".
+*# We need an icon instead of the text <code>[archive]</code> to represent the archive link
+*# We also need multiple additional icon links, because we offer multiple archive options
+*# We use a couple of different HTML constructions and add a class "ext-link-to-archive" to be consistent with our other modules on the website
+*# We wanted to analyse if the link is already an archive link (<code>web.archive.org</code> or <code>archive.today</code>) or an <code>.onion</code> link. In those cases the additional link changes in some significant ways
 *#* In the '''onion''' case: The additional link gets just the main onion link (because it's not compatible with web archive). The additional link icon is the onion icon. The additional link title becomes "This is an .onion link".
+*#* In the '''archive.org''' case: The additional link gets just the main url (because it's already an archive link). The additional link icon is the archive.org icon. The additional link title becomes "This is a web.archive.org link".
+*#* In the '''archive.today''' case: The additional link gets just the main url (because it's already an archive link). The additional link icon is the archive.today icon. The additional link title becomes "This is an archive.today link".
+*#* In the '''normal''' case: 2 additionals links are created. The first is set to <code>web.archive.org</code> with the whole main url as a suffix. The second additional link ist set to <code>archive.today</code> with the whole main url as a suffix
+*# See examples on the [[Dev/wikitest#LinkToArchiveExtension|LinkToArchiveExtension chapter on the wikitest page]]
 
 === backport mediawiki-link-to-archive from upstream ===
 September 2024
@@ -727,7 +730,6 @@ September 2024
 Backport the new changes implemented by https://github.com/Archi-Strasbourg/mediawiki-link-to-archive in our already existing fork, if sensible.
 
 '''DEV'''
-
 * New changes by the original author were checked
 * The only noteworthy changed was checking for <code>action=edit</code> in the url, original comment: <code>// Check if the URL ends with "action=edit"</code>
 ** This however seems strange considering that this extension is for external links only, underlined by the fact that we are checking of HTTP(S) at the very beginning.
@@ -3000,7 +3002,6 @@ Result
 == SiteNotice Info and Donation Banners ==
 
 # The sitenotice is used to communicated current infos to the user. It is used in a very versatile way
-
 # Relevant elements
 ## {{CustomRepo|Boilerplate.css}}
 ## [[Template:Hide_all_banners]]
@@ -3014,28 +3015,28 @@ Result
 # Sitenotice is excluded from search engine indexing via [[#Exclusion_of_text_parts_from_search_engine_indexing]]
 # NoJS: For NoJS users there is no option to close the siteNotice
 # '''History of solution stack / current solution'''
-## In the past there were more rules for sitenotice, but this has change due to the new solution.
-##* All rules are given below.
-##* Also some more files were important back then, not anymore.
+## In the past we had other solutions and there were more rules for sitenotice, but this has change due to our new solution.
+##* All new rules are given below. as well as the history
+##* More files were important back then, but not anymore.
 ## In the past we used [[MediaWiki:Sitenotice_id]].
-##* However updating this ID came in conflict with the https://www.mediawiki.org/wiki/Extension:FlaggedRevs that we're using.
+##* However updating this ID came in conflict with the https://www.mediawiki.org/wiki/Extension:FlaggedRevs that we are using.
 ##* That's why it has been replaced with [[Template:Sitenotice_id]] which serves the same purpose
 ## Previously we used the [https://www.mediawiki.org/wiki/Extension:DismissableSiteNotice Extension:DismissableSiteNotice], but this is no longer the case
-## '''We now have our own solution''' which needed to be dismissable. Therefore Javascript was involved
-##* But if dismissed banners are closed by Javascript this is too late if the page is loaded because the page will "jump" and have a bad lighthouse content shift score.
-## Therefore the page is hidden by user cookie which is set to the server on request and rendered as a body class which then hides the cookie immediately.
+## '''We now have our own solution''' which needed to be dismissable. Therefore Javascript is involved
+##* But we cannot hide banners on document load via Javascript, because if banners are hidden by Javascript this is too late, because the page will "jump" and have a bad lighthouse content shift score.
+##* Therefore the page is hidden by a user cookie which is set to the server on request and rendered '''as a body class''' which then hides the banner, i. e. not even displays it.
 ##* This is done by [[Dev/mediawiki#Extension_CookieToBodyClass|Extension:CookieToBodyClass]] which our SiteNotice solution therefore is dependent on
-##* If the user dismisses a banner he gets a cookie which is active 1 month and then auto-deletes which shows the banner again
-##* The ID based CSS style according to the [[Template:Sitenotice_id]] which enables the pre-javascript hiding is done in [[Template:Header]] via the [https://www.mediawiki.org/wiki/Extension:CSS Extension:CSS] which our SiteNotice solution therefore is dependent on
+##* If the user dismisses a banner he gets the mentioned cookie which is active for 1 month and then auto-deletes. Then the banner is shown again
+##* The ID based CSS style - according to the [[Template:Sitenotice_id]] - which enables the pre-javascript hiding is done in [[Template:Header]] via the [https://www.mediawiki.org/wiki/Extension:CSS Extension:CSS] which our SiteNotice solution therefore is dependent on
 ##* And we needed a way to force new banners upon the user - for example if there is an emergency but the user has dismissed the old banner less than a month ago.
 ##** Therefore we use [[Template:Sitenotice_id]]. This ID corresponds to the banner that should be displayed
-##** If this id is changed to a new banner id then the user cookie will see the new banner which he might dismiss again. The "dismissable" is linked to an ID
-## We also needed a way to make banners active and non-active. So we introduced a Template. This template in turn uses the widget because widgets can do some things in mediawiki that templates can't
+##** If this id is changed to a new banner id then the user will again see the new banner which he might dismiss again. The "dismissing" of a banner is linked to the banner's ID
+## For the banners we using the Template [[Template:SitenoticeBanner]]. This template in turn uses a widget because widgets can do some things in mediawiki that templates can't
 ## Then we also needed a possibility to automatically hide a banner if it's expired. That is also implemented
 # '''USAGE'''
 ## You usually only touch [[MediaWiki:Sitenotice]], [[Template:Sitenotice_id]] and occasionally {{CustomRepo|Sitenotice.css}}. Everything else is maintained by core developers of this wiki
 ## '''CREATE BANNER''' : Open [[MediaWiki:Sitenotice]] and create a new instance of [[Template:SitenoticeBanner]] with these parameters
-### '''id (mandatory)''' : Gives the banner an id-attribute which determines its visibility. Only the banner with the same ID as in [[Template:Sitenotice_id]] will be visible. This id can also be used for for styling. It is recommended to add the individual styles of a banner to {{CustomRepo|Sitenotice.css}} or {{CustomRepo|alt=/blob/master/mediawiki-shared/src/kicksecure/LocalSkin.css LocalSkin.css}} using <code><nowiki>#siteNotice .sitenotice-banner[data-banner-id="<<<banner-id>>>"]</nowiki></code>
+### '''id (mandatory)''' : Gives the banner an id-attribute which determines its visibility. Only the banner with the same ID as the one in [[Template:Sitenotice_id]] will be visible. This id can also be used for for styling. It is recommended to add the individual styles of a banner to {{CustomRepo|Sitenotice.css}} or {{CustomRepo|alt=/blob/master/mediawiki-shared/src/kicksecure/LocalSkin.css LocalSkin.css}} using <code><nowiki>#siteNotice .sitenotice-banner[data-banner-id="<<<banner-id>>>"]</nowiki></code>
 ### '''html (mandatory)''' : The content of the banner. You can omit it, but the banner in most cases makes no sense without HTML to fill it
 ### '''href (optional)''' : If it's given then the html is rendered inside of an a-element with href-attribute as href
 ### '''expires (optional)''' : This is a UNIX timestamp in seconds. If the banner needs to end on a specific date and the creator does not want to check all of the time this happens automatically and the banner will not even be rendered after this date
@@ -3459,6 +3460,15 @@ sudo -u www-data php mediawiki-tools-grabbers/grabFiles.php --url https://www.wh
 </pre>
 
 = TASK ARCHIVE : Done =
+
+== OCSP-Stapling not provided (2025-03-25) ==
+'''DEV'''
+* FYI: The opion <code>--cert-status</code> was removed from the build file "request-servers-to-fetch-and-deploy"
+* Currently it seems the servers are configured to not give a OCSP response
+Patrick
+* Was disabled. If not causing issues, please move to archived.
+'''DEV''' : Done
+
 == Slow loading Javascript problem ==
 
 '''DEV'''
