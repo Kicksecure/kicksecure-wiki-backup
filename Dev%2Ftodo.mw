@@ -13,57 +13,6 @@ TODO
 == GRUB - boot related enhancements ==
 * Are there any other boot related enhancements outstanding? If so, please create tickets for these.
 
-== user-sysmaint-split - qubes - qrexec refactoring ==
-<pre>
-        new file:   usr/share/user-sysmaint-split/qubes/qubes-rpc/qubes.TemplateDownload
-        new file:   usr/share/user-sysmaint-split/qubes/qubes-rpc/qubes.TemplateSearch
-        new file:   usr/share/user-sysmaint-split/qubes/rpc-config/qubes.Filecopy
-        new file:   usr/share/user-sysmaint-split/qubes/rpc-config/qubes.Gpg
-</pre>
-
-* a global configuration would be better to avoid getting desync as Qubes appends files or changes file names
-* please open a ticket upstream to discuss
-
-== user-sysmaint-split - qubes - autologin message during upgrade ==
-<pre>
-Setting up user-sysmaint-split (3:4.0-1) ...
-GUI autologin is not applicable to Qubes OS.
-</pre>
-
-* This message is confusing during upgrade.
-* Prepend "INFO".
-* Only showing during manual run please.
-
-== user-sysmaint-split - systemcheck - autologin check message and documentation ==
-* systemcheck recommends the sysmaint wiki page - not applicable for users that upgraded and that are not (yet or not anymore) using user-sysmaint-split
-** which wiki page is more suitable? [[login]]?
-*** should [[Desktop#Disable_Autologin|disable autologin]] be moved to [[login]]?
-** password change instructions are currently on [[Post_Install_Advice|Post-installation Security Advice]]
-* also related: [[Protection_Against_Physical_Attacks|Protection against Physical Attacks]]
-* please modify the wiki for better usability of this part. A wiki page is needed which explains at a glance, links users to more detailed sections.
-* systemcheck recommends sysmaint-panel - while not yet installed by default. Simplest solution would be to install it by default as it won't create issues for users not using user-sysmaint-split?
-* systemcheck should point out that password / autologin inside VM is not "as important" (needs consideration when this is useful at all) as on the host? or skip login security check inside VMs?
-* documentation should point out that password / autologin inside VM is not "as important" (needs consideration when this is useful at all) as on the host? A lot users getting bothered with passwords and login promopts inside VMs if it does not benefit their threat model would be a usability degradation.
-
-== user-sysmaint-split - sysmaint-panel - output formatting issue ==
-* shows:
-<pre>
-/usr/bin/sudo
-/usr/bin/apt
-update
-</pre>
-* that is confusing even for users that know that command. better: /usr/bin/sudo /usr/bin/apt update
-
-== user-sysmaint-split - sysmaint-panel - install updates button confusing ==
-* since it only runs apt dist-upgrade, users might miss out on upgrades because users might not know it's apt update followed by apt dist-upgrade
-
-== user-sysmaint-split - sysmaint-panel - check system status button - add delay ==
-* systemcheck takes 2-3 seconds until user gets feedback. i pressed the button twice and then had a duplicate systemcheck.
-* please disable the button for 2-5 seconds after it has been clicked.
-* visible disable the button if the effort for that is reasonable
-* perhaps a counter that counts down 5, 4, 3, 2, 1?
-* perhaps generally should be the case for all buttons
-
 == user-admin-split - documentation improvements ==
 * Qubes R4.2 vs R4.3
 * Qubes uninstallation instructions (passwordless-root)
@@ -120,7 +69,9 @@ upgrade-nonroot
 
 == mouse fingerprinting ==
 * todo
+* https://forums.whonix.org/t/better-mouse-obfuscation/21445
 * notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
+* update [[Keystroke_and_Mouse_Deanonymization|Keystroke and Mouse Deanonymization]]
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -636,34 +587,38 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== GRUB - lightweight document ISO GRUB ==
-* https://github.com/derivative-maker/derivative-maker/tree/master/live-build-data/grub-config
-* Dev/boot in similar style
-* Added.
+== user-sysmaint-split - sysmaint-panel - wrong error message if logging in as wrong user ==
+* login with account "user" after booting into sysmaint mode
+* ignore warnings by pam-info during login screen that already advice against logging in with account "user" (because the user might miss them in the future due to PAM bugs, pam-info bugs, other login managers)
+* actual: sysmaint-panel shows error "boot into sysmaint"
+* expected: sysmaint-panel shows error "please login as account "sysmaint"
+* Fixed by implementing a new dialog: https://github.com/ArrayBolt3/sysmaint-panel/commit/b782aa512689242d2a8066a1d7a36bc0ce40fc9b
 
-== user-sysmaint-split - qubes - features-request bug ==
-* Whonix-Gateway Template and Kicksecure error message during upgrade from developers repository
+== user-sysmaint-split - sysmaint-panel - check system status button - add delay ==
+* systemcheck takes 2-3 seconds until user gets feedback. i pressed the button twice and then had a duplicate systemcheck.
+* please disable the button for 2-5 seconds after it has been clicked.
+* visible disable the button if the effort for that is reasonable
+* perhaps a counter that counts down 5, 4, 3, 2, 1?
+* perhaps generally should be the case for all buttons
+* Implemented: https://github.com/ArrayBolt3/sysmaint-panel/commit/7e39a7df817045ba3c4bc6f7a1f64e82bba71d92
+** This is implemented for most buttons, except for Open Terminal, Reboot, Shut Down, and Install Software. The user experience when using those doesn't warrant a timeout lock and adding a timeout lock there would probably annoy the user.
+** Visible timeout counter is present, implemented by adding a <code>(5)</code> at the end of each button label for the duration of the lock (where "5" will be replaced with the remaining seconds until the lock times out).
 
+== user-sysmaint-split - sysmaint-panel - install updates button confusing ==
+* since it only runs apt dist-upgrade, users might miss out on upgrades because users might not know it's apt update followed by apt dist-upgrade
+* Mostly resolved in https://github.com/ArrayBolt3/sysmaint-panel/commit/7ae6a0dcee5e15794dfdb78e9f804d0bf9394095, additional questions and details shared in chat
+
+== user-sysmaint-split - sysmaint-panel - output formatting issue ==
+* shows:
 <pre>
-Setting up dist-base-files (3:12.8-1) ...
-Processing triggers for qubes-core-agent (4.2.41-1+deb12u1) ...
-Traceback (most recent call last):
-  File "/usr/bin/qvm-features-request", line 111, in <module>
-    sys.exit(main())
-             ^^^^^^
-  File "/usr/bin/qvm-features-request", line 102, in main
-    subprocess.check_call(
-  File "/usr/lib/python3.11/subprocess.py", line 413, in check_call
-    raise CalledProcessError(retcode, cmd)
-subprocess.CalledProcessError: Command '['qrexec-client-vm', 'dom0', 'qubes.FeaturesRequest']' returned non-zero exit status 1.
-Processing triggers for security-misc (3:44.4-1) ...
+/usr/bin/sudo
+/usr/bin/apt
+update
 </pre>
+* that is confusing even for users that know that command. better: /usr/bin/sudo /usr/bin/apt update
+** Fixed: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/terminal-helper-output
 
-* Aaron: Cannot reproduce on Qubes R4.3.
-** Discussed with Patrick, likely root cause determined. Fixes:
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-sysmaint-fix
-** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/qubes-sysmaint-fix
-
+= ARCHIVED =
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
 * config-package-dev displace /etc/default/grub? Avoid "fighting" for configuration file ownership by moving the file out of the way.
@@ -704,8 +659,85 @@ Patrick:
 
 * PR seems not needed. See chat.
 ** Aaron: Replied in chat, PR seems needed to me, some confusion may be happening with different versions of grub-cloud.
+*** Patrick: Merged.
 
-= ARCHIVED =
+== GRUB - lightweight document ISO GRUB ==
+* https://github.com/derivative-maker/derivative-maker/tree/master/live-build-data/grub-config
+* Dev/boot in similar style
+* Added.
+
+== user-sysmaint-split - qubes - features-request bug ==
+* Whonix-Gateway Template and Kicksecure error message during upgrade from developers repository
+
+<pre>
+Setting up dist-base-files (3:12.8-1) ...
+Processing triggers for qubes-core-agent (4.2.41-1+deb12u1) ...
+Traceback (most recent call last):
+  File "/usr/bin/qvm-features-request", line 111, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/bin/qvm-features-request", line 102, in main
+    subprocess.check_call(
+  File "/usr/lib/python3.11/subprocess.py", line 413, in check_call
+    raise CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command '['qrexec-client-vm', 'dom0', 'qubes.FeaturesRequest']' returned non-zero exit status 1.
+Processing triggers for security-misc (3:44.4-1) ...
+</pre>
+
+* Aaron: Cannot reproduce on Qubes R4.3.
+** Discussed with Patrick, likely root cause determined. Fixes:
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-sysmaint-fix
+*** Patrick: Merged.
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/qubes-sysmaint-fix
+*** Patrick: Merged.
+
+== user-sysmaint-split - qubes - qrexec refactoring ==
+<pre>
+        new file:   usr/share/user-sysmaint-split/qubes/qubes-rpc/qubes.TemplateDownload
+        new file:   usr/share/user-sysmaint-split/qubes/qubes-rpc/qubes.TemplateSearch
+        new file:   usr/share/user-sysmaint-split/qubes/rpc-config/qubes.Filecopy
+        new file:   usr/share/user-sysmaint-split/qubes/rpc-config/qubes.Gpg
+</pre>
+
+* a global configuration would be better to avoid getting desync as Qubes appends files or changes file names
+* please open a ticket upstream to discuss
+** Found an alternative solution that doesn't require upstream changes: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/better-qrexec-overrides
+*** Patrick: Merged.
+** Also includes fixes for other issues discovered during testing
+
+== user-sysmaint-split - qubes - autologin message during upgrade ==
+<pre>
+Setting up user-sysmaint-split (3:4.0-1) ...
+GUI autologin is not applicable to Qubes OS.
+</pre>
+
+* This message is confusing during upgrade.
+* Prepend "INFO".
+* Only showing during manual run please.
+* Implemented:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/autologinchange-output
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/89cdc200c8e5fafe6393d3102db1939d9aad37e9
+*** Patrick: Merged.
+== user-sysmaint-split - systemcheck - autologin check message and documentation ==
+* systemcheck recommends the sysmaint wiki page - not applicable for users that upgraded and that are not (yet or not anymore) using user-sysmaint-split
+** Aaron: Adjusted systemcheck to point to the Login wiki page instead as suggested below. https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/login-security
+*** Patrick: Merged.
+** which wiki page is more suitable? [[login]]?
+*** should [[Desktop#Disable_Autologin|disable autologin]] be moved to [[login]]?
+** password change instructions are currently on [[Post_Install_Advice|Post-installation Security Advice]]
+** Aaron: Moved instructions from both locations to the Login page.
+* also related: [[Protection_Against_Physical_Attacks|Protection against Physical Attacks]]
+* please modify the wiki for better usability of this part. A wiki page is needed which explains at a glance, links users to more detailed sections.
+** Aaron: Modified the Login, Post Install Advice, and Desktop wiki pages to move all login security related documentation into the Login page. Also added additional information about login security in general to the top of the login wiki page to provide good "at a glance" instructions. Also wrote a wiki page for the System Maintenance Panel itself so it could be referenced by other pages.
+* systemcheck recommends sysmaint-panel - while not yet installed by default. Simplest solution would be to install it by default as it won't create issues for users not using user-sysmaint-split?
+** Aaron: Sounds like a good idea to me. Implemented at https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/sysmaint-panel.
+*** Patrick: Merged.
+* systemcheck should point out that password / autologin inside VM is not "as important" (needs consideration when this is useful at all) as on the host? or skip login security check inside VMs?
+** Aaron: I think this might be overcrowding the systemcheck output a bit. We currently don't express an opinion on whether the autologin or password protection status for each account is a problem in systemcheck itself, we only hint at it via colors. To me, this feels like the right approach since only the end user will know for sure what is secure for them. I think the login security check is still valuable in VMs though, as some users might have a legitimate reason to password-protect a VM (for instance, in a kiosk-like setup perhaps).
+* documentation should point out that password / autologin inside VM is not "as important" (needs consideration when this is useful at all) as on the host? A lot users getting bothered with passwords and login prompts inside VMs if it does not benefit their threat model would be a usability degradation.
+** Aaron: Agreed, this seems like a good place to put this kind of documentation. Added to the Login wiki page.
+
 == older ==
 [[Dev/todo/archived]]
 

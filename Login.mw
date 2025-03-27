@@ -1,17 +1,224 @@
 {{Header}}
 {{title|title=
-Login Screen
+Login Security
 }}
 {{#seo:
-|description=Instructions and information about the {{project_name_short}} login screen.
+|description=Instructions and information about configuring {{project_name_short}} login security.
 |image=Gui_login.png
 }}
 {{passwords_mininav}}
 [[File:Gui_login.png|thumb|Graphical Login Screen]]
 [[File:virtual_console.png|thumb|Virtual Console]]
 {{intro|
-This page provides detailed information about the {{project_name_short}} login screen and how to log in securely.
+This page provides detailed information about the {{project_name_short}} login screen, how to configure it, and how to log in securely.
 }}
+
+= Login Security Concepts =
+
+By default, {{project_name_short}} provides a user account, <code>user</code>, with {{gui}} autologin enabled if applicable, and no password set. When using a system with a GUI, {{project_name_short}} will boot directly into a graphical desktop when powered on. For many users and situations, this configuration is not a security hazard because:
+
+* '''Single-user machines:''' Desktop and laptop systems are generally single-user machines and do not need to authenticate multiple human users. Users of a single-user machine are expected to keep their machine physically secure from in-person attackers.
+* '''Multi-user configuration:''' For machines that aren't single-user, the system administrator will generally be the first person to use the machine after installation and will have the opportunity to configure the system's user accounts to meet the needs of all users.
+* '''Weak login screen protection:''' The login screen is usually only a weak security barrier. If [[Full Disk Encryption|{{fde}}]]  is not used, a malicious individual can gain access to the machine's data by simply booting a live ISO or stealing the system's storage drive. Even if FDE is used, a sophisticated attacker with sufficient time can likely bypass the login screen if they gain physical access to the device while it is powered on.
+* '''FDE makes login screen redundant:''' If using the {{project_name_short}} ISO to install {{project_name_short}} onto a machine, FDE is enabled by default. This requires the user to authenticate before the system will boot, thus making the login screen redundant in most single-user scenarios. Auententcation is done during [[Grub#initramfs_.28initramfs-tools_or_dracut.29_Based_Encryption_Password_Prompt|initramfs (initramfs-tools or dracut) Based Encryption Password Prompt]].
+* '''Virtual machines and host security:''' If using {{project_name_short}} in a Virtual Machine, the VM's login security is not as important as the host system's login security. There are numerous ways to modify a virtual machine's state from the host system, allowing an attacker with access to an unlocked host machine to bypass a virtual machine's login screen. Virtual machine users are expected to keep their host system physically secure from in-person attackers.
+
+However, there are situations in which it is valuable to require password authentication for administrative actions or for login purposes. Users should be aware of their [[Threat Modeling|threat model]] and adjust login settings accordingly. Users interested in this topic should read the [[Default_Passwords|Default Passwords]] and [[Protection_Against_Physical_Attacks|Protection against Physical Attacks]] wiki pages.
+
+= Configuring GUI Autologin =
+Platform specific.
+
+* [[Non-Qubes-Kicksecure]]: Applicable. See below.
+* [[Qubes|{{q_project_name_short}}]] users can skip this section, except for HVM Qube. <ref>
+Except for desktop HVM Qube, virtual machines in Qubes OS do not use a traditional GUI login mechanism, and thus do not have a concept of GUI autologin.
+</ref>
+
+Host {{os}} versus {{VM}}.
+
+* '''Host operating system:'''
+** '''Simple login screen:''' Disabling autologin can be useful if the user wants to enable a login screen.
+** '''No full disk encryption:''' Note, the login screen is <u>not</u> providing [[Full_Disk_Encryption|Full Disk Encryption (FDE)]]. The purpose of the login screen is elaborated in chapter [[Protection_Against_Physical_Attacks#Login_Screen|Login Screen]].
+* '''VMs:''' It is not very useful to disable autologin to enable a login screen inside VMs. It's much more secure to have a login screen on the host operating system.
+
+== Automatic Autologin Configuration ==
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt={{project_name_short}} default password info box]]
+| text    = If you are using {{project_name_short}} 17.2.8.5 or earlier, you may need to use the manual autologin configuration instructions below.
+}}
+
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt={{project_name_short}} default password info box]]
+| text    = If [[Sysmaint|user-sysmaint-split]] is installed, you will need to be booted into PERSISTENT mode SYSMAINT to follow these instructions.
+}}
+
+To view which user accounts on the system have autologin enabled, run [[systemcheck]]. This will show you a login security table, indicating which users on the system are not password protected and/or have autologin enabled.
+
+Only one normal user account can have autologin enabled at once. The reason for this is fairly obvious - if two users had autologin enabled at the same time, which user would be automatically logged into? For this reason, if you enable autologin for one user account when autologin is already enabled for a different user account, autologin will be disabled for that different user account. The only exception to this rule is if [[Sysmaint|user-sysmaint-split]] is installed. In this case, the <code>sysmaint</code> user account can have autologin enabled or disabled independently of the other user accounts. This is because the <code>sysmaint</code> account is only accessible when the system is booted in PERSISTENT mode SYSMAINT.
+
+To enable or disable autologin on a user account, you can use the autologinchange utility.
+
+'''1.''' Launch <code>autologinchange</code>. You can do this by clicking the "Manage GUI Autologin" button in the [[System Maintenance Panel]]. You can also run the tool by running the following command in a terminal:
+
+{{CodeSelect|code=
+sudo autologinchange
+}}
+
+'''2.''' autologinchange will display a list of user accounts on the system. Identify the user you want to enable or disable autologin for.
+
+'''3.''' Type the user account's name and press Enter.
+
+'''4.''' You will be told whether autologin is currently enabled or disabled for the current user account. To toggle autologin on the selected account, press <code>y</code>, then press Enter.
+
+'''5.''' Done. Autologin has now been toggled on the specified user account.
+
+== Manual Autologin Configuration ==
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt={{project_name_short}} default password info box]]
+| text    = If you are using {{project_name_short}} 17.3.0.5 or later, you can configure autologin more easily using the automatic autologin configuration instructions above.
+}}
+
+To change the auto login behavior, we have to edit the config file of lightdm which is the default display manager used by {{project_name_short}}.
+
+If you use another display manager, please look up in the manual of your display manager on how to change auto login behavior, for lightdm in {{project_name_short}} it is:
+
+Apply the following instructions to enable the login prompt at boot.
+
+This requires configuration of LightDM in {{project_name_short}}.
+
+'''1.''' Disable LightDM autologin.
+
+This is done by deleting the configuration files which enable autologin.
+
+{{CodeSelect|code=
+sudo rm /etc/lightdm/lightdm.conf.d/30_autologin.conf
+}}
+
+{{CodeSelect|code=
+sudo rm /etc/lightdm/lightdm.conf.d/40_autologin.conf
+}}
+
+'''2.''' Linux user account password.
+
+The user will need to [[Login#Configuring_Passwords|Configuring Passwords]] if one has not already been set.
+
+'''3.''' Reboot.
+
+'''4.''' Done.
+
+Autologin should be disabled after reboot and the user should see a login prompt after reboot.
+
+'''Troubleshooting:''' See footnote for troubleshooting. <ref>
+<u>GDM configuration.</u>
+
+GDM is a login manager different from LightDM. Only very old versions of {{project_name_short}} come with GDM installed by default.
+
+'''1.''' Open the GDM configuration file.
+
+Note, if the file is empty that means it doesn't exist. In that case, skip this.
+
+{{Open with root rights|filename=
+/etc/gdm3/daemon.conf.dist
+}}
+
+'''2.''' Search for the following.
+
+<pre>
+AutomaticLoginEnable=true
+AutomaticLogin=user
+</pre>
+
+'''3.''' Modify.
+
+Out-comment, add a hash symbol ("<code>#</code>") in front of the two lines. Or replace the content, copy/paste the following which does the same.
+
+{{CodeSelect|code=
+#AutomaticLoginEnable=true
+#AutomaticLogin=user
+}}
+
+'''4.''' Save.
+</ref>
+
+= Configuring Passwords =
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt={{project_name_short}} default password info box]]
+| text    = [[Qubes|{{q_project_name_short}}]] users can skip this section. <ref>
+By default, Qubes does not require a password for superuser access.
+</ref> <ref>
+https://www.qubes-os.org/doc/vm-sudo/
+</ref>
+}}
+
+<div class>
+The user can set or change the password for a user account in {{project_name_gateway_short}}, if this is useful for the user's threat model based on this [[Default_Passwords|default passwords information]].
+
+If you are using {{project_name_short}} 17.3.0.5 or later, you can change user passwords using the "Manage Passwords" button in the [[System Maintenance Panel]]. You can also change user passwords from a terminal, by using the following instructions.
+
+{{Box|text=
+'''1.''' [[Post_Install_Advice#Change Keyboard Layout|Change Keyboard Layout]] if necessary.
+
+'''2.''' Review [[Post_Install_Advice#Test Keyboard Layout|Test Keyboard Layout]] before proceeding further.
+
+'''3.''' Open a terminal (such as Xfce Terminal Emulator).
+
+<code>Start menu</code> &rarr; <code>Applications</code> &rarr; <code>System</code> &rarr; <code>Terminal</code>
+
+'''4.''' Run a test command as <code>root</code> by using <code>sudo</code>.
+
+Run. <ref name=pwd_change>
+Type the command in the terminal and press <code><Enter></code>.
+</ref>
+
+{{CodeSelect|code=
+sudo systemd-detect-virt
+}}
+
+'''5.''' Read the note below regarding the username and password.
+
+{{Default_Passwords}}
+
+'''6.''' Read the note below regarding the password change procedure.
+
+When typing the password it will <u>not</u> appear on the screen, nor will the asterisk sign (<code>*</code>) be visible. It is necessary to type blindly and trust the procedure.
+
+'''7.''' Change the account <code>user</code> (and <code>sudo</code>) password.
+
+* To change the <code>user</code> ({{project_name_short}} default user account) password, run the following command. <ref name=pwd_change />
+* This will also be the password when running <code>sudo</code> from Linux user account <code>user</code>. <ref>
+* This is the usual Debian / <code>sudo</code> default and [[Unspecific|Unspecific to {{project_name_short}}]].
+</ref>
+* Using [https://github.com/Kicksecure/usability-misc/blob/master/man/pwchange.8.ronn <code>pwchange</code>]. <ref>
+* [https://github.com/Kicksecure/usability-misc/blob/master/usr/sbin/pwchange <code>/usr/sbin/pwchange</code>] source code.
+* Alternatively, Debian standard command: {{CodeSelect|code=
+sudo passwd user
+}}
+</ref>
+
+{{CodeSelect|code=
+sudo pwchange
+}}
+
+pwchange will prompt.
+
+<pre>
+What user's password do you want to change?
+</pre>
+
+Type <code>user</code> and then press <code><Enter></code>.
+
+'''8.''' Root password.
+
+No changes required. Optional, for details, see [[Root#Root_Account|root account in {{project_name_short}}]].
+
+'''9.''' Done.
+
+The procedure of changing passwords is complete.
+}}
+</div>
+
+If issues appear when gaining root, consider using [[Root#dsudo_-_default_password_sudo|dsudo]].
+
+Another option is to [[Recovery#Recovery_Mode|boot into recovery mode]] and change passwords there.
 
 = Graphical Login Screen =
 For {{gui}}.
@@ -22,8 +229,6 @@ Platform specific.
 * [[Qubes|{{q_project_name_long}}]]: Mostly, not applicable except if using a Qubes HVM. This is up to the host operating system, Qubes, not {{project_name_short}}.
 
 A login screen can be provided by a login manager. For example, LightDM is the login manager used by default in {{project_name_short}}.
-
-See also: [[Desktop#Disable_Autologin|disable autologin]]
 
 '''Figure:''' ''<code>LightDM</code> login manager''
 
@@ -39,7 +244,7 @@ What is a virtual console? See [[Desktop#Virtual_Consoles|Virtual Console]].
 Platform specific.
 
 * [[Non-Qubes-Kicksecure|{{non_q_project_name_short}}]]: Applicable. See below.
-* [[Qubes|{{q_project_name_long}}]]: Mostly, not applicable except if using a Qubes HVM. This is up to the host operating system, Qubes, not {{project_name_short}}.
+* [[Qubes| ]]: Mostly, not applicable except if using a Qubes HVM. This is up to the host operating system, Qubes, not {{project_name_short}}.
 
 '''Figure:''' ''virtual console login screen''
 
