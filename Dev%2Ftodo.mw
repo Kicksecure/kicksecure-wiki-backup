@@ -10,62 +10,72 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== GRUB - boot related enhancements ==
-* Are there any other boot related enhancements outstanding? If so, please create tickets for these.
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
 
-== user-admin-split - documentation improvements ==
-* Qubes R4.2 vs R4.3
-* Qubes uninstallation instructions (passwordless-root)
-* Qubes boot modes
-* user documentation
-* developer documentation
-* anything else missing
-
-== autologinchange versus empty password ==
-* issue:
-** pwchange at time of writing does not notify if autologin is enabled
-** autologinchange at time of writing does not notify if an empty password is being set
-* the user might intend to secure their by using autologinchange and then be surprised that login without a password is still possible
-* how could setting a password and autologinchange be more connected from a usability point of view?
-* should one tool at the end of its execution recommend the other, if that seems applicable?
-** applicable?
-*** when disabling autologin, suggest to user to set a password, if password is currently empty.
-*** when setting a password, suggest to user to disable autologin, if autologin is currently enabled.
-** use colorful background to notify user of this potential discrepancy?
-* or suggest or autorun systemcheck login security check only after such changes to make it obvious?
-
-== lightweight update notifications ==
-* Qubes vs non-Qubes:
-** should not conflict with Qubes internal updater (multiple APT background processes blocking each other) - do this only inside Non-Qubes?
-** on the other hand, systemcheck contains many tests that are useful inside Qubes as well
-** Qubes developers do not wish the user to see a lot duplicate passive popups, active progress bars and active popups
-*** Aaron: Qubes already shows upgrade notifications for VMs, so I would say this feature should not be added to Kicksecure or Whonix under Qubes OS. It's redundant and potentially conflicting.
-* non-Qubes: GUI vs CLI?
-** GUI: Implement this for the GUI version only?
-** CLI: msgcollector supports writing to tty1 even for daemons (systemcheck) started in the background but this is probably confusing and disruptive. (Was default in the past.)
-*** Aaron: Agreed, should be a GUI-only feature. CLI users can just run apt commands manually easily enough.
-* as a stopgap until one day [[Dev/Automatic_Updates|Dev/Automatic Updates]] gets implemented
-* re-use systemcheck for this? Could consider to re-enable autostart of systemcheck by default as it contains already lots of tests. "systemcheck --gui" currently shows:
+== user-sysmaint-split - lock screen command broken ==
+* to debug, a terminal was started and then sysmaint-panel was started from the terminal emulator
 
 <pre>
-INFO: Kicksecure APT Repository: Enabled. When the Kicksecure team releases BOOKWORM-DEVELOPERS updates, they will be AUTOMATICALLY installed (when you run apt-get dist-upgrade) along with updated packages from the Debian team. Please read https://www.kicksecure.com/wiki/Trust to understand the risk. If you want to change this, use: 
-dom0 -> Start Menu -> Template: kicksecure-bookworm -> Derivative Repository
-
-WARNING: Debian Package Update Check Result: apt-get reports that packages can be updated. 
-Please update your 'kicksecure-bookworm' TemplateVM. 
-1. Open a TemplateVM terminal. (dom0 -> Start Menu -> Template: kicksecure-bookworm -> Terminal) 
-2. Update. 
-upgrade-nonroot
-3. Shutdown your TemplateVM. (dom0 -> Qubes VM Manager -> right click 'kicksecure-bookworm' -> Shutdown VM) 
-4. Shutdown and restart this TemplateBased AppVM. (dom0 -> Qubes VM Manager -> right click 'work-main' -> Shutdown VM)
+/usr/bin/zsh
+[sysmaint ~]% sysmaint-panel 
+requestActivate() called for  QWidgetWindow(0x120a4600, name="BackgroundScreenWindow")  which has Qt::WindowDoesNotAcceptFocus set.
+xscreensaver-command: no screensaver is running on display :0
 </pre>
 
-* The first "INFO: Kicksecure APT Repository" might be too noisy and could easily be disabled in GUI output by default.
-* git history contains /usr/libexec/systemcheckdaemon
-** Aaron: systemcheck shows a lot of info about multiple components, much of which a user may skip over or be tempted to skip over. I would prefer implementing this in such a way that a typical desktop notification (such as what <code>notify-send</code> can produce) is shown to the user when there are updates.
-** Patrick:
-*** It's possible to run select functions only, for example: <code>systemcheck --verbose --function check_operating_system</code>.
-*** Other functions might be useful as well such as <code>check_package_manager_running</code> and <code>check_dpkg</code>.
+== user-sysmaint-split - add terminal background tinting ==
+* tint terminals in sysmaint mode slightly red to encourage users to be careful while in sysmaint mode
+
+== user-sysmaint-split - documentation improvements - #2 ==
+* document Qubes boot modes on [[Dev/user-sysmaint-split]]
+* document difference for user-sysmaint-split installation on Qubes R4.2 versus Qubes R4.3
+
+== lightweight update notifications - #2 ==
+* consider custom languages. Needs <code>LC_ALL=C</code>?
+* notify leaprun failures
+* consider if update_package_count is not a number?
+* grep APT output for errors and notify?
+
+<pre>
+    if printf '%s' "$update_output" | grep --quiet --ignore-case -- "Error:" ; then
+</pre>
+
+* systemcheck function <code>check_dpkg</code> or equivalent useful? If apt/dpkg is broken due to broken packages, that does not really break apt update?
+* use systemcheck function <code>check_package_manager_running</code> or equivalent?
+** if running for a "reasonable time", wait
+** if running "forever", notify that update check is broken
+* consider systems running for 12 or 18 hours etc:
+** Do notifications pile up more and more? Avoidable?
+** Can we clear prior notifications?
+** Can stale notifications be avoided? Can we clear "update check broken" notification once "updates available" notification came in? Can we clear "updates available" once user updated?
+* Other error cases to notify?
+* In case of errors, suggest to visit [[Operating System Software and Updates]]?
+* document on [[Dev/Automatic Updates]]
+* document on [[Operating System Software and Updates]]
+** non-Qubes vs Qubes
+** document disabling
+* notify https://forums.kicksecure.com/t/notifications-about-new-updates/774
+
+== live mode detection improvements ==
+* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
+* Currently only based on grepping kernel command line.
+* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
+* Ideas on how to make live mode detection more reliable?
 
 == mouse fingerprinting ==
 * todo
@@ -430,24 +440,6 @@ sudo apt install serial-console-enable
 == review safe-print ==
 * https://github.com/Kicksecure/helper-scripts/pull/14
 
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-
 == trixie port - misc ==
 * waiting for trixie to get frozen and stable enough
 * 1) SSH configurations
@@ -587,13 +579,8 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== user-sysmaint-split - sysmaint-panel - wrong error message if logging in as wrong user ==
-* login with account "user" after booting into sysmaint mode
-* ignore warnings by pam-info during login screen that already advice against logging in with account "user" (because the user might miss them in the future due to PAM bugs, pam-info bugs, other login managers)
-* actual: sysmaint-panel shows error "boot into sysmaint"
-* expected: sysmaint-panel shows error "please login as account "sysmaint"
-* Fixed by implementing a new dialog: https://github.com/ArrayBolt3/sysmaint-panel/commit/b782aa512689242d2a8066a1d7a36bc0ce40fc9b
 
+= ARCHIVED =
 == user-sysmaint-split - sysmaint-panel - check system status button - add delay ==
 * systemcheck takes 2-3 seconds until user gets feedback. i pressed the button twice and then had a duplicate systemcheck.
 * please disable the button for 2-5 seconds after it has been clicked.
@@ -603,10 +590,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Implemented: https://github.com/ArrayBolt3/sysmaint-panel/commit/7e39a7df817045ba3c4bc6f7a1f64e82bba71d92
 ** This is implemented for most buttons, except for Open Terminal, Reboot, Shut Down, and Install Software. The user experience when using those doesn't warrant a timeout lock and adding a timeout lock there would probably annoy the user.
 ** Visible timeout counter is present, implemented by adding a <code>(5)</code> at the end of each button label for the duration of the lock (where "5" will be replaced with the remaining seconds until the lock times out).
+* Patrick: Merged.
 
 == user-sysmaint-split - sysmaint-panel - install updates button confusing ==
 * since it only runs apt dist-upgrade, users might miss out on upgrades because users might not know it's apt update followed by apt dist-upgrade
 * Mostly resolved in https://github.com/ArrayBolt3/sysmaint-panel/commit/7ae6a0dcee5e15794dfdb78e9f804d0bf9394095, additional questions and details shared in chat
+* Patrick: Merged.
 
 == user-sysmaint-split - sysmaint-panel - output formatting issue ==
 * shows:
@@ -617,8 +606,93 @@ update
 </pre>
 * that is confusing even for users that know that command. better: /usr/bin/sudo /usr/bin/apt update
 ** Fixed: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/terminal-helper-output
+* Patrick: Merged.
+== user-sysmaint-split - sysmaint-panel - wrong error message if logging in as wrong user ==
+* login with account "user" after booting into sysmaint mode
+* ignore warnings by pam-info during login screen that already advice against logging in with account "user" (because the user might miss them in the future due to PAM bugs, pam-info bugs, other login managers)
+* actual: sysmaint-panel shows error "boot into sysmaint"
+* expected: sysmaint-panel shows error "please login as account "sysmaint"
+* Fixed by implementing a new dialog: https://github.com/ArrayBolt3/sysmaint-panel/commit/b782aa512689242d2a8066a1d7a36bc0ce40fc9b
+* Patrick: Merged.
 
-= ARCHIVED =
+== user-admin-split - documentation improvements ==
+* Qubes R4.2 vs R4.3
+* Qubes uninstallation instructions (passwordless-root)
+* Qubes boot modes
+* user documentation
+* developer documentation
+* anything else missing
+** Aaron: Don't see much missing, added requested points.
+
+== autologinchange versus empty password ==
+* issue:
+** pwchange at time of writing does not notify if autologin is enabled
+** autologinchange at time of writing does not notify if an empty password is being set
+* the user might intend to secure their by using autologinchange and then be surprised that login without a password is still possible
+* how could setting a password and autologinchange be more connected from a usability point of view?
+* should one tool at the end of its execution recommend the other, if that seems applicable?
+** applicable?
+*** when disabling autologin, suggest to user to set a password, if password is currently empty.
+*** when setting a password, suggest to user to disable autologin, if autologin is currently enabled.
+** use colorful background to notify user of this potential discrepancy?
+* or suggest or autorun systemcheck login security check only after such changes to make it obvious?
+* Implemented: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/pwchange-autologinchange-link
+** Went with the strategy of having each tool warn if things are insecure when the user is doing hardening (i.e. warn about autologin when adding a password, or warn about empty password when disabling autologin)
+** Patrick: Merged.
+
+== lightweight update notifications ==
+* Qubes vs non-Qubes:
+** should not conflict with Qubes internal updater (multiple APT background processes blocking each other) - do this only inside Non-Qubes?
+** on the other hand, systemcheck contains many tests that are useful inside Qubes as well
+** Qubes developers do not wish the user to see a lot duplicate passive popups, active progress bars and active popups
+*** Aaron: Qubes already shows upgrade notifications for VMs, so I would say this feature should not be added to Kicksecure or Whonix under Qubes OS. It's redundant and potentially conflicting.
+* non-Qubes: GUI vs CLI?
+** GUI: Implement this for the GUI version only?
+** CLI: msgcollector supports writing to tty1 even for daemons (systemcheck) started in the background but this is probably confusing and disruptive. (Was default in the past.)
+*** Aaron: Agreed, should be a GUI-only feature. CLI users can just run apt commands manually easily enough.
+* as a stopgap until one day [[Dev/Automatic_Updates|Dev/Automatic Updates]] gets implemented
+* re-use systemcheck for this? Could consider to re-enable autostart of systemcheck by default as it contains already lots of tests. "systemcheck --gui" currently shows:
+
+<pre>
+INFO: Kicksecure APT Repository: Enabled. When the Kicksecure team releases BOOKWORM-DEVELOPERS updates, they will be AUTOMATICALLY installed (when you run apt-get dist-upgrade) along with updated packages from the Debian team. Please read https://www.kicksecure.com/wiki/Trust to understand the risk. If you want to change this, use: 
+dom0 -> Start Menu -> Template: kicksecure-bookworm -> Derivative Repository
+
+WARNING: Debian Package Update Check Result: apt-get reports that packages can be updated. 
+Please update your 'kicksecure-bookworm' TemplateVM. 
+1. Open a TemplateVM terminal. (dom0 -> Start Menu -> Template: kicksecure-bookworm -> Terminal) 
+2. Update. 
+upgrade-nonroot
+3. Shutdown your TemplateVM. (dom0 -> Qubes VM Manager -> right click 'kicksecure-bookworm' -> Shutdown VM) 
+4. Shutdown and restart this TemplateBased AppVM. (dom0 -> Qubes VM Manager -> right click 'work-main' -> Shutdown VM)
+</pre>
+
+* The first "INFO: Kicksecure APT Repository" might be too noisy and could easily be disabled in GUI output by default.
+* git history contains /usr/libexec/systemcheckdaemon
+** Aaron: systemcheck shows a lot of info about multiple components, much of which a user may skip over or be tempted to skip over. I would prefer implementing this in such a way that a typical desktop notification (such as what <code>notify-send</code> can produce) is shown to the user when there are updates.
+** Patrick:
+*** It's possible to run select functions only, for example: <code>systemcheck --verbose --function check_operating_system</code>.
+*** Other functions might be useful as well such as <code>check_package_manager_running</code> and <code>check_dpkg</code>.
+* Aaron: Implemented initial version of update notifications using a user-side daemon.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/updatecheck
+*** Patrick: Merged.
+** kicksecure-meta-packages: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/notifyd
+*** Not absolutely necessary, but makes notifications for the whole system much more pleasant to use, and provides a notification applet that can be added to the panel if desired.
+*** Patrick: Merged.
+
+== user-sysmaint-split - add screen lock button ==
+* for locking screen while walking away from the system in sysmaint mode
+* implement low-level lock command in helper-scripts, call the wrapper from sysmaint-panel, to be compatible with multiple screen lockers going forward
+* Implemented:
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/6913d1451467ebc961236ca4e4c0cd4adcd00a8c
+*** Patrick: Merged.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/fix-qubes-systemd
+*** Patrick: Merged.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/screenlock
+*** Patrick: Merged.
+
+== GRUB - boot related enhancements ==
+* Are there any other boot related enhancements outstanding? If so, please create tickets for these.
+
 == grml-debootstrap - downstream handling grub-cloud versus /etc/default/grub ==
 * After/if https://github.com/grml/grml-debootstrap/pull/299 gets merged...
 * config-package-dev displace /etc/default/grub? Avoid "fighting" for configuration file ownership by moving the file out of the way.
