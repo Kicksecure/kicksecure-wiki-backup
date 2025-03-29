@@ -111,23 +111,45 @@ apt-cacher-ng is used by default.
 * Why not make it optional? It's not easy to design the build script in a way that it does not use apt-cacher-ng by default but uses it when using some option. This is because use of apt-cacher-ng requires to use syntax <code>http://HTTPS///</code> in APT sources used for the build process.
 
 = Repository Caching Debugging =
-'''1.''' {{Install Package
-|package=apt-cacher-ng
-}}
-
-'''2.''' apt-cacher-ng configuration
+'''1.''' AppArmor fix if using Kicksecure or Whonix.
 
 {{CodeSelect|code=
-echo "AllowUserPorts: 0" {{!}} sudo tee -a "/etc/apt-cacher-ng/acng.conf
+sudo append-once /etc/apparmor.d/abstractions/base.d/kicksecure "/etc/resolv.conf.whonix r,"
 }}
 
-'''3.''' apt-cacher-ng restart
+{{CodeSelect|code=
+sudo aa-enforce /etc/apparmor.d/usr.sbin.apt-cacher-ng
+}}
 
 {{CodeSelect|code=
 sudo systemctl restart apt-cacher-ng
 }}
 
-'''4.''' Backup <code>/etc/apt/sources.list.d/debian.list</code>.
+Fixed in apparmor-profile-dist 3:9.5-1 and above.
+
+'''2.''' If using Whonix-Workstation, disable stream isolation.
+
+{{CodeSelect|code=
+sudo dummy-dependency --yes --purge uwt
+}}
+
+'''3.''' {{Install Package
+|package=apt-cacher-ng
+}}
+
+'''4.''' apt-cacher-ng configuration
+
+{{CodeSelect|code=
+echo "AllowUserPorts: 0" {{!}} sudo tee -a /etc/apt-cacher-ng/acng.conf
+}}
+
+'''5.''' apt-cacher-ng restart
+
+{{CodeSelect|code=
+sudo systemctl restart apt-cacher-ng
+}}
+
+'''6.''' Backup <code>/etc/apt/sources.list.d/debian.list</code>.
 
 If existing. Existing only in Kicksecure, Whonix.
 
@@ -137,7 +159,7 @@ Copy <code>/etc/apt/sources.list.d/debian.list</code> to user home folder.
 cp /etc/apt/sources.list.d/debian.list ~/
 }}
 
-'''5.''' Acquire apt-cacher-ng compatible Debian sources lists files.
+'''7.''' Acquire apt-cacher-ng compatible Debian sources lists files.
 
 From derivative-maker source code folder.
 
@@ -148,49 +170,47 @@ From derivative-maker source code folder.
 sudo cp ~/derivative-maker/build_sources/debian_stable_current_clearnet.list /etc/apt/sources.list.d/debian.list
 }}
 
-'''6.''' APT update command.
+'''8.''' APT update command.
 
 {{CodeSelect|code=
 sudo env REPO_PROXY="http://127.0.0.1:3142" http_proxy=${REPO_PROXY} https_proxy=${REPO_PROXY} ALL_PROXY=${REPO_PROXY} apt-get -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 update
 }}
 
-'''7.''' Check apt-cacher-ng configuration.
+'''9.''' Check apt-cacher-ng configuration.
 
 The following command outputs apt-cacher-ng configuration excluding comments and duplicate newlines.
 
 {{CodeSelect|code=
-cat /etc/apt-cacher-ng/acng.conf {{!}} grep --invert-match "#" {{!}} cat -s
+sudo cat /etc/apt-cacher-ng/* {{!}} grep --invert-match '#\{{!}}^$'
 }}
 
 Expected as of Debian bookworm:
 
 <pre>
 CacheDir: /var/cache/apt-cacher-ng
-
 LogDir: /var/log/apt-cacher-ng
-
 SupportDir: /usr/lib/apt-cacher-ng
-
 Remap-secdeb: security.debian.org security.debian.org/debian-security deb.debian.org/debian-security /debian-security cdn-fastly.deb.debian.org/debian-security ; deb.debian.org/debian-security security.debian.org cdn-fastly.deb.debian.org/debian-security
-
 ReportPage: acng-report.html
-
 ExThreshold: 4
-
 FollowIndexFileRemoval: 1
-
 LocalDirs: acng-doc /usr/share/doc/apt-cacher-ng
-
 AllowUserPorts: 0
+http://ftp.debian.org/debian/
+http://distfiles.gentoo.org/
+http://kali.download/kali/
+http://http.kali.org/kali/
+http://archive.ubuntu.com/ubuntu/
+PassThroughPattern: .*
 </pre>
 
-'''8.''' Check apt-cacher-ng log.
+'''10.''' Check apt-cacher-ng log.
 
 {{CodeSelect|code=
 sudo journalctl --boot --output cat -u apt-cacher-ng
 }}
 
-'''9.''' apt-cacher-ng cache folder reset.
+'''11.''' apt-cacher-ng cache folder reset.
 
 {{CodeSelect|code=
 sudo systemctl stop apt-cacher-ng

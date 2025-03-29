@@ -10,40 +10,44 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+== updatecheck, setup-wizard-dist - don't assume sysmaint components are present ==
+* updatecheck assumes sysmaint-panel is preinstalled and instructs the user to use it, even if it's not present
+* setup-wizard-dist does things similarly
+* adjust both to only show sysmaint-related information if the corresponding components are installed
 
-== user-sysmaint-split - lock screen command broken ==
-* to debug, a terminal was started and then sysmaint-panel was started from the terminal emulator
+== qubes boot modes - in-vm kernel support ==
+* todo
 
-<pre>
-/usr/bin/zsh
-[sysmaint ~]% sysmaint-panel 
-requestActivate() called for  QWidgetWindow(0x120a4600, name="BackgroundScreenWindow")  which has Qt::WindowDoesNotAcceptFocus set.
-xscreensaver-command: no screensaver is running on display :0
-</pre>
-
-== user-sysmaint-split - add terminal background tinting ==
+== user-sysmaint-split - sysmaint-panel - add terminal background tinting ==
 * tint terminals in sysmaint mode slightly red to encourage users to be careful while in sysmaint mode
+
+== user-sysmaint-split - sysmaint-panel - new features ==
+* sysmaint-panel could be used to promote nice but lesser known functionality
+* apt-get-reset
+** should renamed to apt-get-reinstall?
+** rationale: re-installation of a package (if other packages depend on it) while restoring configuration files back to package defaults is very difficult for users. Hence, apt-get-reset has been invented.
+* dummy-dependency
+** use --purge?
+** do not yet --yes, obviously
 
 == user-sysmaint-split - documentation improvements - #2 ==
 * document Qubes boot modes on [[Dev/user-sysmaint-split]]
 * document difference for user-sysmaint-split installation on Qubes R4.2 versus Qubes R4.3
+
+== user-sysmaint-split - Qubes - Selective sudo Access ==
+* implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
+* Likely going to end up implementing [https://github.com/QubesOS/qubes-issues/issues/2695 Automate vm sudo authorization setup]
+** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
+*** Patrick: R4.2 should be sufficient?
+**** Aaron: New major features cannot be introduced into R4.2. Needs to be developed for R4.3.
+** Relveant Qubes OS tickets:
+*** https://github.com/QubesOS/qubes-issues/issues/5840
+*** https://github.com/QubesOS/qubes-issues/issues/5852
+*** https://github.com/QubesOS/qubes-issues/issues/5853
+*** https://github.com/QubesOS/qubes-issues/issues/2695
+*** https://github.com/QubesOS/qubes-issues/issues/9512
+* Waiting for feedback from HW42.
+* Is a lightweight solution possible? If an App Qube is booting and /run/qubes/sudo exists, chmod o+x /usr/bin/sudo or better dummy-dependency --yes --purge user-sysmaint-split?
 
 == lightweight update notifications - #2 ==
 * consider custom languages. Needs <code>LC_ALL=C</code>?
@@ -399,7 +403,32 @@ sudo apt install serial-console-enable
 * cloudinit?
 * vm-config-dist versus autologin CLI vs GUI vs server
 
+== hidepid ==
+* general information: https://www.kicksecure.com/wiki/Security-misc#hidepid
+* enable by default for users of user-sysmaint-split?
+* hidepid seems to make most sense if using user-sysmaint-split, because then account "user" cannot use sudo/pkexec anyhow
+* test and implement https://github.com/systemd/systemd/issues/29893#issuecomment-2757436101 if sane
+
 = WAITING ON =
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+
 == enable X event buffering by default for Whonix ==
 * https://github.com/QubesOS/qubes-issues/issues/9771
 * PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/20
@@ -423,24 +452,11 @@ sudo apt install serial-console-enable
 * Submitted and awaiting review: [https://salsa.debian.org/grub-team/grub/-/merge_requests/76#note_590495 Remove ucf conffile conflict between grub-pc and grub-efi-{amd64,ia32}]
 * Unfortunately this is not going to be able to make it into Trixie, it will have to wait for Forky before it makes it into Debian Stable.
 
-== user-sysmaint-split - Qubes - Selective sudo Access ==
-* implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
-* Likely going to end up implementing [https://github.com/QubesOS/qubes-issues/issues/2695 Automate vm sudo authorization setup]
-** Need Qubes OS R4.3 for this, not able to install it on primary dev rig yet, awaiting arrival of an (already ordered) external drive enclosure.
-*** Patrick: R4.2 should be sufficient?
-**** Aaron: New major features cannot be introduced into R4.2. Needs to be developed for R4.3.
-** Relveant Qubes OS tickets:
-*** https://github.com/QubesOS/qubes-issues/issues/5840
-*** https://github.com/QubesOS/qubes-issues/issues/5852
-*** https://github.com/QubesOS/qubes-issues/issues/5853
-*** https://github.com/QubesOS/qubes-issues/issues/2695
-*** https://github.com/QubesOS/qubes-issues/issues/9512
-* Waiting for feedback from HW42.
-
 == review safe-print ==
 * https://github.com/Kicksecure/helper-scripts/pull/14
 
 == trixie port - misc ==
+* might need to split this into multiple tasks
 * waiting for trixie to get frozen and stable enough
 * 1) SSH configurations
 ** move configuration snippets from [[SSH]] wiki page to security-misc [not completed at time of writing in end of 2024 but should be early next year]
@@ -453,10 +469,12 @@ sudo apt install serial-console-enable
 * 3) move from usability-misc and security-misc to to helper-scripts
 ** upgrade-nonroot
 ** other APT related scripts
+** this will allow sysmaint-panel to remove dependency on usability-misc and security-misc
 * 4) convert user-sysmaint-split and sysmaint-panel from "loose packages" to dependencies of the respective meta packages
 ** add ominous message to release-upgrade script
 * 5) Check if /etc/grub.d/10_linux was updated in Debian. If so, update our fork in dist-base-files.
 * 6) https://www.whonix.org/wiki/Dev/Redistribution#Major_Upgrade
+* 7) port all sources.list files to DEB822-Style Format (can be postponed if needed)
 
 == trixie port - port to Wayland ==
 * https://github.com/Kicksecure/kicksecure-meta-packages/pull/2
@@ -579,8 +597,26 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-
 = ARCHIVED =
+== user-sysmaint-split - lock screen command broken ==
+* to debug, a terminal was started and then sysmaint-panel was started from the terminal emulator
+
+<pre>
+/usr/bin/zsh
+[sysmaint ~]% sysmaint-panel 
+requestActivate() called for  QWidgetWindow(0x120a4600, name="BackgroundScreenWindow")  which has Qt::WindowDoesNotAcceptFocus set.
+xscreensaver-command: no screensaver is running on display :0
+</pre>
+
+* Aaron: Known issue from last night, I apparently forgot to mark it in the task tracker though and only documented it in the progress reports. Fix in user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/screenlock
+*** Parick: Merged.
+* Also found some other bugs while researching and fixing this:
+** Warnings about missing passwords when disabling autologin were appearing at the wrong time in some situations. Fix in helper-scripts: https://github.com/ArrayBolt3/helper-scripts/commit/adaecfafcb6abae0bafb6f2d31436a661875bdfd
+*** Parick: Merged.
+** Software update notifications were appearing in a sysmaint session (which is not necessary or desirable). The notification would also advertise using sysmaint-panel even if it wasn't installed. Fixes in systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/fix-updatecheck (Note: Includes some migration code, see chat for details)
+** /etc/apt/sources.list.d/derivative.list was not being generated on first boot if the user booted into PERSISTENT mode SYSMAINT first. Fix in repository-dist: https://github.com/ArrayBolt3/repository-dist/tree/arraybolt3/sysmaint
+*** Parick: Merged.
+
 == user-sysmaint-split - sysmaint-panel - check system status button - add delay ==
 * systemcheck takes 2-3 seconds until user gets feedback. i pressed the button twice and then had a duplicate systemcheck.
 * please disable the button for 2-5 seconds after it has been clicked.
