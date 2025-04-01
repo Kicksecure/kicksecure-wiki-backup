@@ -59,7 +59,7 @@ Depending on system specifications, systemcheck can take up to a few minutes to 
 
 == Sample systemcheck Output ==
 
-<div class="pre">[INFO] [systemcheck] {{project_name_workstation_short}} | {{project_name_workstation_short}} {{project_name_workstation_template}} TemplateBased AppVM | Sun 25 Apr 2021 07:56:41 AM UTC
+{{PreBox|[INFO] [systemcheck] {{project_name_workstation_short}} {{!}} {{project_name_workstation_short}} {{project_name_workstation_template}} TemplateBased AppVM {{!}} Sun 25 Apr 2021 07:56:41 AM UTC
 [INFO] [systemcheck] Connected to Tor.
 [INFO] [systemcheck] {{project_name_short}} APT Repository: Enabled.
 When the {{project_name_short}} team releases BUSTER-PROPOSED-UPDATES updates,
@@ -71,7 +71,7 @@ If you want to change this, use:
 [INFO] [systemcheck] Debian Package Update Check: Checking for software updates via apt... ( Documentation: https://www.{{project_clearnet}}/wiki/Update )
 [INFO] [systemcheck] Debian Package Update Check Result: No updates found via apt.
 [INFO] [systemcheck] Please donate!
-See: https://www.{{project_clearnet}}/wiki/Donate</div>
+See: https://www.{{project_clearnet}}/wiki/Donate}}
 
 == Tor Bootstrap ==
 Tor bootstrap refers to the process of attempting to connect to the Tor network (successfully or unsuccessfully). Familiar output related to this process includes: "Tor connecting xx percent...", "Tor not connected", "Tor connected" and so on. Bootstrapping does not refer to related concepts, such as whether connections are "secure", "not secure", "anonymous" or "not anonymous".
@@ -224,7 +224,21 @@ Platform specific.
 
 Runs approximately every 6 hours.
 
-Note: No administrative ("[[root]]") rights required. Do not use <u>sudo</u>!
+Features:
+
+* Wait for a good time to run the update check.
+** Waits 2 minutes after boot to give the user a chance to run APT before the package database gets locked because updatecheck runs APT. (As per Debian default, only one program can run APT at a time.)
+** Runs {{CodeSelect|inline=true|code=leaprun onion-time-pre-script}} up to 5 times until it succeeds. Waits 2 minutes if it fails. This is to ensure Tor bootstrap has been completed.
+** Waits up to 3 minutes if sdwdate has completed time synchronization.
+** Waits up to 20 minutes for the package database to be unlocked, which means no other APT process (run by the user) is currently locking it.
+
+<u>Note:</u> No administrative ("[[root|<code>root</code>]]") rights required. Do <u>not</u> use <u>sudo</u>!
+
+Check logs.
+
+{{CodeSelect|code=
+journalctl --user -u updatecheck
+}}
 
 Check status.
 
@@ -245,6 +259,9 @@ systemctl --user unmask updatecheck.service
 }}
 
 Information for developers: See wiki page [[Dev/Automatic_Updates|Dev/Automatic Updates]] chapter [[Dev/Automatic_Updates#updatecheck|updatecheck]].
+
+== updatecheck for accounts other than user ==
+TODO: document
 
 = Version Numbers =
 {{Anchor|Whonix Build Version}}
@@ -268,15 +285,15 @@ The output should be similar to the following, depending on the platform.
 
 Non-Qubes:
 
-<div class="pre">[INFO] [systemcheck] Kicksecure build version: {{VersionNew}}
+{{PreBox|[INFO] [systemcheck] Kicksecure build version: {{VersionNew}}
 [INFO] [systemcheck] kicksecure-dependencies-cli: 31.5-1
-[INFO] [systemcheck] derivative_major_release_version /etc/kicksecure_version: {{VersionShort}}</div>
+[INFO] [systemcheck] derivative_major_release_version /etc/kicksecure_version: {{VersionShort}}}}
 
 Qubes:
 
-<div class="pre">[INFO] [systemcheck] Kicksecure build version: 3:10.2-1
+{{PreBox|[INFO] [systemcheck] Kicksecure build version: 3:10.2-1
 [INFO] [systemcheck] kicksecure-dependencies-cli: 31.5-1
-[INFO] [systemcheck] derivative_major_release_version /etc/kicksecure_version: {{VersionShort}}</div>
+[INFO] [systemcheck] derivative_major_release_version /etc/kicksecure_version: {{VersionShort}}}}
 
 == Technical Details ==
 For advanced users only.
