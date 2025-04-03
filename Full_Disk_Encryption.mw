@@ -27,6 +27,26 @@ To provide sufficient security from password cracking brute force attempts, it i
 
 In an advanced [[Threat_Modeling|threat model]] it is also required that the FDE key has also been already decayed from the computer's volatile memory (RAM) so it cannot be extracted from there either. See also [[Cold Boot Attack Defense]].
 
+== Coverage ==
+While called {{fde}}, it might be a bit misleading at first. There is no 100% encryption for bootable hard drives, which is neither necessary nor possible. In most cases, FDE only means that most of the operating system and all user data is encrypted. See the footnote for technical details. <ref>
+{{fde}} usually includes, but is not limited to:
+
+* <code>/usr</code> (operating system)
+* <code>/home</code> (user data)
+* <code>/tmp</code> (temporary files)
+* <code>swap</code> partition
+
+{{fde}} mostly does not include:
+
+* <code>/boot</code>
+* the bootloader
+* LUKS header
+
+The <code>/boot</code> partition is usually unencrypted. Encrypted <code>/boot</code> is an advanced topic for [[Advanced Users]] and is covered in the table under [[Full_Disk_Encryption#Additional_Measures|Additional Measures]].
+</ref>
+
+Other drives are <u>not</u> automatically encrypted. If files are copied to other hard drives, these are not automatically encrypted. They will only be encrypted if FDE or another type of encryption (such as container-based encryption) has been set up by the user.
+
 == Full Disk Encryption versus Malware ==
 Full disk encryption is generally not designed to defeat [[Malware and Firmware Trojans|malware]].
 
@@ -99,6 +119,29 @@ Configuring FDE during system install is straightforward. The default cipher is 
 = Kicksecure Hosts =
 
 The {{project_name_short}} [[ISO]] installer also supports setting up FDE.
+
+= Pre-Boot Authentication =
+When using FDE, the password must be entered before booting. This is commonly called pre-boot authentication. <ref>
+Technically, authentication happens during early boot, not pre-boot.
+</ref> This is required so all encrypted data can be temporarily and the operating system can load properly. Without entering the correct password, the system remains inaccessible, protecting the contents of the disk from unauthorized access.
+
+'''Figure:''' ''initramfs (dracut) Based Encryption Password Prompt (cropped) - Example''
+
+[[File:Dracutpass-cropped.png|frameless|1200px|alt={{project_name_short}} GRUB|initramfs (dracut) Based Encryption Password Prompt (cropped) - Example]]
+
+See also: [[Grub#initramfs_.28initramfs-tools_or_dracut.29_Based_Encryption_Password_Prompt|initramfs (dracut) Based Encryption Password Prompt]]
+
+= Decryption =
+== Temporary Decryption while using FDE ==
+Data is decrypted inside the RAM (volatile, non-persistent memory) only. At no point is unencrypted data written to the hard drive (persistent storage).
+
+== Permanent Decryption ==
+Removing {{fde}}.
+
+* <u>"Direct" permanent decryption:</u> This is very difficult. [[Unsupported]]. <ref>
+There are no known Freedom Software Linux distributions that support "direct" permanent decryption. This is due to lack of tooling. Linux cryptsetup does not have a "decrypt" feature.
+</ref>
+* <u>"Indirect" permanent decryption:</u> Data can be copied from the encrypted device to other unencrypted drives and will not be encrypted there.
 
 = Removable Media =
 
@@ -277,7 +320,7 @@ Considered not useful and [[measured boot]] considered superior:
 
 * https://bugs.launchpad.net/ubuntu/+source/calamares/+bug/2016912
 
-Only GRUB supports encrypted <code>/boot</code>.
+[[GRUB]] is the only known bootloader for Freedom Software Linux based operating systems that supports encrypted <code>/boot</code>.
 
 Using GRUB to unlock <code>/boot</code> comes with several disadvantages.
 
