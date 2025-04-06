@@ -948,6 +948,94 @@ While all of the above mechanisms should provide very good security for the host
 * No BMC or similar firmware-level remote access mechanism should be made available. It would be pretty much useless anyway due to the possibility of MITM attacks (unless the user embedded an access key for that into the firmware too, which they could theoretically do), and it introduces more attack surface.
 * Should remote firmware updates be possible? It should be possible to implement this in a secure fashion, and it might be necessary for good security to avoid firmware-level vulnerabilities becoming a problem.
 
+=== Newer ===
+==== AMD64 Based ====
+It's not crucial to figure out how Linux distributions can implement verified boot higher up in the boot phase (initramfs and higher).
+This is somewhat unrelated to the firmware.
+Might be looked at later.
+
+What we need most from 3MDEB is a secure firmware.
+Verified boot with user-controlled keys as much as feasible.
+The user should be able to express "I confirm that I want to boot this bootloader signed by this key". Then any OEM and "participating operating system" can opt in to follow this yet-to-be-invented standard.
+
+When the firmware / bootloader has been tampered with, signature verification issue -> abort booting and ideally show a good error message.
+
+The most straightforward way might be to piggyback on the existing Secure Boot infrastructure.
+
+Booting currently on Intel/AMD64:
+Operating system bootloaders on ISO USB drive or internal hard drive are already signed. For Linux, that's shim.
+Fortunately, an EFI binary nowadays can be signed with more than one key at once.
+
+Booting with 3MDEB verified boot:
+The boot firmware could parse the boot device and see with which public key or keys it is signed.
+It's either signed with a key already trusted by the firmware or it isn't. If it isn't trusted, obviously do not boot it.
+
+The new feature in the firmware would be in the firmware menu. The user could easily go into the firmware menu – which comes with no keys enabled by default – be presented with the keys which the currently connected boot medium is signed with – and be prompted to accept/reject any public keys.
+
+"Legacy" Linux distributions and Windows would be signed as they currently are with the "Microsoft shim public signing key".
+
+If a Linux distribution shim is signed with two keys (Microsoft shim + Linux distribution key), then the user could opt in to only allow the Linux distribution key.
+
+If the operating system bootloader is signed with the user's own key, the user can accept their own key.
+
+This would be primarily a usability feature and mostly compatible with current UEFI and Secure Boot standards. It would make it more accessible for users to take advantage of it.
+
+If a Linux distribution is signed by the Microsoft shim public key + Linux distribution key, the firmware should guide the user to accept only the Linux distribution key.
+
+One issue could be that while a boot medium is signed with a custom public key (such as by a Linux distribution or by the user itself), the firmware doesn't have the public key imported. Could the public key simply be on a well-known, standardized place on the boot medium, then ask the user if it shall be accepted for import into the firmware based on its key information (name) and key fingerprint?
+
+==== Raspberry Pi RPi Based ====
+
+Raspberry Pi 4 and Raspberry Pi 5 support non-UEFI secure boot.
+
+They allow user- or OEM-provided signing key fusing.
+
+This is significantly easier to use than Intel Boot Guard or AMD PSP, as it does not require special permission from the ODM.
+
+Raspberry Pi 4 or 5 appears to be the most straightforward path to achieving verified boot of a Linux kernel.
+
+Boot chain: Raspberry Pi hardware -> Raspberry Pi bootloader -> Linux. This forms a fully protected boot chain, executing only signed code.
+
+In theory, this approach can eliminate several million lines of code: UEFI, shim, and potentially even GRUB.
+
+The bootloader, boot menu, and key management could be implemented directly within Linux, effectively making Linux the base of the firmware, similar to heads-linux. (It might even be possible to use heads-linux.)
+
+This appears far easier and more cost-effective than having 3mdeb implement the same functionality at the UEFI level.
+
+Such as Linux based boot manager could be a full Linux distribution with option menus such as:
+
+* online features enable/disable
+** if enabled
+*** theft protection enabled/disabled
+
+module:
+
+* autogin to passwordless wifi hotspot, lock device if some user provided url (or something) says says "lock"
+
+Programming for this environment becomes really simple because it is a standard Linux. Could be easily based on Wayland. Python-QT based boot menu.
+
+Legend:
+
+* OEM: Original Equipment Manufacturer
+* ODM: Original Design Manufacturer
+
+Disadvantages:
+
+* as of RPi4: only based on a 2048-bit RSA private key
+** https://articles.59.ca/doku.php?id=em:20482030
+
+{{quotation
+|quote=Quote
+
+* Raspberry Pi computers do not have a secure enclave, however, it's possible to store a 256 bit device specific private key in OTP. The key is accessible to any process with access to /dev/vcio (vcmailbox), therefore, the secure-boot OS must ensure that access to this interface is restricted.
+**  https://github.com/raspberrypi/utils/blob/master/vcmailbox/vcmailbox.7
+** VideoCore mailbox is essentially interface to proprietary subsystem with superpowers the same or even bigger than ME or ASP.
+** More to that, when for ME you can find extensive documentation about security properties and protection mechanisms like this: https://www.intel.com/content/dam/www/public/us/en/security-advisory/documents/intel-csme-security-white-paper.pdf
+** Very little information and research available on VideoCore.
+*** https://www.raspberrypi.org/app/uploads/2012/10/Architecture-and-Source.png
+|context=unaccounted
+}}
+
 = Attribution =
 {{sdebian
 |text=Setting /usr read-only

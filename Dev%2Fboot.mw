@@ -10,9 +10,6 @@ Boot Process
 {{intro|
 Boot Process Related Development Notes
 }}
-https://packages.debian.org/source/sid/u-boot
-
-https://packages.debian.org/sid/freedom-maker
 = GRUB =
 == grub-install command responsibility ==
 
@@ -561,6 +558,210 @@ fi
 
 = uboot =
 https://community.arm.com/support-forums/f/embedded-and-microcontrollers-forum/7016/uefi-on-arm-v8-based-linux-embedded-system
+
+= ARM =
+== ARM - Generally ==
+The situation used to be, and for the most part still is, as follows:
+
+* Each SBC (single-board computer) usually has a different boot process.
+* Most SBCs require either Debian forks or Armbian.
+* There was a Snapdragon X Elite dev board with EFI boot support, so standard Debian could in theory be run. No bootloader/image modifications required. However, the Snapdragon X Elite dev board was deprecated upstream. In any case, it likely would have had poor or no Linux support initially.
+
+The current situation may improve in the future, thanks to:
+
+* Arm SystemReady Compliance Program
+* Arm Base Boot Requirements (BBR)
+* Arm Base Boot Security Requirements (BBSR)
+* In the future, it might be useful to look for terminology such as "SystemReady IR compliant UEFI BIOS".
+
+This is only theoretical research.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+'''Warning:'''
+
+* The {{project_name_short}} project does not vet or endorse any of these services. No guarantees are made regarding their trustworthiness, reliability, or policies.
+* [[Untested]] by {{project_name_short}} project.
+* Use at your own risk.
+* [[Transparency#Third-Party_Policies|Third-Party Policies]] and [[Terms_of_Service#Non-Endorsement|Non-Endorsement]] apply! See also [[Transparency|project transparency]].
+}}
+
+Some [https://libre.computer/ Libre Computer] boards support UEFI BIOS. In the [https://libre.computer/products/ Libre Computer product finder], check the "UEFI BIOS" filter button. Devices with UEFI BIOS and 4 GB RAM as of April 2025:
+
+* [https://libre.computer/products/aml-s905d3-cc/ Solitude AML-S905D3-CC] (Amlogic)
+* [https://libre.computer/products/aml-a311d-cc/ Alta AML-A311D-CC] (Amlogic)
+* [https://libre.computer/products/roc-rk3399-pc/ Renegade Elite ROC-RK3399-PC] (Rockchip RK3399 SoC)
+
+<blockquote>
+'''Software Support'''
+
+* Upstream Linux
+* Upstream u-boot
+
+'''Lifecycle'''
+
+* 10 Years Hardware
+* 15 Years Software
+</blockquote>
+
+Instead of ARM64, Intel/AMD64 (sometimes referred to as x86) Mini-PCs might be a viable alternative, as these nowadays come with UEFI support by default, thus avoiding bootloader issues.
+
+Bootloader issues aside, whether Intel/AMD64 or ARM64, Linux/Debian support must always be verified before purchase.
+
+== Raspberry Pi - RPi ==
+=== Bootloader Information - RPi ===
+==== RPi Bootloader ====
+
+The RPi has its own custom boot protocol, using an internal bootloader in the Broadcom GPU.
+
+* [https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-boot-eeprom Raspberry Pi boot EEPROM]
+* [https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#bootloader_update_stable Update the bootloader]
+
+Debian images use direct kernel boot via that bootloader.
+
+{{quotation
+|quote=<code>rpi-eeprom</code>
+<br/>
+This repository contains the scripts and pre-compiled binaries used to create the <code>rpi-eeprom</code> package, which is used to update the Raspberry Pi 4 and Raspberry Pi 5 bootloader EEPROM images.
+|context=[https://github.com/raspberrypi/rpi-eeprom rpi-eeprom on GitHub]
+}}
+
+That boot protocol simply loads an {{os}} from a fixed location. The OS can be u-boot, UEFI EDK2, Linux, or anything else compatible.
+
+The RPi bootloader can be configured using [https://www.raspberrypi.com/documentation/computers/config_txt.html <code>/boot/firmware/config.txt</code>].
+
+The RPi bootloader is not the same as u-boot, but it can chainload u-boot.
+
+[https://raspberrypi.stackexchange.com/questions/124789/how-to-change-raspberry-pis-boot-mode-from-sd-card-to-usb-flash-drive How to change Raspberry Pi's boot mode from SD Card to USB flash drive?]
+
+===== Raspberry Pi EEPROM Manager - rpi-eeprom-mgr =====
+
+[[File:Raspberry_Pi_EEPROM_Manager_(rpi-eeprom-mgr).png|thumb|Raspberry Pi EEPROM Manager (<code>rpi-eeprom-mgr</code>)]]
+
+{{quotation
+|quote='''Raspberry Pi EEPROM Manager''' (<code>rpi-eeprom-mgr</code>) is a menu-driven front-end for <code>rpi-eeprom-update</code>.
+
+Available actions include:
+
+* Display EEPROM Status
+* Update Bootloader EEPROM
+* Edit Bootloader Configuration
+* Update VL805 (USB) EEPROM
+* Remove Pending Update
+* Change Firmware Directory
+* Disable Automatic EEPROM Updates
+* Enable Automatic EEPROM Updates
+* Automatic EEPROM Update Status
+* Display/Change Boot Order
+* Update <code>rpi-eeprom</code> Package
+
+All actions include a confirmation prompt before being executed.
+|context=https://forums.raspberrypi.com/viewtopic.php?f=29&t=283347
+}}
+
+==== u-boot on RPi ====
+* u-boot is not a strict requirement to boot RPi. It is possible to boot RPi without u-boot.
+* It might be preferable to hide u-boot from the user to avoid the need for manual configuration, due to relatively low familiarity compared to GRUB.
+* u-boot is likely required to enable (chainload) GRUB.
+* Miscellaneous on memory addresses:
+** https://people.kernel.org/linusw/how-the-arm32-linux-kernel-decompresses
+* PDF: [https://www.bsdforen.de/attachments/uefi-on-top-of-u-boot-pdf.4528/ UEFI on Top of U-Boot - Standardizing Boot Flow For ARM Boards]
+* Debian [https://packages.debian.org/u-boot-rpi <code>u-boot-rpi</code>] package:
+** <code>sudo apt-get install u-boot-rpi</code>
+
+{{quotation
+|quote=
+<pre>
+Installation
+
+The raspberry pi targets can be installed by copying u-boot.bin to the
+FAT partition of the raspberry pi boot firmware:
+
+  mkdir -p /boot/fat
+  mount /dev/mmcblk0p1 /boot/fat
+  cp -vb /usr/lib/u-boot/TARGET/u-boot.bin /boot/fat/
+
+Then specify the u-boot.bin as the kernel to load in config.txt on the
+FAT partition:
+
+  kernel u-boot.bin
+
+It should then support booting off of MMC and USB devices with serial
+console or HDMI with USB keyboard.
+</pre>
+|context=Debian Salsa: [https://salsa.debian.org/debian/u-boot/-/blob/debian/latest/debian/u-boot-rpi.README.Debian?ref_type=heads u-boot-rpi.README.Debian]
+}}
+
+* [https://docs.u-boot.org/en/stable/develop/uefi/uefi.html u-boot has UEFI-alike functionality] that can be used to chainload grub-efi
+** TODO: Is this enabled by default in Debian? Probably yes.
+*** File: <code>configs/rpi_defconfig</code>
+
+<pre>
+CONFIG_EFI_LOADER=y
+</pre>
+
+==== GRUB ====
+===== Rationale for using GRUB on RPi =====
+* Using GRUB may be desirable because standard Debian kernel upgrades will work out-of-the-box.
+* A familiar boot menu, kernel parameter editing, and configuration interface can be used.
+
+===== grub-uboot on RPi =====
+[https://packages.debian.org/grub-uboot grub-uboot] is available only for the architectures <code>armel</code> and <code>armhf</code>. Therefore, it is not usable on RPi 4 and RPi 5, which are <code>arm64</code>.
+
+There are few public discussions on using <code>grub-uboot</code>. Related: [https://forum.odroid.com/viewtopic.php?t=26894 ODROID forum: HOWTO - Using GRUB as bootloader (second stage after U-Boot)]
+
+{{quotation
+|quote=
+GRUB actually has an arm-uboot backend for 32-bit ARM.
+There are two problems with this, apart from not being
+implemented for arm64: 1) GRUB hardcodes the physical
+address of RAM, making the binary somewhat SoC-specific. 2)
+It relies on an optional API feature of U-Boot, which is
+disabled by default, therefore not build-tested for most targets
+and appeared to be in poor shape. A UEFI implementation
+could leverage U-Boot drivers, while allowing to boot a
+generic GRUB binary.
+|context=PDF: https://www.bsdforen.de/attachments/uefi-on-top-of-u-boot-pdf.4528/
+}}
+
+===== grub-pc on RPi =====
+Is it possible to (chainload) use [https://packages.debian.org/grub-pc grub-pc]? No, generally not, because <code>grub-pc</code> is for the <code>i386</code> architecture only.
+
+==== Secure Boot on RPi ====
+While RPi upstream does not support UEFI, RPi does support non-UEFI Secure Boot according to:
+
+* https://pip.raspberrypi.com/categories/685-app-notes-guides-whitepapers/documents/RP-003466-WP/Boot-Security-Howto.pdf
+* https://github.com/raspberrypi/usbboot#secure-boot
+
+==== UEFI on RPi ====
+* No EFI support by upstream RPi.
+* Community firmware: [https://github.com/pftf/RPi4 EDK2 Raspberry Pi 4 UEFI firmware]
+* No commits in 2 months as of April 2025, with unmerged important-sounding pull requests:
+** https://github.com/pftf/RPi4/pull/274
+** This implies it may be broken by upstream changes.
+
+=== Debian Support - Raspberry Pi 5 ===
+Regarding "real", original Debian (from debian.org) support for RPi 5:
+
+{{quotation
+|quote=/!\ Currently there is no support to Raspberry Pi 5 as it doesn't have enough support in upstream Linux.
+|context=[https://wiki.debian.org/RaspberryPiImages RaspberryPiImages - Debian Wiki] (April 2025)
+}}
+
+RPi 5 might be supported by Raspberry Pi OS, Armbian, or Ubuntu, but that is of less interest in the context of {{project_name_short}}. "Real" Debian support is required. Related: [[Dev/Operating_System#Original_Base_Distributions_Only|Original Base Distributions Only]]
+
+=== Boot Process Design - RPi ===
+* GRUB should be the "main" bootloader from the user's perspective.
+* The advantage is that kernel upgrades will be functional, with no manual user action required.
+* Kernel parameters set by [[security-misc]], [[grub-live]], [[Dev/user-sysmaint-split]] would likely work out-of-the-box.
+* Even [[Release Upgrade]]s should be possible.
+* u-boot should be treated as part of the firmware and should not require updates or user interaction.
+* The operating system should be fully contained either on the SD card or on the USB drive.
+* Universal ARM64 images should be bootable on:
+** Standard (non-RPi) ARM64 hardware
+** RPi non-UEFI
+** RPi UEFI
 
 = dracut bug log =
 Debian bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1041614 unbootable system after installing dracut on a standard Debian installation]
