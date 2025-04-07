@@ -707,7 +707,7 @@ CONFIG_EFI_LOADER=y
 * A familiar boot menu, kernel parameter editing, and configuration interface can be used.
 
 ===== grub-uboot on RPi =====
-[https://packages.debian.org/grub-uboot grub-uboot] is available only for the architectures <code>armel</code> and <code>armhf</code>. Therefore, it is not usable on RPi 4 and RPi 5, which are <code>arm64</code>.
+[https://packages.debian.org/grub-uboot grub-uboot] is available only for the architectures <code>armel</code> and <code>armhf</code>. Therefore, it may not be usable on RPi 4 and RPi 5, which are <code>arm64</code>. These boards also support 32-bit ARM code, however this does not guarantee grub-uboot would work on them.
 
 There are few public discussions on using <code>grub-uboot</code>. Related: [https://forum.odroid.com/viewtopic.php?t=26894 ODROID forum: HOWTO - Using GRUB as bootloader (second stage after U-Boot)]
 
@@ -750,6 +750,147 @@ Regarding "real", original Debian (from debian.org) support for RPi 5:
 }}
 
 RPi 5 might be supported by Raspberry Pi OS, Armbian, or Ubuntu, but that is of less interest in the context of {{project_name_short}}. "Real" Debian support is required. Related: [[Dev/Operating_System#Original_Base_Distributions_Only|Original Base Distributions Only]]
+
+=== Booting Debian Trixie with GRUB + u-boot on Raspberry Pi 4 ===
+This is preliminary work towards implementing the boot process design laid out below.
+
+The process, briefly, looks like this:
+
+* Flash a Debian Trixie RPi image to an SD card, and boot it.
+* Install all upgrades.
+* Install u-boot-rpi and grub-efi-arm64.
+* Install the GRUB bootloader to /boot/firmware.
+* Reconfigure the RPi bootloader to load u-boot rather than a Linux kernel.
+* Reboot the Pi.
+* Drop to a u-boot shell during startup.
+* Load and execute the GRUB EFI binary.
+* Use GRUB to boot like normal.
+
+Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image. Further work will be needed to automate the boot process so that manually loading GRUB via u-boot is no longer necessary.
+
+==== Obtaining and flashing the image ====
+
+Semi-official Debian images for the Raspberry Pi can be downloaded from https://raspi.debian.net/daily-images/. Use the Debian Trixie image.
+
+{{CodeSelect|code=
+wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz
+wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz.sha256
+sha256sum -c raspi_4_trixie.img.xz.sha256
+}}
+
+Assuming the iamge passes verification, flash it to an SD card. Assuming the card is at <code>/dev/mmcblk0</code>:
+
+{{CodeSelect|code=
+xzcat raspi_4_trixie.img.xz.sha256 | sudo dd of=/dev/mmcblk0 bs=4M
+sync
+}}
+
+When complete, eject the card and insert it into the Raspberry Pi.
+
+==== Preparing the image ====
+
+Ensure the Pi is '''NOT''' connected to power yet. Connect the Pi to an HDMI monitor. Attach a USB keyboard '''to the bottom USB 2.0 port''', and connect the Pi to a network source via Ethernet. (Note: It is very important that you plug the keyboard into the correct port. Linux will be able to see the keyboard no matter which USB port you plug it into, but u-boot will not recognize it unless it is plugged into the bottom USB 2.0 port. The top USB 2.0 port will not work.) Once all of the peripherals have been attached, plug the power adapter into the Pi. It will automatically start booting.
+
+Eventually you will be given a login prompt. Log in as user <code>root</code>, no password is required.
+
+The clock on the Pi will almost certainly be horribly out of date due to the fact that the board lacks a real-time clock. Thankfully, systemd-timesyncd is preinstalled, so it should synchronize itself automatically after some time. Run <code>watch date</code> and wait until the clock appears set properly. Once the date and time is correct, press Ctrl+C.
+
+Install all updates:
+
+{{CodeSelect|code=
+apt update && apt -y full-upgrade
+}}
+
+Reboot the Pi after updates are installed. Once it boots back up, install u-boot and GRUB:
+
+{{CodeSelect|code=
+apt install u-boot-rpi grub-efi-amd64
+}}
+
+We are intentionally installing the EFI GRUB bootloader. u-boot has native EFI support built in, and will be able to directly execute this bootloader. Do NOT use <code>grub-uboot</code>, it has multiple shortcomings.
+
+==== Configure the image ====
+
+Install GRUB:
+
+{{CodeSelect|code=
+grub-install --efi-directory /boot/firmware
+update-grub
+}}
+
+Note that GRUB will gripe about EFI variables not being supported and may tell you that you will have to finish configuring GRUB manually. Ignore any such warnings.
+
+Copy the u-boot binary to the RPi boot firmware partition:
+
+{{CodeSelect|code=
+cd /boot/firmware
+cp /usr/lib/u-boot/rpi_arm64/u-boot.bin ./u-boot-arm64.bin
+}}
+
+Back up the cmdline.txt and config.txt files, you'll need the original versions of these to recover if something goes wrong:
+
+{{CodeSelect|code=
+cp cmdline.txt cmdline.txt.bak
+cp config.txt config.txt.bak
+}}
+
+Edit config.txt and set the following options (mostly taken from Fedora's RPi4 configuration):
+
+<pre>
+arm_64bit=1
+kernel=u-boot-arm64.bin
+arm_boost=1
+enable_uart=1
+dtparam=audio=on
+camera_auto_detect=0
+display_auto_detect=1
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+disable_fw_kms_setup=1
+hdmi_ignore_cec_init=1
+
+[pi4]
+dtoverlay=cma,cma-256
+</pre>
+
+(Note: It's not yet known what exact options are necessary for things to work properly, a more minimal working config is likely possible.)
+
+Edit cmdline.txt and delete all content from the file, then save it. (It may be safe to remove this file entirely, but this is not yet known.)
+
+Finally, reboot the system.
+
+==== Load GRUB with u-boot ====
+
+You should see a u-boot logo on the screen during startup. Start pressing the Esc key repeatedly when this happens, untill you see a <code>U-Boot></code> prompt. (If this doesn't happen, you probably have your keyboard plugged into the wrong USB port, or u-boot failed to recognize the keyboard. Ensure your keyboard is plugged into the bottom USB 2.0 port, and try a different keyboard if necessary. A wired USB keyboard is known to work.)
+
+Run <code>ls mmc 1 /</code> to verify that u-boot is able to access the SD card. If this command fails, try <code>ls mmc 1 /</code> instead. You should see the contents of the boot partition when this works.
+
+Load the GRUB binary from from the EFI directory, and boot it.
+
+{{CodeSelect|code=
+fatload mmc 1 ${kernel_addr_r} /EFI/debian/grubaa64.efi
+bootefi ${kernel_addr_r} ${fdt_addr}
+}}
+
+Details on what's happening here:
+
+* The <code>mmc</code> is the *interface* u-boot should look for a storage device on. This tells it to try to list files on (or load a file from) an MMC device somewhere.
+* The <code>1</code> is the zero-indexed device number, so <code>mmc 1</code> is the second SD card on the system. (For some reason on the Pi used to test this, both Debian and Debian's u-boot seem to detect the RPi 4's SD slot as being the second slot and don't see any first slot at all. I have no idea why this is the case.) You ''can'' also specify a partition here - not specifying a partition means the first partition on the device will be used. In our instance, the first partition on mmc 1 is the boot firmware partition, which is where all the files we care about are, so we don't have to specify a partition explicitly.
+* <code>${kernel_addr_r}</code> is a pre-populated environment variable indicating the address at which the kernel should be loaded into RAM.
+* <code>/EFI/debian/grubaa64.efi</code> is the path to the GRUB binary on the boot firmware partition.
+* <code>${fdt_addr}</code> is a pre-populated environment variable specifying the address of the flattened device tree prepared by the RPi's built-in bootloader. This device tree contains the data needed by the kernel to properly identify and use the RPi's hardware.
+* The <code>fatload</code> command loads the specified file into the specified address in RAM. We don't have to guess at the right address, because thankfully something lower in the boot stack gives us the right address out of the box.
+* The <code>bootefi</code> command boots the executable at the specified address as a UEFI executable. The GRUB bootloader we installed is a UEFI executable, so this will execute GRUB the same way UEFI firmware would.
+* Note that it is possible to load device trees manually, and the necessary files for doing so are present in the boot firmware partition. However, this should be avoided - the RPi's built-in bootloader already loads these for us, and loading them manually in an incorrect manner will result in hardware misbehaving. In particular, if all you load is the core RPi 4 device tree, the screen resolution may be incorrect once the system is fully booted. You can use <code>fatload</code> to load a device tree the same way you'd load a kernel, however you'll want to load it into <code>${fdt_addr_r}</code> rather than <code>${kernel_addr_r}</code>. When running the <code>bootefi</code> command, specify <code>${fdt_addr_r}</code> rather than <code>${fdt_addr}</code> as the device tree address. There is a way of manually loading device tree overlays as well, but this has not yet been investigated. Again, '''this should not be necessary in most instances, don't do this unless you absolutely have to and know what you're doing.''' Just use <code>${fdt_addr}</code> and you won't have to worry about device trees at all.
+
+After running the <code>bootefi</code> command, u-boot will appear to hang for some time, then a GRUB prompt will appear. At this point you can use GRUB the way you normally would.
+
+TODO:
+
+* How to automate booting of GRUB? Fedora seems to have a file on the boot firmware partition that stores UEFI variables, perhaps those are pointing to GRUB and u-boot is able to use them, emulating UEFI firmware?
+* Is there any way to configure u-boot to not end up being user-visible at all, without having to recompile it entirely? Can this be done in a way that still grants u-boot console access for emergencies?
+* EFI variables are present in the booted system when booting in this manner (<code>/sys/firmware/efi/efivars</code> exists and has contents). Are these variables persistent or ephemeral by default?
+* Fedora seems to have a file in the boot firmware partition into which the EFI variables are stored. Is this desirable? Are there security concerns with the variables being exposed in this manner? (Anything that can modify the boot firmware partition will be able to modify the EFI variables too most likely.)
 
 === Boot Process Design - RPi ===
 * GRUB should be the "main" bootloader from the user's perspective.
