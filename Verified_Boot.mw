@@ -1036,6 +1036,130 @@ Disadvantages:
 |context=unaccounted
 }}
 
+For these reasons, {{project_name_long}} has at this time no plan to work on Secure Boot for RPi.
+
+==== Minimal Firmware combined with Linux Based Bootloader ====
+A minimal firmware that loads a Linux kernel from a well-known location on the boot medium (likely somewhere on the /boot partition). Codename "Linux Bootloader". (A better codename and later project name might need to be invented if proceeding further with this idea.)
+
+Rationale for implementing a Linux based bootloader (such as "Linux Bootloader"):
+
+* Simplicity: It is easier (and therefore cheaper) to develop and iterate as soon as Linux (and dracut) has been started.
+* Firmware minimalism: The viewpoint that booting should be simple.
+** Current Linux booting complexity: Booting Linux on Intel/AMD64 is currently very complex. Many operating systems are brought up and terminated in quick succession. The firmware (which is a full operating system including network support), boot shim (also a full OS with network support), which then boots GRUB (also a full OS with network support), which then boots Linux with an initial ramdisk (initramfs-tools or dracut, which is also a full OS with network support), which then starts the final Linux OS.
+
+Architecture: "Linux Bootloader" would probably be architecture-independent. May work, for example (non-exhaustive list), on Intel/AMD64 as well as on ARM64.
+
+What "Linux Bootloader" is not: linuxboot.org
+
+Non-goal: RPi-related. "Linux Bootloader" is independent from RPi. While comparisons with RPi's boot process are made, the "Linux Bootloader" concept has zero dependency on specific hardware (such as RPi) or specific architectures (ARM64).
+
+Comparison of "Linux Bootloader" versus linuxboot.org:
+
+* linuxboot.org: Is a Linux kernel located in the firmware area. Paraphrased by Patrick: "There is a lot of desire to use Python inside the Heads Linux boot firmware. However, space in the firmware for Heads is limited to 4 MB."
+* "Linux Bootloader": Is located on a yet-to-be-invented well-known location on the boot medium.
+
+Potential kexec-related issues:
+
+{{quotation
+|quote=Linux ecosystem adaptability, the kexec path may not be something that Linux maintainers treat seriously and definitely might not give it higher priority or even equal to the UEFI boot path.
+|context=paraphrased, modified quote by unaccounted
+}}
+
+* TODO question: Fixing Linux kexec issues might be easier than implementing most bootloader features at the level of the firmware?
+* This might be another argument for putting the Linux based bootloader into the boot medium and not into firmware. It allows updating the bootloader much more easily to cope with later kernel changes.
+
+Goals:
+
+* We want to radically simplify the boot chain.
+* Make it easier to develop, maintain, improve bootloader features.
+* Simplified verified boot key management.
+
+Rationale for placing "Linux Bootloader" on the boot medium (and not into the firmware):
+
+* With firmware, if older kernels stop being able to kexec newer kernels, a firmware upgrade would be required to allow future OS upgrades.
+* Firmware space is severely size-constrained.
+* Future security issues require a firmware upgrade.
+* It is assumed that firmware upgrades are very scary, especially for end users, so they are often omitted, even if they are available.
+* Doing bootloader-related tasks outside of firmware seems like it lessens the security impact of a vulnerability in the kernel.
+* In theory, this approach can eliminate several million lines of code: UEFI, shim, and potentially even GRUB.
+* The bootloader, boot menu, and verified boot signing key management could be implemented directly within a Linux-based environment, effectively making Linux the base of the firmware, similar to Heads Linux. (It might even be possible to use Heads Linux.)
+* Could be a full Linux distribution with option menus such as:
+** online features enable/disable
+*** if enabled
+**** theft protection enabled/disabled
+** module idea:
+*** autologin to passwordless WiFi hotspot, lock device if some user-provided URL (or something) says a codename such as "lock"
+* Programming for this environment becomes really simple because it is standard Linux. Could be easily based on Wayland. Python-QT based boot menu.
+* Could be compatible with <code>/boot/grub/grub.cfg</code> because developing a parser for all relevant options is relatively easy, for example using Python.
+
+Learnings from [[Dev/boot#RPi_Bootloader|RPi bootloader]]:
+
+* Simplicity: That boot protocol simply loads an operating system (OS) from a fixed location. The OS can be U-Boot, UEFI EDK2, Linux, or anything else compatible.
+* Sample use case: Debian images use direct kernel boot via that bootloader.
+* Non-dependency: RPi bootloader does not require U-Boot, UEFI, shim or GRUB.
+* Conclusion: It is possible to have a minimal (from a usability perspective) (non-UEFI) firmware that simply does Linux direct kernel boot (called "payload" here). That "payload" could be "Linux Bootloader".
+
+Commentary on linuxboot.org: At this time, not much research has been done. If "Linux Bootloader" could be based on linuxboot.org has to be found out when doing research on the feasibility of this implementation idea.
+
+Verified boot key management:
+
+* Who gets to decide who's "Linux Bootloader" signature is acceptable by the firmware?
+* Initially, 3MDEB, Kicksecure or OEM signing key might be acceptable. The user ''must'' be able to change this key themselves somehow, if they are the legitimate end-user.
+* The TPM may be usable as secure storage for the keys. This does not require true measured boot, as arbitrary data can be measured into the TPM, allowing access to certain keys to be unlocked at various stages of the boot process and then locked later to prevent modification.
+* At least, we're not at the level of Linux already. Much easier to program than inside firmware.
+* Even if the "first" "Linux Bootloader" "/boot/linux-bootloader-1.img" is signed by 3MDEB, Kicksecure or OEM using signature "/boot/linux-bootloader-1.sig":
+** "Linux Bootloader" should have a mechanism for easy key management and chainloading of the "second" "Linux Bootloader" from "/boot/linux-bootloader-2.img" using signature  "/boot/linux-bootloader-2.sig" (example filenames only, actual key management mechanism may vary from this).
+
+===== Possible concept for verified boot key management =====
+
+* The bootloader trust key is an RSA4096 (or similar?) public key, the private key is held by Kicksecure (or, if the end-user changes it, on some form of secure storage controlled by the end-user).
+* The bootloader version data is a 32-bit integer that increments with every new bootloader that is published.
+* The OS trust keypair is an RSA4096 (or similar?) public/private keypair that is used to sign and verify a boot trust database.
+
+* Boot process:
+** CPU
+*** Verify the firmware with Intel Boot Guard or similar
+*** Load and execute firmware
+** Firmware
+*** Do low-level hardware init
+*** Measure itself into the bootloader trust key PCR (the firmware is assumed to be immutable here so this should always succeed)
+*** Unseal the bootloader trust key
+*** Measure the bootloader trust key into the bootloader version information PCR
+*** Unseal the bootloader version information
+**** If either unseal attempt fails, someone's probably done a botched attempt at changing the bootloader trust key. Reset the TPM and program in Kicksecure's bootloader trust key from OTP fuses. Zero out the bootloader version information and OS trust keypair, then reboot. This will have the unfortunate side effect of losing the bootloader version information, but as long as no one can reset the TPM from the outside this is probably OK.
+*** Use the bootloader trust key to verify the bootloader
+*** Ensure the bootloader is the same or newer version than the bootloader version info from the TPM
+*** Measure the bootloader trust key into the OS trust keypair PCR, the bootloader will use this later
+*** Measure a fixed value into the bootloader trust key PCR to lock it. (Using a fixed value for this means that later parts of the OS can reuse this PCR, if we used random data then the PCR used would be essentially unusable since it would always be in an unpredictable state.)
+*** Transfer execution to the bootloader. At this point, the OS trust keypair and the bootloader version information are unlocked, the bootloader trust key is locked.
+** Bootloader
+*** Read the unsealed OS trust keypair from the TPM
+*** Read the still-unsealed bootloader version information from the TPM
+*** Version-check itself - if somehow the bootloader is older than the version information, crash
+*** If the bootloader is newer than the version information, write the new bootloader version to the TPM to prevent rollback
+*** Measure fixed data to the bootloader version PCR to lock it, at this point only the OS trust keypair is unlocked
+*** Enumerate available operating systems on all available bootable partitions
+*** Locate the OS trust database, verify it with the OS trust public key
+*** The OS trust database contains yet-to-be-defined data (keys, hashes, passwords, etc.) that are used to determine whether any given OS is trusted, whether it has been rolled back or not, and whether to allow the user to change the contents of the database (authentication against a password hash is probably required for this). If changes are made to the trust database, the bootloader will re-sign the trust database using the OS trust private key after modifying it. The OS trust database's data may also be used to authorize changing the OS trust keypair itself.
+*** Before kexec'ing an OS, the bootloader measures a fixed value into the OS trust keypair PCR, locking it. All of the boot security keys and critical information are now locked and cannot be accessed by anything that executes beyond this. The TPM's PCRs are in fixed, predicatable states, allowing all PCRs to be used for arbitrary purposes later on in the boot process.
+
+If the user wants to change the bootloader trust key, they have to (roughly):
+
+* Reset the TPM
+* Measure the firmware into the bootloader trust key PCR
+* Program in their own bootloader trust key
+* Zero out the bootloader version information and OS trust keypair
+* Install a bootloader that is trusted by the new bootloader trust key
+* Reboot
+
+This all can only be done if you can reset the TPM, which requires that you be able to boot a trusted OS in the first place (assuming the TPM cannot be modified from the outside).
+
+Other concerns to take into account:
+
+* The bootloader should err on the side of not bricking the machine by default, but also allow the user to enable machine bricking in the event of a security violation. The main instance where a system bricking itself would be valuable is if the OS trust database is deleted - this would wipe any passwords that could be used to authenticate changing the OS trust keypair. By default, we would probably want this to mean that the user could now freely change the OS trust configuration of the system, but some users will probably want this to brick the machine instead, preventing untrusted operating systems from being booted. They can later unbrick the machine by providing a backup of the trust database (if they have it, of course). This setting (and similar settings) should probably be configured in yet another TPM PCR.
+* Should the firmware be able to be put into a "developer mode" whereby it will boot an unsigned or otherwise untrusted bootloader?
+* Anti-theft configuration should probably be stored in the OS trust database, for it to be effective the system should be set to be unusable in the event of a missing or corrupt trust database.
+
 = Attribution =
 {{sdebian
 |text=Setting /usr read-only

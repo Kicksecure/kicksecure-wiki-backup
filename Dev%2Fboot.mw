@@ -621,8 +621,7 @@ The RPi has its own custom boot protocol, using an internal bootloader in the Br
 Debian images use direct kernel boot via that bootloader.
 
 {{quotation
-|quote=<code>rpi-eeprom</code>
-<br/>
+|quote=<code>rpi-eeprom</code><br/>
 This repository contains the scripts and pre-compiled binaries used to create the <code>rpi-eeprom</code> package, which is used to update the Raspberry Pi 4 and Raspberry Pi 5 bootloader EEPROM images.
 |context=[https://github.com/raspberrypi/rpi-eeprom rpi-eeprom on GitHub]
 }}
@@ -694,8 +693,7 @@ console or HDMI with USB keyboard.
 }}
 
 * [https://docs.u-boot.org/en/stable/develop/uefi/uefi.html u-boot has UEFI-alike functionality] that can be used to chainload grub-efi
-** TODO: Is this enabled by default in Debian? Probably yes.
-*** File: <code>configs/rpi_defconfig</code>
+** Is this enabled by default in Debian? Yes.
 
 <pre>
 CONFIG_EFI_LOADER=y
@@ -778,10 +776,10 @@ wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz.sha256
 sha256sum -c raspi_4_trixie.img.xz.sha256
 }}
 
-Assuming the iamge passes verification, flash it to an SD card. Assuming the card is at <code>/dev/mmcblk0</code>:
+Assuming the image passes verification, flash it to an SD card. Assuming the card is at <code>/dev/mmcblk0</code>:
 
 {{CodeSelect|code=
-xzcat raspi_4_trixie.img.xz.sha256 | sudo dd of=/dev/mmcblk0 bs=4M
+xzcat raspi_4_trixie.img.xz | sudo dd of=/dev/mmcblk0 bs=4M
 sync
 }}
 
@@ -793,7 +791,7 @@ Ensure the Pi is '''NOT''' connected to power yet. Connect the Pi to an HDMI mon
 
 Eventually you will be given a login prompt. Log in as user <code>root</code>, no password is required.
 
-The clock on the Pi will almost certainly be horribly out of date due to the fact that the board lacks a real-time clock. Thankfully, systemd-timesyncd is preinstalled, so it should synchronize itself automatically after some time. Run <code>watch date</code> and wait until the clock appears set properly. Once the date and time is correct, press Ctrl+C.
+The clock on the Pi will almost certainly be horribly out of date due to the fact that the board lacks a real-time clock. Thankfully, systemd-timesyncd is preinstalled, so it should synchronize itself automatically after some time. Run <code>watch date</code> and wait until the clock appears set properly. Once the date and time are correct, press Ctrl+C.
 
 Install all updates:
 
@@ -804,21 +802,44 @@ apt update && apt -y full-upgrade
 Reboot the Pi after updates are installed. Once it boots back up, install u-boot and GRUB:
 
 {{CodeSelect|code=
-apt install u-boot-rpi grub-efi-amd64
+apt install u-boot-rpi grub-efi-arm64
 }}
 
 We are intentionally installing the EFI GRUB bootloader. u-boot has native EFI support built in, and will be able to directly execute this bootloader. Do NOT use <code>grub-uboot</code>, it has multiple shortcomings.
 
 ==== Configure the image ====
 
+Reconfigure the boot firmware partition to be an EFI system partition, this is necessary for u-boot to persist UEFI variables. You *can* skip this step if you do not want persistent UEFI variables, this will probably cause problems if you ever configure a multiboot setup though. (Note: Fedora's u-boot has a patch that makes this step likely unnecessary, Debian's u-boot does not.)
+
+{{CodeSelect|code=
+fdisk /dev/mmcblk1
+# Command (m for help):
+t
+# Partition number (1,2, default 2):
+1
+# Hex code or alias (type L to list all):
+ef
+# Command (m for help):
+w
+}}
+
+Configure fstab so that the boot firmware partition is mounted under both <code>/boot/firmware</code> and <code>/boot/efi</code>. This is necessary because the boot firmware partition and ESP partition are the same partition in our setup. raspi-firmware expects the partition to be mounted at <code>/boot/firmware</code> (hardcoded), while grub-install expects it under <code>/boot/efi</code> (seems to also be hardcoded).
+
+{{CodeSelect|code=
+nano /etc/fstab
+# Append the following line to the end of the file
+LABEL=RASPIFIRM /boot/efi vfat rw 0 2
+}}
+
 Install GRUB:
 
 {{CodeSelect|code=
-grub-install --efi-directory /boot/firmware
+mount /boot/efi
+grub-install --force-extra-removable
 update-grub
 }}
 
-Note that GRUB will gripe about EFI variables not being supported and may tell you that you will have to finish configuring GRUB manually. Ignore any such warnings.
+Note that GRUB will gripe about EFI variables not being supported and may tell you that you will have to finish configuring GRUB manually. Ignore any such warnings, u-boot does not allow the booted operating system to modify its EFI variables so this is expected.
 
 Copy the u-boot binary to the RPi boot firmware partition:
 
@@ -827,7 +848,7 @@ cd /boot/firmware
 cp /usr/lib/u-boot/rpi_arm64/u-boot.bin ./u-boot-arm64.bin
 }}
 
-Back up the cmdline.txt and config.txt files, you'll need the original versions of these to recover if something goes wrong:
+Back up the cmdline.txt and config.txt files. You'll need the original versions of these to recover if something goes wrong:
 
 {{CodeSelect|code=
 cp cmdline.txt cmdline.txt.bak
@@ -853,19 +874,21 @@ hdmi_ignore_cec_init=1
 dtoverlay=cma,cma-256
 </pre>
 
-(Note: It's not yet known what exact options are necessary for things to work properly, a more minimal working config is likely possible.)
+(Note: It's not yet known what exact options are necessary for things to work properly; a more minimal working config is likely possible. All of these might be desirable though.)
 
 Edit cmdline.txt and delete all content from the file, then save it. (It may be safe to remove this file entirely, but this is not yet known.)
 
-Finally, reboot the system.
+Finally, reboot the system. You should see a u-boot screen, then u-boot should automatically discover and load GRUB. You can then boot Debian like you normally would from the GRUB menu.
 
-==== Load GRUB with u-boot ====
+==== Load GRUB with u-boot manually ====
 
-You should see a u-boot logo on the screen during startup. Start pressing the Esc key repeatedly when this happens, untill you see a <code>U-Boot></code> prompt. (If this doesn't happen, you probably have your keyboard plugged into the wrong USB port, or u-boot failed to recognize the keyboard. Ensure your keyboard is plugged into the bottom USB 2.0 port, and try a different keyboard if necessary. A wired USB keyboard is known to work.)
+(NOTE: This should no longer be necessary with the above instructions. u-boot should automatically discover and start GRUB. This section is retained since it has a lot of valuable info about u-boot and may be useful for debugging.)
 
-Run <code>ls mmc 1 /</code> to verify that u-boot is able to access the SD card. If this command fails, try <code>ls mmc 1 /</code> instead. You should see the contents of the boot partition when this works.
+You should see a u-boot logo on the screen during startup. Start pressing the Esc key repeatedly when this happens, until you see a <code>U-Boot></code> prompt. (If this doesn't happen, you probably have your keyboard plugged into the wrong USB port, or u-boot failed to recognize the keyboard. Ensure your keyboard is plugged into the bottom USB 2.0 port, and try a different keyboard if necessary. A wired USB keyboard is known to work.)
 
-Load the GRUB binary from from the EFI directory, and boot it.
+Run <code>ls mmc 1 /</code> to verify that u-boot is able to access the SD card. If this command fails, try <code>ls mmc 0 /</code> instead. You should see the contents of the boot partition when this works.
+
+Load the GRUB binary from the EFI directory, and boot it.
 
 {{CodeSelect|code=
 fatload mmc 1 ${kernel_addr_r} /EFI/debian/grubaa64.efi
@@ -875,7 +898,7 @@ bootefi ${kernel_addr_r} ${fdt_addr}
 Details on what's happening here:
 
 * The <code>mmc</code> is the *interface* u-boot should look for a storage device on. This tells it to try to list files on (or load a file from) an MMC device somewhere.
-* The <code>1</code> is the zero-indexed device number, so <code>mmc 1</code> is the second SD card on the system. (For some reason on the Pi used to test this, both Debian and Debian's u-boot seem to detect the RPi 4's SD slot as being the second slot and don't see any first slot at all. I have no idea why this is the case.) You ''can'' also specify a partition here - not specifying a partition means the first partition on the device will be used. In our instance, the first partition on mmc 1 is the boot firmware partition, which is where all the files we care about are, so we don't have to specify a partition explicitly.
+* The <code>1</code> is the zero-indexed device number, so <code>mmc 1</code> is the second SD card on the system. (For some reason on the Pi used to test this, Debian's u-boot seem to detect the RPi 4's SD slot as being the second slot and don't see any first slot at all. I have no idea why this is the case.) You ''can'' also specify a partition here - not specifying a partition means the first partition on the device will be used. In our instance, the first partition on mmc 1 is the boot firmware partition, which is where all the files we care about are, so we don't have to specify a partition explicitly.
 * <code>${kernel_addr_r}</code> is a pre-populated environment variable indicating the address at which the kernel should be loaded into RAM.
 * <code>/EFI/debian/grubaa64.efi</code> is the path to the GRUB binary on the boot firmware partition.
 * <code>${fdt_addr}</code> is a pre-populated environment variable specifying the address of the flattened device tree prepared by the RPi's built-in bootloader. This device tree contains the data needed by the kernel to properly identify and use the RPi's hardware.
@@ -885,17 +908,34 @@ Details on what's happening here:
 
 After running the <code>bootefi</code> command, u-boot will appear to hang for some time, then a GRUB prompt will appear. At this point you can use GRUB the way you normally would.
 
-TODO:
+==== Notes ====
 
-* How to automate booting of GRUB? Fedora seems to have a file on the boot firmware partition that stores UEFI variables, perhaps those are pointing to GRUB and u-boot is able to use them, emulating UEFI firmware?
-* Is there any way to configure u-boot to not end up being user-visible at all, without having to recompile it entirely? Can this be done in a way that still grants u-boot console access for emergencies?
-* EFI variables are present in the booted system when booting in this manner (<code>/sys/firmware/efi/efivars</code> exists and has contents). Are these variables persistent or ephemeral by default?
-* Fedora seems to have a file in the boot firmware partition into which the EFI variables are stored. Is this desirable? Are there security concerns with the variables being exposed in this manner? (Anything that can modify the boot firmware partition will be able to modify the EFI variables too most likely.)
+* The raspi-firmware package ships config at <code>/etc/kernel/postinst.d/z50-raspi-firmware</code>, which does roughly the following:
+** Finds and copies device tree files to <code>/boot/firmware</code> (necessary for the OS to work properly)
+** Copies kernel and initramfs files from the <code>/boot</code> partition to <code>/boot/firmware</code> (unnecessary for our use case, takes up needless room in <code>/boot/firmware</code>)
+** Generates the <code>/boot/firmware/(config.txt|cmdline.txt)</code> files (detrimental to our use case, will disable u-boot and damage the configuration put in place earlier)
+** Only one of these is essential, the other two should be avoided. Therefore in an automated implementation of u-boot/GRUB support, we should displace this file and replace it with something that only copies the device trees, nothing else. This might be doable via config-package-dev, but it may require manual dpkg diversion in order to get the script entirely out of the <code>/etc/kernel/postinst.d</code> directory.
+* The configuration options in config.txt do the following (lots of this info taken from the official Raspberry Pi documentation and Fedora's config.txt file, with a bit taken from Debian's raspi-firmware package as well):
+** <code>arm_64bit=1</code> - Loads the bootloader in 64-bit mode. Likely necessary for the rpi_arm64 u-boot used here to be usable.
+** <code>kernel=u-boot-arm64.bin</code> - Points the Raspberry Pi loader to the u-boot binary.
+** <code>arm_boost=1</code> - Allows the CPU to run faster.
+** <code>enable_uart=1</code> - Enables a serial console, which can be accessed via the GPIO header on the Pi with the help of a USB-to-serial cable. '''The serial UART on the Pi (and therefore this console) only work when the GPU runs at a lowered speed.''' If you allow the GPU to run at full speed with this enabled, the serial output will be too fast and therefore unusable. We might want to disable this.
+** <code>dtparam=audio=on</code> - Enables audio.
+** <code>camera_auto_detect=0</code> - Do not automatically load overlays for recognised CSI cameras. Fedora's config.txt has a comment noting "Old FW camera" over this line. Unclear whether we want this or not, maybe we should set this option to 1 like Raspberry Pi OS has it set to?
+** <code>display_auto_detect=1</code> - Automatically load overlays for recognised DSI displays. Probably useful for those with a Raspberry Pi display that attaches to the "DISPLAY" ribbon connector near the SD card slot.
+** <code>dtoverlay=vc4-kms-v3d</code> - Fedora's config file has a comment noting "Enable DRM VC4 V3D driver" here. This is ''probably'' necessary to allow the GPU's full display resolution to be used, thus likely important.
+** <code>max_framebuffers=2</code> - Allows you to use two screens.
+** <code>disable_fw_kms_setup=1</code> - Fedora's config file has a comment noting "Don't have the firmware create an initial video= setting in cmdline.txt. Use the kernel's default instead." The official documentation indicates that this basically allows the Linux kernel to figure out the monitor's parameters itself rather than the firmware doing it. Probably good to keep.
+** <code>hdmi_ignore_cec_init=1</code> - From the official documentation, this stops "the initial active source message being sent during bootup. This prevents a CEC-enabled TV from coming out of standby and channel-switching when you are rebooting your Raspberry Pi." Fedora notes "Stop the RPi turning on HDMI monitors on reboot". Sounds important. Note that this is listed as a ''legacy'' (and now-unsupported) option in the documentation (see https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html), so maybe we don't want it after all?
+** <code>dtoverlay=cma,cma-256</code> - Adjusts the CMA size. https://forums.raspberrypi.com/viewtopic.php?t=355799 has some info about what this is, it appears to be related to GPU memory. Debian has the CMA set to 64M by default, and notes that apparently this shouldn't normally be set at all any longer. Maybe better to omit this?
+* Anything that can modify the boot firmware partition will be able to modify the EFI variables too, most likely.
+** Potential issues with in context of [[Secure Boot]], [[Verified Boot]] but RPi Secure Boot usage is not planned due to issues documented in chapter [[Verified_Boot#Raspberry_Pi_RPi_Based]].
+* u-boot is not hidden from the user. This is intentional, it makes debugging and fixing things easier, and doesn't substantially degrade the experience. Best to not hide it in order to avoid mystification of the boot process. (It might not even be possible to hide it.)
 
 === Boot Process Design - RPi ===
 * GRUB should be the "main" bootloader from the user's perspective.
 * The advantage is that kernel upgrades will be functional, with no manual user action required.
-* Kernel parameters set by [[security-misc]], [[grub-live]], [[Dev/user-sysmaint-split]] would likely work out-of-the-box.
+* Kernel parameters set by [[security-misc]], [[grub-live]], [[Dev/user-sysmaint-split]] would likely work out of the box.
 * Even [[Release Upgrade]]s should be possible.
 * u-boot should be treated as part of the firmware and should not require updates or user interaction.
 * The operating system should be fully contained either on the SD card or on the USB drive.

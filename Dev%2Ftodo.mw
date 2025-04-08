@@ -10,15 +10,18 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== RPi GRUB - Continue Research ==
+* non-goal: RPi Secure Boot (due to issues documented in chapter [[Verified_Boot#Raspberry_Pi_RPi_Based]])
+* non-goal: hiding of u-boot
+* goal: complete RPi GRUB support for the purposes of
+** being able to implement RPi GRUB support in grml-debootstrap - maybe - at a later time - depending on grml upstream feedback on RPi support
+** being able to implement the functionality in derivative-maker (in case grml upstream rejects RPI GRUB support)
+** todo items (updated by Patrick) on [[Dev/boot#Load_GRUB_with_u-boot]]
+* document raspi-firmware versus clobbering config.txt (by /etc/kernel/postinst.d or similar) and consider how an implementation later could handle this (probably by using config-package-dev hide, dpkg divert or otherwise)
+
 == unicode - sanitize suspicious characters in informative lines ==
 * as discussed, avoid using <code>repr</code>
 * might not need done after all, see chat
-
-== research depthcharge ==
-* This is the coreboot payload Google uses for Chromebook firmware. Feature set currently unknown, might be suitable for Verified Boot.
-
-== user-sysmaint-split - sysmaint-panel - add terminal background tinting ==
-* tint terminals in sysmaint mode slightly red to encourage users to be careful while in sysmaint mode
 
 == user-sysmaint-split - sysmaint-panel - new features ==
 * sysmaint-panel could be used to promote nice but lesser known functionality
@@ -612,6 +615,26 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== Minimal Firmware combined with Linux Based Bootloader - review and improve the wiki draft ==
+* https://www.kicksecure.com/wiki/Verified_Boot#Minimal_Firmware_combined_with_Linux_Based_Bootloader
+* Read through, fixed a wording issue, added some more ideas and an important requirement
+
+== user-sysmaint-split - sysmaint-panel - add terminal background tinting ==
+* tint terminals in sysmaint mode slightly red to encourage users to be careful while in sysmaint mode
+* Done, also added framework for making similar tasks easier in the future: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/terminal-tint
+
+== research depthcharge ==
+* This is the coreboot payload Google uses for Chromebook firmware. Feature set currently unknown, might be suitable for Verified Boot.
+* https://web.archive.org/web/20240119111142/https://www.chromium.org/chromium-os/developer-information-for-chrome-os-devices/custom-firmware/#TOC-Depthcharge
+* https://web.archive.org/web/20240408175558/https://www.chromium.org/chromium-os/2014-firmware-summit/ChromeOS%20firmware%20summit%20-%20Depthcharge.pdf
+* https://github.com/coreboot/vboot
+* Seems to be similar to but more complex than the Raspberry Pi's bootloader:
+** Runs in firmware as a Coreboot payload
+** Uses an existing vboot library from Google for verifying things
+** Expects the kernel, initrd, and any applicable device trees to be packaged into a FIT image, which the firmware loads and extracts, using some heuristics to determine which device tree is most likely to be the most compatible with the current hardware and loading that
+** Seems to have some A-B updates stuff built into it, which could be a serious pain for us to use
+*  This is probably doing too much for our use case. The A-B updates stuff makes sense for Google's client device architecture (for things like Android and Chrome OS) but doesn't really make sense for a server use case I don't think. The use of device trees seems to be pretty baked in, which isn't exactly great for hardware that supports ACPI (i.e. most amd64/x86_64 hardware). The FIT image thing is a neat concept, but it feels like it's somewhat in conflict with the UKI concept systemd is pursuing, and that's another part of the device tree specific stuff.
+
 == updatecheck - avoid assuming Internet access ==
 * updatecheck assumes Internet access and will return errors without it. We should enter add checks for network connectivity somewhere in here, skipping checks when it is absent and doing them when it is present.
 * Fixed in https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/updatecheck-polish
@@ -624,13 +647,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == unicode - don't strip trailing whitespace ==
 * as discussed
 * done: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/unicode-show-enhance
-
-== investigate Raspberry Pi GRUB compatibility ==
-* to allow user-sysmaint-split and security enhancing kernel parameters to be used on the RPi
-* use u-boot to load GRUB if possible, UEFI features of u-boot may be required for this
-* grub-uboot may also be usable, though this works on 32-bit ARM only, but if it can load a 64-bit kernel, that might be OK
-* or preferably https://packages.debian.org/bookworm/u-boot-rpi ?
-* Got it to work with u-boot-rpi and grub-efi-arm64. Documented procedure and concepts at https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_.2B_u-boot_on_Raspberry_Pi_4
 
 == safe-print follow-up issues ==
 * easy to fix, minor issues (such as an imperfection in debian/control): please fix
@@ -658,6 +674,13 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== investigate Raspberry Pi GRUB compatibility ==
+* to allow user-sysmaint-split and security enhancing kernel parameters to be used on the RPi
+* use u-boot to load GRUB if possible, UEFI features of u-boot may be required for this
+* grub-uboot may also be usable, though this works on 32-bit ARM only, but if it can load a 64-bit kernel, that might be OK
+* or preferably https://packages.debian.org/bookworm/u-boot-rpi ?
+* Got it to work with u-boot-rpi and grub-efi-arm64. Documented procedure and concepts at https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_.2B_u-boot_on_Raspberry_Pi_4
+
 == unicode ==
 * please review the recent commits, improve, applicable:
 * please read, comment, if applicable: https://forums.whonix.org/t/detecting-malicious-unicode-in-source-code-and-pull-requests/13754
