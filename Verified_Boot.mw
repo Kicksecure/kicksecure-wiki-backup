@@ -1112,7 +1112,7 @@ Verified boot key management:
 
 ===== Possible concept for verified boot key management =====
 
-* The bootloader trust key is an RSA4096 (or similar?) public key, the private key is held by Kicksecure (or, if the end-user changes it, on some form of secure storage controlled by the end-user).
+* The bootloader trust key is an RSA4096 (or similar?) public key; the private key is held by Kicksecure (or, if the end-user changes it, on some form of secure storage controlled by the end-user).
 * The bootloader version data is a 32-bit integer that increments with every new bootloader that is published.
 * The OS trust keypair is an RSA4096 (or similar?) public/private keypair that is used to sign and verify a boot trust database.
 
@@ -1122,26 +1122,26 @@ Verified boot key management:
 *** Load and execute firmware
 ** Firmware
 *** Do low-level hardware init
-*** Measure itself into the bootloader trust key PCR (the firmware is assumed to be immutable here so this should always succeed)
+*** Measure itself into the bootloader trust key PCR (the firmware is assumed to be immutable here, so this should always succeed)
 *** Unseal the bootloader trust key
 *** Measure the bootloader trust key into the bootloader version information PCR
 *** Unseal the bootloader version information
-**** If either unseal attempt fails, someone's probably done a botched attempt at changing the bootloader trust key. Reset the TPM and program in Kicksecure's bootloader trust key from OTP fuses. Zero out the bootloader version information and OS trust keypair, then reboot. This will have the unfortunate side effect of losing the bootloader version information, but as long as no one can reset the TPM from the outside this is probably OK.
+**** If either unseal attempt fails, someone has probably done a botched attempt at changing the bootloader trust key. Reset the TPM and program in Kicksecure's bootloader trust key from OTP fuses. Zero out the bootloader version information and OS trust keypair, then reboot. This will have the unfortunate side effect of losing the bootloader version information, but as long as no one can reset the TPM from the outside, this is probably OK.
 *** Use the bootloader trust key to verify the bootloader
 *** Ensure the bootloader is the same or newer version than the bootloader version info from the TPM
-*** Measure the bootloader trust key into the OS trust keypair PCR, the bootloader will use this later
-*** Measure a fixed value into the bootloader trust key PCR to lock it. (Using a fixed value for this means that later parts of the OS can reuse this PCR, if we used random data then the PCR used would be essentially unusable since it would always be in an unpredictable state.)
+*** Measure the bootloader trust key into the OS trust keypair PCR; the bootloader will use this later
+*** Measure a fixed value into the bootloader trust key PCR to lock it (using a fixed value means that later parts of the OS can reuse this PCR; if we used random data, the PCR would always be in an unpredictable state and thus essentially unusable)
 *** Transfer execution to the bootloader. At this point, the OS trust keypair and the bootloader version information are unlocked, the bootloader trust key is locked.
 ** Bootloader
 *** Read the unsealed OS trust keypair from the TPM
 *** Read the still-unsealed bootloader version information from the TPM
-*** Version-check itself - if somehow the bootloader is older than the version information, crash
+*** Version-check itself - if for unknown reason the bootloader is older than the version information, crash
 *** If the bootloader is newer than the version information, write the new bootloader version to the TPM to prevent rollback
-*** Measure fixed data to the bootloader version PCR to lock it, at this point only the OS trust keypair is unlocked
+*** Measure fixed data to the bootloader version PCR to lock it; at this point, only the OS trust keypair is unlocked
 *** Enumerate available operating systems on all available bootable partitions
-*** Locate the OS trust database, verify it with the OS trust public key
+*** Locate the OS trust database and verify it with the OS trust public key
 *** The OS trust database contains yet-to-be-defined data (keys, hashes, passwords, etc.) that are used to determine whether any given OS is trusted, whether it has been rolled back or not, and whether to allow the user to change the contents of the database (authentication against a password hash is probably required for this). If changes are made to the trust database, the bootloader will re-sign the trust database using the OS trust private key after modifying it. The OS trust database's data may also be used to authorize changing the OS trust keypair itself.
-*** Before kexec'ing an OS, the bootloader measures a fixed value into the OS trust keypair PCR, locking it. All of the boot security keys and critical information are now locked and cannot be accessed by anything that executes beyond this. The TPM's PCRs are in fixed, predicatable states, allowing all PCRs to be used for arbitrary purposes later on in the boot process.
+*** Before kexec'ing an OS, the bootloader measures a fixed value into the OS trust keypair PCR, locking it. All of the boot security keys and critical information are now locked and cannot be accessed by anything that executes beyond this. The TPM's PCRs are in fixed, predictable states, allowing all PCRs to be used for arbitrary purposes later on in the boot process.
 
 If the user wants to change the bootloader trust key, they have to (roughly):
 
@@ -1158,7 +1158,7 @@ Other concerns to take into account:
 
 * The bootloader should err on the side of not bricking the machine by default, but also allow the user to enable machine bricking in the event of a security violation. The main instance where a system bricking itself would be valuable is if the OS trust database is deleted - this would wipe any passwords that could be used to authenticate changing the OS trust keypair. By default, we would probably want this to mean that the user could now freely change the OS trust configuration of the system, but some users will probably want this to brick the machine instead, preventing untrusted operating systems from being booted. They can later unbrick the machine by providing a backup of the trust database (if they have it, of course). This setting (and similar settings) should probably be configured in yet another TPM PCR.
 * Should the firmware be able to be put into a "developer mode" whereby it will boot an unsigned or otherwise untrusted bootloader?
-* Anti-theft configuration should probably be stored in the OS trust database, for it to be effective the system should be set to be unusable in the event of a missing or corrupt trust database.
+* Anti-theft configuration should probably be stored in the OS trust database; for it to be effective, the system should be set to be unusable in the event of a missing or corrupt trust database.
 
 = Attribution =
 {{sdebian

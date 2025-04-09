@@ -709,6 +709,30 @@ This behavior is desired for small blocks of text (e.g. headings). For big chunk
 * 5 - Font Awesome false positive - yes and no. Font Awesome is using explicitly the standard option font-display:block which Lighthouse does not like because it tolerates invisible text up to 3 seconds. But font-display:swap is not really an option, because in this case a standard font is loaded and only when the special font is ready the standard font is replaced. This is terrible for icons because then you have a lot of ugly box-symbols, that are the replaced by real symbols. Dev could however change to font-display:swap which would make Lighthouse happy. Maybe the box placeholder symbols are not as bad as having no icons at all?
 * Patrick: Font Awesome is not used above the fold. Therefore not important to use placeholders.
 
+== SVG hero image preview creation with library primitive ==
+
+* We use the image library "Primitive" to create svg based image previews for our homepage hero images. This is for fast loading before the high quality main image is ready
+** Source: https://github.com/fogleman/primitive
+** It is an excellent library that is very much suited for our needs and yields better results than the previous method
+* Installation (for Linux system)
+*# Install newest version of go, but at least 1.23 (apt version on Ubuntu is currently only at 1.22). See https://go.dev/doc/install
+*# Install "primitive" library via <code>go install github.com/fogleman/primitive@latest</code>
+*# Usually the library will now be available via ~/go/bin/primitive
+*# '''Parameters''', the most needed parameters will be -i, -o, -n and -m
+*## '''-i (input)''' - give existing input image file path
+*## '''-o (output)''' - give desired output image file path
+*##* Possible output formats are PNG (raster output), JPG (raster output), SVG (vector output), GIF (animated output showing shapes being added)
+*##* For our purposes only SVG is interesting, so end all your output file paths with <code>.svg</code>
+*## '''-n (shape count)''' - give the number of shapes
+*##* More shapes means a more precise reconstruction of the original image, but also more file size
+*##* By testing we determined that <code>-n 100</code> is a good compromise of good quality and small file size. A higher fidelity is mostly not needed for our purpose
+*## '''-m (mode)''' - there are 9 modes to choose from 0=combo, 1=triangle, 2=rect, 3=ellipse, 4=circle, 5=rotatedrect, 6=beziers, 7=rotatedellipse, 8=polygon
+*##* Mode 1 is default, so always be sure to specify the mode if you want something specific like <code>-m 0</code>
+*##* By testing we found the mode 0 to be most effective and true to the original
+*##* Modes 4 and 6 have issues and should not be used because they are not very true to the original
+*##* If mode 1 is not working than modes <code>5, 7 or 8</code> should be chosen for quality with a higher file size or for a smaller file size <code>2</code> for more angular shapes and <code>3</code> for more round shapes
+*# The default call should be {{CodeSelect|code=~/go/bin/primitive -i ./input-image.jpg -o ./output-image.svg -n 100 -m 0}}
+
 == MediaWiki Default Links - LinkToArchive Fork ==
 
 * External links in MediaWiki (starting with http or https) were previously enhanced on our wikis by using the [https://www.mediawiki.org/wiki/Extension:LinkToArchive MediaWiki LinkToArchive extension], see also their [https://github.com/Archi-Strasbourg/mediawiki-link-to-archive/ GitHub repository]
@@ -4727,6 +4751,30 @@ todo:
 ** This might be because critical CSS is already very large in both versions
 ** sitelocity seems to be better with LCP, but has a content layout shift which is not good
 * Dev cannot clearly say what happened here. Instructions were followed as described on the pages
+
+== primitive based hero image ==
+* https://github.com/fogleman/primitive
+** This seems like a pretty brilliant technique. Could also be considered an art style
+** Dev used something similar (but not as advanced) to create the hero image svg previews
+** The question for us if we want to use it in the future is: How easy is it to use? How much control do we get over the interations?
+** If it works with the command line so easily that could be great (needs to be tested)
+** Judging by the possible flags Dev thinks it could be useful
+** So yes, great find. Needs to be tested though
+* Please try.
+
+'''DEV'''
+* DONE
+
+* Patrick: Please try using on the homepage.
+
+'''DEV'''
+* Documentation was transfered and adapted for our main documentation [[Dev/mediawiki#SVG_hero_image_preview_creation_with_library_primitive|SVG hero image preview creation with library primitive]]
+* New hero image for Whonix and for Kicksecure were created and both are used to replace the old image
+* Note, the preview image in Mediawiki (it's a rendered PNG, e. g. https://www.whonix.org/wiki/File:HP-Hero-image-svg-preview.svg) does look less good than the real image https://www.whonix.org/w/images/a/a5/HP-Hero-image-svg-preview.svg which will be used. So always check real image when dealing with SVG in Mediawiki
+* Dev wanted to save at least 90% against the real hero image, so mode "rect" was chosen to save filesize
+* The hero image for Whonix was rendered with 60 cycles: real 54kb → prim 5.3kb
+* The hero image for Kicksecure was rendered with 75 cycles: real 65kb → prim 6.6kb
+* The preview image quality is so good now that dev could change the blur factor from 2.5 to → 1.2. So way less blur and the preview looks better and already recognizable
 
 = TASK ARCHIVE : Backlog (Maybe Future) =
 == Wiki_Enhancements twitter image broken ==

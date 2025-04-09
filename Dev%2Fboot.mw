@@ -724,7 +724,10 @@ generic GRUB binary.
 }}
 
 ===== grub-pc on RPi =====
-Is it possible to (chainload) use [https://packages.debian.org/grub-pc grub-pc]? No, generally not, because <code>grub-pc</code> is for the <code>i386</code> architecture only.
+Is it possible to (chainload) use [https://packages.debian.org/grub-pc <code>grub-pc</code>]? No, generally not, because <code>grub-pc</code> is for the <code>i386</code> architecture only.
+
+===== grub-efi-arm64 =====
+Is it possible to (chainload) use [https://packages.debian.org/grub-pc <code>grub-efi-arm64</code>]? Yes, <code>grub-efi-arm64</code> can be chainloaded via <code>u-boot</code>. This is documented below.
 
 ==== Secure Boot on RPi ====
 While RPi upstream does not support UEFI, RPi does support non-UEFI Secure Boot according to:
@@ -756,15 +759,15 @@ The process, briefly, looks like this:
 
 * Flash a Debian Trixie RPi image to an SD card, and boot it.
 * Install all upgrades.
-* Install u-boot-rpi and grub-efi-arm64.
-* Install the GRUB bootloader to /boot/firmware.
-* Reconfigure the RPi bootloader to load u-boot rather than a Linux kernel.
+* Install <code>u-boot-rpi</code> and <code>grub-efi-arm64</code>.
+* Install the GRUB bootloader to <code>/boot/firmware</code>.
+* Reconfigure the RPi bootloader to load <code>u-boot</code> rather than a Linux kernel.
 * Reboot the Pi.
-* Drop to a u-boot shell during startup.
+* Drop to a <code>u-boot</code> shell during startup.
 * Load and execute the GRUB EFI binary.
 * Use GRUB to boot like normal.
 
-Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image. Further work will be needed to automate the boot process so that manually loading GRUB via u-boot is no longer necessary.
+Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image. Further work will be needed to automate the boot process so that manually loading GRUB via <code>u-boot</code> is no longer necessary.
 
 ==== Obtaining and flashing the image ====
 
@@ -772,14 +775,23 @@ Semi-official Debian images for the Raspberry Pi can be downloaded from https://
 
 {{CodeSelect|code=
 wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz
+}}
+
+{{CodeSelect|code=
 wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz.sha256
+}}
+
+{{CodeSelect|code=
 sha256sum -c raspi_4_trixie.img.xz.sha256
 }}
 
 Assuming the image passes verification, flash it to an SD card. Assuming the card is at <code>/dev/mmcblk0</code>:
 
 {{CodeSelect|code=
-xzcat raspi_4_trixie.img.xz | sudo dd of=/dev/mmcblk0 bs=4M
+xzcat raspi_4_trixie.img.xz {{!}} sudo dd of=/dev/mmcblk0 bs=4M
+}}
+
+{{CodeSelect|code=
 sync
 }}
 
@@ -809,10 +821,13 @@ We are intentionally installing the EFI GRUB bootloader. u-boot has native EFI s
 
 ==== Configure the image ====
 
-Reconfigure the boot firmware partition to be an EFI system partition, this is necessary for u-boot to persist UEFI variables. You *can* skip this step if you do not want persistent UEFI variables, this will probably cause problems if you ever configure a multiboot setup though. (Note: Fedora's u-boot has a patch that makes this step likely unnecessary, Debian's u-boot does not.)
+Reconfigure the boot firmware partition to be an EFI system partition. This is necessary for u-boot to persist UEFI variables. You '''can''' skip this step if you do not want persistent UEFI variables. However, this will probably cause problems if you ever configure a multiboot setup. (Note: Fedora's u-boot has a patch that likely makes this step unnecessary; Debian's u-boot does not.)
 
 {{CodeSelect|code=
 fdisk /dev/mmcblk1
+}}
+
+{{CodeSelect|code=
 # Command (m for help):
 t
 # Partition number (1,2, default 2):
@@ -823,7 +838,7 @@ ef
 w
 }}
 
-Configure fstab so that the boot firmware partition is mounted under both <code>/boot/firmware</code> and <code>/boot/efi</code>. This is necessary because the boot firmware partition and ESP partition are the same partition in our setup. raspi-firmware expects the partition to be mounted at <code>/boot/firmware</code> (hardcoded), while grub-install expects it under <code>/boot/efi</code> (seems to also be hardcoded).
+Configure <code>fstab</code> so that the boot firmware partition is mounted under both <code>/boot/firmware</code> and <code>/boot/efi</code>. This is necessary because the boot firmware partition and ESP partition are the same partition in this setup. <code>raspi-firmware</code> expects the partition to be mounted at <code>/boot/firmware</code> (hardcoded), while <code>grub-install</code> expects it under <code>/boot/efi</code> (also appears to be hardcoded).
 
 {{CodeSelect|code=
 nano /etc/fstab
@@ -839,23 +854,29 @@ grub-install --force-extra-removable
 update-grub
 }}
 
-Note that GRUB will gripe about EFI variables not being supported and may tell you that you will have to finish configuring GRUB manually. Ignore any such warnings, u-boot does not allow the booted operating system to modify its EFI variables so this is expected.
+Note that GRUB may complain about EFI variables not being supported and may tell you that you have to finish configuring GRUB manually. Ignore any such warnings. u-boot does not allow the booted operating system to modify its EFI variables, so this is expected.
 
 Copy the u-boot binary to the RPi boot firmware partition:
 
 {{CodeSelect|code=
 cd /boot/firmware
+}}
+
+{{CodeSelect|code=
 cp /usr/lib/u-boot/rpi_arm64/u-boot.bin ./u-boot-arm64.bin
 }}
 
-Back up the cmdline.txt and config.txt files. You'll need the original versions of these to recover if something goes wrong:
+Back up the <code>cmdline.txt</code> and <code>config.txt</code> files. You'll need the original versions to recover if something goes wrong:
 
 {{CodeSelect|code=
 cp cmdline.txt cmdline.txt.bak
+}}
+
+{{CodeSelect|code=
 cp config.txt config.txt.bak
 }}
 
-Edit config.txt and set the following options (mostly taken from Fedora's RPi4 configuration):
+Edit <code>config.txt</code> and set the following options (mostly taken from Fedora's RPi4 configuration):
 
 <pre>
 arm_64bit=1
@@ -874,11 +895,11 @@ hdmi_ignore_cec_init=1
 dtoverlay=cma,cma-256
 </pre>
 
-(Note: It's not yet known what exact options are necessary for things to work properly; a more minimal working config is likely possible. All of these might be desirable though.)
+(Note: It is not yet known which exact options are required for proper operation. A more minimal working config is likely possible. However, all of these options might be desirable.)
 
-Edit cmdline.txt and delete all content from the file, then save it. (It may be safe to remove this file entirely, but this is not yet known.)
+Edit <code>cmdline.txt</code>, delete all content from the file, and then save it. (It may be safe to remove this file entirely, but this is not yet confirmed.)
 
-Finally, reboot the system. You should see a u-boot screen, then u-boot should automatically discover and load GRUB. You can then boot Debian like you normally would from the GRUB menu.
+Finally, reboot the system. You should see a u-boot screen, after which u-boot should automatically discover and load GRUB. You can then boot Debian as usual from the GRUB menu.
 
 ==== Load GRUB with u-boot manually ====
 
@@ -892,6 +913,9 @@ Load the GRUB binary from the EFI directory, and boot it.
 
 {{CodeSelect|code=
 fatload mmc 1 ${kernel_addr_r} /EFI/debian/grubaa64.efi
+}}
+
+{{CodeSelect|code=
 bootefi ${kernel_addr_r} ${fdt_addr}
 }}
 
@@ -910,27 +934,27 @@ After running the <code>bootefi</code> command, u-boot will appear to hang for s
 
 ==== Notes ====
 
-* The raspi-firmware package ships config at <code>/etc/kernel/postinst.d/z50-raspi-firmware</code>, which does roughly the following:
-** Finds and copies device tree files to <code>/boot/firmware</code> (necessary for the OS to work properly)
-** Copies kernel and initramfs files from the <code>/boot</code> partition to <code>/boot/firmware</code> (unnecessary for our use case, takes up needless room in <code>/boot/firmware</code>)
-** Generates the <code>/boot/firmware/(config.txt|cmdline.txt)</code> files (detrimental to our use case, will disable u-boot and damage the configuration put in place earlier)
-** Only one of these is essential, the other two should be avoided. Therefore in an automated implementation of u-boot/GRUB support, we should displace this file and replace it with something that only copies the device trees, nothing else. This might be doable via config-package-dev, but it may require manual dpkg diversion in order to get the script entirely out of the <code>/etc/kernel/postinst.d</code> directory.
-* The configuration options in config.txt do the following (lots of this info taken from the official Raspberry Pi documentation and Fedora's config.txt file, with a bit taken from Debian's raspi-firmware package as well):
-** <code>arm_64bit=1</code> - Loads the bootloader in 64-bit mode. Likely necessary for the rpi_arm64 u-boot used here to be usable.
-** <code>kernel=u-boot-arm64.bin</code> - Points the Raspberry Pi loader to the u-boot binary.
+* The <code>raspi-firmware</code> package ships config at <code>/etc/kernel/postinst.d/z50-raspi-firmware</code>, which does roughly the following:
+** Finds and copies device tree files to <code>/boot/firmware</code> (necessary for the OS to function properly)
+** Copies kernel and initramfs files from the <code>/boot</code> partition to <code>/boot/firmware</code> (unnecessary for our use case, takes up needless space in <code>/boot/firmware</code>)
+** Generates the <code>/boot/firmware/config.txt</code> and <code>/boot/firmware/cmdline.txt</code> files (detrimental to our use case, will disable <code>u-boot</code> and override the configuration put in place earlier)
+** Only one of these actions is essential; the other two should be avoided. Therefore, in an automated implementation of <code>u-boot</code>/<code>GRUB</code> support, this file should be displaced and replaced with something that only copies the device tree files and nothing else. This might be doable via [[Dev/About_Debian_Packaging#config-package-dev|<code>config-package-dev</code>]] action <code>displace</code>, but it may require manual <code>dpkg</code> diversion in order to fully remove the script from the <code>/etc/kernel/postinst.d</code> directory.
+* The configuration options in <code>config.txt</code> do the following (information taken from the official Raspberry Pi documentation, Fedora's <code>config.txt</code> file, and Debian's <code>raspi-firmware</code> package):
+** <code>arm_64bit=1</code> - Loads the bootloader in 64-bit mode. Likely necessary for the <code>rpi_arm64</code> <code>u-boot</code> used here to function.
+** <code>kernel=u-boot-arm64.bin</code> - Points the Raspberry Pi loader to the <code>u-boot</code> binary.
 ** <code>arm_boost=1</code> - Allows the CPU to run faster.
-** <code>enable_uart=1</code> - Enables a serial console, which can be accessed via the GPIO header on the Pi with the help of a USB-to-serial cable. '''The serial UART on the Pi (and therefore this console) only work when the GPU runs at a lowered speed.''' If you allow the GPU to run at full speed with this enabled, the serial output will be too fast and therefore unusable. We might want to disable this.
+** <code>enable_uart=1</code> - Enables a serial console, which can be accessed via the GPIO header on the RPi with a USB-to-serial cable. '''The serial UART on the RPi (and therefore this console) only works when the GPU runs at a lowered speed.''' If you allow the GPU to run at full speed with this enabled, the serial output will be too fast and therefore unusable. We might want to disable this.
 ** <code>dtparam=audio=on</code> - Enables audio.
-** <code>camera_auto_detect=0</code> - Do not automatically load overlays for recognised CSI cameras. Fedora's config.txt has a comment noting "Old FW camera" over this line. Unclear whether we want this or not, maybe we should set this option to 1 like Raspberry Pi OS has it set to?
-** <code>display_auto_detect=1</code> - Automatically load overlays for recognised DSI displays. Probably useful for those with a Raspberry Pi display that attaches to the "DISPLAY" ribbon connector near the SD card slot.
-** <code>dtoverlay=vc4-kms-v3d</code> - Fedora's config file has a comment noting "Enable DRM VC4 V3D driver" here. This is ''probably'' necessary to allow the GPU's full display resolution to be used, thus likely important.
-** <code>max_framebuffers=2</code> - Allows you to use two screens.
-** <code>disable_fw_kms_setup=1</code> - Fedora's config file has a comment noting "Don't have the firmware create an initial video= setting in cmdline.txt. Use the kernel's default instead." The official documentation indicates that this basically allows the Linux kernel to figure out the monitor's parameters itself rather than the firmware doing it. Probably good to keep.
-** <code>hdmi_ignore_cec_init=1</code> - From the official documentation, this stops "the initial active source message being sent during bootup. This prevents a CEC-enabled TV from coming out of standby and channel-switching when you are rebooting your Raspberry Pi." Fedora notes "Stop the RPi turning on HDMI monitors on reboot". Sounds important. Note that this is listed as a ''legacy'' (and now-unsupported) option in the documentation (see https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html), so maybe we don't want it after all?
-** <code>dtoverlay=cma,cma-256</code> - Adjusts the CMA size. https://forums.raspberrypi.com/viewtopic.php?t=355799 has some info about what this is, it appears to be related to GPU memory. Debian has the CMA set to 64M by default, and notes that apparently this shouldn't normally be set at all any longer. Maybe better to omit this?
-* Anything that can modify the boot firmware partition will be able to modify the EFI variables too, most likely.
-** Potential issues with in context of [[Secure Boot]], [[Verified Boot]] but RPi Secure Boot usage is not planned due to issues documented in chapter [[Verified_Boot#Raspberry_Pi_RPi_Based]].
-* u-boot is not hidden from the user. This is intentional, it makes debugging and fixing things easier, and doesn't substantially degrade the experience. Best to not hide it in order to avoid mystification of the boot process. (It might not even be possible to hide it.)
+** <code>camera_auto_detect=0</code> - Prevents automatic loading of overlays for recognised CSI cameras. Fedora's <code>config.txt</code> includes a comment noting "Old FW camera" for this line. It's unclear whether we want this; perhaps we should set this to <code>1</code>, as Raspberry Pi OS does?
+** <code>display_auto_detect=1</code> - Automatically loads overlays for recognised DSI displays. Likely useful for users with a Raspberry Pi display connected to the "DISPLAY" ribbon connector near the SD card slot.
+** <code>dtoverlay=vc4-kms-v3d</code> - Fedora's <code>config.txt</code> notes "Enable DRM VC4 V3D driver" here. This is ''probably'' required to allow the GPU to support full display resolution, so likely important.
+** <code>max_framebuffers=2</code> - Allows use of two screens.
+** <code>disable_fw_kms_setup=1</code> - Fedora's <code>config.txt</code> notes "Don't have the firmware create an initial video= setting in <code>cmdline.txt</code>. Use the kernel's default instead." The official documentation indicates that this allows the Linux kernel to determine the monitor's parameters itself (instead of the firmware doing the determination). Likely best to keep.
+** <code>hdmi_ignore_cec_init=1</code> - According to the official documentation, this stops "the initial active source message being sent during bootup," preventing a CEC-enabled TV from waking and switching channels when rebooting the RPi. Fedora notes "Stop the RPi turning on HDMI monitors on reboot". Seems important. However, this is listed as a ''legacy'' (now unsupported) option in the documentation (see https://www.raspberrypi.com/documentation/computers/legacy_config_txt.html), so perhaps it should be omitted?
+** <code>dtoverlay=cma,cma-256</code> - Adjusts the CMA size. See https://forums.raspberrypi.com/viewtopic.php?t=355799 for more. This seems related to GPU memory. Debian sets CMA to 64M by default and notes that this should typically not be set manually anymore. Possibly best to omit?
+* Anything that can modify the boot firmware partition will most likely also be able to modify the EFI variables.
+** Potential concerns exist in the context of [[Secure Boot]] and [[Verified Boot]], but RPi Secure Boot usage is not planned due to issues documented in chapter [[Verified_Boot#Raspberry_Pi_RPi_Based]].
+* <code>u-boot</code> is not hidden from the user. This is intentional, as it makes debugging and repairs easier without significantly affecting the user experience. It is best to leave it visible to avoid mystifying the boot process. (It might not even be possible to hide it.)
 
 === Boot Process Design - RPi ===
 * GRUB should be the "main" bootloader from the user's perspective.
@@ -943,6 +967,19 @@ After running the <code>bootefi</code> command, u-boot will appear to hang for s
 ** Standard (non-RPi) ARM64 hardware
 ** RPi non-UEFI
 ** RPi UEFI
+
+= depthcharge bootloader - coreboot payload for Google Chromebook Firmware =
+
+* This is the coreboot payload Google uses for Chromebook firmware. Feature set currently unknown; might be suitable for Verified Boot.
+* https://web.archive.org/web/20240119111142/https://www.chromium.org/chromium-os/developer-information-for-chrome-os-devices/custom-firmware/#TOC-Depthcharge
+* https://web.archive.org/web/20240408175558/https://www.chromium.org/chromium-os/2014-firmware-summit/ChromeOS%20firmware%20summit%20-%20Depthcharge.pdf
+* https://github.com/coreboot/vboot
+* Seems to be similar to but more complex than the Raspberry Pi's bootloader:
+** Runs in firmware as a coreboot payload
+** Uses an existing vboot library from Google for verifying components
+** Expects the kernel, initrd, and any applicable device trees to be packaged into a FIT image, which the firmware loads and extracts using heuristics to determine most likely which device tree is most compatible with the current hardware, then loads that
+** Appears to have some A-B updates functionality built in, which could be a serious pain for us to use
+* This is probably doing too much for our use case. The A-B updates mechanism makes sense for Google's client device architecture (e.g., Android and Chrome OS) but doesn't really suit a server use case. The use of device trees seems to be fairly integral, which is non-ideal for hardware that supports ACPI (i.e., most amd64/x86_64 hardware). The FIT image concept is interesting, but it feels somewhat at odds with the UKI concept systemd is pursuing, and that's another aspect tied to the device tree-specific approach.
 
 = dracut bug log =
 Debian bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1041614 unbootable system after installing dracut on a standard Debian installation]
