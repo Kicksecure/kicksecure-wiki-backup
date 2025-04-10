@@ -10,14 +10,21 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== unicode - sanitize suspicious characters in informative lines ==
-* as discussed, avoid using <code>repr</code>
-* might not need done after all, see chat
+== verified boot chat ==
+* todo
 
-== review and improve append-once ==
-* [[append-once]]
-* https://github.com/Kicksecure/helper-scripts/blob/master/usr/bin/append-once
-* Had some ideas for improving performance and reliability, shared in chat.
+== RPi grml-debootstrap ==
+* https://github.com/grml/grml-debootstrap/issues/114
+* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
+
+== user-sysmaint-split - bug - prevent account user login in sysmaint mode ==
+* as discussed
+
+== user-sysmaint-split - run updatecheck ==
+* as discussed
+
+== user-sysmaint-split - show persistent vs live status ==
+* as discussed
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
@@ -34,35 +41,26 @@ TODO
 * Waiting for feedback from HW42.
 * Is a lightweight solution possible? If an App Qube is booting and /run/qubes/sudo exists, chmod o+x /usr/bin/sudo or better dummy-dependency --yes --purge user-sysmaint-split?
 
-== review - lightweight update notifications - #2 ==
-* Implemented by Patrick. Please review.
-* [DONE] consider custom languages. Needs <code>LC_ALL=C</code>?
-* [DONE] notify leaprun failures
-* [DONE] consider if update_package_count is not a number?
-* [DONE] grep APT output for errors and notify?
-* [DONE] systemcheck function <code>check_dpkg</code> or equivalent useful? If apt/dpkg is broken due to broken packages, that does not really break apt update?
-** Not needed. DPKG is irrelevant.
-* [DONE] use systemcheck function <code>check_package_manager_running</code> or equivalent?
-** [DONE] if running for a "reasonable time", wait
-** [DONE] if running "forever", notify that update check is broken
-* [DONE] consider systems running for 12 or 18 hours etc:
-** [DONE] Do notifications pile up more and more? Avoidable?
-** [DONE] Can we clear prior notifications?
-** [DONE] Can stale notifications be avoided? Can we clear "update check broken" notification once "updates available" notification came in? Can we clear "updates available" once user updated?
-* Other error cases to notify?
-* Documentation:
-** [DONE] [[systemcheck]]: [[Systemcheck#Update_Notifications_by_updatecheck|Update Notifications by updatecheck]]
-** [DONE] [[Dev/Automatic_Updates]]: [[Dev/Automatic_Updates#updatecheck|updatecheck]]
-** [DONE] [[Operating System Software and Updates]]
-** [DONE] non-Qubes vs Qubes
-** [DONE] document disabling
-* notify https://forums.kicksecure.com/t/notifications-about-new-updates/774
-
-== live mode detection improvements ==
-* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
-* Currently only based on grepping kernel command line.
-* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
-* Ideas on how to make live mode detection more reliable?
+== review and improve append-once ==
+* [[append-once]]
+* https://github.com/Kicksecure/helper-scripts/blob/master/usr/bin/append-once
+* Had some ideas for improving performance and reliability, shared in chat.
+* use case: simplify writing to files while developing unrelated scripts (such as user-sysmaint-split)
+* please rewrite in python as suggested
+* the following tools should probably be separate tools
+** these might however have shared code inside a library if that is sensible
+* tool requirements:
+** atomic writes
+** error handling (unwriteable parent folder, unwriteable file)
+* required functionality:
+** only for already actually used use cases
+* list of tools
+** append (equivalent of: <code>echo test >> testfile</code>)
+** append-once
+** overwrite (equivalent of: <code>echo test | sponge testfile</code>)
+* unneeded functionality for now:
+** not adding a newline at the end (equivalent of: <code>printf "test" > testfile</code>)
+** appending the the last line of the file (without starting a newline) (equivalent of: <code>printf test >> a</code>)
 
 == mouse fingerprinting ==
 * todo
@@ -81,6 +79,25 @@ TODO
 * contact people involved previously, if that makes sense
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
+
+== live mode detection improvements ==
+* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
+* Currently only based on grepping kernel command line.
+* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
+* Ideas on how to make live mode detection more reliable?
+* Aaron: It might be possible to rely on the mount info for the root filesystem, which can be seen by running <code>LC_ALL='C' mount | grep ' on / '</code>. This returns a distinctly different string for each of persistent mode, live mode, and ISO live mode.
+** PERSISTENT mode: /dev/mapper/luks-65abae64-dea9-4e54-b75f-0f545ed4a053 on / type ext4 (rw,relatime)
+** LIVE mode (dracut): overlay on / type overlay (rw,noatime,lowerdir=/live/image,upperdir=/cow/rw,workdir=/cow/work,default_permissions)
+** LIVE mode (initramfs-tools): overlay on / type overlay (rw,noatime,lowerdir=/run/live/rootfs/filesystem/,upperdir=/run/live/overlay/rw,workdir=/run/live/overlay/work,redirect_dir=on)
+** ISO live mode: LiveOS_rootfs on / type overlay (rw,relatime,lowerdir=/run/rootfsbase,upperdir=/run/overlayfs,workdir=/run/ovlwork)
+* Based on the above, we could say "if the string starts with <code>overlay on / type overlay</code>, then we're in GRUB live mode. If it starts with <code>LiveOS_rootfs</code>, we're in ISO live mode. Otherwise, we're in persistent mode.
+* Notes:
+** <code>LiveOS_rootfs</code> appears to be hardcoded throughout dracut, thus I believe this is a string we can rely on to be accurate.
+** For Dracut, <code>overlay</code> for GRUB live mode is hardcoded in the Debian-specific <code>90overlay-root</code> module and thus can likely be relied upon, see <code>/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh</code>.
+** For initramfs-tools, <code>overlay</code> for GRUB live mode is ''sorta'' hardcoded in live-boot, but not exactly, aufs is also supported and that might change the mount line. This may or may not be completely reliable.
+* Patrick:
+** Should we combine the existing kernel command line parameters based test with the new mount based test?
+** Any way for to catch also the BTRFS home folder unexpected persistence bug (live mode indicator said "live" but /home folder was actually persistent bug)? Related: [[Dev/todo#ISO_-_btrfs_versus_grub-live_bug_-_real_fix|ISO - btrfs versus grub-live bug - real fix]]
 
 == ISO - btrfs versus grub-live bug - real fix ==
 * todo
@@ -393,21 +410,22 @@ sudo apt install serial-console-enable
 * test and implement https://github.com/systemd/systemd/issues/29893#issuecomment-2757436101 if sane
 
 = WAITING ON =
-== RPi grml-debootstrap ==
-* https://github.com/grml/grml-debootstrap/issues/114
-* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
+== pstore disabling - please comment ==
+* https://github.com/Kicksecure/security-misc/pull/304
+* Looks like a good change to me, reviewed and requested a README change.
+
+== RPi GRUB - contribute to Debian ==
+* start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream
+* this and above ticket might result in implementation feedback such as for options in config.txt
+* Did this and the debian-arm notification ticket in a single email.
+* https://lists.debian.org/debian-arm/2025/04/msg00012.html
 
 == qubes boot modes - in-vm kernel support ==
 * todo
 * Submitted to Qubes: https://github.com/QubesOS/qubes-linux-pvgrub2/pull/16
 * Submitted to FSF: https://lists.gnu.org/archive/html/grub-devel/2025-04/msg00050.html
-
-== enable X event buffering by default for Whonix ==
-* https://github.com/QubesOS/qubes-issues/issues/9771
-* PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/20
-** Patrick: please enable kloak-alike in Qubes by default for existing users that upgrade
-** or other, better solution acceptable by Qubes
-*** Aaron: Fixed, now works for existing VMs as well.
+** Attempt to get attention for the patch again on April 11, try to smooth out some of the possible issues with the patch before sending if at all possible.
+** If a second attempt at submitting the patch results in complete silence, return to Qubes and explain that attempts to upstream the patch weren't acknowledged.
 
 == grml-debootstrap - EFI partition size ==
 * https://github.com/grml/grml-debootstrap/issues/221
@@ -592,33 +610,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== updatecheck, setup-wizard-dist - don't assume sysmaint components are present ==
-* Patrick working on this.
-* [DONE] updatecheck assumes sysmaint-panel is preinstalled and instructs the user to use it, even if it's not present
-* setup-wizard-dist does things similarly
-** Aaron: Fixed: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/no-assume-sysmaint
-* adjust both to only show sysmaint-related information if the corresponding components are installed
-** Patrick did updatecheck, Aaron did setup-wizard-dist, so this is now solved.
-
-== user-sysmaint-split - documentation improvements - #2 ==
-* document Qubes boot modes on [[Dev/user-sysmaint-split]]
-* document difference for user-sysmaint-split installation on Qubes R4.2 versus Qubes R4.3
-* Read through the document, fixed some errors and omissions and added the requested docs.
-
-== RPi GRUB - notify debian-arm mailing list ==
-* todo
-* Done.
-
-== RPi GRUB - contribute to Debian ==
-* start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream
-* this and above ticket might result in implementation feedback such as for options in config.txt
-* Did this and the debian-arm notification ticket in a single email.
-
-== trailing whitespaces - please comment ==
-* please research
-* please comment in https://forums.whonix.org/t/detecting-malicious-unicode-in-source-code-and-pull-requests/13754 (or elsewhere) how trailing whitespaces can lead to security and/or other issues, if applicable
-* Added a comment with an analysis of spaces causing issues in Bash, Python, and Rust. Bash seems to be vulnerable to the most alarming problems here, C interestingly seems resistent to these types of attacks.
-
 == review and test IPv6 support pull requests ==
 * https://forums.whonix.org/t/add-ipv6-support/19893
 * https://www.whonix.org/wiki/Dev/ipv6
@@ -639,6 +630,74 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== unicode - sanitize suspicious characters in informative lines ==
+* as discussed, avoid using <code>repr</code>
+* might not need done after all, see chat
+
+== grub-live - GRUB configuration not being regenerated when switching initramfs generator ==
+* When installing initramfs-tools on Kicksecure, grub-live-dracut is swapped out for grub-live-initramfs-tools. This seems to work for the most part, however the GRUB configuration isn't regenerated, meaning live boot is broken until the next time the user (or some other part of the system) calls <code>update-grub</code>.
+* This is because update-grub is only called when the master <code>grub-live</code> package is installed or removed. If one of <code>grub-live-dracut</code> or <code>grub-live-initramfs-tools</code> are installed or uninstalled, but the main <code>grub-live</code> package isn't, the GRUB configuration isn't regenerated. This is exactly what happens when switching initramfs engines usually.
+* Fix: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/initramfs-switch-fix
+
+== updatecheck, setup-wizard-dist - don't assume sysmaint components are present ==
+* Patrick working on this.
+* [DONE] updatecheck assumes sysmaint-panel is preinstalled and instructs the user to use it, even if it's not present
+* setup-wizard-dist does things similarly
+** Aaron: Fixed: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/no-assume-sysmaint
+*** Patrick: Merged.
+* adjust both to only show sysmaint-related information if the corresponding components are installed
+** Patrick did updatecheck, Aaron did setup-wizard-dist, so this is now solved.
+
+== RPi GRUB - notify debian-arm mailing list ==
+* todo
+* Done.
+* https://lists.debian.org/debian-arm/2025/04/msg00012.html
+
+== user-sysmaint-split - documentation improvements - #2 ==
+* document Qubes boot modes on [[Dev/user-sysmaint-split]]
+* document difference for user-sysmaint-split installation on Qubes R4.2 versus Qubes R4.3
+* Read through the document, fixed some errors and omissions and added the requested docs.
+
+== review - lightweight update notifications - #2 ==
+* Implemented by Patrick. Please review.
+* [DONE] consider custom languages. Needs <code>LC_ALL=C</code>?
+* [DONE] notify leaprun failures
+* [DONE] consider if update_package_count is not a number?
+* [DONE] grep APT output for errors and notify?
+* [DONE] systemcheck function <code>check_dpkg</code> or equivalent useful? If apt/dpkg is broken due to broken packages, that does not really break apt update?
+** Not needed. DPKG is irrelevant.
+* [DONE] use systemcheck function <code>check_package_manager_running</code> or equivalent?
+** [DONE] if running for a "reasonable time", wait
+** [DONE] if running "forever", notify that update check is broken
+* [DONE] consider systems running for 12 or 18 hours etc:
+** [DONE] Do notifications pile up more and more? Avoidable?
+** [DONE] Can we clear prior notifications?
+** [DONE] Can stale notifications be avoided? Can we clear "update check broken" notification once "updates available" notification came in? Can we clear "updates available" once user updated?
+* Other error cases to notify?
+* Documentation:
+** [DONE] [[systemcheck]]: [[Systemcheck#Update_Notifications_by_updatecheck|Update Notifications by updatecheck]]
+** [DONE] [[Dev/Automatic_Updates]]: [[Dev/Automatic_Updates#updatecheck|updatecheck]]
+** [DONE] [[Operating System Software and Updates]]
+** [DONE] non-Qubes vs Qubes
+** [DONE] document disabling
+* [DONE] notify https://forums.kicksecure.com/t/notifications-about-new-updates/774
+* Aaron: Reviewed, added some documentation updates, found and fixed a likely minor bug with debug output.
+** Bugfix: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/updatecheck
+*** Patrick: Merged.
+
+== trailing whitespaces - please comment ==
+* please research
+* please comment in https://forums.whonix.org/t/detecting-malicious-unicode-in-source-code-and-pull-requests/13754 (or elsewhere) how trailing whitespaces can lead to security and/or other issues, if applicable
+* Added a comment with an analysis of spaces causing issues in Bash, Python, and Rust. Bash seems to be vulnerable to the most alarming problems here, C interestingly seems resistent to these types of attacks.
+
+== enable X event buffering by default for Whonix ==
+* https://github.com/QubesOS/qubes-issues/issues/9771
+* PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/20
+** Patrick: please enable kloak-alike in Qubes by default for existing users that upgrade
+** or other, better solution acceptable by Qubes
+*** Aaron: Fixed, now works for existing VMs as well.
+* Merged upstream.
+
 == user-sysmaint-split - sysmaint-panel - add terminal background tinting ==
 * tint terminals in sysmaint mode slightly red to encourage users to be careful while in sysmaint mode
 * Done, also added framework for making similar tasks easier in the future: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/terminal-tint
