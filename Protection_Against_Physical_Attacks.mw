@@ -129,16 +129,117 @@ While a GRUB password can mitigate some physical attacks, it won't protect again
 * '''Others:''' Listed on this wiki page.
 
 == How to set a bootloader password ==
+Select an option.
 
 {{Tab
 |type=controller
 |content=
 {{Tab
+|title= ===grub-pwchange===
+|type=section
+|image=
+|addToClass=info-box
+|content=
+'''Not yet available. Coming soon!'''
+
+'''1.''' Prerequisite knowledge: [[Protection_Against_Physical_Attacks#Bootloader_Password|Bootloader Password]]
+
+'''2.''' Information.
+
+<code>grub-pwchange</code> is a GRUB bootloader password management tool for systems with only one human user. It supports:
+
+* Setting an encrypted bootloader password by creating GRUB account <code>user</code> and storing it in file <code>/etc/grub.d/44_password</code>. (Then running <code>sudo update-grub</code>.)
+* Deleting the bootloader password by removing <code>/etc/grub.d/44_password</code>.
+* It configures GRUB to always require a password at boot for all actions.
+
+<code>grub-pwchange</code> does NOT handle:
+
+* [[Full Disk Encryption|{{fde}}]]
+
+Advanced GRUB features not supported by <code>grub-pwchange</code>:
+
+* Multiple GRUB user accounts
+* Fine-grained permissions (e.g., allow boot without password but require one to edit kernel cmdline)
+* Changing manually set GRUB passwords not managed by this tool
+
+Advanced use should be configured manually.
+
+For developer information, see footnote. <ref>
+Results in GRUB configuration file <code>/boot/grub/grub.cfg</code> to be appended with:
+
+{{CodeSelect|code=
+sudo cat /boot/grub/grub.cfg
+}}
+
+<pre>
+### BEGIN /etc/grub.d/44_password ###
+set superusers="user"
+password_pbkdf2 user grub.pbkdf2.sha512.10000.password-hash-replaced
+### END /etc/grub.d/44_password ###
+</pre>
+</ref>
+
+'''3.''' Exercise.
+
+Before using this in production, it's best to test this in a safe environment such as on another computer or inside a virtual machine. This is because if the GRUB bootloader password is wrong, there are bugs or other issues (such as with keyboard layout), you might lock yourself out and require [[Recovery]].
+
+It is also recommended to practice how to disable the GRUB bootloader password using a recovery boot medium, for example by booting from ISO and editing <code>/boot/grub/grub.cfg</code> to disable the GRUB bootloader password.
+
+'''4.''' Usage.
+
+{{CodeSelect|code=
+sudo grub-pwchange
+}}
+
+'''5.''' Password prompt.
+
+You'll be prompted to enter a password.
+
+* To set the password: Type a password.
+* To disable the GRUB bootloader password: Keep it empty, simply press enter.
+
+'''Figure:''' ''GRUB bootloader password prompt''
+
+[[File:bootloader-pass.png|400px]]
+
+(We plan to update this screenshot to say "user".)
+
+'''6.''' You'll be prompted to enter the same password again for verification.
+
+* To set the password: Type the same password.
+* To disable the GRUB bootloader password: Keep it empty, simply press enter.
+
+'''7.''' Result.
+
+Read the output of <code>grub-pwchange</code>. It will most likely report success.
+
+<pre>
+/usr/sbin/grub-pwchange: SUCCESS: GRUB bootloader password for GRUB account 'user' was set successfully in '/etc/grub.d/44_password'.
+</pre>
+
+In case of issues, contact [[Support]].
+
+'''8.''' Done.
+
+'''9.''' Reboot.
+
+'''10.''' After selecting a boot option at GRUB boot menu, the user will be prompted for a username and password.
+
+* username: <code>user</code>
+* password: The password that you have set using <code>grub-pwchange</code>.
+
+After entering the username, press enter. You'll be prompted for the password. After typing the password and pressing enter, the system should boot. If you're back to the GRUB boot menu, then either the username or password was typed incorrectly. There could also be issues with the keyboard layout.
+
+The username is always <code>user</code>. <ref>
+This is hardcoded in the <code>grub-pwchange</code> script.
+</ref>
+}}
+
+{{Tab
 |title= ===Simple===
 |type=section
 |image=
 |addToClass=info-box
-|active=true
 |content=
 
 This is the simplest way to set a GRUB password, assuming the user is named <code>user</code> and has root access. Using this method, '''<u>all</u>''' GRUB/boot menu entries will be locked behind a username and password.

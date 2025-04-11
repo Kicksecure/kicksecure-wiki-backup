@@ -13,18 +13,20 @@ TODO
 == verified boot chat ==
 * todo
 
-== RPi grml-debootstrap ==
-* https://github.com/grml/grml-debootstrap/issues/114
-* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
+== research systemd-repart ==
+* please research systemd-repart on how to automatically resize the image at first boot to use the full size of the storage medium
+* interesting in context of RPi
+* systemd-repart might be interesting in any case, not just for RPi images.
+* Users are confused by [[sparse files]]. Our "normal" (non-RPi) images have a size of 100 GB. They can grow up to 100 GB. [[Grow_Virtual_Harddisk|Virtual Hard Disk Size Increase]] is a non-trivial process for users. Could systemd-repart help us to ship smaller apparent size images that can be more easily grown by users after boot?
 
-== user-sysmaint-split - bug - prevent account user login in sysmaint mode ==
-* as discussed
-
-== user-sysmaint-split - run updatecheck ==
-* as discussed
-
-== user-sysmaint-split - show persistent vs live status ==
-* as discussed
+== sysmaint-panel - add grub bootloader password support ==
+* please review and improve
+** /usr/sbin/grub-password-status-check
+** /usr/sbin/grub-pwchange
+** systemcheck check_grub_security
+** [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
+* add grub bootloader password support to sysmaint-panel
+** do this on the host only, not inside VMs?
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
@@ -40,27 +42,6 @@ TODO
 *** https://github.com/QubesOS/qubes-issues/issues/9512
 * Waiting for feedback from HW42.
 * Is a lightweight solution possible? If an App Qube is booting and /run/qubes/sudo exists, chmod o+x /usr/bin/sudo or better dummy-dependency --yes --purge user-sysmaint-split?
-
-== review and improve append-once ==
-* [[append-once]]
-* https://github.com/Kicksecure/helper-scripts/blob/master/usr/bin/append-once
-* Had some ideas for improving performance and reliability, shared in chat.
-* use case: simplify writing to files while developing unrelated scripts (such as user-sysmaint-split)
-* please rewrite in python as suggested
-* the following tools should probably be separate tools
-** these might however have shared code inside a library if that is sensible
-* tool requirements:
-** atomic writes
-** error handling (unwriteable parent folder, unwriteable file)
-* required functionality:
-** only for already actually used use cases
-* list of tools
-** append (equivalent of: <code>echo test >> testfile</code>)
-** append-once
-** overwrite (equivalent of: <code>echo test | sponge testfile</code>)
-* unneeded functionality for now:
-** not adding a newline at the end (equivalent of: <code>printf "test" > testfile</code>)
-** appending the the last line of the file (without starting a newline) (equivalent of: <code>printf test >> a</code>)
 
 == mouse fingerprinting ==
 * todo
@@ -410,15 +391,15 @@ sudo apt install serial-console-enable
 * test and implement https://github.com/systemd/systemd/issues/29893#issuecomment-2757436101 if sane
 
 = WAITING ON =
+== RPi grml-debootstrap ==
+* https://github.com/grml/grml-debootstrap/issues/114
+* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
+* Tested and polished PR and marked it as ready for review.
+* Added question about future support for U-Boot + grub-efi-arm64.
+
 == pstore disabling - please comment ==
 * https://github.com/Kicksecure/security-misc/pull/304
 * Looks like a good change to me, reviewed and requested a README change.
-
-== RPi GRUB - contribute to Debian ==
-* start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream
-* this and above ticket might result in implementation feedback such as for options in config.txt
-* Did this and the debian-arm notification ticket in a single email.
-* https://lists.debian.org/debian-arm/2025/04/msg00012.html
 
 == qubes boot modes - in-vm kernel support ==
 * todo
@@ -610,6 +591,71 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== RPi GRUB - contribute to Debian ==
+* Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
+* This and the above ticket might result in implementation feedback, such as for options in config.txt.
+* Combined this and the debian-arm notification ticket into a single email.
+* https://lists.debian.org/debian-arm/2025/04/msg00012.html
+* Found:
+** https://salsa.debian.org/raspi-team
+** https://salsa.debian.org/raspi-team
+** Seems active as per: https://salsa.debian.org/raspi-team/image-specs/-/issues/74
+** https://salsa.debian.org/raspi-team/image-specs/-/issues
+*** Please consider posting a feature request there for RPi GRUB support, if that is sensible. Draft:
+
+<pre>
+add support for GRUB as bootloader for RPi
+</pre>
+
+<pre>
+I've recently succeeded in converting an existing Debian Trixie RPi image to boot using GRUB on the RPi 4B and extensively documented how to do that. [1] I also posted about this on the debian-arm mailing list. [2]
+
+Booting in this way has several substantial advantages over the current Raspberry Pi boot process:
+
+* The kernel command line can be modified via /etc/default/grub and files under /etc/default/grub.d. Some software requires or benefits from such modifications and leverages this mechanism in GRUB to make non-invasive changes to the command line. With direct kernel boot, these changes are silently ignored, while with U-Boot + GRUB, they are correctly applied.
+* In the event of a bad kernel update, users can easily boot into older kernels as they would on a typical desktop system.
+* Recovering from a broken boot without a secondary system becomes much easier, as users can use the GRUB and U-Boot consoles to debug and manually boot the system.
+* Multiboot installations on the Pi become possible.
+
+Is this a feature for which you would welcome a merge request here, either as an option or even as the default?
+
+Obviously, at this point, RPi GRUB support could only be added to Forky and later.
+
+(I've also recently submitted a pull request to `grml-debootstrap` (a Debian bootable image builder tool) [3] [4] implementing "basic" RPi support.)
+
+* [1] https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_+_u-boot_on_Raspberry_Pi_4
+* [2] https://lists.debian.org/debian-arm/2025/04/msg00012.html
+* [3] http://packages.debian.org/grml-debootstrap
+* [4] https://github.com/grml/grml-debootstrap/pull/335
+</pre>
+
+* Aaron: Filed issue upstream using template: https://salsa.debian.org/raspi-team/image-specs/-/issues/78
+** Also filed a bug report against raspi-firmware: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607
+
+== review and improve append-once ==
+* [[append-once]]
+** Aaron: Documentation updated to match the new implementation.
+* https://github.com/Kicksecure/helper-scripts/blob/master/usr/bin/append-once
+* Had some ideas for improving performance and reliability, shared in chat.
+* use case: simplify writing to files while developing unrelated scripts (such as user-sysmaint-split)
+* please rewrite in python as suggested
+* the following tools should probably be separate tools
+** these might however have shared code inside a library if that is sensible
+* tool requirements:
+** atomic writes
+** error handling (unwriteable parent folder, unwriteable file)
+* required functionality:
+** only for already actually used use cases
+* list of tools
+** append (equivalent of: <code>echo test >> testfile</code>)
+** append-once
+** overwrite (equivalent of: <code>echo test | sponge testfile</code>)
+* unneeded functionality for now:
+** not adding a newline at the end (equivalent of: <code>printf "test" > testfile</code>)
+** appending the the last line of the file (without starting a newline) (equivalent of: <code>printf test >> a</code>)
+* Aaron: Implemented: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/file-utils
+** All tools implemented as a multicall executable <code>append</code>, with <code>append-once</code> and <code>overwrite</code> symlinks.
+
 == review and test IPv6 support pull requests ==
 * https://forums.whonix.org/t/add-ipv6-support/19893
 * https://www.whonix.org/wiki/Dev/ipv6
@@ -630,6 +676,31 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== user-sysmaint-split - run updatecheck ==
+* as discussed
+* Done: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/services
+** Patrick: Merged.
+
+== user-sysmaint-split - show persistent vs live status ==
+* as discussed
+* Done: https://github.com/ArrayBolt3/sysmaint-panel/commit/37065e0be2095f2e7dd5f6a461fefb701f0c2254
+** Patrick: Merged.
+
+== user-sysmaint-split - bug - prevent account user login in sysmaint mode ==
+* as discussed
+* Could not identify how the bad login could end up happening in the first place, did identify why the bad login became a lockout situation and fixed it.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/fix-session-exit
+*** Patrick: Merged.
+* Realized that our terminology with "PERSISTENT mode USER", etc. was out of date in the process. Went through and mass-fixed it:
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/rename-boot-modes
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/rename-boot-modes
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/rename-boot-modes
+** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/rename-boot-modes
+** tb-starter: https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/rename-boot-modes
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/tree/arraybolt3/rename-boot-modes
+** whonix-base-files: https://github.com/ArrayBolt3/whonix-base-files/tree/arraybolt3/rename-boot-modes
+* Patrick: All merged.
+
 == unicode - sanitize suspicious characters in informative lines ==
 * as discussed, avoid using <code>repr</code>
 * might not need done after all, see chat
