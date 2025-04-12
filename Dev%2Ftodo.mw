@@ -13,21 +13,6 @@ TODO
 == verified boot chat ==
 * todo
 
-== research systemd-repart ==
-* please research systemd-repart on how to automatically resize the image at first boot to use the full size of the storage medium
-* interesting in context of RPi
-* systemd-repart might be interesting in any case, not just for RPi images.
-* Users are confused by [[sparse files]]. Our "normal" (non-RPi) images have a size of 100 GB. They can grow up to 100 GB. [[Grow_Virtual_Harddisk|Virtual Hard Disk Size Increase]] is a non-trivial process for users. Could systemd-repart help us to ship smaller apparent size images that can be more easily grown by users after boot?
-
-== sysmaint-panel - add grub bootloader password support ==
-* please review and improve
-** /usr/sbin/grub-password-status-check
-** /usr/sbin/grub-pwchange
-** systemcheck check_grub_security
-** [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
-* add grub bootloader password support to sysmaint-panel
-** do this on the host only, not inside VMs?
-
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 * Likely going to end up implementing [https://github.com/QubesOS/qubes-issues/issues/2695 Automate vm sudo authorization setup]
@@ -48,6 +33,14 @@ TODO
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
 * notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
 * update [[Keystroke_and_Mouse_Deanonymization|Keystroke and Mouse Deanonymization]]
+* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
+** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
+** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
+** Remaining work:
+*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
+*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
+*** Use normal kloak buffering to obfuscate mouse movements and timings
+*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -391,15 +384,52 @@ sudo apt install serial-console-enable
 * test and implement https://github.com/systemd/systemd/issues/29893#issuecomment-2757436101 if sane
 
 = WAITING ON =
+== RPi GRUB - contribute to Debian ==
+* Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
+* This and the above ticket might result in implementation feedback, such as for options in config.txt.
+* Combined this and the debian-arm notification ticket into a single email.
+* https://lists.debian.org/debian-arm/2025/04/msg00012.html
+* Found:
+** https://salsa.debian.org/raspi-team
+** https://salsa.debian.org/raspi-team
+** Seems active as per: https://salsa.debian.org/raspi-team/image-specs/-/issues/74
+** https://salsa.debian.org/raspi-team/image-specs/-/issues
+*** Please consider posting a feature request there for RPi GRUB support, if that is sensible. Draft:
+
+<pre>
+add support for GRUB as bootloader for RPi
+</pre>
+
+<pre>
+I've recently succeeded in converting an existing Debian Trixie RPi image to boot using GRUB on the RPi 4B and extensively documented how to do that. [1] I also posted about this on the debian-arm mailing list. [2]
+
+Booting in this way has several substantial advantages over the current Raspberry Pi boot process:
+
+* The kernel command line can be modified via /etc/default/grub and files under /etc/default/grub.d. Some software requires or benefits from such modifications and leverages this mechanism in GRUB to make non-invasive changes to the command line. With direct kernel boot, these changes are silently ignored, while with U-Boot + GRUB, they are correctly applied.
+* In the event of a bad kernel update, users can easily boot into older kernels as they would on a typical desktop system.
+* Recovering from a broken boot without a secondary system becomes much easier, as users can use the GRUB and U-Boot consoles to debug and manually boot the system.
+* Multiboot installations on the Pi become possible.
+
+Is this a feature for which you would welcome a merge request here, either as an option or even as the default?
+
+Obviously, at this point, RPi GRUB support could only be added to Forky and later.
+
+(I've also recently submitted a pull request to `grml-debootstrap` (a Debian bootable image builder tool) [3] [4] implementing "basic" RPi support.)
+
+* [1] https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_+_u-boot_on_Raspberry_Pi_4
+* [2] https://lists.debian.org/debian-arm/2025/04/msg00012.html
+* [3] http://packages.debian.org/grml-debootstrap
+* [4] https://github.com/grml/grml-debootstrap/pull/335
+</pre>
+
+* Aaron: Filed issue upstream using template: https://salsa.debian.org/raspi-team/image-specs/-/issues/78
+** Also filed a bug report against raspi-firmware: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607
+
 == RPi grml-debootstrap ==
 * https://github.com/grml/grml-debootstrap/issues/114
 * Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
 * Tested and polished PR and marked it as ready for review.
 * Added question about future support for U-Boot + grub-efi-arm64.
-
-== pstore disabling - please comment ==
-* https://github.com/Kicksecure/security-misc/pull/304
-* Looks like a good change to me, reviewed and requested a README change.
 
 == qubes boot modes - in-vm kernel support ==
 * todo
@@ -591,46 +621,49 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== RPi GRUB - contribute to Debian ==
-* Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
-* This and the above ticket might result in implementation feedback, such as for options in config.txt.
-* Combined this and the debian-arm notification ticket into a single email.
-* https://lists.debian.org/debian-arm/2025/04/msg00012.html
-* Found:
-** https://salsa.debian.org/raspi-team
-** https://salsa.debian.org/raspi-team
-** Seems active as per: https://salsa.debian.org/raspi-team/image-specs/-/issues/74
-** https://salsa.debian.org/raspi-team/image-specs/-/issues
-*** Please consider posting a feature request there for RPi GRUB support, if that is sensible. Draft:
+== stcatv - review ==
+* please review https://github.com/Kicksecure/helper-scripts/pull/19
+* Reviewed, single minor change suggested, otherwise looks (and in my testing works) great.
 
-<pre>
-add support for GRUB as bootloader for RPi
-</pre>
+== pstore disabling - please comment ==
+* https://github.com/Kicksecure/security-misc/pull/304
+* Looks like a good change to me, reviewed and requested a README change.
+* Reviewed latest changes, things look good to me and the pstore disabling appears to work in my testing.
 
-<pre>
-I've recently succeeded in converting an existing Debian Trixie RPi image to boot using GRUB on the RPi 4B and extensively documented how to do that. [1] I also posted about this on the debian-arm mailing list. [2]
+== Debian feature request - Debian's shim signed by Debian's key ==
+* Debian's shim signed by Debian's key on top of Microsoft's key
+* Sent feature request against shim.
 
-Booting in this way has several substantial advantages over the current Raspberry Pi boot process:
+== sysmaint-panel - support change full disk encryption fde password ==
+* cases to consider: disk not encrypted
+* Implemented:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/pwchange
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/4cae9d07ec439da362ebd616f8f8367c35fa32da
+** Note that the disk passphrase button is always visible, this is because the user might have external encrypted devices they wish to access or change the passphrases of.
+** The crypt-pwchange utility DOES NOT offer the ability to add new passphrases, or delete existing ones. Those might be valuable features to add in the future.
 
-* The kernel command line can be modified via /etc/default/grub and files under /etc/default/grub.d. Some software requires or benefits from such modifications and leverages this mechanism in GRUB to make non-invasive changes to the command line. With direct kernel boot, these changes are silently ignored, while with U-Boot + GRUB, they are correctly applied.
-* In the event of a bad kernel update, users can easily boot into older kernels as they would on a typical desktop system.
-* Recovering from a broken boot without a secondary system becomes much easier, as users can use the GRUB and U-Boot consoles to debug and manually boot the system.
-* Multiboot installations on the Pi become possible.
+== sysmaint-panel - add grub bootloader password support ==
+* please review and improve
+** /usr/sbin/grub-password-status-check
+** /usr/sbin/grub-pwchange
+** systemcheck check_grub_security
+** [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
+** Aaron: Reviewed all of the above, sent comments in chat. Mostly looks good and appears to work on my end.
+* add grub bootloader password support to sysmaint-panel
+** do this on the host only, not inside VMs?
+** Aaron: I don't think we need to restrict it like that - while bootloader passwords aren't theoretically useful in VMs, they might be practically useful against a low-skill adversary, and doing this would complicate development and make testing trickier.
+* Implemented: https://github.com/ArrayBolt3/sysmaint-panel/commit/0271a053bfc3d1457ff11fc8889d1f088b8068c5
 
-Is this a feature for which you would welcome a merge request here, either as an option or even as the default?
-
-Obviously, at this point, RPi GRUB support could only be added to Forky and later.
-
-(I've also recently submitted a pull request to `grml-debootstrap` (a Debian bootable image builder tool) [3] [4] implementing "basic" RPi support.)
-
-* [1] https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_+_u-boot_on_Raspberry_Pi_4
-* [2] https://lists.debian.org/debian-arm/2025/04/msg00012.html
-* [3] http://packages.debian.org/grml-debootstrap
-* [4] https://github.com/grml/grml-debootstrap/pull/335
-</pre>
-
-* Aaron: Filed issue upstream using template: https://salsa.debian.org/raspi-team/image-specs/-/issues/78
-** Also filed a bug report against raspi-firmware: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607
+== research systemd-repart ==
+* please research systemd-repart on how to automatically resize the image at first boot to use the full size of the storage medium
+* interesting in context of RPi
+* systemd-repart might be interesting in any case, not just for RPi images.
+* Users are confused by [[sparse files]]. Our "normal" (non-RPi) images have a size of 100 GB. They can grow up to 100 GB. [[Grow_Virtual_Harddisk|Virtual Hard Disk Size Increase]] is a non-trivial process for users. Could systemd-repart help us to ship smaller apparent size images that can be more easily grown by users after boot?
+* Researched, turns out making it so that the root partition is resized any time the disk is resized is not particularly difficult, and the easy way of doing it makes it so that the resize works properly ''any'' time it's resized, not just on the first time.
+* Implemented resize support:
+** initializer-dist: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/repart
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/repart
+** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/commit/e3318ad701cca97d0defec5bf4cd73c78b06ebd7
 
 == review and improve append-once ==
 * [[append-once]]
@@ -676,6 +709,10 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== user-controlled verified boot UEFI Application review ==
+* please review, improve: https://www.kicksecure.com/wiki/Verified_Boot#user-controlled_verified_boot_UEFI_Application
+* Reviewed, added some changes, Patrick added some more changes and then submitted to 3mdeb.
+
 == user-sysmaint-split - run updatecheck ==
 * as discussed
 * Done: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/services

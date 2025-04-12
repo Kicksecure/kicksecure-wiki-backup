@@ -422,7 +422,7 @@ Furthermore, any shim signed my Microsoft (such as Debian's shim) would still be
 
 This approach doesn't benefit Freedom Software Linux desktop distributions much since they must use their own key to verify the filesystem image. That image is created by the distribution, so their shim must be signed with Microsoft's key.
 
-One major issue is, that an EFI executable, such as shim, cannot have two signatures. This is an EFI design limitation.
+~~One major issue is, that an EFI executable, such as shim, cannot have two signatures. This is an EFI design limitation.~~ [Probably outdated.]
 
 Options for key management:
 
@@ -949,7 +949,6 @@ While all of the above mechanisms should provide very good security for the host
 * No BMC or similar firmware-level remote access mechanism should be made available. It would be pretty much useless anyway due to the possibility of MITM attacks (unless the user embedded an access key for that into the firmware too, which they could theoretically do), and it introduces more attack surface.
 * Should remote firmware updates be possible? It should be possible to implement this in a secure fashion, and it might be necessary for good security to avoid firmware-level vulnerabilities becoming a problem.
 
-=== Newer ===
 ==== AMD64 Based ====
 It's not crucial to figure out how Linux distributions can implement verified boot higher up in the boot phase (initramfs and higher).
 This is somewhat unrelated to the firmware.
@@ -1160,6 +1159,95 @@ Other concerns to take into account:
 * The bootloader should err on the side of not bricking the machine by default, but also allow the user to enable machine bricking in the event of a security violation. The main instance where a system bricking itself would be valuable is if the OS trust database is deleted - this would wipe any passwords that could be used to authenticate changing the OS trust keypair. By default, we would probably want this to mean that the user could now freely change the OS trust configuration of the system, but some users will probably want this to brick the machine instead, preventing untrusted operating systems from being booted. They can later unbrick the machine by providing a backup of the trust database (if they have it, of course). This setting (and similar settings) should probably be configured in yet another TPM PCR.
 * Should the firmware be able to be put into a "developer mode" whereby it will boot an unsigned or otherwise untrusted bootloader?
 * Anti-theft configuration should probably be stored in the OS trust database; for it to be effective, the system should be set to be unusable in the event of a missing or corrupt trust database.
+
+=== Newer ===
+==== user-controlled verified boot UEFI Application ====
+* UEFI compatibility: yes
+* compatible with non-compliant ("legacy") operating systems: yes (such as Debian 12, Microsoft Windows, as usual)
+* Generic concept: yes
+* Architecture specific implementation: Yes, initially <code>amd64</code> only.
+* Architecture support: Initially <code>amd64</code> only. In principle, can be ported to other architectures by third parties.
+* Must be a motherboard deemed commercially profitable by the OEM: yes.
+* Must be a feature that the firmware developer considers potentially commercially beneficial (as in customers would buy motherboards with such freedom-preserving firmware): yes
+* alternative bootloader (such as shim) in alternative location: yes
+** <code>/EFI_ALT/BOOT/BOOTX64.EFI</code> (TBD)
+* Secure boot public key by Linux distribution or customer in a well-known location: yes
+* Secure boot public key database well-known location:
+** <code>/EFI_ALT/BOOT/key.1.key</code> (TBD)
+** <code>/EFI_ALT/BOOT/key.2.key</code> (TBD)
+** <code>/EFI_ALT/keydb/keys.db</code> (TBD)
+** <code>/EFI_ALT/debian/shimx64.efi</code> (TBD)
+** <code>/EFI_ALT/debian/shimx64.1.key</code> (TBD)
+** <code>/EFI_ALT/debian/shimx64.2.key</code> (TBD)
+** <code>/EFI_ALT/debian/key.1.key</code> (TBD)
+** <code>/EFI_ALT/debian/key.2.key</code> (TBD)
+** <code>/EFI_ALT/KEYDB/BOOTX64.1.KEY</code> (TBD)
+** <code>/EFI_ALT/KEYDB/BOOTX64.2.KEY</code>(TBD)
+* Support for binaries signed by multiple keys: Yes. (UEFI already supports that.) (This is important to allow the distribution or customer to cycle/replace the key in later upgrades or for planned signing key changes.)
+* Public key TOFU (trust on first use): yes, if confirmed in the firmware.
+* Show key fingerprint: yes - "key fingerprint [key fingerprint]" [info symbol] "What is this? Brief explanation that the user can check with the vendor of this operating system if they wish to trust that key."
+* Kicksecure specific: no
+* Kicksecure branding: no
+* Vendor neutral: yes, any operating system that wishes to be compatible with the "EFI_ALT" standard/convention is welcome to.
+* Boot compatibility with mainstream operating systems such as Microsoft Windows: Yes, the user-controlled verified boot feature should not restrict the user's freedom to boot any operating system, if they so confirm in their firmware. (This is useful to avoid "Linux-only motherboard" and to keep resale value higher.)
+* AMD OpenSIL: optional, yes. Not a strong requirement for the first iteration. Might be developed later.
+* Microsoft Secure Boot default signing key:
+** included in the firmware by default: yes, required for the purpose of allowing the user to boot Microsoft Windows
+** trusted in the firmware by default: no, express permission by the user is needed. (Because this key could lead to Secure Booting a Linux malware distribution. This would be unwanted by users who wish to use full verified boot with their chosen key.)
+* What this is:
+** A mechanism for users to much more easily choose which keys they trust.
+* Technical high-level overview:
+** Power on -> find list of candidate bootloaders (or let user choose bootloader to load via boot menu, as usual)
+** Loop through the list trying to verify and boot each one
+** Verify bootloader signature against in-firmware trusted Secure Boot database
+** If verification passes, continue boot
+** If verification fails, load firmware-internal database of well-known keys that the user may or may not trust
+** Check boot medium for public key database in a well-known location; if it exists, load keys from it and add any new keys not already present in firmware to the list of possibly usable keys (but do not trust any key ever without user confirmation)
+** Check to see if any of the keys can verify the image
+*** A) <u>If no,</u> boot fails, continue to the next bootloader in the list
+*** B) <u>If yes,</u> prompt user if they want to trust the key
+**** Display the path to the bootloader image that the firmware is currently verifying
+**** Display whether the key was found in the firmware-internal database or in a database provided by the boot medium
+**** Display key fingerprint so the user can verify it themselves if they so desire
+**** If the user chooses not to trust the key, boot fails, continue to the next bootloader in the list
+**** If the user chooses to trust the key, key is enrolled into trusted Secure Boot database and boot continues
+* Technical high-level examples:
+** Power on -> firmware detects Microsoft Windows (bootloader) is installed -> show the key to the user -> user confirms or denies the key -> continue boot (if confirmed, otherwise go back to firmware menu or something)
+** Power on -> firmware detects a "standard" Linux distribution such as Debian without a key in the well-known location -> show default Microsoft signing key for shim to the user -> user confirms or denies the key -> continue boot (if confirmed, otherwise go back to firmware menu or something)
+** Power on -> firmware detects an "augmented" Linux distribution such as Kicksecure with a key database in the well-known location -> show key from key database to the user -> user confirms or denies the key -> continue boot (if confirmed, otherwise go back to firmware menu or something)
+** User disables Secure Boot -> as usual
+* Additional notes:
+** To handle the situation where multiple shims are installed, the firmware may need the ability to find multiple candidate bootloaders in the removable media path (or any bootloader path)
+
+= Keys =
+{{CodeSelect|code=
+sbverify --list /usr/lib/shim/shimx64.efi.signed
+}}
+
+<pre>
+warning: data remaining[833960 vs 960080]: gaps between PE/COFF sections?
+signature 1
+image signature issuers:
+ - /C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation UEFI CA 2011
+image signature certificates:
+ - subject: /C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Windows UEFI Driver Publisher
+   issuer:  /C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation UEFI CA 2011
+ - subject: /C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation UEFI CA 2011
+   issuer:  /C=US/ST=Washington/L=Redmond/O=Microsoft Corporation/CN=Microsoft Corporation Third Party Marketplace Root
+</pre>
+
+{{CodeSelect|code=
+sbverify --list /usr/lib/grub/x86_64-efi-signed/grubx64.efi.signed
+}}
+
+<pre>
+signature 1
+image signature issuers:
+ - /CN=Debian Secure Boot CA
+image signature certificates:
+ - subject: /CN=Debian Secure Boot Signer 2022 - grub2
+   issuer:  /CN=Debian Secure Boot CA
+</pre>
 
 = Attribution =
 {{sdebian
