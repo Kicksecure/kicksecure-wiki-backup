@@ -610,7 +610,7 @@ Some [https://libre.computer/ Libre Computer] boards support UEFI BIOS. In the [
 
 Instead of ARM64, Intel/AMD64 (sometimes referred to as x86) Mini-PCs might be a viable alternative, as these nowadays come with UEFI support by default, thus avoiding bootloader issues.
 
-Bootloader issues aside, whether Intel/AMD64 or ARM64, Linux/Debian support must always be verified before purchase.
+Bootloader issues aside, whether the architecture is Intel/AMD64 or ARM64, if Linux and/or Debian is supported (can run on that hardware) must always be verified before purchase.
 
 == Raspberry Pi - RPi ==
 === Bootloader Information - RPi ===
@@ -663,9 +663,14 @@ All actions include a confirmation prompt before being executed.
 }}
 
 ==== u-boot on RPi ====
-* u-boot is not a strict requirement to boot RPi. It is possible to boot RPi without u-boot.
-* It might be preferable to hide u-boot from the user to avoid the need for manual configuration, due to relatively low familiarity compared to GRUB.
-* u-boot is likely required to enable (chainload) GRUB.
+* <code>u-boot</code> is <u>not</u> a strict requirement to boot RPi.
+** It is possible to boot RPi <u>without</u> <code>u-boot</code>.
+** RPi can directly boot the Linux kernel (or other compatible operating systems, if any) using its factory default RPi Bootloader, as mentioned above.
+* It might be preferable to hide <code>u-boot</code> from the user to avoid the need for manual configuration, due to relatively low familiarity compared to GRUB.
+* <code>u-boot</code> is very likely required to enable (chainload) [[GRUB]].
+** No version of GRUB that can be chainloaded directly by the factory default RPi Bootloader seems to exist.
+** No documentation on how to chainload GRUB using the RPi Bootloader could be found by the author of this wiki page.
+** See also [[#grub-uboot on RPi]].
 * Miscellaneous on memory addresses:
 ** https://people.kernel.org/linusw/how-the-arm32-linux-kernel-decompresses
 * PDF: [https://www.bsdforen.de/attachments/uefi-on-top-of-u-boot-pdf.4528/ UEFI on Top of U-Boot - Standardizing Boot Flow For ARM Boards]
@@ -677,8 +682,8 @@ All actions include a confirmation prompt before being executed.
 <pre>
 Installation
 
-The raspberry pi targets can be installed by copying u-boot.bin to the
-FAT partition of the raspberry pi boot firmware:
+The Raspberry Pi targets can be installed by copying u-boot.bin to the
+FAT partition of the Raspberry Pi boot firmware:
 
   mkdir -p /boot/fat
   mount /dev/mmcblk0p1 /boot/fat
@@ -695,7 +700,7 @@ console or HDMI with USB keyboard.
 |context=Debian Salsa: [https://salsa.debian.org/debian/u-boot/-/blob/debian/latest/debian/u-boot-rpi.README.Debian?ref_type=heads u-boot-rpi.README.Debian]
 }}
 
-* [https://docs.u-boot.org/en/stable/develop/uefi/uefi.html u-boot has UEFI-alike functionality] that can be used to chainload grub-efi
+* [https://docs.u-boot.org/en/stable/develop/uefi/uefi.html u-boot has UEFI-alike functionality] that can be used to chainload <code>grub-efi</code>. 
 ** Is this enabled by default in Debian? Yes.
 
 <pre>
@@ -704,11 +709,15 @@ CONFIG_EFI_LOADER=y
 
 ==== GRUB ====
 ===== Rationale for using GRUB on RPi =====
-* Using GRUB may be desirable because standard Debian kernel upgrades will work out-of-the-box.
+* Using GRUB may be desirable because standard Debian kernel upgrades will work out of the box.
 * A familiar boot menu, kernel parameter editing, and configuration interface can be used.
+* Kernel parameters in the folder <code>/etc/default/grub.d</code> would be supported.
+** Kernel parameters set by [[security-misc]] and [[Dev/user-sysmaint-split]] would likely work out of the box.
+* GRUB boot menu entries in the folder <code>/etc/grub.d</code> would be supported.
+** [[grub-live]] and [[Dev/user-sysmaint-split]] would likely work out of the box.
 
 ===== grub-uboot on RPi =====
-[https://packages.debian.org/grub-uboot grub-uboot] is available only for the architectures <code>armel</code> and <code>armhf</code>. Therefore, it may not be usable on RPi 4 and RPi 5, which are <code>arm64</code>. These boards also support 32-bit ARM code, however this does not guarantee grub-uboot would work on them.
+[https://packages.debian.org/grub-uboot grub-uboot] is available only for the architectures <code>armel</code> and <code>armhf</code>. Therefore, it may not be usable on RPi 4 and RPi 5, which are <code>arm64</code>. These boards also support 32-bit ARM code, however this does not guarantee <code>grub-uboot</code> would work on them.
 
 There are few public discussions on using <code>grub-uboot</code>. Related: [https://forum.odroid.com/viewtopic.php?t=26894 ODROID forum: HOWTO - Using GRUB as bootloader (second stage after U-Boot)]
 
@@ -745,7 +754,13 @@ While RPi upstream does not support UEFI, RPi does support non-UEFI Secure Boot 
 ** https://github.com/pftf/RPi4/pull/274
 ** This implies it may be broken by upstream changes.
 
-=== Debian Support - Raspberry Pi 5 ===
+=== Debian Support ===
+==== Debian RPi Feature Requests ====
+===== Debian RPi - use GRUB by default or as option =====
+* RPi: [https://salsa.debian.org/raspi-team/image-specs/-/issues/78 Support U-Boot + grub-efi boot flow]
+* raspi-firmware: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607 Add support for U-Boot + grub-arm64-efi boot flow]
+
+==== Debian Support - Raspberry Pi 5 ====
 Regarding "real", original Debian (from debian.org) support for RPi 5:
 
 {{quotation
@@ -760,17 +775,17 @@ https://salsa.debian.org/raspi-team/image-specs/-/issues/74
 === Booting Debian Trixie with GRUB + u-boot on Raspberry Pi 4 ===
 This is preliminary work towards implementing the boot process design laid out below.
 
+<u>Note:</u> This is informational for developers only. Should RPi support for downloadable Kicksecure images or support for building from source code become available, users are not expected to read or apply any of the following.
+
 The process, briefly, looks like this:
 
-* Flash a Debian Trixie RPi image to an SD card, and boot it.
-* Install all upgrades.
-* Install <code>u-boot-rpi</code> and <code>grub-efi-arm64</code>.
-* Install the GRUB bootloader to <code>/boot/firmware</code>.
-* Reconfigure the RPi bootloader to load <code>u-boot</code> rather than a Linux kernel.
-* Reboot the Pi.
-* Drop to a <code>u-boot</code> shell during startup.
-* Load and execute the GRUB EFI binary.
-* Use GRUB to boot like normal.
+# Flash a Debian Trixie RPi image to an SD card, and boot it.
+# Install all upgrades.
+# Install <code>u-boot-rpi</code> and <code>grub-efi-arm64</code>.
+# Install the GRUB bootloader to <code>/boot/firmware</code>.
+# Reconfigure the RPi bootloader to load <code>u-boot</code> rather than a Linux kernel.
+# Reboot the Pi.
+# Use GRUB to boot like normal.
 
 Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image. Further work will be needed to automate the boot process so that manually loading GRUB via <code>u-boot</code> is no longer necessary.
 
@@ -778,55 +793,98 @@ Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image. Fu
 
 Semi-official Debian images for the Raspberry Pi can be downloaded from https://raspi.debian.net/daily-images/. Use the Debian Trixie image.
 
+'''1.''' Download the image.
+
 {{CodeSelect|code=
 wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz
 }}
+
+'''2.''' Download the hashsum.
 
 {{CodeSelect|code=
 wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz.sha256
 }}
 
+'''3.''' Verify the hashsum.
+
 {{CodeSelect|code=
 sha256sum -c raspi_4_trixie.img.xz.sha256
 }}
 
-Assuming the image passes verification, flash it to an SD card. Assuming the card is at <code>/dev/mmcblk0</code>:
+Assuming the image passes verification, proceed. Otherwise, abort.
+
+'''4.''' Read the output.
+
+If the verification is successful, flash the image to an SD card.
+
+<code>Note:</code> Assuming the card is at <code>/dev/mmcblk0</code>:
 
 {{CodeSelect|code=
 xzcat raspi_4_trixie.img.xz {{!}} sudo dd of=/dev/mmcblk0 bs=4M
 }}
 
+'''5.''' Flush write cache buffers.
+
 {{CodeSelect|code=
 sync
 }}
 
-When complete, eject the card and insert it into the Raspberry Pi.
+'''6.''' Eject the SD card.
+
+When complete, eject the card.
+
+'''7.''' Install the SD card.
+
+Insert the SD card into the Raspberry Pi.
 
 ==== Preparing the image ====
 
-Ensure the Pi is '''NOT''' connected to power yet. Connect the Pi to an HDMI monitor. Attach a USB keyboard '''to the bottom USB 2.0 port''', and connect the Pi to a network source via Ethernet. (Note: It is very important that you plug the keyboard into the correct port. Linux will be able to see the keyboard no matter which USB port you plug it into, but u-boot will not recognize it unless it is plugged into the bottom USB 2.0 port. The top USB 2.0 port will not work.) Once all of the peripherals have been attached, plug the power adapter into the Pi. It will automatically start booting.
+'''1.''' Ensure the Pi is '''NOT''' connected to power yet.
 
-Eventually you will be given a login prompt. Log in as user <code>root</code>, no password is required.
+'''2.''' Connect the Pi to an HDMI monitor.
 
-The clock on the Pi will almost certainly be horribly out of date due to the fact that the board lacks a real-time clock. Thankfully, systemd-timesyncd is preinstalled, so it should synchronize itself automatically after some time. Run <code>watch date</code> and wait until the clock appears set properly. Once the date and time are correct, press Ctrl+C.
+'''3.''' Attach a USB keyboard '''to the bottom USB 2.0 port'''.
 
-Install all updates:
+<u>Note:</u> It is very important that you plug the keyboard into the correct port. Linux will be able to see the keyboard no matter which USB port you plug it into, but <u>u-boot</u> will not recognize it unless it is plugged into the bottom USB 2.0 port. The top USB 2.0 port will not work.
+
+'''4.''' Connect the Pi to a network source via Ethernet.
+
+'''5.''' Once all peripherals are connected, plug the power adapter into the Pi. It will automatically start booting.
+
+'''6.''' When presented with a login prompt, log in as user <code>root</code>. No password is required.
+
+'''7.''' Check and wait for system clock synchronization.  
+The Pi’s clock will likely be inaccurate because the board lacks a real-time clock. systemd-timesyncd is preinstalled and should synchronize the clock automatically. Run the following and wait until the time is correct:
+
+{{CodeSelect|code=
+watch date
+}}
+
+Once the date and time are correct, press Ctrl+C.
+
+'''8.''' Install all updates:
 
 {{CodeSelect|code=
 apt update && apt -y full-upgrade
 }}
 
-Reboot the Pi after updates are installed. Once it boots back up, install u-boot and GRUB:
+'''9.''' Reboot the Pi.
+
+'''10.''' After reboot, install <code>u-boot</code> and <code>GRUB</code>:
 
 {{CodeSelect|code=
 apt install u-boot-rpi grub-efi-arm64
 }}
 
-We are intentionally installing the EFI GRUB bootloader. u-boot has native EFI support built in, and will be able to directly execute this bootloader. Do NOT use <code>grub-uboot</code>, it has multiple shortcomings.
+We are intentionally installing the EFI GRUB bootloader. u-boot has native EFI support built in, and will be able to directly execute this bootloader. Do NOT use <code>grub-uboot</code>; it has multiple shortcomings.
 
 ==== Configure the image ====
 
-Reconfigure the boot firmware partition to be an EFI system partition. This is necessary for u-boot to persist UEFI variables. You '''can''' skip this step if you do not want persistent UEFI variables. However, this will probably cause problems if you ever configure a multiboot setup. (Note: Fedora's u-boot has a patch that likely makes this step unnecessary; Debian's u-boot does not.)
+'''1.''' Reconfigure the boot firmware partition to be an EFI system partition.
+
+This is necessary for u-boot to persist UEFI variables. You '''can''' skip this step if you do not want persistent UEFI variables. However, this will probably cause problems if you ever configure a multiboot setup.
+
+<code>Note:</code> Fedora's u-boot has a patch that likely makes this step unnecessary; Debian's u-boot does not.
 
 {{CodeSelect|code=
 fdisk /dev/mmcblk1
@@ -843,45 +901,59 @@ ef
 w
 }}
 
-Configure <code>fstab</code> so that the boot firmware partition is mounted under both <code>/boot/firmware</code> and <code>/boot/efi</code>. This is necessary because the boot firmware partition and ESP partition are the same partition in this setup. <code>raspi-firmware</code> expects the partition to be mounted at <code>/boot/firmware</code> (hardcoded), while <code>grub-install</code> expects it under <code>/boot/efi</code> (also appears to be hardcoded).
+'''2.''' Configure <code>fstab</code> so that the boot firmware partition is mounted under both <code>/boot/firmware</code> and <code>/boot/efi</code>.
+
+This is necessary because the boot firmware partition and ESP partition are the same partition in this setup. <code>raspi-firmware</code> expects the partition to be mounted at <code>/boot/firmware</code> (hardcoded), while <code>grub-install</code> expects it under <code>/boot/efi</code> (also appears to be hardcoded).
 
 {{CodeSelect|code=
 nano /etc/fstab
-# Append the following line to the end of the file
+}}
+
+Append the following line to the end of the file:
+
+{{CodeSelect|code=
 LABEL=RASPIFIRM /boot/efi vfat rw 0 2
 }}
 
-Install GRUB:
+'''3.''' Install GRUB.
 
 {{CodeSelect|code=
 mount /boot/efi
+}}
+
+{{CodeSelect|code=
 grub-install --force-extra-removable
+}}
+
+{{CodeSelect|code=
 update-grub
 }}
 
-Note that GRUB may complain about EFI variables not being supported and may tell you that you have to finish configuring GRUB manually. Ignore any such warnings. u-boot does not allow the booted operating system to modify its EFI variables, so this is expected.
+<u>Note:</u> GRUB may complain about EFI variables not being supported and may tell you that you have to finish configuring GRUB manually. Ignore any such warnings. u-boot does not allow the booted operating system to modify its EFI variables, so this is expected.
 
-Copy the u-boot binary to the RPi boot firmware partition:
+'''4.''' Copy the u-boot binary to the RPi boot firmware partition.
 
 {{CodeSelect|code=
-cd /boot/firmware
+cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot-arm64.bin
+}}
+
+'''5.''' Back up the <code>cmdline.txt</code> and <code>config.txt</code> files.
+
+{{CodeSelect|code=
+cp /boot/firmware/cmdline.txt /boot/firmware/cmdline.txt.bak
 }}
 
 {{CodeSelect|code=
-cp /usr/lib/u-boot/rpi_arm64/u-boot.bin ./u-boot-arm64.bin
+cp /boot/firmware/config.txt /boot/firmware/config.txt.bak
 }}
 
-Back up the <code>cmdline.txt</code> and <code>config.txt</code> files. You'll need the original versions to recover if something goes wrong:
+'''6.''' Edit <code>config.txt</code>.
 
 {{CodeSelect|code=
-cp cmdline.txt cmdline.txt.bak
+sudo nano /boot/firmware/config.txt
 }}
 
-{{CodeSelect|code=
-cp config.txt config.txt.bak
-}}
-
-Edit <code>config.txt</code> and set the following options (mostly taken from Fedora's RPi4 configuration):
+Set the following options (mostly taken from Fedora's RPi4 configuration):
 
 <pre>
 arm_64bit=1
@@ -900,21 +972,45 @@ hdmi_ignore_cec_init=1
 dtoverlay=cma,cma-256
 </pre>
 
-(Note: It is not yet known which exact options are required for proper operation. A more minimal working config is likely possible. However, all of these options might be desirable.)
+<u>Note:</u> It is not yet known which exact options are required for proper operation. A more minimal working config is likely possible. However, all of these options might be desirable.
 
-Edit <code>cmdline.txt</code>, delete all content from the file, and then save it. (It may be safe to remove this file entirely, but this is not yet confirmed.)
+'''7.''' Edit <code>cmdline.txt</code>.
 
-Finally, reboot the system. You should see a u-boot screen, after which u-boot should automatically discover and load GRUB. You can then boot Debian as usual from the GRUB menu.
+{{CodeSelect|code=
+sudo nano /boot/firmware/cmdline.txt
+}}
+
+Delete all content from the file, and then save it. (It may be safe to remove this file entirely, but this is not yet confirmed.)
+
+'''8.''' Finally, reboot the system.
+
+You should see a u-boot screen, after which u-boot should automatically discover and load GRUB. You can then boot Debian as usual from the GRUB menu.
 
 ==== Load GRUB with u-boot manually ====
 
-(NOTE: This should no longer be necessary with the above instructions. u-boot should automatically discover and start GRUB. This section is retained since it has a lot of valuable info about u-boot and may be useful for debugging.)
+<u>Note:</u> This should no longer be necessary with the above instructions. u-boot should automatically discover and start GRUB. This section is retained since it has a lot of valuable info about u-boot and may be useful for debugging.
 
-You should see a u-boot logo on the screen during startup. Start pressing the Esc key repeatedly when this happens, until you see a <code>U-Boot></code> prompt. (If this doesn't happen, you probably have your keyboard plugged into the wrong USB port, or u-boot failed to recognize the keyboard. Ensure your keyboard is plugged into the bottom USB 2.0 port, and try a different keyboard if necessary. A wired USB keyboard is known to work.)
+'''1.''' Watch for the u-boot logo on screen during startup.
 
-Run <code>ls mmc 1 /</code> to verify that u-boot is able to access the SD card. If this command fails, try <code>ls mmc 0 /</code> instead. You should see the contents of the boot partition when this works.
+Start pressing the Esc key repeatedly when the logo appears, until you see a <code>U-Boot></code> prompt.
 
-Load the GRUB binary from the EFI directory, and boot it.
+<u>Note:</u> If this does not happen, your keyboard might be connected to the wrong USB port, or u-boot failed to recognize it. Ensure the keyboard is plugged into the bottom USB 2.0 port. Try a different keyboard if necessary; a wired USB keyboard is known to work.
+
+'''2.''' Verify that u-boot can access the SD card:
+
+{{CodeSelect|code=
+ls mmc 1 /
+}}
+
+If this command fails, try:
+
+{{CodeSelect|code=
+ls mmc 0 /
+}}
+
+You should see the contents of the boot partition if it works.
+
+'''3.''' Load the GRUB binary from the EFI directory and boot it:
 
 {{CodeSelect|code=
 fatload mmc 1 ${kernel_addr_r} /EFI/debian/grubaa64.efi

@@ -13,6 +13,143 @@ TODO
 == verified boot chat ==
 * todo
 
+== FYI - CodeSelect versus pipes ==
+* note: (you might already know this.) CodeSelect cannot use pipes ("<code>|</code>"). These need to be excaped as <code><nowiki>{{!}}</nowiki></code>.
+
+<pre>
+{{CodeSelect|code=
+xzcat raspi_4_trixie.img.xz {{!}} sudo dd of=/dev/mmcblk0 bs=4M
+}}
+</pre>
+
+* This gets rendered as expected as:
+
+{{CodeSelect|code=
+xzcat raspi_4_trixie.img.xz {{!}} sudo dd of=/dev/mmcblk0 bs=4M
+}}
+
+* Just mentioning this to avoid a copy/paste issue (if copying from wiki source code) in the over next task.
+* This task can be moved to archived.
+
+== Dev/boot wiki page - review ==
+* Patrick made stylistic changes but commands remain all the same. Please review [[Dev/boot]].
+* This is in preparation for the next task.
+* Is command <code>grub-install --force-extra-removable</code> correct? (Unchanged.) It looks a bit short.
+
+== RPi GRUB - Post TLDR Instructions on Debian RPi Salsa Feature Request ==
+* rationale, potential issues (speculation): people not wanting to visit external websites / Kicksecure wiki / TLDR / not enough time to read lengthy instructions, planning to look later, then forgetting, stunned by complexity, ...
+* todo: Please review, improve the TLDR version of [[Dev/boot#Booting_Debian_Trixie_with_GRUB_.2B_u-boot_on_Raspberry_Pi_4|Booting Debian Trixie with GRUB + u-boot on Raspberry Pi 4]]
+* can be posted on https://salsa.debian.org/raspi-team/image-specs/-/issues/78, if appropriate
+* draft:
+
+<pre>
+Here is a TLDR summary.
+
+**1.** Use a Debian trixie RPi image.
+
+**2.** Attach a USB keyboard to the bottom USB 2.0 port.
+
+**3.** Standard upgrade.
+
+```
+apt update && apt -y full-upgrade
+```
+
+**4.** Dependency installation.
+
+```
+apt install u-boot-rpi grub-efi-arm64
+```
+
+**5.** Disk partitioning.
+
+```
+fdisk /dev/mmcblk1
+```
+
+```
+# Command (m for help):
+t
+# Partition number (1,2, default 2):
+1
+# Hex code or alias (type L to list all):
+ef
+# Command (m for help):
+w
+```
+
+**6.** Fstab configuration.
+
+```
+echo "LABEL=RASPIFIRM /boot/efi vfat rw 0 2" >> /etc/fstab
+```
+
+**7.** Install GRUB.
+
+```
+mount /boot/efi
+```
+
+```
+grub-install --force-extra-removable
+```
+
+```
+update-grub
+```
+
+**8.** Copy the u-boot binary to the RPi boot firmware partition.
+
+```
+cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot-arm64.bin
+```
+
+**9.** Back up the `cmdline.txt` and `config.txt` files.
+
+```
+cp /boot/firmware/cmdline.txt /boot/firmware/cmdline.txt.bak
+```
+
+```
+cp /boot/firmware/config.txt /boot/firmware/config.txt.bak
+```
+
+**10.** Edit `config.txt`.
+
+```
+sudo nano /boot/firmware/config.txt
+```
+
+Set the following options (mostly taken from Fedora's RPi4 configuration):
+
+```
+arm_64bit=1
+kernel=u-boot-arm64.bin
+arm_boost=1
+enable_uart=1
+dtparam=audio=on
+camera_auto_detect=0
+display_auto_detect=1
+dtoverlay=vc4-kms-v3d
+max_framebuffers=2
+disable_fw_kms_setup=1
+hdmi_ignore_cec_init=1
+
+[pi4]
+dtoverlay=cma,cma-256
+```
+
+**11.** Clear `cmdline.txt`.
+
+```
+echo "" > /boot/firmware/cmdline.txt
+```
+
+**12.** Reboot.
+
+**13.** Done.
+</pre>
+
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
 * Likely going to end up implementing [https://github.com/QubesOS/qubes-issues/issues/2695 Automate vm sudo authorization setup]
@@ -422,8 +559,8 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 * [4] https://github.com/grml/grml-debootstrap/pull/335
 </pre>
 
-* Aaron: Filed issue upstream using template: https://salsa.debian.org/raspi-team/image-specs/-/issues/78
-** Also filed a bug report against raspi-firmware: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607
+* Aaron: Filed issue upstream using template: [https://salsa.debian.org/raspi-team/image-specs/-/issues/78 Support U-Boot + grub-efi boot flow]
+** Also filed a bug report against raspi-firmware: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607 Add support for U-Boot + grub-arm64-efi boot flow]
 
 == RPi grml-debootstrap ==
 * https://github.com/grml/grml-debootstrap/issues/114
@@ -621,10 +758,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== stcatv - review ==
-* please review https://github.com/Kicksecure/helper-scripts/pull/19
-* Reviewed, single minor change suggested, otherwise looks (and in my testing works) great.
-
 == pstore disabling - please comment ==
 * https://github.com/Kicksecure/security-misc/pull/304
 * Looks like a good change to me, reviewed and requested a README change.
@@ -633,6 +766,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == Debian feature request - Debian's shim signed by Debian's key ==
 * Debian's shim signed by Debian's key on top of Microsoft's key
 * Sent feature request against shim.
+* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102680 Offer a shim-signed variant signed by Debian's Secure Boot key]
 
 == sysmaint-panel - support change full disk encryption fde password ==
 * cases to consider: disk not encrypted
@@ -709,6 +843,10 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== stcatv - review ==
+* please review https://github.com/Kicksecure/helper-scripts/pull/19
+* Reviewed, single minor change suggested, otherwise looks (and in my testing works) great.
+
 == user-controlled verified boot UEFI Application review ==
 * please review, improve: https://www.kicksecure.com/wiki/Verified_Boot#user-controlled_verified_boot_UEFI_Application
 * Reviewed, added some changes, Patrick added some more changes and then submitted to 3mdeb.
