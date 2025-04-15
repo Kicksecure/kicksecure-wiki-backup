@@ -787,7 +787,7 @@ The process, briefly, looks like this:
 # Reboot the Pi.
 # Use GRUB to boot like normal.
 
-Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image. Further work will be needed to automate the boot process so that manually loading GRUB via <code>u-boot</code> is no longer necessary.
+Much of the above was reverse-engineered from Fedora 41's Raspberry Pi image.
 
 ==== Obtaining and flashing the image ====
 
@@ -811,11 +811,9 @@ wget https://raspi.debian.net/daily/raspi_4_trixie.img.xz.sha256
 sha256sum -c raspi_4_trixie.img.xz.sha256
 }}
 
-Assuming the image passes verification, proceed. Otherwise, abort.
+Read the output and ensure the image passes verification. If verification passes, proceed. Otherwise, abort.
 
-'''4.''' Read the output.
-
-If the verification is successful, flash the image to an SD card.
+'''4.''' Flash the image to an SD card.
 
 <code>Note:</code> Assuming the card is at <code>/dev/mmcblk0</code>:
 
@@ -918,6 +916,10 @@ LABEL=RASPIFIRM /boot/efi vfat rw 0 2
 '''3.''' Install GRUB.
 
 {{CodeSelect|code=
+mkdir /boot/efi
+}}
+
+{{CodeSelect|code=
 mount /boot/efi
 }}
 
@@ -929,7 +931,7 @@ grub-install --force-extra-removable
 update-grub
 }}
 
-<u>Note:</u> GRUB may complain about EFI variables not being supported and may tell you that you have to finish configuring GRUB manually. Ignore any such warnings. u-boot does not allow the booted operating system to modify its EFI variables, so this is expected.
+<u>Note:</u> GRUB may complain about EFI variables not being supported and may tell you that you have to finish configuring GRUB manually. Ignore any such warnings. Before booting with u-boot, the system will not have EFI variables, so this is expected. Even after booting with u-boot, the system will not allow the booted operating system to modify its EFI variables, so this behavior will continue and is not a problem.
 
 '''4.''' Copy the u-boot binary to the RPi boot firmware partition.
 
@@ -950,7 +952,7 @@ cp /boot/firmware/config.txt /boot/firmware/config.txt.bak
 '''6.''' Edit <code>config.txt</code>.
 
 {{CodeSelect|code=
-sudo nano /boot/firmware/config.txt
+nano /boot/firmware/config.txt
 }}
 
 Set the following options (mostly taken from Fedora's RPi4 configuration):
@@ -977,12 +979,12 @@ dtoverlay=cma,cma-256
 '''7.''' Edit <code>cmdline.txt</code>.
 
 {{CodeSelect|code=
-sudo nano /boot/firmware/cmdline.txt
+nano /boot/firmware/cmdline.txt
 }}
 
 Delete all content from the file, and then save it. (It may be safe to remove this file entirely, but this is not yet confirmed.)
 
-'''8.''' Finally, reboot the system.
+'''8.''' Reboot the system.
 
 You should see a u-boot screen, after which u-boot should automatically discover and load GRUB. You can then boot Debian as usual from the GRUB menu.
 
@@ -1035,6 +1037,7 @@ After running the <code>bootefi</code> command, u-boot will appear to hang for s
 
 ==== Notes ====
 
+* '''USB boot is not fully functional with this setup.''' U-Boot will load properly, but it will fail to load GRUB with <code>** Reading file would overwrite reserved memory **</code>. You can manually load and boot GRUB from the U-Boot command line, at which point you can boot Debian like normal.
 * The <code>raspi-firmware</code> package ships config at <code>/etc/kernel/postinst.d/z50-raspi-firmware</code>, which does roughly the following:
 ** Finds and copies device tree files to <code>/boot/firmware</code> (necessary for the OS to function properly)
 ** Copies kernel and initramfs files from the <code>/boot</code> partition to <code>/boot/firmware</code> (unnecessary for our use case, takes up needless space in <code>/boot/firmware</code>)
