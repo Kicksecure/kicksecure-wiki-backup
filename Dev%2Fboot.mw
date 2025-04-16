@@ -12,6 +12,9 @@ Boot Process Related Development Notes
 }}
 = shim =
 * Debian shim feature request: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102680 Offer a shim-signed variant signed by Debian's Secure Boot key]
+* While it may be technically possible for an EFI binary such as Debian's [https://packages.debian.org/{{Stable project version based on Debian codename}}/shim-signed <code>shim-signed</code>] package to be signed by two public keys (Microsoft's key and Debian's key), this is unlikely to be implemented in Debian because it might break certain broken UEFI implementations, possibly on some motherboards.
+** In theory, it might be discovered that this issue does not occur in practice, which could be confirmed by researching a large number of UEFI implementations. However, it seems highly unlikely that such expensive research will be undertaken by any party.
+* See also [[Verified Boot]] chapter [[Verified_Boot#Keys|Keys]].
 
 = GRUB =
 == grub-install command responsibility ==
@@ -782,7 +785,8 @@ The process, briefly, looks like this:
 # Flash a Debian Trixie RPi image to an SD card, and boot it.
 # Install all upgrades.
 # Install <code>u-boot-rpi</code> and <code>grub-efi-arm64</code>.
-# Install the GRUB bootloader to <code>/boot/firmware</code>.
+# Edit fstab and make it so that <code>/boot/firmware</code> is also mounted at <code>/boot/efi</code>.
+# Mount <code>/boot/efi</code> and install the GRUB bootloader.
 # Reconfigure the RPi bootloader to load <code>u-boot</code> rather than a Linux kernel.
 # Reboot the Pi.
 # Use GRUB to boot like normal.
@@ -1037,7 +1041,6 @@ After running the <code>bootefi</code> command, u-boot will appear to hang for s
 
 ==== Notes ====
 
-* '''USB boot is not fully functional with this setup.''' U-Boot will load properly, but it will fail to load GRUB with <code>** Reading file would overwrite reserved memory **</code>. You can manually load and boot GRUB from the U-Boot command line, at which point you can boot Debian like normal.
 * The <code>raspi-firmware</code> package ships config at <code>/etc/kernel/postinst.d/z50-raspi-firmware</code>, which does roughly the following:
 ** Finds and copies device tree files to <code>/boot/firmware</code> (necessary for the OS to function properly)
 ** Copies kernel and initramfs files from the <code>/boot</code> partition to <code>/boot/firmware</code> (unnecessary for our use case, takes up needless space in <code>/boot/firmware</code>)
@@ -1059,6 +1062,7 @@ After running the <code>bootefi</code> command, u-boot will appear to hang for s
 * Anything that can modify the boot firmware partition will most likely also be able to modify the EFI variables.
 ** Potential concerns exist in the context of [[Secure Boot]] and [[Verified Boot]], but RPi Secure Boot usage is not planned due to issues documented in chapter [[Verified_Boot#Raspberry_Pi_RPi_Based]].
 * <code>u-boot</code> is not hidden from the user. This is intentional, as it makes debugging and repairs easier without significantly affecting the user experience. It is best to leave it visible to avoid mystifying the boot process. (It might not even be possible to hide it.)
+* '''Under Bookworm, USB boot is not fully functional with this setup.''' U-Boot will load properly, but it will fail to load GRUB with <code>** Reading file would overwrite reserved memory **</code>. You can manually load and boot GRUB from the U-Boot command line, at which point you can boot Debian like normal. Trixie is not affected by this issue. This is probably related to insufficient reserved memory regions with U-Boot 2023.1, see https://stackoverflow.com/questions/75232382/u-boot-fails-with-reading-file-would-overwrite-reserve-memory-on-raspberry-cm4.
 
 === Boot Process Design - RPi ===
 * GRUB should be the "main" bootloader from the user's perspective.

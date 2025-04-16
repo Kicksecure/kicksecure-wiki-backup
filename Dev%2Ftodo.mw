@@ -13,122 +13,46 @@ TODO
 == verified boot chat ==
 * todo
 
-== RPi GRUB - Post TLDR Instructions on Debian RPi Salsa Feature Request ==
-* rationale, potential issues (speculation): people not wanting to visit external websites / Kicksecure wiki / TLDR / not enough time to read lengthy instructions, planning to look later, then forgetting, stunned by complexity, ...
-* todo: Please review, improve the TLDR version of [[Dev/boot#Booting_Debian_Trixie_with_GRUB_.2B_u-boot_on_Raspberry_Pi_4|Booting Debian Trixie with GRUB + u-boot on Raspberry Pi 4]]
-* can be posted on https://salsa.debian.org/raspi-team/image-specs/-/issues/78, if appropriate
-* draft:
-
+== systemd-repart Qubes error ==
 <pre>
-Here is a TLDR summary.
-
-**1.** Use a Debian trixie RPi image.
-
-**2.** Attach a USB keyboard to the bottom USB 2.0 port.
-
-**3.** Standard upgrade.
-
-```
-apt update && apt -y full-upgrade
-```
-
-**4.** Dependency installation.
-
-```
-apt install u-boot-rpi grub-efi-arm64
-```
-
-**5.** Disk partitioning.
-
-```
-fdisk /dev/mmcblk1
-```
-
-```
-# Command (m for help):
-t
-# Partition number (1,2, default 2):
-1
-# Hex code or alias (type L to list all):
-ef
-# Command (m for help):
-w
-```
-
-**6.** Fstab configuration.
-
-```
-echo "LABEL=RASPIFIRM /boot/efi vfat rw 0 2" >> /etc/fstab
-```
-
-**7.** Install GRUB.
-
-```
-mount /boot/efi
-```
-
-```
-grub-install --force-extra-removable
-```
-
-```
-update-grub
-```
-
-**8.** Copy the u-boot binary to the RPi boot firmware partition.
-
-```
-cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot-arm64.bin
-```
-
-**9.** Back up the `cmdline.txt` and `config.txt` files.
-
-```
-cp /boot/firmware/cmdline.txt /boot/firmware/cmdline.txt.bak
-```
-
-```
-cp /boot/firmware/config.txt /boot/firmware/config.txt.bak
-```
-
-**10.** Edit `config.txt`.
-
-```
-sudo nano /boot/firmware/config.txt
-```
-
-Set the following options (mostly taken from Fedora's RPi4 configuration):
-
-```
-arm_64bit=1
-kernel=u-boot-arm64.bin
-arm_boost=1
-enable_uart=1
-dtparam=audio=on
-camera_auto_detect=0
-display_auto_detect=1
-dtoverlay=vc4-kms-v3d
-max_framebuffers=2
-disable_fw_kms_setup=1
-hdmi_ignore_cec_init=1
-
-[pi4]
-dtoverlay=cma,cma-256
-```
-
-**11.** Clear `cmdline.txt`.
-
-```
-echo "" > /boot/firmware/cmdline.txt
-```
-
-**12.** Reboot.
-
-**13.** Done.
+sudo journalctl --boot -u systemd-repart
+Apr 15 22:33:30 host systemd-repart[256]: Can't fit requested partitions into available free space (1004.0K), refusing.
+Apr 15 22:33:30 host systemd-repart[256]: Automatically determined minimal disk image size as 20.0G, current image size is 20.0G.
+Apr 15 22:33:30 host systemd[1]: systemd-repart.service: Main process exited, code=exited, status=1/FAILURE
+Apr 15 22:33:30 host systemd[1]: systemd-repart.service: Failed with result 'exit-code'.
+Apr 15 22:33:30 host systemd[1]: Failed to start systemd-repart.service - Repartition Root Disk.
 </pre>
 
-== RPi GRUB - research USB Boot Support ==
-* todo
+* Possible to avoid disabling systemd-repart entirely inside Qubes? Because Qubes or users might start using it in theory.
+* implement repart enabling similar to /usr/libexec/initializer-dist/chroot-scripts-post.d/75_setup-wizard-dist
+* do not enable in Qubes
+
+== grml-debootstrap - upstream sgdisk typecode changes ==
+* please upstream to grml-debootstrap, if sensible
+
+<pre>
+   ## Change the partition type of the root partition so systemd identifies it
+   ## as a root partition.
+   ##
+   ## The type code used for the root partition differs depending on machine
+   ## architecture. See
+   ## https://www.toomanyatoms.com/computer/gpt_partition_type_guids.html for
+   ## info on what code to use for which architecture.
+   ##
+   ## grml-debootstrap's generated partition layout will also depend on the
+   ## architecture, so we may have to change a different partition depending
+   ## on the CPU type we're building for.
+
+   type_code=""
+   case "$dist_build_target_arch" in
+      amd64)
+         $SUDO_TO_ROOT sgdisk --typecode='3:4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709' "$binary_image_raw_file"
+         ;;
+      arm64)
+         $SUDO_TO_ROOT sgdisk --typecode='2:B921B045-1DF0-41C3-AF44-4C6F280D3FAE' "$binary_image_raw_file"
+         ;;
+   esac
+</pre>
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
@@ -158,6 +82,16 @@ echo "" > /boot/firmware/cmdline.txt
 *** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
 *** Use normal kloak buffering to obfuscate mouse movements and timings
 *** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
+* research reading list:
+** https://www.mimic.sbs/
+** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
+** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
+* test page:
+** http://jcarlosnorte.com/assets/fingerprint/
+*** please document, if useful
+
+== research wlroots layer-shell security ==
+* as discussed
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -738,44 +672,27 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== Dev/boot wiki page - review ==
-* Patrick made stylistic changes but commands remain all the same. Please review [[Dev/boot]].
-** Aaron: Reviewed, made minor changes. Looked very good for the most part.
-* This is in preparation for the next task.
-* Is command <code>grub-install --force-extra-removable</code> correct? (Unchanged.) It looks a bit short.
-** Aaron: This is the right command. GRUB will automatically figure out where to install the bootloader since we're installing an EFI bootloader. This applies even when the system is not booted with UEFI.
-* Note: While testing to make very sure this command was correct, I discovered USB boot isn't working right with U-Boot in this setup. Noted down the issue, this will probably take further research to resolve.
 
-== pstore disabling - please comment ==
-* https://github.com/Kicksecure/security-misc/pull/304
-* Looks like a good change to me, reviewed and requested a README change.
-* Reviewed latest changes, things look good to me and the pstore disabling appears to work in my testing.
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
-== Debian feature request - Debian's shim signed by Debian's key ==
-* Debian's shim signed by Debian's key on top of Microsoft's key
-* Sent feature request against shim.
-* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102680 Offer a shim-signed variant signed by Debian's Secure Boot key]
-
-== sysmaint-panel - support change full disk encryption fde password ==
-* cases to consider: disk not encrypted
-* Implemented:
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/pwchange
-** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/4cae9d07ec439da362ebd616f8f8367c35fa32da
-** Note that the disk passphrase button is always visible, this is because the user might have external encrypted devices they wish to access or change the passphrases of.
-** The crypt-pwchange utility DOES NOT offer the ability to add new passphrases, or delete existing ones. Those might be valuable features to add in the future.
-
-== sysmaint-panel - add grub bootloader password support ==
-* please review and improve
-** /usr/sbin/grub-password-status-check
-** /usr/sbin/grub-pwchange
-** systemcheck check_grub_security
-** [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
-** Aaron: Reviewed all of the above, sent comments in chat. Mostly looks good and appears to work on my end.
-* add grub bootloader password support to sysmaint-panel
-** do this on the host only, not inside VMs?
-** Aaron: I don't think we need to restrict it like that - while bootloader passwords aren't theoretically useful in VMs, they might be practically useful against a low-skill adversary, and doing this would complicate development and make testing trickier.
-* Implemented: https://github.com/ArrayBolt3/sysmaint-panel/commit/0271a053bfc3d1457ff11fc8889d1f088b8068c5
-
+= ARCHIVED =
 == research systemd-repart ==
 * please research systemd-repart on how to automatically resize the image at first boot to use the full size of the storage medium
 * interesting in context of RPi
@@ -810,27 +727,62 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** appending the the last line of the file (without starting a newline) (equivalent of: <code>printf test >> a</code>)
 * Aaron: Implemented: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/file-utils
 ** All tools implemented as a multicall executable <code>append</code>, with <code>append-once</code> and <code>overwrite</code> symlinks.
+*** Patrick: Merged.
 
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+== sysmaint-panel - support change full disk encryption fde password ==
+* cases to consider: disk not encrypted
+* Implemented:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/pwchange
+*** Patrick: Merged.
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/4cae9d07ec439da362ebd616f8f8367c35fa32da
+*** Patrick: Merged.
+** Note that the disk passphrase button is always visible, this is because the user might have external encrypted devices they wish to access or change the passphrases of.
+** The crypt-pwchange utility DOES NOT offer the ability to add new passphrases, or delete existing ones. Those might be valuable features to add in the future.
 
-= ARCHIVED =
+== sysmaint-panel - add grub bootloader password support ==
+* please review and improve
+** /usr/sbin/grub-password-status-check
+** /usr/sbin/grub-pwchange
+** systemcheck check_grub_security
+** [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
+** Aaron: Reviewed all of the above, sent comments in chat. Mostly looks good and appears to work on my end.
+* add grub bootloader password support to sysmaint-panel
+** do this on the host only, not inside VMs?
+** Aaron: I don't think we need to restrict it like that - while bootloader passwords aren't theoretically useful in VMs, they might be practically useful against a low-skill adversary, and doing this would complicate development and make testing trickier.
+*** Patrick: Agreed.
+* Implemented: https://github.com/ArrayBolt3/sysmaint-panel/commit/0271a053bfc3d1457ff11fc8889d1f088b8068c5
+** Patrick: Merged.
+
+== pstore disabling - please comment ==
+* https://github.com/Kicksecure/security-misc/pull/304
+* Looks like a good change to me, reviewed and requested a README change.
+* Reviewed latest changes, things look good to me and the pstore disabling appears to work in my testing.
+
+== Debian feature request - Debian's shim signed by Debian's key ==
+* Debian's shim signed by Debian's key on top of Microsoft's key
+* Sent feature request against shim.
+* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102680 Offer a shim-signed variant signed by Debian's Secure Boot key]
+
+== Dev/boot wiki page - review ==
+* Patrick made stylistic changes but commands remain all the same. Please review [[Dev/boot]].
+** Aaron: Reviewed, made minor changes. Looked very good for the most part.
+* This is in preparation for the next task.
+* Is command <code>grub-install --force-extra-removable</code> correct? (Unchanged.) It looks a bit short.
+** Aaron: This is the right command. GRUB will automatically figure out where to install the bootloader since we're installing an EFI bootloader. This applies even when the system is not booted with UEFI.
+* Note: While testing to make very sure this command was correct, I discovered USB boot isn't working right with U-Boot in this setup. Noted down the issue, this will probably take further research to resolve.
+** Was resolved in task below.
+
+== RPi GRUB - research USB Boot Support ==
+* todo
+* Discovered this is a problem with Bookworm, and Trixie is not affected. Documented the likely cause of the issue.
+
+== RPi GRUB - Post TLDR Instructions on Debian RPi Salsa Feature Request ==
+* rationale, potential issues (speculation): people not wanting to visit external websites / Kicksecure wiki / TLDR / not enough time to read lengthy instructions, planning to look later, then forgetting, stunned by complexity, ...
+* todo: Please review, improve the TLDR version of [[Dev/boot#Booting_Debian_Trixie_with_GRUB_.2B_u-boot_on_Raspberry_Pi_4|Booting Debian Trixie with GRUB + u-boot on Raspberry Pi 4]]
+* can be posted on https://salsa.debian.org/raspi-team/image-specs/-/issues/78, if appropriate
+* Aaron: Posted. Did ''not'' add the short version to the Wiki since it felt awfully redundant and I wasn't sure I was supposed to do that.
+** Patrick: Redundant instructions not required indeed. Task is complete.
+
 == FYI - CodeSelect versus pipes ==
 * note: (you might already know this.) CodeSelect cannot use pipes ("<code>|</code>"). These need to be excaped as <code><nowiki>{{!}}</nowiki></code>.
 
