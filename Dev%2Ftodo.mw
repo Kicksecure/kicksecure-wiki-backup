@@ -13,33 +13,32 @@ TODO
 == verified boot chat ==
 * todo
 
-== systemd-repart Qubes error ==
-<pre>
-sudo journalctl --boot -u systemd-repart
-Apr 15 22:33:30 host systemd-repart[256]: Can't fit requested partitions into available free space (1004.0K), refusing.
-Apr 15 22:33:30 host systemd-repart[256]: Automatically determined minimal disk image size as 20.0G, current image size is 20.0G.
-Apr 15 22:33:30 host systemd[1]: systemd-repart.service: Main process exited, code=exited, status=1/FAILURE
-Apr 15 22:33:30 host systemd[1]: systemd-repart.service: Failed with result 'exit-code'.
-Apr 15 22:33:30 host systemd[1]: Failed to start systemd-repart.service - Repartition Root Disk.
-</pre>
+== fix - leaprun sdwdate-log-viewer ==
+* currently shows no output
 
-* Possible to avoid disabling systemd-repart entirely inside Qubes? Because Qubes or users might start using it in theory.
-* implement repart enabling similar to /usr/libexec/initializer-dist/chroot-scripts-post.d/75_setup-wizard-dist
-* do not enable in Qubes
-* Should be solved:
-** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/repart
-*** Note: I do not yet know for sure if the marker-vm file this implementation depends on will be present when dist-base-files is installed into the template. Asked in the Qubes OS Matrix room.
-**** Patrick: Should not matter since my revision. Now a chroot-script handles this which runs after package installation. This is easy to see in the Kicksecure Qubes Template code. First packages are installed and only after the chroot-scripts are executed.
-** initializer-dist: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/repart
-*** Patrick: Merged.
-** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/commit/cb961e90bb863665f5fe745c8da3547c32a4f64f
-*** Patrick: Merged.
-** Patrick: Please review my revision.
+== live-build - use /etc/dracut.conf.d method to speed up the build ==
+* similar to how it is implemented in 3500_install-packages
+
+== dracut - upstream generic initrd default ==
+* in reference to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#80
+* does dracut upstream currently use hostonly=no by default, i.e creates generic initrd by default?
+* if not, that is what dracut should do. please write a feature request.
+* reasons: reproducible builds, universal boot (install once, boot anyhwere), [https://0pointer.net/blog/fitting-everything-together.html ecosystem direction]
+* bug: dracut upstream <code>hostonly=yes</code> + <code>hostonly_mode=sloppy</code> has better support than <code>hostonly=no</code> (generic initrd)?
+
+== dracut - hostonly yes versus no ==
+* after above task... should Kicksecure images (in trixie) use a different hostonly mode?
+
+== git symlink research ==
+* please research security impact of "the most interesting git symlink ever"
+* please review, improve [[git]] as that wiki page might be used in case we send feature requests to projects to stop using git symlinks
 
 == user-sysmaint-split - enable in VM images ==
 * currently user-sysmaint-split is only enabled on ISOs, enable it for VBox/KVM/etc. images as well
 * already done
 ** please grep for user-sysmaint-split
+* Patrick working on this.
+* Done.
 
 == user-sysmaint-split - Qubes - Selective sudo Access ==
 * implement [https://github.com/QubesOS/qubes-issues/issues/9512 Selective `sudo` Access Enabling in VMs Without `qubes-core-agent-passwordless-root` via `qvm-service`]
@@ -709,6 +708,38 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== fix ram-wipe on plain Debian trixie ==
+* https://github.com/Kicksecure/ram-wipe/issues/2
+* report to Debian
+* update [[ram-wipe]]
+* Debugged, reported fixes and filed a Debiian bug, Patrick is implementing fixes.
+* Debian bug for fixing dracut: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1103457 Unable to boot LUKS-encrypted system]
+
+== systemd-repart Qubes error ==
+<pre>
+sudo journalctl --boot -u systemd-repart
+Apr 15 22:33:30 host systemd-repart[256]: Can't fit requested partitions into available free space (1004.0K), refusing.
+Apr 15 22:33:30 host systemd-repart[256]: Automatically determined minimal disk image size as 20.0G, current image size is 20.0G.
+Apr 15 22:33:30 host systemd[1]: systemd-repart.service: Main process exited, code=exited, status=1/FAILURE
+Apr 15 22:33:30 host systemd[1]: systemd-repart.service: Failed with result 'exit-code'.
+Apr 15 22:33:30 host systemd[1]: Failed to start systemd-repart.service - Repartition Root Disk.
+</pre>
+
+* Possible to avoid disabling systemd-repart entirely inside Qubes? Because Qubes or users might start using it in theory.
+* implement repart enabling similar to /usr/libexec/initializer-dist/chroot-scripts-post.d/75_setup-wizard-dist
+* do not enable in Qubes
+* Should be solved:
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/repart
+*** Note: I do not yet know for sure if the marker-vm file this implementation depends on will be present when dist-base-files is installed into the template. Asked in the Qubes OS Matrix room.
+**** Patrick: Should not matter since my revision. Now a chroot-script handles this which runs after package installation. This is easy to see in the Kicksecure Qubes Template code. First packages are installed and only after the chroot-scripts are executed.
+** initializer-dist: https://github.com/ArrayBolt3/initializer-dist/tree/arraybolt3/repart
+*** Patrick: Merged.
+** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/commit/cb961e90bb863665f5fe745c8da3547c32a4f64f
+*** Patrick: Merged.
+** Patrick: Please review my revision.
+** Patrick: Please review my revision. #2
+*** Aaron: Reviewed, looks good to me.
+
 == user-sysmaint-split - unit fails on first sysmaint login ==
 * the sysmaint account specific config routine is failing on the first sysmaint login, because PAM hasn't created the /home/sysmaint directory when this code attempts to run.
 * move the code from sysmaint-boot to sysmaint-session and sysmaint-session-wayland

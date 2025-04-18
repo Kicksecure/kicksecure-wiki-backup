@@ -11,22 +11,29 @@ title=ram-wipe - Wipe RAM on shutdown and reboot
 {{intro|
 Preventing Cold Boot Attacks. Wipe RAM at shutdown to prevent information extraction from memory.
 
-ram-wipe is a software project that aims to defend against cold boot attacks by wiping the contents of a computer's random access memory (RAM) when the computer is shut down or restarted. This software prevents attackers from accessing sensitive information that may have been stored in the RAM by erasing it entirely, attempting to make it impossible for anyone to retrieve it. ram-wipe is particularly useful for organizations that handle sensitive information and require an additional layer of protection against security breaches. By ensuring that the RAM is wiped clean after shutdown or restart, ram-wipe helps safeguard against the risks posed by cold boot attacks, thereby providing an enhanced level of security.
+ram-wipe is a software project that aims to defend against cold boot attacks by wiping the contents of a computer's random access memory (RAM) when the computer is shut down or restarted. This software prevents attackers from accessing sensitive information that may have been stored in the RAM by erasing it entirely, attempting to make it impossible for anyone to retrieve it.
+
+ram-wipe is particularly useful for organizations that handle sensitive information and require an additional layer of protection against security breaches. By ensuring that the RAM is wiped clean after shutdown or restart, ram-wipe helps safeguard against the risks posed by cold boot attacks, thereby providing an enhanced level of security.
 }}
 = Introduction =
 [[Cold_Boot_Attack_Defense|Cold boot attacks]] are a known attack vector since at least 2008. <ref>
 https://en.wikipedia.org/w/index.php?title=Cold_boot_attack&oldid=249088610
-</ref> Finally in 2023, 15 years later, a mitigation for cold boot attacks, the ram-wipe package has been made available, which is easily usable on Debian, {{Kicksecure}}, perhaps other Linux distributions as well as ram-wipe could relatively easily ported to other Linux distributions and/or hardware architectures.
+</ref> Finally in 2023, 15 years later, a mitigation for cold boot attacks - the ram-wipe package - has been made available. It is easily usable on Debian, {{Kicksecure}}, and perhaps other Linux distributions as well, as ram-wipe could be relatively easily ported to other Linux distributions and/or hardware architectures.
 
-At least since 2011, the Linux [[Live_Mode|live]] operating system [https://tails.boum.org/ Tails] implemented wiping the ram at shutdown <ref>
+At least since 2011, the Linux [[Live_Mode|live]] operating system [https://tails.boum.org/ Tails] implemented wiping the RAM at shutdown <ref>
 https://web.archive.org/web/20110423165633/https://tails.boum.org/contribute/design/memory_erasure/
-</ref> but its [https://tails.boum.org/contribute/design/memory_erasure/ memory erasure design documentation] mentions several limitations. While Tails' implementation could in theory be ported to other Linux distributions such as Debian, Fedora and others, this at time of writing has never been done.
+</ref> but its [https://tails.boum.org/contribute/design/memory_erasure/ memory erasure design documentation] mentions several limitations. While Tails' implementation could in theory be ported to other Linux distributions such as Debian, Fedora, and others, this has never been done at the time of writing.
 
-With ram-wipe there is now a standalone [https://github.com/{{project_name_short}}/ram-wipe wipe RAM at shutdown software solution], with very few dependencies. In principle, it can run on Debian and derivatives of Debian such as Ubuntu. It might be relatively easy for other Linux distributions to package ram-wipe because it is implemented as a dracut module and dracut is already available (or even the default) for many Linux distributions. What's missing is probably only distribution maintainer doing the usual packaging work for their distribution.
+With ram-wipe there is now a standalone [https://github.com/{{project_name_short}}/ram-wipe wipe RAM at shutdown software solution (source code)], with very few dependencies. In principle, it can run on Debian and derivatives of Debian such as Ubuntu. It might be relatively easy for other Linux distributions to package ram-wipe because it is implemented as a dracut module, and dracut is already available (or even the default) for many Linux distributions. What's missing is probably only a distribution maintainer doing the usual packaging work for their distribution.
+
+ram-wipe is free in price, Open Source and Freedom Software.
 
 As for initramfs-tools by ram-wipe, see [[Dev/RAM_Wipe#Status_of_initramfs-tools_Support|Status of initramfs-tools Support]].
 
-See also [[Dev/RAM_Wipe#Differences_of_security-misc_Wipe_RAM_versus_Tails_Memory_Erasure|Differences of security-misc Wipe RAM versus Tails Memory Erasure]].
+See also:
+
+* [[Dev/RAM_Wipe#Differences_of_ram-wipe_versus_Tails_Memory_Erasure|Differences of <code>ram-wipe</code> Wipe RAM versus Tails Memory Erasure]]
+* [[Dev/RAM_Wipe|<code>ram-wipe</code> (developers)]]
 
 = Installation of ram-wipe =
 {{Testers-only}}
@@ -40,42 +47,14 @@ This chapter is only required for users which aren't users of {{project_name_lon
 
 '''1.''' Platform specific notice.
 
-Newer builds of {{project_name_short}} come with <code>dracut</code> by default.
+* Debian: Debian comes with <code>initramfs-tools</code> by default.
+* Kicksecure: Newer builds of {{project_name_short}} come with <code>dracut</code> by default.
 
 '''2.''' Migrate to <code>dracut</code>. <ref>
 Since ram-wipe is unavailable for <code>initramfs-tools</code> the user needs to migrate to <code>dracut</code>, the only supported initrd creator by ram-wipe.
 </ref>
 
-It's required to migrate to <code>dracut</code> if not already done.
-
-It's also required to install <code>systemd-cryptsetup</code>.
-
-{{mbox
-| image   = [[File:Ambox_warning_pn.svg.png|40px|warning]]
-| text    = '''Warning:'''
-There's a chance of the system getting unbootable because this changes the initrd creation tool.
-
-* '''General risk:''' There's a chance of the system becoming unbootable due to changes in the initrd creation tool.
-* '''Specific risk:''' Issues may arise during migration to <code>dracut</code> if full disk encryption is in use. <ref>
-* <u>Cause of issue:</u> Package <code>systemd-cryptsetup</code> not being installed.
-* <u>Workaround:</u> In case of broken boot: Setting kernel parameter <code>rd.auto</code> might help.
-* <u>Bug reports and pull requests:</u>
-** [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1029324 dracut: generic initrd does not work with encrypted root FS without further configuration]
-** [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792 unbootable system after installing dracut on a standard Debian installation - #2]
-** [https://github.com/dracutdevs/dracut/issues/2437 Generic initrd does not work with encrypted root FS without further configuration]
-*** [https://github.com/dracutdevs/dracut/pull/2520 fix(crypt): Encrypted root FS handling with generic initrd #2520] (abandoned pull request for dracut)
-*** [https://github.com/dracut-ng/dracut-ng/pull/319 fix(systemd-crypt): add potentially needed modules to generic initrd #319]
-*** [https://github.com/dracut-ng/dracut-ng/pull/320 fix(crypt): unlock encrypted devices by default during boot #320]
-*** [https://github.com/dracut-ng/dracut-ng/pull/529 revert(crypt): do not unlock encrypted devices by default during boot #529]
-** https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487/23
-</ref>
-* '''Backups:''' It is prudent to always have a backup and be cautious when making changes.
-* '''Dracut bug reports:''' If issues with <code>dracut</code> arise, please do not report them here, as they are [[unspecific|unrelated to {{project_name_short}}]].
-}}
-
-{{Install Package|package=
-dracut systemd-cryptsetup
-}}
+It's required to migrate to <code>dracut</code> if not already done. See instructions on the [[dracut]] wiki page to find out if dracut is already installed and to find instructions on how to install it.
 
 '''3.''' Reboot.
 
