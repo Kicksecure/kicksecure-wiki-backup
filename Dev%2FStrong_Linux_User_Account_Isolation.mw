@@ -4,13 +4,13 @@
 }}
 {{#seo:
 |title=Strong Linux User Account Isolation
-|description=Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
+|description=Protect Linux User Accounts against Brute Force Attacks, Administrative ("Root") Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
 |image=Useraccountisolatiom123123.jpg
 }}
 {{passwords_mininav}}
 [[File:Useraccountisolatiom123123.jpg|200px|thumb]]
 {{intro|
-Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
+Protect Linux User Accounts against Brute Force Attacks, Administrative ("Root") Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
 }}
 
 = Introduction =
@@ -18,7 +18,7 @@ Protect Linux User Accounts against Brute Force Attacks, Root Account Locking, C
 {{mbox
 |icon=fa-solid fa-info cs-green
 |text=
-'''User account isolation and root rights is a very relevant, but often overlooked security topic''' for many Linux distributions. In this chapter we will give you an overview about the history, possible attack vectors, security measures that you can implement yourself, and the '''plenty of security measures that are implemented in {{project_name_short}} by default'''.
+'''User account isolation and administrative ("<code>root</code>") rights is a very relevant, but often overlooked security topic''' for many Linux distributions. In this chapter we will give you an overview about the history, possible attack vectors, security measures that you can implement yourself, and the '''plenty of security measures that are implemented in {{project_name_short}} by default'''.
 }}
 
 We are aiming to provide a comprehensive, rather complete overview. There are many advanced details being discussed in many places on the internet, but explanations of the essential foundations are hard to find. When this topic is usually discussed, there is a large amount of unspoken assumptions and threat models. 
@@ -30,14 +30,23 @@ We are aiming to provide a comprehensive, rather complete overview. There are ma
 
 Sounds quite important, right? Is it? What kind of disaster awaits if being logged in as root? No automatic security disaster. Many applications (such as Kate; Wayland) refuse to run as root. Due to this convention, it is best to go with the flow (what most Linux distributions do) and avoid being logged in as root. As many actions as possible should be done with a non-root user.
 
-* '''Avoiding root compromise:''' Useful for reasons explained in chapter [[Root#Rationale|Rationale]].
-* '''Applications under separate user accounts:''' Many applications nowadays run under different Linux user accounts. For example, the web server and database server very likely run under different Linux user accounts.
+To help beginners understand, here are some essential definitions:
+
+* <code>root</code> is the superuser in Linux — it has unrestricted access to everything on the system, including the ability to modify or delete any file. Think of it like the "admin" account on other operating systems.
+* A "limited user" or non-root user has only the permissions granted to them. This helps limit the damage if something goes wrong or if malware runs under that account.
+* <code>sudo</code> is a command that temporarily grants root privileges to a regular user, usually after entering a password. This is like saying, "Let me act as an administrator just for this task."
+* "Threat model" refers to the specific types of attacks you're trying to defend against. For example, a home user might worry about malware from websites, while a server administrator might worry about remote attackers trying to break into the system.
+
+Here are some key concepts:
+
+* '''Avoiding root compromise:''' Useful for reasons explained in chapter [[Root#Rationale|Rationale]]. If malware compromises a regular user, it can't immediately take over the whole system — unless that user has easy access to <code>sudo</code> or other privilege escalation tools.
+* '''Applications under separate user accounts:''' Many applications nowadays run under different Linux user accounts. For example, the web server and database server very likely run under different Linux user accounts. This separation is similar to assigning different responsibilities to different employees in a company — so one mistake or compromise doesn't expose everything.
 * '''Context and threat models:''' Many of the things written about sudo, su, root, and user isolation are correct but were written in a different time and/or with a different threat model in mind.
-* '''Is sudo a security tool?''' Yes. But what does this mean? sudo provides an audit trail. It keeps a log of all invocations of sudo. Specifically, if there are multiple system administrators, and there is an unexplained issue, they can look at the logs and investigate who performed which action. By default, this only works in non-malicious cases. An attacker with root rights also has the ability to remove evidence of their own actions from logs. Secure, tamper-proof append-only logs is a different security problem to solve.
-* '''Password input security:''' The sudo project does not guarantee a secure password entry mechanism. Various attack vectors, such as malware, can compromise password security by intercepting or sniffing passwords entered via sudo. This is elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]].
-* '''Password encryption:''' But how can malware steal the password? Aren't passwords encrypted? Yes, passwords are encrypted in the <code>/etc/shadow</code> file. Additionally, non-root users cannot read the <code>/etc/shadow</code> file thanks to default file permissions. This, however, is of little help against malware. As elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]], what malware actually can do to steal the password does not involve attacking the encryption. The encryption of passwords in <code>/etc/shadow</code> is only useful in a different threat model. For example, if an attacker gained access to <code>/etc/shadow</code> (by possibly getting access through full system compromise), then at least the attacker still does not know the user's password. This can be useful in case the user re-used this password elsewhere, for example to log in to their online banking.
-* '''Single-user system vs multi-user system:''' The usefulness of sudo also depends on whether it is a single-user system or a multi-user system. This is elaborated in chapter [[Default_Passwords#Information|Information]].
-* '''Local system vs remote server:''' When using password-based login, the user password matters. However, password-based logins are only safe when logging into a machine locally. Public key authentication is much more secure for remote access.
+* '''Is sudo a security tool?''' Yes. But what does this mean? <code>sudo</code> provides an audit trail. It keeps a log of all invocations of sudo. Specifically, if there are multiple system administrators, and there is an unexplained issue, they can look at the logs and investigate who performed which action. By default, this only works in non-malicious cases. An attacker with root rights also has the ability to remove evidence of their own actions from logs. Secure, tamper-proof append-only logs is a different security problem to solve. In simpler terms: <code>sudo</code> can help with accountability — if used correctly — but it is not foolproof.
+* '''Password input security:''' The sudo project does not guarantee a secure password entry mechanism. Various attack vectors, such as malware, can compromise password security by intercepting or sniffing passwords entered via sudo. This is elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]]. This means if there's malware on your system, it might be able to "see" what you're typing when you enter your password — just like a hidden camera watching you type your PIN.
+* '''Password encryption:''' But how can malware steal the password? Aren't passwords encrypted? Yes, Linux account passwords are encrypted in the <code>/etc/shadow</code> file. Additionally, non-root users cannot read the <code>/etc/shadow</code> file thanks to default file permissions. This, however, is of little help against malware. As elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#Issues|Issues]], what malware actually can do to steal the password does not involve attacking the encryption. The encryption of passwords in <code>/etc/shadow</code> is only useful in a different threat model. For example, if an attacker gained access to <code>/etc/shadow</code> (by possibly getting access through full system compromise), then at least the attacker still does not know the user's password. This can be useful in case the user re-used this password elsewhere, for example to log in to their online banking.
+* '''Single-user system vs multi-user system:''' The usefulness of sudo also depends on whether it is a single-user system or a multi-user system. This is elaborated in chapter [[Default_Passwords#Information|Information]]. If only one person uses the computer, the need for sudo may be different compared to a shared computer where multiple users need varying levels of access.
+* '''Local system vs remote server:''' When using password-based login, the user password matters. However, password-based logins are only safe when logging into a machine locally. Public key authentication is much more secure for remote access. This means: if you're sitting at your computer, typing your password is okay. But if you're logging into your system over the internet, using a password is risky — it's better to use a cryptographic key instead.
 
 = Essentials =
 
@@ -440,7 +449,7 @@ zsh: exit 126   sudo nano
 
 == sudo password sniffing ==
 
-A compromised account <code>user</code> could be infected with a keylogger (which unfortunately, does not even require root access) that could trivially read the <code>sudo</code> password and thereby acquire root access.
+A compromised account <code>user</code> could be infected with a keylogger (which unfortunately does not even require root access) that could trivially read the <code>sudo</code> password and thereby acquire root access.
 
 Therefore, instructions to [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] are required. This is intended for advanced users only, as awareness and usability are poor.
 
@@ -450,9 +459,10 @@ In the future, [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Mo
 * '''Guidance for account separation''': Users would have strong guidance to separate the use of the limited account <code>user</code> through different boot modes.
 * '''Group membership''': [[Dev/user-sysmaint-split#user_group_sudo_membership|user group sudo membership]]
 * '''Exclusive sudo access''': Only account <code>sysmaint</code> would have the ability to use privilege escalation tools such as <code>sudo</code>, <code>pkexec</code>. ([[Dev/user-sysmaint-split#No_Access_to_Privilege_Escalation_Tools_for_Limited_Users|No Access to Privilege Escalation Tools for Limited Accounts]])
-* '''Group membership''': [[Dev/user-sysmaint-split#user_group_sudo_membership|user group sudo membership]]
-* '''Separation of risky activities''': Everyday activities considered higher risk, such as browsing the internet, would be done clearly separated under account <code>user</code>, while activities such as package installation and system upgrades would be performed using the separate account <code>sysmaint</code>.
-* '''Reduced risk of password sniffing''': The more likely compromised account <code>user</code> would not have a chance to sniff the <code>sudo</code> password, thus hindering it from escalating to root without a local privilege escalation exploit.
+* '''Group membership''': [[Dev/user-sysmaint-split#user_group_sudo_membership|Linux user group <code>sudo</code> membership]]
+* '''Separation of risky activities''': Everyday activities considered higher risk, such as browsing the internet, would be clearly separated under account <code>user</code>, while activities such as package installation and system upgrades would be performed using the separate account <code>sysmaint</code>.
+* '''Reduced risk of <code>sudo</code> password sniffing''': The account more likely to get compromised due to a higher attack surface primarily the limited account <code>user</code> - would not have a chance to sniff the <code>sudo</code> password. This is because limited user accounts are without privilege escalation, and therefore have no privilege escalation password prompt, thus hindering malware from privilege escalation tool password sniffing and privilege escalation.
+* '''Local privilege escalation vulnerabilities''': Malware requires a local privilege escalation exploit to gain root.
 
 == X Windows System ==
 Any graphical application running under X Windows System (X11) can see what any account is typing in any other application for any account.
