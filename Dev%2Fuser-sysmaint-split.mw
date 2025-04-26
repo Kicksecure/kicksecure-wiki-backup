@@ -9,13 +9,7 @@ user-sysmaint-split
 {{passwords_mininav}}
 [[File:Grub-boot-icon.jpg|250px|thumb]]
 {{intro|
-<code>user-sysmaint-split</code> - Role-Based Boot Modes - Persistent User / Live user / Persistent sysmaint (system maintenance) and their use cases.
-
-Security-Driven Design:
-
-* Limited users can't access privilege escalation tools.
-* <code>sysmaint</code> mode isolates system maintenance tasks from daily use.
-* Transitioning between modes enforces a stricter security model.
+<code>user-sysmaint-split</code> - Role-Based Boot Modes - Persistent User / Live user / Persistent sysmaint (system maintenance) and their use cases. Through <code>user-sysmaint-split</code> as the new default feature in {{project_name_long}} we introduce new different boot modes, aimed at improving security through role-based boot options.
 }}
 {{mbox
 |icon=fa-solid fa-exclamation cs-yellow
@@ -26,6 +20,11 @@ Security-Driven Design:
 This page discusses different boot modes in the {{project_name_long}} operating system, aimed at improving security through role-based boot options. It describes modes like "Persistent User" for daily activities and "Persistent System Maintenance (sysmaint)" for updates, software installation, and full system control. The goal is to isolate user activities and reduce security risks by restricting what each boot mode can access and modify. The page also explains potential opt-outs for users who prefer [[unrestricted admin mode]].
 
 These schemes are generic and work for both hosts and VMs. This applies to {{project_name_long}} and derivatives of {{project_name_long}}, such as {{whonix}}.
+
+<code>user-sysmaint-split</code> strenghtens Security-Driven Design:
+* Limited users can't access privilege escalation tools.
+* <code>sysmaint</code> mode isolates system maintenance tasks from daily use.
+* Transitioning between modes enforces a stricter security model.
 
 = Development Goals =
 {{Anchor|Goals}}
@@ -42,25 +41,25 @@ These goals guide the boot modes implementation:
 
 The default GRUB boot menu entries are:
 
-* <code>PERSISTENT Mode - USER Session (For daily activities.)</code>
-* <code>PERSISTENT Mode - SYSMAINT Session (For system maintenance tasks.)</code>
-* <code>LIVE Mode - USER Session (For disposable use.)</code>
-* <code>LIVE Mode - SYSMAINT Session (For maintenance testing.)</code>
+* {{BootEntries|key=userpers}}
+* {{BootEntries|key=syspers}}
+* {{BootEntries|key=userlive}}
+* {{BootEntries|key=syslive}}
 
 = Use Cases for the Different Boot Modes =
 
 Common use cases tailored to the available boot modes:
 
-* <code>PERSISTENT Mode - USER Session (For daily activities.)</code>:
+* {{BootEntries|key=userpers}}
 ** Ideal for browsing, email, chat, or running a pre-configured server.
 ** read-only <code>/usr</code>, <code>/etc</code>. (Planned. Currently inability to elevate to root means that <code>/usr</code> and <code>/etc</code> are still read-write, but normal user accounts can't write anything there due to file permissions.)
 ** read-write <code>/home</code>
 ** Verified Boot: enabled. (Planned.)
-* <code>PERSISTENT Mode - SYSMAINT Session (For system maintenance.)</code>: Allows running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER session afterward.
+* {{BootEntries|key=syspers}}: Allows running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER session afterward.
 ** read-write <code>/usr</code>, <code>/etc</code>, <code>/home</code>
 ** Verified Boot: disabled
-* <code>LIVE Mode - USER Session (For disposable use.)</code>: Similar to <code>PERSISTENT Mode - USER Session</code> but <u>without</u> persistence.
-* <code>LIVE Mode - SYSMAINT Session (For maintenance testing.)</code>: Similar to <code>PERSISTENT Mode - SYSMAINT Session</code> but <u>without</u> persistence.
+* {{BootEntries|key=userlive}}: Similar to {{BootEntries|key=userpers}} but <u>without</u> persistence.
+*{{BootEntries|key=syslive}}: Similar to {{BootEntries|key=syspers}} but <u>without</u> persistence.
 
 = Boot Modes Comparison Table =
 
@@ -74,8 +73,8 @@ Common use cases tailored to the available boot modes:
 
 ! Description
 | For daily activities such as browsing, email, chat, or running a pre-configured server.
-| Similar to Persistent Mode - User Session but without persistence.
-| Similar to Persistent Mode - Sysmaint Session but without persistence.
+| Similar to {{BootEntries|key=userpers}} but without persistence.
+| Similar to {{BootEntries|key=syspers}} but without persistence.
 | For system maintenance tasks such as running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER session afterward.
 |-
 
@@ -111,9 +110,9 @@ Common use cases tailored to the available boot modes:
 
 = Integration with Verified Boot =
 
-When booting into <code>PERSISTENT Mode - SYSMAINT session</code>, <code>LIVE mode - SYSMAINT session</code>, [[Verified Boot|verified boot]] will be disabled for the purpose of updates, software installation, and system configuration. During shutdown, the checksums required for verified boot will be created.
+When booting into {{BootEntries|key=syspers}}, {{BootEntries|key=syslive}}, [[Verified Boot|verified boot]] will be disabled for the purpose of updates, software installation, and system configuration. During shutdown, the checksums required for verified boot will be created.
 
-When booting into <code>PERSISTENT Mode - USER session</code>, <code>LIVE mode - USER session</code>, verified boot will be enabled for the purpose of improved security.
+When booting into {{BootEntries|key=userpers}}, {{BootEntries|key=userlive}}, verified boot will be enabled for the purpose of improved security.
 
 See also [[Verified_Boot#Verified_Boot_for_account_user_but_not_for_account_sysmaint|Verified Boot for account <code>user</code> but not for account <code>sysmaint</code>]].
 
@@ -122,8 +121,8 @@ See also [[Verified_Boot#Verified_Boot_for_account_user_but_not_for_account_sysm
 = Opt-Out to Get the Same Behavior as Old {{project_name_short}} =
 Users who wish "the old {{project_name_short}}" "with unrestricted <code>sudo</code> for account <code>user</code>" back, who don't want the
 
-* <code>LIVE Mode - SYSMAINT Session (For maintenance testing.)</code>
-* <code>PERSISTENT Mode - SYSMAINT Session (For system maintenance tasks.)</code>
+* {{BootEntries|key=syslive}}
+* {{BootEntries|key=syspers}}
 
 boot options, could uninstall package <code>user-sysmaint-split</code>. It could be easily removed using [[Debian_Packages#dummy-dependency|<code>dummy-dependency</code>]]. (<code>dummy-dependency</code> is being used to avoid [[Debian Packages|issues with meta package removal]].)
 
