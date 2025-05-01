@@ -1,0 +1,301 @@
+{{Header}}
+{{title|title=
+browser choice
+}}
+{{#seo:
+|description=
+Design and implementation overview of the browser selection interface, featuring randomized presentation, plugin architecture, and inclusion criteria.
+}}
+{{browser_mininav}}
+{{intro|
+This page describes the concept, design, and implementation details of the browser selection interface. It includes user interface elements, plugin architecture, and eligibility criteria for browsers to be included in the selection tool.
+}}
+
+= example =
+
+* https://upload.wikimedia.org/wikipedia/en/e/e2/BrowserChoice.gif
+
+= GUI elements =
+
+* Structure as a wizard for ease-of-understanding.
+** Page 1: Offer a selection of applications (currently web browsers are our primary target)
+*** <u>intro text:</u>
+**** <u>"Select Application":</u> Main prompt for user interaction.
+**** <u>"web browsers" as a variable:</u> May be extended in the future to include options like "e-mail client". A tabbed interface can be used to allow the user to select what "class" of application they wish to choose from (browser, email, etc).
+*** <u>randomized:</u> Browsers are displayed in a random order to avoid preferential treatment.
+*** <u>logo 1:</u> Primary logo representing the browser.
+*** <u>logo 2:</u> Possibly represents the installation method(s). 
+*** <u>text:</u> Best omitted to reduce bias and maintenance.
+*** <u>text / advantages / disadvantages:</u> Excluded to reduce maintenance effort and avoid potential legal issues. Instead, provide such comparisons in the wiki where updates and citations are easier.
+*** <u>outro text:</u>
+**** <u>"Further information"</u> section at the bottom of the interface.
+**** "Browsers shuffled in random order at each start.
+** Page 2: Offer available installation and uninstallation methods
+*** <u>intro text:</u>
+**** <u>"Choose Installation Options":</u> Main prompt for user interaction.
+*** All installation methods listed in alphabetical order.
+*** Installation method icons shown next to each available method.
+*** <u>"install, remove, purge, ignore":</u> Radio lists shown horizontally next to each installation method, allowing the user to remove the browser in one way and install it in another in one action (for instance, to switch from a Flatpak to a DEB package).
+*** <u>Example: Firefox...</u>
+**** <u>packages.debian.org package version</u>
+**** <u>flatpak version</u> (may offer weaker sandboxing)
+**** <u>Mozilla Debian repository version</u>
+*** Show the user a confirmation screen before allowing them to proceed to the next page
+** Page 3: Show (un)installation progress and logs
+*** <u>intro text:</u>
+**** <u>"modifying software":</u> Informs the user what is happening.
+*** Progress bar: gives the user a rough idea of how close the process is to completion.
+*** Log view: terminal-like window showing the user what is being done, useful for bug reports or to allow power users to diagnose issues themselves.
+** Page 4: Offer launching a newly installed application
+*** <u>intro text:</u>
+**** <u>"software changes complete":</u> Informs the user what has happened.
+*** <u>"click done to close the wizard":</u> button for the user to exit the wizard
+*** If any new browser packages were installed, offer a <u>"launch now"</u> checkbox
+*** If the user installed the same browser in multiple ways, offer a combo box for selecting the installation type to launch
+
+= Internal Design =
+
+* <u>plugin based:</u>
+** <u>Drop a file into <code>/usr/share/choice/browser</code>:</u> Enables modular addition of browsers.
+*** <code>/usr/share/choice/browser/firefox</code>
+*** <code>/usr/share/choice/browser/chromium</code>
+** <u>Drop a file into <code>/usr/share/choice/e-mail</code> (probably not important):</u> May support e-mail clients in the future. May be expandable to cover any kind of application type for which multiple alternatives are available and choosing a default is difficult.
+*** <code>/usr/share/choice/browser/thunderbird</code>
+*** <code>/usr/share/choice/browser/evolution</code>
+* Installation type icons and descriptions for common installation types are included by default (i.e. for "install from Debian repository", "install from Flatpak", "install from Snap Store", "install from Kicksecure repository" if applicable in the future, etc.
+* Simple code for common installation types included by default, plugins can use these functions to simplify installation code. Should only be used when it's very simple to implement and likely to be widely duplicated (i.e. <code>apt install</code>, <code>flatpak install</code>, etc.).
+
+= plugin structure =
+
+* <u>logo file name:</u> Image file representing the browser.
+* <u>name:</u> Display name of the browser.
+* <u>text:</u> Optional short description.
+* <u>install script(s):</u> Script used to install the browser, one script per installation method.
+* <u>uninstall script(s):</u> Script to remove the browser, one script per installation method.
+* <u>purge script(s):</u> Script for complete removal including configuration files and user data, one script per installation method.
+* <u>custom installation types:</u> For installation types unique to a particular browser (i.e. Mozilla repository, Brave repository), provide an icon and description for that installation type
+* <u>capability:</u> Checks that the Kicksecure installation is capable of running the browser, and reports this information to the frontend which can hide or show the browser as a result. For instance, if a browser is only available on x86_64, it should be hidden on arm64 machines.
+
+= split GUI vs CLI =
+
+* Python library with shared code used by plugins and frontends, includes features such as plugin enumeration and loading, getting paths to image files, getting descriptive text, getting documentation links, installing and removing software in common ways, getting installation status, etc.
+* Shim that runs as root for handling installation and uninstallation when root privileges are needed, uses the library's code
+* GUI version calls the library directly
+* <u>should there be a (minimal) CLI version?</u>
+
+= criteria for inclusion into browser choice =
+
+* <u>Open Source:</u> Must be fully open-source.
+* <u>availability of binary builds for Debian Linux Intel/AMD64:</u> Must have precompiled versions compatible with Debian on Intel/AMD64.
+* <u>{{project_name_short}} compatibility:</u> Installation and execution must be functional on Kicksecure. It usually is but hypothetically some security settings by {{project_name_short}} might break a browser and upstream might not fix it.
+* <u>stable</u> Functionally stable and not experimental.
+* <u>browser has a minimum of X users and/or market share or other noteworthiness:</u> Should be recognized or widely used, possibly included in major Linux distributions.
+* <u>project exists for a minimum of X years:</u> Ensures sustainability and maturity.
+* <u>must have X amount of developers:</u> Indicates active development and maintenance.
+* <u>security:</u> Must not be majorly outdated or regularly lag behind in patches.
+* <u>no obscenities:</u> Must not have offensive or inappropriate project names.
+* <u>No malware:</u> No malware: must not be malware. This is difficult to define in the context of many browsers, which come with a lot of anti-features. So the bar for this is unfortunately pretty low. It must not be malware in the sense that it searches for files on the user's computer and uploads them to third parties.
+* <u>Plugin availability:</u> A plugin for browser choice must be contributed and maintained by the vendor or community.
+* <u>TBD:</u> Additional criteria may be defined.
+
+= UI mockups =
+== Page 1: Application selection ==
+
+<pre>
++-----------------------------------------------------------------------+
+| Application Chooser                                             v ^ X |
++-----------------------------------------------------------------------+
+|                                                                       |
+|                  ==================================                   |
+|                  == Step 1/4: Select Application ==                   |
+|                  ==================================                   |
+|                                                                       |
+| Select the application to install or remove.                          |
+|                                                                       |
+| +----------+                                                          |
+| | Browsers +---------------+---------------+                          |
+| |          | Email Clients | Whatever else |                          |
+| +-------------------------------------------------------------------+ |
+| | There are 7 option(s) available.                                  | |
+| +-------------------------------------------------------------------+ |
+| |                                                                   | |
+| |                   +----------------------+                        | |
+| |                   |                      |                        | |
+| | +---------------+ | +------------------+ | +------------------+ +-| |
+| | | Chromium      | | | Firefox          | | | Mullvad          | | | |
+| | +---------------+ | +------------------+ | +------------------+ +-| |
+| | | [Icon]        | | | [Icon]           | | | [Icon]           | | | |
+| | | [Link]        | | | [Link]           | | | [Link]           | | | |
+| | |               | | |                  | | |                  | | | |
+| | | Available as: | | | Available as:    | | | Available as:    | | | |
+| | | * Flatpak     | | | * DEB (official) | | | * DEB (official) | | | |
+| | | * Snap        | | | * DEB (debian)   | | | * Tarball        | | | |
+| | |               | | | * Flatpak        | | |                  | | | |
+| | |               | | | * Snap           | | |                  | | | |
+| | |               | | | * Tarball        | | |                  | | | |
+| | +---------------+ | +------------------+ | +------------------+ +-| |
+| |                   |                      |                        | |
+| |                   +----------------------+                        | |
+| |                                                                   | |
+| +-------------------------------------------------------------------+ |
+| | <=>                                                               | |
+| +-------------------------------------------------------------------+ |
+|                                                                       |
+| Applications are shown in random order.                               |
+| For more information about this tool, see [Link]                      |
+|                                                                       |
+| +-----------+                                         +-------------+ |
+| | X  Cancel |                                         | >  Continue | |
+| +-----------+                                         +-------------+ |
+|                                                                       |
++-----------------------------------------------------------------------+
+</pre>
+
+== Page 2: Installation options ==
+
+<pre>
++------------------------------------------------------------+
+| Application Chooser                                  v ^ X |
++------------------------------------------------------------+
+|                                                            |
+|        ===========================================         |
+|        == Step 2/4: Choose Installation Options ==         |
+|        ===========================================         |
+|                                                            |
+| Choose the package types to install or uninstall.          |
+|                                                            |
+| +------------------------------------------------------+-+ |
+| |                                                      | | |
+| | +--------------------------------------------------+ |^| |
+| | |                                                  | |#| |
+| | | **DEB (official)** - The official    (x) Install | |v| |
+| | | Firefox deb package from Mozilla.    ( ) Remove  | | | |
+| | |                                      ( ) Purge   | | | |
+| | |                                      ( ) Ignore  | | | |
+| | |                                                  | | | |
+| | +--------------------------------------------------+ | | |
+| |                                                      | | |
+| | +--------------------------------------------------+ | | |
+| | |                                                  | | | |
+| | | **DEB (debian)** - A package from    ( ) Install | | | |
+| | | the Debian archives.                 ( ) Remove  | | | |
+| | |                                      ( ) Purge   | | | |
+| | |                                      (x) Ignore  | | | |
+| | |                                                  | | | |
+| | +--------------------------------------------------+ | | |
+| |                                                      | | |
+| | +--------------------------------------------------+ | | |
+| | |                                                  | | | |
+| | | **Flatpak** - The official Firefox   ( ) Install | | | |
+| | | Flatpak package from Flathub.        ( ) Remove  | | | |
+| | |                                      ( ) Purge   | | | |
+| | |                                      (x) Ignore  | | | |
+| | |                                                  | | | |
+| | +--------------------------------------------------+ | | |
+| |                                                      | | |
+| | +--------------------------------------------------+ | | |
+| | |                                                  | | | |
+| +------------------------------------------------------+-+ |
+|                                                            |
+| +---------+                                +-------------+ |
+| | <  Back |                                | >  Continue | |
+| +---------+                                +-------------+ |
+|                                                            |
++------------------------------------------------------------+
+</pre>
+
+== Page 2: Installation options (confirmation screen) ==
+
+<pre>
++-------------------------------------------------------------+
+| Confirm Installation Options - Application Chooser    v ^ X |
++-------------------------------------------------------------+
+|                                                             |
+| The following changes will be made to the "Firefox"         |
+| application:                                                |
+|                                                             |
+| **DEB (official)**: Install                                 |
+|           **Snap**: Remove                                  |
+|        **Tarball**: Install                                 |
+|                                                             |
+| Click "Continue" to proceed with these changes, or "Back"   |
+| to return to the "Choose Installation Options" page.        |
+|                                                             |
+| +---------+                                 +-------------+ |
+| | <  Back |                                 | >  Continue | |
+| +---------+                                 +-------------+ |
+|                                                             |
++-------------------------------------------------------------+
+</pre>
+
+== Page 3: Installation progress ==
+
+<pre>
++-------------------------------------------+
+| Application Chooser                 v ^ X |
++-------------------------------------------+
+|                                           |
+| ========================================= |
+| == Step 3/4: Applying Software Changes == |
+| ========================================= |
+|                                           |
+| Progress: 35%                             |
+| +---------------------------------------+ |
+| |==============                         | |
+| +---------------------------------------+ |
+|                                           |
+| +---------------------------------------+ |
+| | Get (23/25): https://...              | |
+| | Get (24/25): https://...              | |
+| | Get (25/25): https://...              | |
+| | Preparing to unpack firefox.deb...    | |
+| | Unpacking firefox.deb...              | |
+| +---------------------------------------| |
+|                                           |
+|                           +-------------+ |
+|                           | >  Continue | |
+|                           +-------------+ |
+|                                           |
++-------------------------------------------+
+</pre>
+
+* Note, "continue" button will be grayed out when installation and removal of software is underway.
+
+== Page 4: Finish ==
+
+<pre>
++---------------------------------------------+
+| Application Chooser                   v ^ X |
++---------------------------------------------+
+|                                             |
+|  =========================================  |
+|  == Step 4/4: Software Changes Complete ==  |
+|  =========================================  |
+|                                             |
+| The following changes have been made to the |
+| "Firefox" application:                      |
+|                                             |
+| **DEB (official)**: Install                 |
+|           **Snap**: Remove                  |
+|        **Tarball**: Install                 |
+|                                             |
+| Click "Done" to exit the wizard.            |
+|                                             |
+|                       +-------------------+ |
+| [] Launch Firefox as: | DEB (official)  v | |
+|                       +-------------------+ |
+|                                             |
+|                                 +---------+ |
+|                                 | +  Done | |
+|                                 +---------+ |
+|                                             |
++---------------------------------------------+
+</pre>
+
+* Note, if software was only installed in one way, the combo box will be missing and the checkbox will simply read "Launch (Application)"
+* Note, if software was only removed, the checkbox and combo box will be missing.
+
+= Footnotes =
+<references />
+[[Category:Design]]
+{{Footer}}
