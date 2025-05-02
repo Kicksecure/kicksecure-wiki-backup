@@ -14,56 +14,77 @@ This page describes the concept, design, and implementation details of the brows
 = example =
 
 * https://upload.wikimedia.org/wikipedia/en/e/e2/BrowserChoice.gif
+* https://en.wikipedia.org/wiki/BrowserChoice.eu
 
 = GUI elements =
 
 * Structure as a wizard for ease-of-understanding.
-** Page 1: Offer a selection of applications (currently web browsers are our primary target)
+** <u>Page 1:</u> Offer a selection of applications (currently web browsers are our primary target)
 *** <u>intro text:</u>
 **** <u>"Select Application":</u> Main prompt for user interaction.
 **** <u>"web browsers" as a variable:</u> May be extended in the future to include options like "e-mail client". A tabbed interface can be used to allow the user to select what "class" of application they wish to choose from (browser, email, etc).
-*** <u>randomized:</u> Browsers are displayed in a random order to avoid preferential treatment.
+*** <u>alphabetic order:</u> Browsers are displayed in alphabetic order to avoid preferential treatment.
+*** <u>header text:</u> Indicate number of applications available. Mention that they are listed in alphabetical order.
 *** <u>logo 1:</u> Primary logo representing the browser.
-*** <u>logo 2:</u> Possibly represents the installation method(s). 
+*** <u>logo 2:</u> Possibly represents the installation method(s).
+*** <u>browser name:</u> For example "Firefox".
+**** <u>linked browser:</u> Link to browser homepage.
+*** <u>subline:</u> name of the developer. For example: "by Mozilla"
+*** <u>linked subline:</u> Link to for example "Mozilla".
 *** <u>text:</u> Best omitted to reduce bias and maintenance.
 *** <u>text / advantages / disadvantages:</u> Excluded to reduce maintenance effort and avoid potential legal issues. Instead, provide such comparisons in the wiki where updates and citations are easier.
 *** <u>outro text:</u>
 **** <u>"Further information"</u> section at the bottom of the interface.
-**** "Browsers shuffled in random order at each start.
-** Page 2: Offer available installation and uninstallation methods
+**** <u>No user freedom restrictions</u>: [[Dev/browser-choice|browser-choice]] simplifies installation of eligible browsers according to the [[Dev/browser-choice#criteria_for_inclusion_into_browser_choice|criteria for inclusion into browser choice]]. There are [[Reasons_for_Freedom_Software#No_Intentional_User_Freedom_Restrictions|No Intentional User Freedom Restrictions]]. Users are free to install any browser, with or without the help of browser choice.
+** <u>Page 2:</u> Offer available installation and uninstallation methods
 *** <u>intro text:</u>
 **** <u>"Choose Installation Options":</u> Main prompt for user interaction.
 *** All installation methods listed in alphabetical order.
-*** Installation method icons shown next to each available method.
-*** <u>"install, remove, purge, ignore":</u> Radio lists shown horizontally next to each installation method, allowing the user to remove the browser in one way and install it in another in one action (for instance, to switch from a Flatpak to a DEB package).
+*** Installation method icons shown next to each available method with cards.
+*** <u>"install, remove, purge":</u> Buttons for each installation method.
 *** <u>Example: Firefox...</u>
 **** <u>packages.debian.org package version</u>
 **** <u>flatpak version</u> (may offer weaker sandboxing)
 **** <u>Mozilla Debian repository version</u>
 *** Show the user a confirmation screen before allowing them to proceed to the next page
-** Page 3: Show (un)installation progress and logs
+** <u>Page 3:</u> Show (un)installation progress and logs
 *** <u>intro text:</u>
 **** <u>"modifying software":</u> Informs the user what is happening.
-*** Progress bar: gives the user a rough idea of how close the process is to completion.
-*** Log view: terminal-like window showing the user what is being done, useful for bug reports or to allow power users to diagnose issues themselves.
-** Page 4: Offer launching a newly installed application
+*** <u>Progress bar:</u> gives the user a rough idea of how close the process is to completion.
+**** <u>Progress bar implementation difficulty:</u> Progress bar is optional. Some installation methods (APT, flatpak, tb-updater) might not output machine readable progress percentage numbers?
+**** Skip progress bar in initial implementation, would too much plugin-specific code.
+*** <u>Log view:</u> terminal-like window showing the user what is being done, useful for bug reports or to allow power users to diagnose issues themselves.
+** <u>Page 4:</u> Offer launching a newly installed application
 *** <u>intro text:</u>
 **** <u>"software changes complete":</u> Informs the user what has happened.
 *** <u>"click done to close the wizard":</u> button for the user to exit the wizard
 *** If any new browser packages were installed, offer a <u>"launch now"</u> checkbox
 *** If the user installed the same browser in multiple ways, offer a combo box for selecting the installation type to launch
 
+= Browser Visibility =
+* <u>Installed vs not installed:</u> Differentiate between already installed and not yet installed browsers.
+* <u>No hidden browsers:</u> Gray out uninstallable browsers due to unavailability (many browsers are unavailable on ARM64 and other architectures) for transparency and avoidance of impression of bias.
+* <u>Mark unavailable browsers:</u> "Unavailable on the <code>ARM64</code> architecture."
+
+= No Randomized Order =
+It has been considered to show browsers in a random order to avoid preferential treatment and decided against it. Reasons:
+
+* <u>bad user experience:</u> Randomizing visible elements creates a sense of inconsistency for users who repeat the process. Even for first-time users, the perceived "random" order appears to be just a "normal static" order. The idea of randomization might appeal to lawyers or engineers, but most users would see it as excessive and a reduction in usability due to its inconsistency, especially when it's only intended to solve the simple issue of demonstrating neutrality.
+* <u>automated testing issues:</u> Randomization would also introduce problems for automated (CI) testing.
+* <u>no legal requirement:</u> [https://en.wikipedia.org/wiki/BrowserChoice.eu BrowserChoice.eu] by Microsoft might have had a legal requirement or legal advice to randomize the order of browsers due to its dominant market position. However, that does not apply to {{project_name_short}}. While {{project_name_short}} aims to be as objective as possible, there is no legal requirement to do so. {{project_name_short}} is permitted to editorialize.
+
 = Internal Design =
 
 * <u>plugin based:</u>
 ** <u>Drop a file into <code>/usr/share/choice/browser</code>:</u> Enables modular addition of browsers.
-*** <code>/usr/share/choice/browser/firefox</code>
-*** <code>/usr/share/choice/browser/chromium</code>
+*** <code>/usr/share/choice/browser/firefox.txt</code>
+*** <code>/usr/share/choice/browser/chromium.txt</code>
 ** <u>Drop a file into <code>/usr/share/choice/e-mail</code> (probably not important):</u> May support e-mail clients in the future. May be expandable to cover any kind of application type for which multiple alternatives are available and choosing a default is difficult.
-*** <code>/usr/share/choice/browser/thunderbird</code>
-*** <code>/usr/share/choice/browser/evolution</code>
+*** <code>/usr/share/choice/browser/thunderbird.txt</code>
+*** <code>/usr/share/choice/browser/evolution.txt</code>
 * Installation type icons and descriptions for common installation types are included by default (i.e. for "install from Debian repository", "install from Flatpak", "install from Snap Store", "install from Kicksecure repository" if applicable in the future, etc.
 * Simple code for common installation types included by default, plugins can use these functions to simplify installation code. Should only be used when it's very simple to implement and likely to be widely duplicated (i.e. <code>apt install</code>, <code>flatpak install</code>, etc.).
+* <u>logging:</u> All commands run by browser-choice and their outputs should be logged to a file to avoid undue blame for system issues on browser choice.
 
 = plugin structure =
 
@@ -75,6 +96,144 @@ This page describes the concept, design, and implementation details of the brows
 * <u>purge script(s):</u> Script for complete removal including configuration files and user data, one script per installation method.
 * <u>custom installation types:</u> For installation types unique to a particular browser (i.e. Mozilla repository, Brave repository), provide an icon and description for that installation type
 * <u>capability:</u> Checks that the Kicksecure installation is capable of running the browser, and reports this information to the frontend which can hide or show the browser as a result. For instance, if a browser is only available on x86_64, it should be hidden on arm64 machines.
+
+= Plugin Examples =
+Draft.
+
+<code>/usr/share/choice/browser/firefox.txt</code>
+
+<pre>
+product-name=Firefox
+product-website=https://www.mozilla.org/en-US/firefox/new/
+product-logo=firefox.svg
+vendor-name=Mozilla
+vendor-website=https://www.mozilla.org
+vendor-logo=mozilla.svg
+wiki=https://www.kicksecure.com/wiki/Firefox
+
+[action-install-debian]
+method-name=Firefox ESR (Extended Stable Release) from Debian stable repository
+method-name-short=Repo (Debian)
+method-subtext=Firefox ESR from packages.debian.org repository. Managed by apt.
+method-logo=debian.svg
+install-script=apt-get update && apt-get-noninteractive install firefox-esr
+uninstall-script=apt-get-noninteractive remove firefox-esr
+purge-script=apt-get-noninteractive purge firefox-esr
+install-status=package-installed-check firefox-esr
+architecture=amd64,arm64,ppc64el
+
+[action-install-mozilla]
+method-name=Firefox Stable from Mozilla official repository
+method-name-short=Repo (Mozilla)
+method-subtext=Firefox Stable from packages.mozilla.org repository. Managed by apt.
+method-logo=debian.svg
+install-script=...
+uninstall-script=apt-get-noninteractive remove firefox
+purge-script=apt-get-noninteractive purge firefox
+install-status=package-installed-check firefox
+architecture=amd64
+
+[action-install-flathub]
+method-name=Firefox Stable from Flathub repository
+method-name-short=Flatpak (Mozilla)
+method-subtext=Firefox Stable from flathub.org repository. Managed by Flatpak.
+method-logo=flatpak.svg
+install-script=flatpak install flathub org.mozilla.firefox
+uninstall-script=flatpak uninstall flathub org.mozilla.firefox
+purge-script=false
+install-status=flatpak info flathub org.mozilla.firefox
+architecture=amd64,arm64
+</pre>
+
+<code>/usr/share/choice/browser/chromium.txt</code>
+
+<pre>
+product-name=Chromium
+product-website=
+product-logo=chromium.svg
+vendor-name=Google
+vendor-website=
+vendor-logo=google.svg
+wiki=https://www.kicksecure.com/wiki/Chromium
+
+[action-install-debian]
+method-name=Chromium from Debian stable repository
+method-name-short=Repo (Debian)
+method-subtext=Chromium from packages.debian.org repository. Managed by apt.
+method-logo=debian.svg
+install-script=apt-get update && apt-get-noninteractive install chromium
+uninstall-script=apt-get-noninteractive remove chromium
+purge-script=apt-get-noninteractive purge chromium
+install-status=package-installed-check Chromium
+architecture=amd64,arm64,ppc64el
+
+[action-install-flathub]
+method-name=Chromium from Flathub repository (Community)
+method-name-short=Flatpak
+method-subtext=Chromium from flathub.org repository. Unofficial. Managed by Flatpak.
+method-logo=unofficial.svg
+install-script=flatpak install flathub org.chromium.Chromium
+uninstall-script=flatpak uninstall flathub org.chromium.Chromium
+purge-script=false
+install-status=flatpak info flathub org.chromium.Chromium
+architecture=amd64,arm64
+</pre>
+
+<code>/usr/share/choice/browser/torbrowser.txt</code>
+
+<pre>
+product-name=Tor Browser
+product-website=https://www.torproject.org/download/
+product-logo=torbrowser.svg
+vendor-name=The Tor Project
+vendor-website=https://www.torproject.org
+vendor-logo=torproject.svg
+wiki=https://www.kicksecure.com/wiki/Tor_Browser
+
+[action-install-tb-updater]
+method-name=Official Tor Browser tarball
+method-name-short=Tarball (TPO)
+method-subtext=Tor Browser from torproject.org repository. Managed by Tor Browser Downloader (by Kicksecure developers).
+method-logo=torbrowser.svg
+install-script=update-torbrowser --gui
+uninstall-script=false
+purge-script=false
+install-status=todo
+architecture=amd64
+#architecture=amd64,arm64
+</pre>
+
+= Editorialized Installation Methods =
+
+For example, Firefox can be installed using, and there are good arguments to make for.
+
+'''Table:''' ''Installation Methods Comparison Example''
+
+{| class="wikitable"
+! Option !! Method !! Description
+|-
+
+| A || Debian packages.debian.org repository || ESR (Extended Support Release) - trusting binary builds by Debian
+|-
+
+| B || Mozilla repository || Rapid release - presumably as fast as possible directly from Mozilla
+|-
+
+| C || flatpak (system-wide installation) || Same as above; compatible with <code>/home</code> [[noexec]]
+|-
+
+| E || flatpak (per-user installation) || Same as above; no administrative ("[[root|<code>root</code>]]") rights required for installation; incompatible with <code>/home</code> [[noexec]]
+|-
+
+| F || snap || Might be superfluous due to other available options
+|-
+
+| G || tarball || Same as above
+|-
+
+|}
+
+{{project_name_short}} developers will only implement major installation options. It is an explicit non-goal to offer all installation methods solely for the sake of completeness. Feature requests and contributions by upstream or the community might result in additional installation methods.
 
 = split GUI vs CLI =
 
@@ -88,7 +247,7 @@ This page describes the concept, design, and implementation details of the brows
 * <u>Open Source:</u> Must be fully open-source.
 * <u>availability of binary builds for Debian Linux Intel/AMD64:</u> Must have precompiled versions compatible with Debian on Intel/AMD64.
 * <u>{{project_name_short}} compatibility:</u> Installation and execution must be functional on Kicksecure. It usually is but hypothetically some security settings by {{project_name_short}} might break a browser and upstream might not fix it.
-* <u>stable</u> Functionally stable and not experimental.
+* <u>stable:</u> Functionally stable. A stable version that has a 0.x version number or is called alpha or beta is not an exclusion criterion, as these version schemes and qualifiers are used inflationarily.
 * <u>browser has a minimum of X users and/or market share or other noteworthiness:</u> Should be recognized or widely used, possibly included in major Linux distributions.
 * <u>project exists for a minimum of X years:</u> Ensures sustainability and maturity.
 * <u>must have X amount of developers:</u> Indicates active development and maintenance.
@@ -116,33 +275,30 @@ This page describes the concept, design, and implementation details of the brows
 | | Browsers +---------------+---------------+                          |
 | |          | Email Clients | Whatever else |                          |
 | +-------------------------------------------------------------------+ |
-| | There are 7 option(s) available.                                  | |
+| | 7 option(s) available. Applications shown in alphabetical order.  | |
 | +-------------------------------------------------------------------+ |
 | |                                                                   | |
-| |                   +----------------------+                        | |
-| |                   |                      |                        | |
-| | +---------------+ | +------------------+ | +------------------+ +-| |
-| | | Chromium      | | | Firefox          | | | Mullvad          | | | |
-| | +---------------+ | +------------------+ | +------------------+ +-| |
-| | | [Icon]        | | | [Icon]           | | | [Icon]           | | | |
-| | | [Link]        | | | [Link]           | | | [Link]           | | | |
-| | |               | | |                  | | |                  | | | |
-| | | Available as: | | | Available as:    | | | Available as:    | | | |
-| | | * Flatpak     | | | * DEB (official) | | | * DEB (official) | | | |
-| | | * Snap        | | | * DEB (debian)   | | | * Tarball        | | | |
-| | |               | | | * Flatpak        | | |                  | | | |
-| | |               | | | * Snap           | | |                  | | | |
-| | |               | | | * Tarball        | | |                  | | | |
-| | +---------------+ | +------------------+ | +------------------+ +-| |
-| |                   |                      |                        | |
-| |                   +----------------------+                        | |
+| | +------------------+ +------------------+ +------------------+    | |
+| | |      {Icon}  ( ) | |      {Icon}  (*) | |      {Icon}  (-) |    | |
+| | |   ==Chromium==   | |   ==Firefox==    | | ==Tor Browser==  |    | |
+| | |                  | |                  | |                  |    | |
+| | |  by [Google]     | | by [Mozilla]     | | by [TPO]         |    | |
+| | |  [Wiki]          | | [Wiki]           | | [Wiki...]        |    | |
+| | |                  | |                  | |                  |    | |
+| | | Available as:    | | Available as:    | | Unavailable on   |    | |
+| | | * Repo (Debian)  | | * Repo (Debian)  | | ARM64.           |    | |
+| | | * Flatpak        | | * Flatpak (Moz.) | |                  |    | |
+| | +------------------+ +------------------+ +------------------+    | |
 | |                                                                   | |
 | +-------------------------------------------------------------------+ |
 | | <=>                                                               | |
 | +-------------------------------------------------------------------+ |
 |                                                                       |
-| Applications are shown in random order.                               |
-| For more information about this tool, see [Link]                      |
+| This tool is provided solely for convenience. Users are free to use   |
+| any browser of their choice, installed with or without the help of    |
+| this tool.                                                            |
+|                                                                       |
+| For more information about this tool, see [Link].                     |
 |                                                                       |
 | +-----------+                                         +-------------+ |
 | | X  Cancel |                                         | >  Continue | |
@@ -154,54 +310,44 @@ This page describes the concept, design, and implementation details of the brows
 == Page 2: Installation options ==
 
 <pre>
-+------------------------------------------------------------+
-| Application Chooser                                  v ^ X |
-+------------------------------------------------------------+
-|                                                            |
-|        ===========================================         |
-|        == Step 2/4: Choose Installation Options ==         |
-|        ===========================================         |
-|                                                            |
-| Choose the package types to install or uninstall.          |
-|                                                            |
-| +------------------------------------------------------+-+ |
-| |                                                      | | |
-| | +--------------------------------------------------+ |^| |
-| | |                                                  | |#| |
-| | | **DEB (official)** - The official    (x) Install | |v| |
-| | | Firefox deb package from Mozilla.    ( ) Remove  | | | |
-| | |                                      ( ) Purge   | | | |
-| | |                                      ( ) Ignore  | | | |
-| | |                                                  | | | |
-| | +--------------------------------------------------+ | | |
-| |                                                      | | |
-| | +--------------------------------------------------+ | | |
-| | |                                                  | | | |
-| | | **DEB (debian)** - A package from    ( ) Install | | | |
-| | | the Debian archives.                 ( ) Remove  | | | |
-| | |                                      ( ) Purge   | | | |
-| | |                                      (x) Ignore  | | | |
-| | |                                                  | | | |
-| | +--------------------------------------------------+ | | |
-| |                                                      | | |
-| | +--------------------------------------------------+ | | |
-| | |                                                  | | | |
-| | | **Flatpak** - The official Firefox   ( ) Install | | | |
-| | | Flatpak package from Flathub.        ( ) Remove  | | | |
-| | |                                      ( ) Purge   | | | |
-| | |                                      (x) Ignore  | | | |
-| | |                                                  | | | |
-| | +--------------------------------------------------+ | | |
-| |                                                      | | |
-| | +--------------------------------------------------+ | | |
-| | |                                                  | | | |
-| +------------------------------------------------------+-+ |
-|                                                            |
-| +---------+                                +-------------+ |
-| | <  Back |                                | >  Continue | |
-| +---------+                                +-------------+ |
-|                                                            |
-+------------------------------------------------------------+
++-----------------------------------------------------------------------------+
+| Application Chooser                                                   v ^ X |
++-----------------------------------------------------------------------------+
+|                                                                             |
+|                 ===========================================                 |
+|                 == Step 2/4: Choose Installation Options ==                 |
+|                 ===========================================                 |
+|                                                                             |
+| Choose the package for "Firefox" to install or remove.                      |
+|                                                                             |
+| +-------------------------------------------------------------------------+ |
+| |                                                                         | |
+| | +---------------------------------+ +---------------------------------+ | |
+| | |             {Icon}          (*) | |             {Icon}          ( ) | | |
+| | | ==Firefox ESR (Extended Stable  | | ==Firefox Stable from Flathub   | | |
+| | | Release) from Debian stable     | | repository==                    | | |
+| | | repository==                    | |                                 | | |
+| | |                                 | | Firefox Stable from             | | |
+| | | Firefox ESR from                | | flathub.org repository. Managed | | |
+| | | packages.debian.org Repository. | | by Flatpak.                     | | |
+| | | Managed by apt.                 | |                                 | | |
+| | +---------------------------------+ +---------------------------------+ | |
+| |                                                                         | |
+| +-------------------------------------------------------------------------+ |
+| | <=>                                                                     | |
+| +-------------------------------------------------------------------------+ |
+|                                                                             |
+| Choose which action to take with the selected package:                      |
+|                                                                             |
+| ( ) Install                                                                 |
+| ( ) Remove                                                                  |
+| ( ) Purge                                                                   |
+|                                                                             |
+| +---------+                                                 +-------------+ |
+| | <  Back |                                                 | >  Continue | |
+| +---------+                                                 +-------------+ |
+|                                                                             |
++-----------------------------------------------------------------------------+
 </pre>
 
 == Page 2: Installation options (confirmation screen) ==
@@ -211,12 +357,12 @@ This page describes the concept, design, and implementation details of the brows
 | Confirm Installation Options - Application Chooser    v ^ X |
 +-------------------------------------------------------------+
 |                                                             |
-| The following changes will be made to the "Firefox"         |
-| application:                                                |
+| The application "Firefox" will be installed via "Repo       |
+| (Debian)". The following command will be executed to        |
+| install the application:                                    |
 |                                                             |
-| **DEB (official)**: Install                                 |
-|           **Snap**: Remove                                  |
-|        **Tarball**: Install                                 |
+| <apt-get update && apt-get-noninteractive install           |
+| firefox-esr>                                                |
 |                                                             |
 | Click "Continue" to proceed with these changes, or "Back"   |
 | to return to the "Choose Installation Options" page.        |
@@ -239,11 +385,6 @@ This page describes the concept, design, and implementation details of the brows
 | == Step 3/4: Applying Software Changes == |
 | ========================================= |
 |                                           |
-| Progress: 35%                             |
-| +---------------------------------------+ |
-| |==============                         | |
-| +---------------------------------------+ |
-|                                           |
 | +---------------------------------------+ |
 | | Get (23/25): https://...              | |
 | | Get (24/25): https://...              | |
@@ -259,7 +400,7 @@ This page describes the concept, design, and implementation details of the brows
 +-------------------------------------------+
 </pre>
 
-* Note, "continue" button will be grayed out when installation and removal of software is underway.
+* Note, "continue" button will be grayed out when installation or removal of software is underway.
 
 == Page 4: Finish ==
 
@@ -272,18 +413,11 @@ This page describes the concept, design, and implementation details of the brows
 |  == Step 4/4: Software Changes Complete ==  |
 |  =========================================  |
 |                                             |
-| The following changes have been made to the |
-| "Firefox" application:                      |
+| The application "Firefox" has been          |
+| installed via "Repo (Debian). Click "Done"  |
+| to exit the wizard.                         |
 |                                             |
-| **DEB (official)**: Install                 |
-|           **Snap**: Remove                  |
-|        **Tarball**: Install                 |
-|                                             |
-| Click "Done" to exit the wizard.            |
-|                                             |
-|                       +-------------------+ |
-| [] Launch Firefox as: | DEB (official)  v | |
-|                       +-------------------+ |
+|                        [ ] Launch "Firefox" |
 |                                             |
 |                                 +---------+ |
 |                                 | +  Done | |
@@ -292,8 +426,7 @@ This page describes the concept, design, and implementation details of the brows
 +---------------------------------------------+
 </pre>
 
-* Note, if software was only installed in one way, the combo box will be missing and the checkbox will simply read "Launch (Application)"
-* Note, if software was only removed, the checkbox and combo box will be missing.
+* Note, if software was removed, the checkbox will be missing.
 
 = Footnotes =
 <references />
