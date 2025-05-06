@@ -77,35 +77,62 @@ Resources:
 
 = Bash Proper Whitespace Handling =
 
-* Quote variables
-* Build parameters using arrays
-* Enforce <code>nounset</code>
+* Quote variables.
+* Build parameters using arrays.
+* Enforce <code>nounset</code>.
+* Use end-of-options.
+* Style: use long option names.
 
 <pre>
 #!/bin/bash
 
 ## https://yakking.branchable.com/posts/whitespace-safety/
 
-set -e
+#set -x
+set -o errexit
 set -o nounset
+set -o errtrace
+set -o pipefail
 
-app_user=user
 lib_dir="/tmp/test/lib/program with space/something spacy"
 main_app_dir="/tmp/test/home/user/folder with space/abc"
+
 mkdir --parents -- "${lib_dir}"
 mkdir --parents -- "${main_app_dir}"
 
-declare -a cmd
+declare -a cmd_list
 
-cmd+=("cp")
-cmd+=("-r")
-cmd+=("${lib_dir}")
-cmd+=("${main_app_dir}/")
+cmd_list+=("cp")
+cmd_list+=("--recursive")
+cmd_list+=("--")
+cmd_list+=("${lib_dir}")
+cmd_list+=("${main_app_dir}/")
 
-"${cmd[@]}"
+## Execution example.
+## Note: drop 'echo'
+echo "${cmd_list[@]}"
+
+## 'for' loop example.
+for cmd_item in "${cmd_list[@]}"; do
+    printf '%s\n' "cmd_item: '$cmd_item'"
+done
+
+## Alternative.
+cmd_alt_list=(
+    cp               ## program
+    --recursive      ## recursive
+    --               ## stop option parsing (protects against paths that begin with '-')
+    "$lib_dir"       ## source directory
+    "$main_app_dir"  ## destination
+)
+
+## 'for' loop example.
+for cmd_alt_item in "${cmd_alt_list[@]}"; do
+    printf '%s\n' "cmd_alt_item: '$cmd_alt_item'"
+done
 </pre>
 
-== Why <code>nounset</code> ==
+= Why <code>nounset</code> =
 
 Because it is better to be explicit if a variable should be empty or not:
 
@@ -121,7 +148,7 @@ rm: cannot remove '/': Is a directory
 
 Setting <code>UNSET_VAR=""</code> would not fix this issue, but that is another problem, checking if every used variable can be empty or not.
 
-== POSIX array ==
+= POSIX array =
 
 On a POSIX shell, there is one array, the <code>$@</code>, which have different scopes by function or main script. You can build it with <code>set --</code>:
 
@@ -177,8 +204,10 @@ Conclusion:
 #!/bin/bash
 
 set -x
-set -e
+set -o errexit
 set -o nounset
+set -o errtrace
+set -o pipefail
 
 ## Enable for testing.
 #unset HOME
@@ -222,7 +251,7 @@ file_extension="${base_name##*.}"
 * use long options rather than short options, for example use <code>grep --invert-match</code> instead of <code>grep -i</code>, when sensible
 * no trailing whitespaces allowed in source code files
 * all source code files must have a newline at the end
-* no git style symlinks (text file without newline at the end) because of past [https://security.snyk.io/vuln/SNYK-UNMANAGED-GITGIT-2372015 git symlink CVE]
+* no git style symlinks ([[Git#git_symlinks|git symlinks]]) (text file without newline at the end) because of past [https://security.snyk.io/vuln/SNYK-UNMANAGED-GITGIT-2372015 git symlink CVE]
 * use:
 ** shellcheck
 ** <code>safe-rm</code> <ref>

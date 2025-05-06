@@ -10,28 +10,11 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== mouse fingerprinting ==
-* todo
-* https://forums.whonix.org/t/better-mouse-obfuscation/21445
-* notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
-* update [[Keystroke_and_Mouse_Deanonymization|Keystroke and Mouse Deanonymization]]
-* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
-** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
-** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
-** Remaining work:
-*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
-*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
-*** Use normal kloak buffering to obfuscate mouse movements and timings
-*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
-* research reading list:
-** https://www.mimic.sbs/
-** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
-** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
-*** Aaron: These look potentially useful, but I'm not experienced enough with the math being used here to really understand how this works. Given the final equations and a sufficiently powerful math library however, it might be possible to wrap the algorithms into a library which could then be made part of an application, where the user could define where to click, what area to move the mouse in, and the time period during which the mouse should move, then click a "play" button that would move the mouse and execute the clicks using these synthesized movements. It might even be possible to somehow integrate this into kloak, though I'm unsure if that would actually be advantageous or not.
-* test page:
-** http://jcarlosnorte.com/assets/fingerprint/
-*** please document, if useful
-**** Aaron: Does not appear particularly useful, only runs tests on scroll wheel behavior.
+== Kicksecure homepage - search engines comment ==
+* https://forums.kicksecure.com/t/add-searxng-and-startpage-buttons-to-kicksecure-welcome-page/992
+* please have a look and opinion:
+** https://searchengine.party/
+** https://searx.space/
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -45,25 +28,6 @@ TODO
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== live mode detection improvements ==
-* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
-* Currently only based on grepping kernel command line.
-* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
-* Ideas on how to make live mode detection more reliable?
-* Aaron: It might be possible to rely on the mount info for the root filesystem, which can be seen by running <code>LC_ALL='C' mount | grep ' on / '</code>. This returns a distinctly different string for each of persistent mode, live mode, and ISO live mode.
-** PERSISTENT mode: /dev/mapper/luks-65abae64-dea9-4e54-b75f-0f545ed4a053 on / type ext4 (rw,relatime)
-** LIVE mode (dracut): overlay on / type overlay (rw,noatime,lowerdir=/live/image,upperdir=/cow/rw,workdir=/cow/work,default_permissions)
-** LIVE mode (initramfs-tools): overlay on / type overlay (rw,noatime,lowerdir=/run/live/rootfs/filesystem/,upperdir=/run/live/overlay/rw,workdir=/run/live/overlay/work,redirect_dir=on)
-** ISO live mode: LiveOS_rootfs on / type overlay (rw,relatime,lowerdir=/run/rootfsbase,upperdir=/run/overlayfs,workdir=/run/ovlwork)
-* Based on the above, we could say "if the string starts with <code>overlay on / type overlay</code>, then we're in GRUB live mode. If it starts with <code>LiveOS_rootfs</code>, we're in ISO live mode. Otherwise, we're in persistent mode.
-* Notes:
-** <code>LiveOS_rootfs</code> appears to be hardcoded throughout dracut, thus I believe this is a string we can rely on to be accurate.
-** For Dracut, <code>overlay</code> for GRUB live mode is hardcoded in the Debian-specific <code>90overlay-root</code> module and thus can likely be relied upon, see <code>/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh</code>.
-** For initramfs-tools, <code>overlay</code> for GRUB live mode is ''sorta'' hardcoded in live-boot, but not exactly, aufs is also supported and that might change the mount line. This may or may not be completely reliable.
-* Patrick:
-** Should we combine the existing kernel command line parameters based test with the new mount based test?
-** Any way for to catch also the BTRFS home folder unexpected persistence bug (live mode indicator said "live" but /home folder was actually persistent bug)? Related: [[Dev/todo#ISO_-_btrfs_versus_grub-live_bug_-_real_fix|ISO - btrfs versus grub-live bug - real fix]]
-
 == ISO - btrfs versus grub-live bug - real fix ==
 * todo
 * report bug upstream
@@ -73,6 +37,18 @@ TODO
 ** Might use kernel parameters using systemd features that may be available in trixie?
 * since no response from systemd, needs to be fixed without systemd upstream support
 * in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
+
+== emergent shutdown discussion ==
+* please read, comment if applicable
+* https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
+* https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755
+
+== live mode enhancements ==
+* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
+* research, compare with Tails
+* Avoid writing to arbitrary (non-boot) host disks	
+* Disables removable drives auto-mounting
+* Disabled virtual machine shared folders
 
 == permission-hardener - live bug ==
 * got a bug report by e-mail
@@ -657,6 +633,56 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== live mode detection improvements ==
+* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
+* Currently only based on grepping kernel command line.
+* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
+* Ideas on how to make live mode detection more reliable?
+* Aaron: It might be possible to rely on the mount info for the root filesystem, which can be seen by running <code>LC_ALL='C' mount | grep ' on / '</code>. This returns a distinctly different string for each of persistent mode, live mode, and ISO live mode.
+** PERSISTENT mode: /dev/mapper/luks-65abae64-dea9-4e54-b75f-0f545ed4a053 on / type ext4 (rw,relatime)
+** LIVE mode (dracut): overlay on / type overlay (rw,noatime,lowerdir=/live/image,upperdir=/cow/rw,workdir=/cow/work,default_permissions)
+** LIVE mode (initramfs-tools): overlay on / type overlay (rw,noatime,lowerdir=/run/live/rootfs/filesystem/,upperdir=/run/live/overlay/rw,workdir=/run/live/overlay/work,redirect_dir=on)
+** ISO live mode: LiveOS_rootfs on / type overlay (rw,relatime,lowerdir=/run/rootfsbase,upperdir=/run/overlayfs,workdir=/run/ovlwork)
+* Based on the above, we could say "if the string starts with <code>overlay on / type overlay</code>, then we're in GRUB live mode. If it starts with <code>LiveOS_rootfs</code>, we're in ISO live mode. Otherwise, we're in persistent mode.
+* Notes:
+** <code>LiveOS_rootfs</code> appears to be hardcoded throughout dracut, thus I believe this is a string we can rely on to be accurate.
+** For Dracut, <code>overlay</code> for GRUB live mode is hardcoded in the Debian-specific <code>90overlay-root</code> module and thus can likely be relied upon, see <code>/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh</code>.
+** For initramfs-tools, <code>overlay</code> for GRUB live mode is ''sorta'' hardcoded in live-boot, but not exactly, aufs is also supported and that might change the mount line. This may or may not be completely reliable.
+* Patrick:
+** Should we combine the existing kernel command line parameters based test with the new mount based test?
+*** Aaron: IMO, no, the logic will become too complicated. Notably, if the mount info and kernel parameters say different things, we'll risk either telling the user that their changes will persist when they won't, or telling the user that their changes won't persist when they will. The mount info is likely to be more reliable and there's no need to check the kernel parameters too.
+** Any way for to catch also the BTRFS home folder unexpected persistence bug (live mode indicator said "live" but /home folder was actually persistent bug)? Related: [[Dev/todo#ISO_-_btrfs_versus_grub-live_bug_-_real_fix|ISO - btrfs versus grub-live bug - real fix]]
+*** Aaron: That is possible.
+* Implemented both enhanced live mode detection and the ability to detect semi-persistence:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/live-mode
+** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/live-mode
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/live-mode
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/5ccc4218a0dd89c3a04ad4305fc6f7e088c24036
+
+== mouse fingerprinting ==
+* todo
+* https://forums.whonix.org/t/better-mouse-obfuscation/21445
+* notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
+* update [[Keystroke_and_Mouse_Deanonymization|Keystroke and Mouse Deanonymization]]
+* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
+** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
+** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
+** Remaining work:
+*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
+*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
+*** Use normal kloak buffering to obfuscate mouse movements and timings
+*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
+* research reading list:
+** https://www.mimic.sbs/
+** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
+** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
+*** Aaron: These look potentially useful, but I'm not experienced enough with the math being used here to really understand how this works. Given the final equations and a sufficiently powerful math library however, it might be possible to wrap the algorithms into a library which could then be made part of an application, where the user could define where to click, what area to move the mouse in, and the time period during which the mouse should move, then click a "play" button that would move the mouse and execute the clicks using these synthesized movements. It might even be possible to somehow integrate this into kloak, though I'm unsure if that would actually be advantageous or not.
+* test page:
+** http://jcarlosnorte.com/assets/fingerprint/
+*** please document, if useful
+**** Aaron: Does not appear particularly useful, only runs tests on scroll wheel behavior.
+* Aaron: Current alpha-quality implementation: https://github.com/ArrayBolt3/kloak-v2
+
 == sysmaint-panel - distinct wallpapers for Whonix-Gateway and Whonix-Workstation ==
 * sysmaint-panel shows a Kicksecure-like background image regardless of the underlying OS at the moment
 * Whonix-Gateway and Whonix-Workstation VMs in sysmaint mode look confusing for this reason
