@@ -18,6 +18,7 @@ This page describes the concept, design, and implementation details of the brows
 
 = GUI elements =
 
+* <u>Anytime:</u> The wizard can be started any time during the lifetime of Kicksecure. (Not only as a first boot wizard.)
 * Structure as a wizard for ease-of-understanding.
 ** <u>Page 1:</u> Offer a selection of applications (currently web browsers are our primary target)
 *** <u>intro text:</u>
@@ -96,6 +97,7 @@ It has been considered to show browsers in a random order to avoid preferential 
 * <u>purge script(s):</u> Script for complete removal including configuration files and user data, one script per installation method.
 * <u>custom installation types:</u> For installation types unique to a particular browser (i.e. Mozilla repository, Brave repository), provide an icon and description for that installation type
 * <u>capability:</u> Checks that the Kicksecure installation is capable of running the browser, and reports this information to the frontend which can hide or show the browser as a result. For instance, if a browser is only available on x86_64, it should be hidden on arm64 machines.
+* <u>running plugin scripts:</u> Plugin installation, removal, and precheck/postcheck code is run inside a terminal-wrapper, which monitors the exit status of the script(s) that is/are run. The "final" exit status is written to a well-defined location (<code>$TMPDIR/browser-choice-plugin-exit-code</code>?) which <code>browser-choice</code> reads when the terminal-wrapper is closed. This is then used to determine whether the process succeeded or failed.
 
 = Plugin Examples =
 Draft.
@@ -315,6 +317,9 @@ For example, Firefox can be installed using, and there are good arguments to mak
 | | | Available as:    | | Available as:    | | Unavailable on   |    | |
 | | | * Repo (Debian)  | | * Repo (Debian)  | | ARM64.           |    | |
 | | | * Flatpak        | | * Flatpak (Moz.) | |                  |    | |
+| | |                  | |                  | |                  |    | |
+| | | Installed as:    | | Not installed.   | |                  |    | |
+| | | * Repo (Debian)  | |                  | |                  |    | |
 | | +------------------+ +------------------+ +------------------+    | |
 | |                                                                   | |
 | +-------------------------------------------------------------------+ |
@@ -353,7 +358,7 @@ For example, Firefox can be installed using, and there are good arguments to mak
 | | |             {Icon}          (*) | |             {Icon}          ( ) | | |
 | | | ==Firefox ESR (Extended Stable  | | ==Firefox Stable from Flathub   | | |
 | | | Release) from Debian stable     | | repository==                    | | |
-| | | repository==                    | |                                 | | |
+| | | repository (Installed)==        | |                                 | | |
 | | |                                 | | Firefox Stable from             | | |
 | | | Firefox ESR from                | | flathub.org repository. Managed | | |
 | | | packages.debian.org Repository. | | by Flatpak.                     | | |
@@ -367,6 +372,7 @@ For example, Firefox can be installed using, and there are good arguments to mak
 | Choose which action to take with the selected package:                      |
 |                                                                             |
 | ( ) Install                                                                 |
+|   [ ] Don't update software databases before installation                   |
 | ( ) Remove                                                                  |
 | ( ) Purge                                                                   |
 |                                                                             |
@@ -375,6 +381,8 @@ For example, Firefox can be installed using, and there are good arguments to mak
 | +---------+                                                 +-------------+ |
 |                                                                             |
 +-----------------------------------------------------------------------------+
+
+* Note, gray out "remove" and/or "purge" if the application isn't installed or if there is no remove or purge script in the plugin
 </pre>
 
 == Page 2: Installation options (confirmation screen) ==
@@ -412,13 +420,10 @@ For example, Firefox can be installed using, and there are good arguments to mak
 | == Step 3/4: Applying Software Changes == |
 | ========================================= |
 |                                           |
-| +---------------------------------------+ |
-| | Get (23/25): https://...              | |
-| | Get (24/25): https://...              | |
-| | Get (25/25): https://...              | |
-| | Preparing to unpack firefox.deb...    | |
-| | Unpacking firefox.deb...              | |
-| +---------------------------------------| |
+| A terminal window has been opened for     |
+| finishing the installation or removal     |
+| process. Please finish installing or      |
+| removing your selected application there. |
 |                                           |
 |                           +-------------+ |
 |                           | >  Continue | |
@@ -427,7 +432,7 @@ For example, Firefox can be installed using, and there are good arguments to mak
 +-------------------------------------------+
 </pre>
 
-* Note, "continue" button will be grayed out when installation or removal of software is underway.
+* Note, "continue" button will be grayed out until the installation/removal terminal window is closed.
 
 == Page 4: Finish ==
 
@@ -454,6 +459,10 @@ For example, Firefox can be installed using, and there are good arguments to mak
 </pre>
 
 * Note, if software was removed, the checkbox will be missing.
+* Note, if installation or removal fails, this screen will warn about that.
+
+= Source Code =
+Boilerplate. Development has not started at time of writing: https://github.com/Kicksecure/browser-choice
 
 = Footnotes =
 <references />

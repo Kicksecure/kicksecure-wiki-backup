@@ -1,11 +1,13 @@
 {{Header}}
 {{#seo:
 |description=ram-wipe - Implementation notes.
+|image=Ram-wipe-developer.png
 }}
 {{title|title=
-Cold Boot Attack Defense - RAM Wipe Design Documentation
+Warm Boot Attack Defense - RAM Wipe Design Documentation
 }}
 {{fde-mininav}}
+[[File:Ram-wipe-developer.png|200px|thumb|ram-wipe logo (development)]]
 {{intro|
 [[ram-wipe]] wipes the RAM twice during poweroff/reboot.
 
@@ -216,6 +218,20 @@ TODO:
 
 * [https://github.com/zarhus/ram-dump-efi <code>ram-dump-efi</code>] - Minimalistic application to dump RAM from EFI, based on Dasharo [https://github.com/Dasharo/ram-remanence-tester <code>ram-remanence-tester</code>]
 
+= ram-wipe improvements =
+
+* <code>sdmem</code> is problematic: it is unmaintained upstream, and there has been at least one case where shutdown was blocked due to a "kernel locked up" error. Writing to RAM until it fills up and <code>sdmem</code> gets OOM-killed is not a robust design. We should either replace <code>sdmem</code> or drop it entirely. It seems feasible to drop it.
+* Review how Tails handles memory erasure: [https://tails.net/contribute/design/memory_erasure/ Tails memory erasure design]. They primarily rely on the kernel parameter <code>init_on_free=1</code>.
+* The second RAM wipe pass might be completely unnecessary. It can cause issues with graphics initialization during the second run due to buggy drivers. This makes reboot or shutdown slower and potentially glitchy.
+* All we might need to do is:
+** Set <code>init_on_free=1</code> (currently only set in <code>security-misc</code>, but it should be set in <code>ram-wipe</code> to make it standalone).
+** Drop caches (already implemented).
+** Properly unmount all encrypted disks (already done due to fixes in <code>dracut</code> in Debian Trixie).
+** Drop back to <code>initrd</code> (already implemented).
+** Re-test.
+
+''Task:'' Please consider the above, test it, implement necessary changes, and update the source code and wiki accordingly.
+
 = Forum Discussion =
 https://forums.whonix.org/t/is-ram-wipe-possible-inside-whonix-cold-boot-attack-defense/5596
 
@@ -224,8 +240,7 @@ https://forums.whonix.org/t/is-ram-wipe-possible-inside-whonix-cold-boot-attack-
 * [[Cold Boot Attack Defense]]
 * [[ram-wipe|<code>ram-wipe</code> User Documentation]]
 * https://github.com/{{project_name_short}}/ram-wipe
-
-https://github.com/memtest86plus/memtest86plus/discussions/266
+* https://github.com/memtest86plus/memtest86plus/discussions/266
 
 = Footnotes=
 <references/>
