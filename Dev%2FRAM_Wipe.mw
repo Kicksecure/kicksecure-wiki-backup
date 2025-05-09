@@ -11,8 +11,8 @@ Warm Boot Attack Defense - RAM Wipe Design Documentation
 {{intro|
 [[ram-wipe]] wipes the RAM twice during poweroff/reboot.
 
-* '''1.''' RAM Wipe Pass 1/2: During poweroff/reboot.
-* '''2.''' RAM Wipe Pass 2/2: It kexec's into a new kernel for the purpose of overwriting the first kernel's memory and performs a second RAM wipe pass.
+* '''1.''' RAM Wipe Pass 1/2: During Linux kernel poweroff/reboot sequences.
+* '''2.''' RAM Wipe Pass 2/2: It kexec's into a new kernel and performs a second RAM wipe pass for the purpose of overwriting the first kernel's memory and any other leftovers in RAM.
 }}
 = Design =
 == cold-boot-attack-defense ==
@@ -68,10 +68,9 @@ dracut module <code>ram-wipe-exit</code>:
 * The other dracut module <code>cold-boot-attack-defense</code> is independent.
 ** The first RAM wiping mechanism is useful regardless of this supplemental kexec-based RAM wipe, which might be more prone to bugs.
 ** The <code>cold-boot-attack-defense</code> module, in its main source code file <code>wipe-ram.sh</code>, uses <code>kexec</code> to boot into a new kernel.
-** That new kernel is actually the same kernel image, but thanks to <code>kexec</code>, the old kernel stops and a new kernel runs, which should result in overwriting the old kernel's RAM.
+** That new kernel is actually the same kernel image, but thanks to <code>kexec</code>, the old kernel stops and a new kernel runs.
 ** <code>kexec</code> is used with the <code>--reuse-cmdline</code> parameter for simplicity and to preserve already existing RAM wipe-related kernel parameters (the Linux kernel's freed memory poisoning feature mentioned above).
 ** Additionally, the kernel parameter <code>wiperamexit=1</code> is appended by the <code>cold-boot-attack-defense</code> module.
-** <code>kexec</code> is used to load a new kernel into memory so the old kernel's memory is overwritten by the new kernel.
 * The kernel parameter <code>wiperamexit=1</code> in the <code>ram-wipe-exit</code> module results in wiping the RAM and then rebooting or powering off.
 * It does not mount the root image.
 ** In other words, <code>ram-wipe-exit</code> runs at a very early boot stage before mounting the root image. This is done using the dracut hook <code>pre-udev</code> (because that hook runs before <code>pre-mount</code>).
