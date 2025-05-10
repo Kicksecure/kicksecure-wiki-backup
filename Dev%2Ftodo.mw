@@ -13,6 +13,39 @@ TODO
 == live mode systray in python ==
 * cli + gui separate?
 
+== browser choice - design ==
+* wiki text only
+* please review, improve [[Dev/browser-choice]]
+* Fleshed out both internal and user-facing design quite a bit more, including creating UI mockups.
+* please review wiki history (Patrick made changes)
+* change to "always cards design" for installation method
+* show installation command (even if hidden behind expand box) before execution (for transparency and so that advanced users can stay in the loop what is actually happening, less "magic")
+** Aaron: Reviewed and added requested changes.
+* boilerplate: https://github.com/Kicksecure/browser-choice
+* Patrick:
+** open-link-confirmation might need a better error message if no browser is installed yet
+** Please point out that "Open Source browser only" and link to criteria. If too much text, perhaps a link to the criteria only.
+** Please re-review changes.
+** Maybe the tool could indicated somewhere how the browser is currently installed? - Like either "Firefox is not installed" or "Firefox is installed as Firefox Stable from Flathub"
+* Aaron:
+** Re-reviewed changes, made adjustments as appropriate and added requested adjustments from this task.
+** open-link-confirmation can be dealt with once we start actually implementing code, however the code implementation task should have a note about it once we get to that point
+* Patrick:
+** How to handle user-sysmaint-split?
+*** Are we going towards rootless appstore? [https://forums.whonix.org/t/user-sysmaint-split-role-based-boot-modes-persistent-user-live-user-persistent-sysmaint-system-maintenance/7708/59 No.]
+** How to handle Qubes Template implementation?
+*** If run inside Template based App Qube: point out that browser choice will be functional but browser will not persist due to Qubes default Template implementation.
+*** If run inside Qubes Template: point out being run inside Qubes Template. Prepend required http_proxy variable as documented in [[Install_Software#Install_from_Flatpak|Install from Flatpak]]?
+*** If run inside Qubes Standalone: point out being run inside Qubes Standalone.
+
+== chat messenger research ==
+* https://forums.whonix.org/t/recommended-private-chats-and-social-networks-for-whonix/21561/14
+* For inspiration on the best messenger:
+** https://privacyspreadsheet.com/messaging-apps
+** https://www.securemessagingapps.com/#
+** https://www.privacyguides.org/en/real-time-communication/
+* review, improve https://www.whonix.org/wiki/Chat
+
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -50,6 +83,14 @@ TODO
 * please read, comment if applicable
 * https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
 * https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755
+* Implemented, but may need further polish:
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/emerg-shutdown
+*** On my test system, this reliably causes the screen to black out and the OS to become inaccessible when I unplug the root filesystem device, but sometimes the power LED will remain lit and the fans will keep running. This happens about 50% of the time, the other 50% of the time a proper shutdown is done. Because of the shutdown method being used, I currently suspect this is the fault of my hardware and not of the implementation, but further testing will be needed to confirm that and documentation should indicate that users must test this feature thoroughly before relying on it in a security-sensitive situation.
+*** This is supposed to work even if Kicksecure is burned to an optical disc and that disc is ejected, but I believe is currently will not work. I believe the kernel sends a different event for an ejected optical disc than for a removed USB drive.
+*** Panic button support not yet implemented.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/emerg-shutdown
+*** The root device finding script could use more thorough testing and could be expanded to support more scenarios.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/emerg-shutdown
 
 == emergency shutdown implementation ==
 * when the boot USB drive is removed
@@ -363,6 +404,10 @@ sudo apt install serial-console-enable
 * test and implement https://github.com/systemd/systemd/issues/29893#issuecomment-2757436101 if sane
 
 = WAITING ON =
+== grml-debootstrap - grub issue ==
+* https://github.com/grml/grml-debootstrap/issues/339
+** Fix for remaining issue: https://github.com/grml/grml-debootstrap/pull/341
+
 == dracut - upstream generic initrd default ==
 * in reference to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#80
 * does dracut upstream currently use hostonly=no by default, i.e creates generic initrd by default?
@@ -645,13 +690,28 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== sysmaint systray ==
-* implement and already existing systray in sysmaint mode (ideally X11 + Wayland compatible)
-* add NM systray by default
-* Implemented:
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/systray
-** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel
-** NOTE: <code>trayer</code> must be added to a Kicksecure metapackage for this to work. Which metapackage is the best is unclear, <code>non-qubes-enhancements-gui</code> may be a good choice.
+== umask bug - copy from user to sudo missing permission - others ==
+* how to reproduce:
+
+{{CodeSelect|code=
+touch a
+sudo cp a /etc/a
+ls -la /etc/a
+}}
+
+* expected result: readable by "others" ("public")
+* actual result: unreadable by "others"
+* this is probably happening because file "a" is created unreadable by "others". When copying, permissions are preserved.
+* problematic in context of use cases such as:
+
+{{CodeSelect|code=
+sudo overwrite /etc/apt/sources.list.d/cwtch.im.list 'deb [arch=amd64 signed-by=/usr/share/keyrings/deb.cwtch.im-keyring.gpg] https://deb.cwtch.im/cwtch.im/ stable main'
+}}
+
+* Aaron:
+** This is two separate issues. The issue as described with <code>cp</code> is not a bug and isn't fixable - <code>cp</code>'s behavior is to simply clone the file mode (permissions) of files it copies. This can be overridden using the <code>--no-preserve=mode</code> option.
+** However, <code>overwrite</code> and other programs that use <code>append-shared</code> are indeed causing permission issues, they appear to be forcing the permissions of any file they touch to 0600. This is because we're creating a temporary file with the contents we want, then moving it into the location where the old file was. The permissions on the temporary file are 0600, so the final file ends up with the same (faulty) permissions.
+*** Fix: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/append-perms
 
 == live mode detection improvements ==
 * https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
@@ -723,6 +783,22 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== installation failure with en-gb locale ==
+* https://forums.kicksecure.com/t/error-during-installation/1033
+** Fix: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/locale
+*** Patrick: Merged.
+
+== sysmaint systray ==
+* implement and already existing systray in sysmaint mode (ideally X11 + Wayland compatible)
+* add NM systray by default
+* Implemented:
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/systray
+*** Patrick: Merged
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel
+*** Patrick: Merged
+** NOTE: <code>trayer</code> must be added to a Kicksecure metapackage for this to work. Which metapackage is the best is unclear, <code>non-qubes-enhancements-gui</code> may be a good choice.
+*** Patrick: Added to <code>non-qubes-enhancements-gui</code>
+
 == sysmaint-panel - wifi setup ==
 * todo
 * Implemented: https://github.com/ArrayBolt3/sysmaint-panel/commit/82c9aa8ffb65f49215645abe9968cec02daebba8
@@ -732,24 +808,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == verfied boot - specification pull request review ==
 * https://github.com/3mdeb/verified-boot/pull/30
 * Added review notes.
-
-== browser choice - design ==
-* wiki text only
-* please review, improve [[Dev/browser-choice]]
-* Fleshed out both internal and user-facing design quite a bit more, including creating UI mockups.
-* please review wiki history (Patrick made changes)
-* change to "always cards design" for installation method
-* show installation command (even if hidden behind expand box) before execution (for transparency and so that advanced users can stay in the loop what is actually happening, less "magic")
-** Aaron: Reviewed and added requested changes.
-* boilerplate: https://github.com/Kicksecure/browser-choice
-* Patrick:
-** open-link-confirmation might need a better error message if no browser is installed yet
-** Please point out that "Open Source browser only" and link to criteria. If too much text, perhaps a link to the criteria only.
-** Please re-review changes.
-** Maybe the tool could indicated somewhere how the browser is currently installed? - Like either "Firefox is not installed" or "Firefox is installed as Firefox Stable from Flathub"
-* Aaron:
-** Re-reviewed changes, made adjustments as appropriate and added requested adjustments from this task.
-** open-link-confirmation can be dealt with once we start actually implementing code, however the code implementation task should have a note about it once we get to that point
 
 == Kicksecure homepage - search engines comment ==
 * https://forums.kicksecure.com/t/add-searxng-and-startpage-buttons-to-kicksecure-welcome-page/992
