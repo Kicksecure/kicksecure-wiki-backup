@@ -12,9 +12,9 @@ Development notes for adding MAC address anonymization to {{project_name_long}}.
 = Introduction =
 Reliable MAC hiding is difficult beyond practicality.
 
-MAC spoofing is just bolted-on, low priority. The Linux kernel, Qubes, or anyone does not dedicate their life for the purpose of MAC hiding.
+MAC spoofing is just bolted-on, low priority. The Linux kernel, NetworkManager, systemd, udev, Debian, Kicksecure, Whonix, Qubes, any other Linux distribution or anyone else does not dedicate their life for the purpose of MAC hiding.
 
-[[MAC_Address#Auto-connect_Risk|Auto-connect Risk]]
+There's the [[MAC_Address#Auto-connect_Risk|Auto-connect Risk]] when new devices are connected.
 
 We might also need to put MAC hiding into a bigger context by zooming out 1 level. What is the purpose of MAC hiding?
 
@@ -34,8 +34,8 @@ Related bug reports and discussions:
 * https://forums.whonix.org/t/mac-randomization-is-flawed-proposed-new-solution/21366/8
 * https://forum.qubes-os.org/t/mac-randomization-is-flawed-proposed-new-solution/32150
 * https://gitlab.tails.boum.org/tails/tails/-/issues/11293#note_253628
-* https://gitlab.tails.boum.org/tails/tails/-/issues/17128
-* [https://gitlab.tails.boum.org/tails/tails/-/issues/17115 MAC spoofing can fail and disable a network adapter when waking up from suspend]
+* Tails ticket: [https://gitlab.tails.boum.org/tails/tails/-/issues/17128 Investigate whether internal network adapters consistently use their previously spoofed MAC address after resuming from suspend]
+* Tails bug report [https://gitlab.tails.boum.org/tails/tails/-/issues/17115 MAC spoofing can fail and disable a network adapter when waking up from suspend]
 
 Related general security ecosystem-wide issues:
 
@@ -160,20 +160,86 @@ See also:
 
 From [https://tails.boum.org/contribute/design/MAC_address/ this Tails design page]:
 
+{{quotation
+|quote=
 * '''AdvCapSniff'''
 * '''AdvCapRecords'''
 * '''AdvCapOwners'''
+}}
 
+{{quotation
+|quote=
 * '''AdvGoalTracking'''
 * '''AdvGoalProfiling'''
 * '''AdvCapOwners'''
 * '''AdvGoalIdTails'''
 * '''AdvGoalIdMacSpoof'''
+}}
 
+{{quotation
+|quote=
 * '''AvoidTracking'''
 * '''AvoidIdTails'''
 * '''AvoidIdMacSpoof'''
 * '''AvoidConnectionProbs'''
+}}
+
+= Suspicious MAC Addresses =
+When MAC spoofing design has been considered by Tails, an argument has been made about some types of random MAC addresses might raise suspicion. To explain this, one needs to know a bit about the format of a MAC address.
+
+{{quotation
+|quote=
+The first three bytes of a MAC address determine the Organizationally Unique Identifier (OUI) which in practice determines the chipset's manufacturer 
+}}
+
+{{quotation
+|quote=Adversary goals
+[...]
+Identify MAC spoofing individuals. We assume that our adversary has bought into the "nothing to hide" argument, which makes such suspicious behaviour valuable information. [AdvGoalIdMacSpoof]
+[...]
+Not raising alarms on the network, i.e. prevent AdvGoalIdMacSpoof, but also avoid alarming the local administrators (imagine a situation where security guards are sent to investigate an "alien computer" at your workplace, or similar). [AvoidIdMacSpoof]
+[...]
+Great care should be taken when picking the OUI to avoid these categories. The whole point is to randomly pick an OUI that the adversary expects to see. In particular the OUI should be one used for common, consumer oriented hardware.
+|context=[https://tails.boum.org/contribute/design/MAC_address/ this Tails design page]
+}}
+
+So in summary, the argument has been brought forward, that if the OUI is non-existing (as in not assigned to any chipset manufacturer), this might raise suspicion. However, it is important to consider the context of that consideration. This has been considered many years before Apple iOS and Android started some form of MAC randomization.
+
+Is MAC randomization less suspicious nowadays that Apple and Android started with some form of MAC addresses randomization by default? This might depend on how exactly these popular phone producers randomize MAC addresses.
+
+For instance, Samsung randomizes MAC address by default per WiFi but keeps using same MAC per WiFi.
+
+{{quotation
+|quote=The Android framework uses two types of MAC randomization: [https://source.android.com/docs/core/connect/wifi-mac-randomization-behavior#persistent persistent randomization] and [https://source.android.com/docs/core/connect/wifi-mac-randomization-behavior#non-persistent non-persistent randomization].
+|context=[https://source.android.com/docs/core/connect/wifi-mac-randomization-behavior Android: MAC randomization behavior]
+}}
+
+= Leak Testing =
+TODO:
+
+Can MAC address leak testing be done:
+
+* non-Qubes: on the host operating system
+* Qubes: inside sys-net
+
+Or,
+
+* is using an outside device required?
+
+TODO: Log/report (hashed?) MAC addresses? Note in a log if the real MAC address or a spoofed MAC address has been used.
+
+= hostname =
+Hostname leaks...
+
+* NetworkManager feature request: [https://gitlab.freedesktop.org/NetworkManager/NetworkManager/-/issues/584 No way to set dhcp-send-hostname globally]
+* NetworkManager pull request: [https://github.com/QubesOS/qubes-issues/issues/7701 device: Support configuring dhcp-send-hostname globally]
+* Quote Qubes feature request [https://github.com/QubesOS/qubes-issues/issues/7701 Hostname leak prevention]
+
+<blockquote>
+The reason the hostname is not being sent on debian-11 is because /etc/hostname (the static hostname) file is missing (it needs to be present when NetworkManager service is started).
+</blockquote>
+
+In conclusion, if using DHCP, it's best if file <code>/etc/hostname</code> does not exist.
 
 = See Also =
 * {{kicksecure_wiki
@@ -188,6 +254,7 @@ From [https://tails.boum.org/contribute/design/MAC_address/ this Tails design pa
 * [https://gitlab.tails.boum.org/tails/tails/-/issues/5421 MAC Changer Issue]
 * [https://gitlab.tails.boum.org/tails/blueprints/-/wikis/macchanger/ Tails MAC Changer Wiki]
 * Worth reading! Thanks to Tails!
+* https://perot.me/mac-spoofing-what-why-how-and-something-about-coffee
 
 = Forum Discussions =
 * https://forums.whonix.org/t/mac-address-anonymization/24

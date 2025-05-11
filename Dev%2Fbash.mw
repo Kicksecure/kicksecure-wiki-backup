@@ -66,8 +66,8 @@ printf '%s' "${red} ${untrusted_text} ${nocolor}" {{!}} stprint {{!}} less -R
 * <code>printf</code>: Whenever the printed data is not used by a terminal.
 ** Format <code>%b</code>: Only for trusted data.
 ** Format <code>%s</code>: With any data.
-* <code>stprint</code>: Whenever the printed data is used by a terminal.
-** When not using <code>stprint</code>: When <code>stprint</code> cannot reasonably be considered available such as during early build-steps when building Kicksecure from source code using derivative-maker.
+* <code>stecho</code>: Whenever the printed data is used by a terminal.
+** When not using <code>stecho</code>: When <code>stecho</code> cannot reasonably be considered available such as during early build-steps when building Kicksecure from source code using derivative-maker.
 
 Resources:
 
@@ -137,7 +137,7 @@ done
 Because it is better to be explicit if a variable should be empty or not:
 
 <pre>
-rm -f -- "/$UNSET_VAR"
+rm --force -- "/$UNSET_VAR"
 </pre>
 
 Will return:
@@ -147,6 +147,19 @@ rm: cannot remove '/': Is a directory
 </pre>
 
 Setting <code>UNSET_VAR=""</code> would not fix this issue, but that is another problem, checking if every used variable can be empty or not.
+
+= local =
+Note:
+
+local testbar=$(false)
+
+expected: error
+
+actual: no error
+
+better:
+local testvar
+testvar=$(false)
 
 = POSIX array =
 
@@ -223,7 +236,7 @@ printf '%s' "$HOME"
 
 Example:
 
-Note: Variable could be different. Could be for example <code>--/usr</code>.
+<u>Note:</u> Variable could be different. Could be for example <code>--/usr</code>.
 
 {{CodeSelect|code=
 folder_name="/usr"
@@ -235,11 +248,15 @@ printf '%s' "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
 
 Of if <code>safe_echo_nonewline</code> is available from helper-scripts.
 
+https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/safe_echo.sh
+
 {{CodeSelect|code=
 # shellcheck disable=SC1091
 source /usr/libexec/helper-scripts/safe_echo.sh
 safe_echo_nonewline "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
 }}
+
+use <code>stprint</code> instead?
 
 = misc =
 <pre>
@@ -252,13 +269,15 @@ file_extension="${base_name##*.}"
 * no trailing whitespaces allowed in source code files
 * all source code files must have a newline at the end
 * no git style symlinks ([[Git#git_symlinks|git symlinks]]) (text file without newline at the end) because of past [https://security.snyk.io/vuln/SNYK-UNMANAGED-GITGIT-2372015 git symlink CVE]
+* Avoid [[unicode]] whenever possible. See alsp [[unicode-show]].
 * use:
-** shellcheck
-** <code>safe-rm</code> <ref>
+** <code>shellcheck</code>
+** avoid <code>rm</code>, prefer  <code>safe-rm</code> <ref>
 * https://github.com/MrMEEE/bumblebee-Old-and-abbandoned/issues/123
 * https://github.com/valvesoftware/steam-for-linux/issues/3671
 </ref>
-** <code>scurl</code>
+** avoid <code>wget</code> and <code>curl</code>, prefer <code>scurl</code> ([[Secure Downloads]])
+** avoid <code>grep</code>, use <code>str_match</code>
 ** <code>str_replace</code>
 ** <code>append-once</code>
 ** <code>overwrite</code>
@@ -275,10 +294,23 @@ set -o pipefail
 * do not use:
 ** <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary, which <code>command</code> is a built-in (a bit faster).
 
+= Improved Error Handler =
+Inspired by https://github.com/pottmi/stringent.sh
+
+{{CodeSelect|code=
+if (( "$BASH_SUBSHELL" >= 1 )); then
+  kill "$$"
+fi
+}}
+
 = See Also =
 * https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md
 * https://dwheeler.com/essays/fixing-unix-linux-filenames.html
+* {{VideoLink
+|videoid=DvDu8_A2uhs
+|text=Seat Belts and Airbags for bash
+}}
+** https://github.com/pottmi/stringent.sh
 
 {{Footer}}
-
 [[Category: Design]]
