@@ -10,11 +10,16 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== helper-scripts - stecho - review ==
-* please review: https://github.com/Kicksecure/helper-scripts/pull/25
-
 == live mode systray in python ==
 * cli + gui separate?
+
+== user-sysmaint-split - minor improvements ==
+
+* consider <code>test -s</code>
+
+<pre>
+-z "$(cat
+</pre>
 
 == browser choice - design ==
 * wiki text only
@@ -48,6 +53,14 @@ TODO
 ** https://www.securemessagingapps.com/#
 ** https://www.privacyguides.org/en/real-time-communication/
 * review, improve https://www.whonix.org/wiki/Chat
+
+== bash seatbelt ==
+* please watch: {{VideoLink
+|videoid=DvDu8_A2uhs
+|text=Seat Belts and Airbags for bash
+}}
+** https://github.com/pottmi/stringent.sh
+* edit [[Dev/bash]] if something is missing
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -408,7 +421,15 @@ sudo apt install serial-console-enable
 * hidepid seems to make most sense if using user-sysmaint-split, because then account "user" cannot use sudo/pkexec anyhow
 * test and implement https://github.com/systemd/systemd/issues/29893#issuecomment-2757436101 if sane
 
+== research shred ==
+* research if shred is still useful nowadays
+* if not, should be replaced by safe-rm
+
 = WAITING ON =
+== helper-scripts - stecho - review ==
+* please review: https://github.com/Kicksecure/helper-scripts/pull/25
+* Review submitted.
+
 == grml-debootstrap - grub issue ==
 * https://github.com/grml/grml-debootstrap/issues/339
 ** Fix for remaining issue: https://github.com/grml/grml-debootstrap/pull/341
@@ -695,55 +716,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== umask bug - copy from user to sudo missing permission - others ==
-* how to reproduce:
-
-{{CodeSelect|code=
-touch a
-sudo cp a /etc/a
-ls -la /etc/a
-}}
-
-* expected result: readable by "others" ("public")
-* actual result: unreadable by "others"
-* this is probably happening because file "a" is created unreadable by "others". When copying, permissions are preserved.
-* problematic in context of use cases such as:
-
-{{CodeSelect|code=
-sudo overwrite /etc/apt/sources.list.d/cwtch.im.list 'deb [arch=amd64 signed-by=/usr/share/keyrings/deb.cwtch.im-keyring.gpg] https://deb.cwtch.im/cwtch.im/ stable main'
-}}
-
-* Aaron:
-** This is two separate issues. The issue as described with <code>cp</code> is not a bug and isn't fixable - <code>cp</code>'s behavior is to simply clone the file mode (permissions) of files it copies. This can be overridden using the <code>--no-preserve=mode</code> option.
-** However, <code>overwrite</code> and other programs that use <code>append-shared</code> are indeed causing permission issues, they appear to be forcing the permissions of any file they touch to 0600. This is because we're creating a temporary file with the contents we want, then moving it into the location where the old file was. The permissions on the temporary file are 0600, so the final file ends up with the same (faulty) permissions.
-*** Fix: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/append-perms
-
-== live mode detection improvements ==
-* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
-* Currently only based on grepping kernel command line.
-* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
-* Ideas on how to make live mode detection more reliable?
-* Aaron: It might be possible to rely on the mount info for the root filesystem, which can be seen by running <code>LC_ALL='C' mount | grep ' on / '</code>. This returns a distinctly different string for each of persistent mode, live mode, and ISO live mode.
-** PERSISTENT mode: /dev/mapper/luks-65abae64-dea9-4e54-b75f-0f545ed4a053 on / type ext4 (rw,relatime)
-** LIVE mode (dracut): overlay on / type overlay (rw,noatime,lowerdir=/live/image,upperdir=/cow/rw,workdir=/cow/work,default_permissions)
-** LIVE mode (initramfs-tools): overlay on / type overlay (rw,noatime,lowerdir=/run/live/rootfs/filesystem/,upperdir=/run/live/overlay/rw,workdir=/run/live/overlay/work,redirect_dir=on)
-** ISO live mode: LiveOS_rootfs on / type overlay (rw,relatime,lowerdir=/run/rootfsbase,upperdir=/run/overlayfs,workdir=/run/ovlwork)
-* Based on the above, we could say "if the string starts with <code>overlay on / type overlay</code>, then we're in GRUB live mode. If it starts with <code>LiveOS_rootfs</code>, we're in ISO live mode. Otherwise, we're in persistent mode.
-* Notes:
-** <code>LiveOS_rootfs</code> appears to be hardcoded throughout dracut, thus I believe this is a string we can rely on to be accurate.
-** For Dracut, <code>overlay</code> for GRUB live mode is hardcoded in the Debian-specific <code>90overlay-root</code> module and thus can likely be relied upon, see <code>/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh</code>.
-** For initramfs-tools, <code>overlay</code> for GRUB live mode is ''sorta'' hardcoded in live-boot, but not exactly, aufs is also supported and that might change the mount line. This may or may not be completely reliable.
-* Patrick:
-** Should we combine the existing kernel command line parameters based test with the new mount based test?
-*** Aaron: IMO, no, the logic will become too complicated. Notably, if the mount info and kernel parameters say different things, we'll risk either telling the user that their changes will persist when they won't, or telling the user that their changes won't persist when they will. The mount info is likely to be more reliable and there's no need to check the kernel parameters too.
-** Any way for to catch also the BTRFS home folder unexpected persistence bug (live mode indicator said "live" but /home folder was actually persistent bug)? Related: [[Dev/todo#ISO_-_btrfs_versus_grub-live_bug_-_real_fix|ISO - btrfs versus grub-live bug - real fix]]
-*** Aaron: That is possible.
-* Implemented both enhanced live mode detection and the ability to detect semi-persistence:
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/live-mode
-** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/live-mode
-** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/live-mode
-** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/5ccc4218a0dd89c3a04ad4305fc6f7e088c24036
-
 == mouse fingerprinting ==
 * todo
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
@@ -788,6 +760,71 @@ sudo overwrite /etc/apt/sources.list.d/cwtch.im.list 'deb [arch=amd64 signed-by=
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== user-sysmaint-split - review sysmaint-boot.target ==
+* /usr/lib/systemd/system/sysmaint-boot.target
+* Reviewed, updated: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/sysmaint-boot-wants
+** Patrick: Merged.
+
+== user-sysmaint-split - user login without autologin broken ==
+* Default login session for non-sysmaint accounts ends up being the sysmaint login session
+* Fix: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/login-fix
+** Patrick: Merged.
+
+== live mode detection improvements ==
+* https://github.com/Kicksecure/helper-scripts/blob/master/usr/libexec/helper-scripts/live-mode.sh
+* Currently only based on grepping kernel command line.
+* However, a different or the wrong initramfs generator might be in use. Or some other unexpected use case.
+* Ideas on how to make live mode detection more reliable?
+* Aaron: It might be possible to rely on the mount info for the root filesystem, which can be seen by running <code>LC_ALL='C' mount | grep ' on / '</code>. This returns a distinctly different string for each of persistent mode, live mode, and ISO live mode.
+** PERSISTENT mode: /dev/mapper/luks-65abae64-dea9-4e54-b75f-0f545ed4a053 on / type ext4 (rw,relatime)
+** LIVE mode (dracut): overlay on / type overlay (rw,noatime,lowerdir=/live/image,upperdir=/cow/rw,workdir=/cow/work,default_permissions)
+** LIVE mode (initramfs-tools): overlay on / type overlay (rw,noatime,lowerdir=/run/live/rootfs/filesystem/,upperdir=/run/live/overlay/rw,workdir=/run/live/overlay/work,redirect_dir=on)
+** ISO live mode: LiveOS_rootfs on / type overlay (rw,relatime,lowerdir=/run/rootfsbase,upperdir=/run/overlayfs,workdir=/run/ovlwork)
+* Based on the above, we could say "if the string starts with <code>overlay on / type overlay</code>, then we're in GRUB live mode. If it starts with <code>LiveOS_rootfs</code>, we're in ISO live mode. Otherwise, we're in persistent mode.
+* Notes:
+** <code>LiveOS_rootfs</code> appears to be hardcoded throughout dracut, thus I believe this is a string we can rely on to be accurate.
+** For Dracut, <code>overlay</code> for GRUB live mode is hardcoded in the Debian-specific <code>90overlay-root</code> module and thus can likely be relied upon, see <code>/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh</code>.
+** For initramfs-tools, <code>overlay</code> for GRUB live mode is ''sorta'' hardcoded in live-boot, but not exactly, aufs is also supported and that might change the mount line. This may or may not be completely reliable.
+* Patrick:
+** Should we combine the existing kernel command line parameters based test with the new mount based test?
+*** Aaron: IMO, no, the logic will become too complicated. Notably, if the mount info and kernel parameters say different things, we'll risk either telling the user that their changes will persist when they won't, or telling the user that their changes won't persist when they will. The mount info is likely to be more reliable and there's no need to check the kernel parameters too.
+** Any way for to catch also the BTRFS home folder unexpected persistence bug (live mode indicator said "live" but /home folder was actually persistent bug)? Related: [[Dev/todo#ISO_-_btrfs_versus_grub-live_bug_-_real_fix|ISO - btrfs versus grub-live bug - real fix]]
+*** Aaron: That is possible.
+* Implemented both enhanced live mode detection and the ability to detect semi-persistence:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/live-mode
+*** Patrick: Merged.
+** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/live-mode
+*** Patrick: Merged.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/live-mode
+*** Patrick: Merged.
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/5ccc4218a0dd89c3a04ad4305fc6f7e088c24036
+*** Patrick: Merged.
+
+== umask bug - copy from user to sudo missing permission - others ==
+* how to reproduce:
+
+{{CodeSelect|code=
+touch a
+sudo cp a /etc/a
+ls -la /etc/a
+}}
+
+* expected result: readable by "others" ("public")
+* actual result: unreadable by "others"
+* this is probably happening because file "a" is created unreadable by "others". When copying, permissions are preserved.
+* problematic in context of use cases such as:
+
+{{CodeSelect|code=
+sudo overwrite /etc/apt/sources.list.d/cwtch.im.list 'deb [arch=amd64 signed-by=/usr/share/keyrings/deb.cwtch.im-keyring.gpg] https://deb.cwtch.im/cwtch.im/ stable main'
+}}
+
+* Aaron:
+** This is two separate issues. The issue as described with <code>cp</code> is not a bug and isn't fixable - <code>cp</code>'s behavior is to simply clone the file mode (permissions) of files it copies. This can be overridden using the <code>--no-preserve=mode</code> option.
+** However, <code>overwrite</code> and other programs that use <code>append-shared</code> are indeed causing permission issues, they appear to be forcing the permissions of any file they touch to 0600. This is because we're creating a temporary file with the contents we want, then moving it into the location where the old file was. The permissions on the temporary file are 0600, so the final file ends up with the same (faulty) permissions.
+*** Fix: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/append-perms
+**** Patrick: Merged.
+* Patrick: created [[umask]]
+
 == installation failure with en-gb locale ==
 * https://forums.kicksecure.com/t/error-during-installation/1033
 ** Fix: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/locale
