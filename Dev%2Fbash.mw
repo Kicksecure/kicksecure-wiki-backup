@@ -294,6 +294,29 @@ set -o pipefail
 * do not use:
 ** <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary, which <code>command</code> is a built-in (a bit faster).
 
+= pipefail echo printf grep quiet =
+This combination can be an issue due to broken pipe.
+
+<pre>
+#!/bin/bash
+
+## problem
+
+set -x
+set -o errexit
+set -o nounset
+set -o errtrace
+set -o pipefail
+
+counter=0
+for i in {1..10000}; do
+  counter=$(( counter + 1 ))
+  #printf "0\n"
+  echo "0\n"
+
+done | grep --quiet "0"
+</pre>
+
 = Improved Error Handler =
 Inspired by https://github.com/pottmi/stringent.sh
 
@@ -302,6 +325,8 @@ if (( "$BASH_SUBSHELL" >= 1 )); then
   kill "$$"
 fi
 }}
+
+Actually not needed. When a subshell detects an error (thanks to errexit and errtrace), it returns and the parent shell will also catch the non-zero exit code. The script terminating itself and not running the error handler twice is only useful in rare cases.
 
 = See Also =
 * https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md
