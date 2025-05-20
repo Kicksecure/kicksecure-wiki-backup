@@ -1,0 +1,1433 @@
+{{Header}} __NOINDEX__
+{{title|
+title=Archive of Documentation for {{project_name_long}} Wiki Devs
+}}
+{{#seo:may
+|description=Old tasks, rejected features
+}}
+{{intro|
+Old tasks, rejected features. This is a sub page for '''[[Dev/mediawiki]]'''.
+}}
+
+= TASK ARCHIVE : Done =
+
+== OCSP-Stapling not provided (2025-03-25) ==
+'''DEV'''
+* FYI: The opion <code>--cert-status</code> was removed from the build file "request-servers-to-fetch-and-deploy"
+* Currently it seems the servers are configured to not give a OCSP response
+Patrick
+* Was disabled. If not causing issues, please move to archived.
+'''DEV''' : Done
+
+== Slow loading Javascript problem ==
+
+'''DEV'''
+
+* On pages where a lot of Javascript is used the page can slow down significantly
+* A report was done for [[Dev/mediawiki]] by using DebugViaUrlModal. Total time about 6000ms
+** '''enhanceHeadlines +2300ms / 38%'''
+*** 259 elements
+*** content: Sharetooltip is added to each one
+*** possibly time consuming: Sharetooltip creates Dom and adds event handler
+** '''scrollAutoWrapper +1500ms / 25%'''
+*** 79 elements
+*** Custom scrollbar is being added
+*** possibly time consuming: (1) scrollbar library (2) ObserverEventHandler (needed if an element is hidden at the start)
+** '''CodeSelect +1000ms / 17%'''
+*** 1420 elements
+*** possibly time consuming: (1) code Highlighting (as with CodeMirror) (2) scrollbar library (3) events for functionality
+** '''header +300ms / 5%'''
+*** Not very important. Most scripts add 50 ms - 200 ms to loading
+* Web workers were researched to use parallel processes - dead end, because web workers cannot access the main thread / Dom / events
+* setTimeout method was explored + fixes were added
+** setTimeout works, however the main problem is that the browser has no "time to breathe". Added setTimeout between the scripts helps, but for the main identified problem scripts, setTimeout might need to be applied to the individual "enrichment" of "time costly" elements
+
+Patrick:
+
+* use more setTimeout for the individual "enrichment"
+* please document
+
+'''DEV'''
+
+* DONE
+* Changes were done with great success. Report: On our [[Dev/website]]
+** Dev tests before showed a blocked loading time of 6000ms to 6500ms
+** Dev tests now show a <u>semi</u>-blocked loading time of 900ms to 1000ms
+** Semi-blocking means that even in those 1000ms the user can interact with the page nicely because the browser "breathes" between the different scripts loads (work of yesterday) which was not the case before
+** There are not many drawbacks. The page gradually enriches, but as we focussed on preventing content shift before the content does not shift but only changes slightly in appearance
+** The only drawback is that currently the timing check is not very meaningful anymore, because it cannot account for the scripts anymore that are individually async
+* Documentation here: [[Dev/mediawiki#Wiki_Load_Cascade_:_HTML.2C_CSS.2C_Javascript|Wiki Load Cascade : HTML, CSS, Javascript]]
+* '''Todo Admin'''
+** Check if everything is satisfactory
+** Should something be done about the now inaccurate timing checks? - Dev could come up with something prob. in about 1-2 hours
+* Patrick:
+** yes, please.
+
+'''DEV'''
+
+* DONE
+* Page loading was greatly improved
+* page loading now outputs when the measuring starts and then outputs a detailled report when all expectedEvents are done
+* For more details read updated documentation [[Dev/mediawiki#Performance_Testing|Performance Testing]]
+
+== Instant page download button bug (2024-10-08) ==
+
+'''DEV'''
+
+* Dev noticed when hovering download buttons that there's always an error in the console
+* Dev realized it's due to instant page trying to load the "next page" when hovering, but not being allowed to fetch or refusing to fetch the data file
+* See on wikitest [[Dev/wikitest#Download_Button_.28Widget.29|Download_Button (Widget)]]
+* Solved by using data-no-instant attribute in download button, see https://instant.page/blacklist
+
+== Pay as you go ==
+examples:
+
+* https://elementary.io/
+* https://reactos.org/download/
+* https://www.gpg4win.org/get-gpg4win.html
+
+design:
+
+* no sneakiness
+* still a simple download
+* noJS users: download
+* JS users: donation popup
+* Not using: "No, thanks. Let's proceed with the download!"
+* avoid confusion
+** Confusing for users which might wonder:
+*** Do I get the same version if I choose 0?
+*** Seems like this cannot be downloaded for free.
+** instead use a bigger, central: "Download Now (FREE!)" button
+* don't add for simplicity: "Add me to the list of sponsors (from 20,- EUR/USD up)"
+* feature: the user can use right click to download to skip the wait
+* All the links in the modal open a new window except for the main download. They reference Donate page, but we don't want to divert donating users from their desired download page
+* Documentation here [[Dev/mediawiki#Download_Button|Download Button]]
+* A new test was introduced here: [[Dev/wikitest#Download_Button_.28Widget.29|Download_Button (Widget)]]
+* redirecturl feature was also ported to modal download button
+
+== CodeMirror Wiki Editor slowness bug ==
+
+CodeMirror (our optional syntax highlighting extension) cannot handle wiki pages very well.
+
+* https://www.mediawiki.org/w/index.php?title=Topic:Xy5wdyzedunlq944&topic_showPostId=xy6h0qknewsvivzr#flow-post-xy6h0qknewsvivzr
+* TLDR: The extension has this problem, just like vanilla CodeMirror, just like many tools with syntax highlighting
+** The problem is that basically the whole doc needs to be analysed and then a completely new document is created with a lot of HTML structure to "syntax highlight". This is processing intensive and takes time
+** Replier also says that the module would basically have to be rewritten to eg just render parts of the page on demand.
+* So basically this is not a bug and could just be feature request by us. But give that it would be a huge undertaking for them I see the chances very slim
+
+== fonts and scrollbar causes content shifting ==
+
+https://www.kicksecure.com/wiki/VirtualBox/Troubleshooting
+
+Please test on GTmetrix.
+
+* enable Video
+* network: 3G (slow)
+
+Hopefully this example is still active: https://gtmetrix.com/reports/www.kicksecure.com/saJHEvIh/
+
+has content shifting
+
+'''DEV'''
+* DONE: Investigation and headscript restructur
+* Investigation found that the content shift is caused by the loaded special fonts. This is unavoidable
+* Scrollbar cannot cause this issue from bottom up (and there is no scrollbar in the picture). Also scrollbar is optimized to have no content shift
+* Dev optimized the mw-headscript according to HTML guidelines. Now fonts are first preloaded then the CSS is loaded. This causes a slightly more optimal loading waterfall for the font files
+* All in all however the content shift remains because it is unavoidable
+
+== GoogleOff- exclude from google - whonix RAM wiki page ==
+google search term:
+
+<pre>
+site:whonix.org "Social Share Button"
+</pre>
+
+(Nobody uses this exact search term. For demonstration purposes only. But it shows that something gets indexed which then shows up in other search results where it should not.)
+
+The following is the Google search results:
+
+<pre>
+See Also Social Share Button
+</Pre>
+
+TODO: please exclude "Social Share Button" from google
+
+'''DEV'''
+* Admin decision needed
+* Dev checked all the instances in Google and checked all the pages for the mentioned Social share button
+* In every case this is in the Share Tooltip Privacy Policy section. The text before "See Social share button" is from the Tooltip. The text after that phrase is from the content page
+* So it could be the case that all these pages have been crawled before the html googleoff wrapper was added to Share Tooltip. Because the wrapper seems correctly used and should prevent google crawling this
+* There could also be a Google bug. Or maybe the used GoogleOff incorrectly still.
+* However if we move forward with this task we probably need to find a way to certainly say what the exact problem is
+
+Patrick:
+
+* archived and waiting if it goes away, can be re-opened later
+
+== CSS class="image" ==
+CSS class <code>image</code> is used on Whonix homepage.
+
+<pre>
+class="image"
+</pre>
+
+This is a MediaWiki class: https://www.mediawiki.org/wiki/Parsoid/Parser_Unification/Media_structure/FAQ#h-What_should_editors_look_out_for?
+
+== mediawiki code editor warnings ==
+For example https://www.kicksecure.com/wiki/MediaWiki:Utility.css shows errors.
+
+* Worth fixing?
+* False-positives?
+
+'''DEV'''
+
+* Problem was researched
+* Wiki editor for CSS and Javascript is based on Ace Editor
+* Utility.css was tested with newest version of Ace Editor. No problems were found
+* Dev has also seen warnings in other files, but always ignored them because the CSS works. And usually if there's a relevant problem in a CSS file then the whole file or at least everything after the error does not work
+* Dev thinks that this problem is cause by the Extension either not using the newest Ace editor or not using the newest (not really so new) CSS specifications
+
+== Google Mobile-Friendly Test wants larger font sizes ==
+
+Google Mobile friendly said that fonts are too small for mobile.
+
+The problem with https://search.google.com/test/mobile-friendly is that it does not download all CSS due to crawler limits. Its judgement is based on incomplete CSS. Lighthouse does not find any issues.
+
+archived ideas:
+
+<pre>
+Use [[Special:ReplaceText]] to search for mentions of <code>font-size:</code>?
+
+Kicksecure and Whonix wiki.
+
+This is to fix google https://search.google.com/test/mobile-friendly "font too small" warning.
+
+Use https://www.kicksecure.com/test/ to reverse engineer this?
+
+* Create a few (mobile-only) HTML-only test pages with different font sizes to find out the smallest acceptable font size.
+* test with https://search.google.com/test/mobile-friendly
+
+For example https://search.google.com/test/mobile-friendly itself uses small fonts and passes the test for itself.
+
+How to see font size in browser console in chromium:
+
+* select text -> right click -> inspect -> <code>computed</code> -> scroll down to font size
+</pre>
+
+== Unlighthouse ==
+https://unlighthouse.dev/
+
+Preliminary research. Please check if it does something other than automation which isn't needed yet.
+
+'''DEV'''
+* After Research Dev would actually recommend using Unlighthouse
+* Cons
+** Yes, it mainly uses Lighthouse and analyses all pages. But it offers a great overview
+** It also does not seem very popular yet, has few reviews and is not listed on AlternativeTo. But the project is also very young (version 0.1.0 released in 2021-12)
+* Pros
+** It scans the whole website like a search engine using robots.txt and sitemaps
+** It has a very intuitive interface, which can be tested here: https://inspect.unlighthouse.dev/
+** It lays out the Lighthouse info more clearly, for example with SEO overviews for each page with a SEO score, link counts and ADDS own information like description preview, share image preview
+** For best practices it counts inspector issues, image aspect ratios etc. All Lighthouse functionality but better presented in table form
+
+== Web Vitals Extension ==
+https://web.dev/debug-cwvs-with-web-vitals-extension/
+
+https://chrome.google.com/webstore/detail/web-vitals/ahfhijdlegdabablpippeagghigmibma
+
+Preliminary research. Please check if it shows something useful we haven't addressed or discused yet.
+
+'''DEV'''
+* Research was done
+* This plugin basically uses the same metrics as Lighthouse and Pagespeed - concentrating on Largest Contentful Paint, Cumulative Layout Shift and First Input Delay. It basically does the same thing, but presents it in a more practical sense
+* Pros
+** You have and "ambient bagde" - color indicator how a site is doing: red / yellow / green. And you can go through them easily by just clicking the badge
+** It also offers an overlay (click to hide) with more information
+** When using the Console logging then some more metrics are available than in Lighthouse
+* '''BIG PRO''': Whenever clicking an element you can see the FID. And after that every subsequent interaction. This is an "interactive metric" that Lighthouse does not offer
+* Cons
+** It eats some RAM, so only activate when needed
+* Video: Overview by the creator: https://www.youtube.com/watch?v=2k1QbgLAFdI
+* Video by fireship: https://www.youtube.com/watch?v=0fONene3OIA
+
+== Defer Upstream MediaWiki JavaScript ==
+now:
+
+<pre>
+<script defer src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+</pre>
+
+Patrick could server side easily rewrite that to:
+
+<pre>
+<script defer src="/w/load.php?lang=en&amp;modules=startup&amp;only=scripts&amp;raw=1&amp;skin=vector"></script>
+</pre>
+
+(Nobody uses <code>script defer</code> but upstream said that is not a syntax error.)
+
+please compare the speed and functionality on on kicksecure.com/test/ (already existing, caching disabled there)
+
+'''DEV'''
+* defer and async were introduced due to admin research
+* Upon Dev research it seems that using defer and async together is redundant and not advised
+** async fetches the scripts asynchronously and executes them as soon as they are ready
+** defer does the same but waits for the whole HTML document to be ready and only then executes the script
+* If both are present
+** New browsers will prioritise async and ignore defer
+** Older browser don't know async and will prioritize defer
+* Two tests were written
+** https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_all-async.html and
+** https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_all-defer.html where all the scripts in headcontent and also the loaded mediawiki script are either called via defer or defer.
+* Here are the results as averages after 3 tests each with pagespeed
+{| class="wikitable
+! metric !! async !! defer
+|-
+| FCP || 1.2s || 1.1s
+|-
+| LCP || 3.5s || 3.4s
+|-
+| Total Block T || 440ms || 443ms
+|-
+| Speed Index || 2.1s || 1.9s
+|}
+* Dev also tested the functionality and in both cases the pages seemed to perform normal and fast enough for the users
+* Dev recommends using only defer
+** It seems to perform slightly better
+** Most of our customs scripts are designed to perform only after the document is loaded anyways
+** Async would only be sensible where there needs to be a fast loading page (so the document does not have to wait for the scripts), but where there are "non-document asap calculation steps" done in Javascript
+
+== Total Blocking Time ==
+Total Blocking Time went up on google pagespeed for mobile. Ideas why? Anything changed? Related to uglifyjs?
+
+'''DEV'''
+
+* Research was conducted on possible issues
+* Source maps could not be found in research to cause performance issues
+* Really hard to find out, because it seems kind of a black box
+* However: page map was not the problem. It was activated and deactivated without much difference
+* 4 testing pages were compared and tested twice
+** OLD: https://www.kicksecure.com/test/font-awesome-test-01-normal.html
+** NEW: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage.html
+** NEW_NoUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-scipts.html
+** NEW_NoNewUserScripts: https://www.kicksecure.com/test/kicksecure-test_2023-03-28_homepage_without-new-scipts.html
+
+{| class="wikitable"
+! Cat !! OLD !! NEW !! NEW_NUS !! NEW_NNUS
+|-
+| First Contentful Paint || 1.6s / 1.7s || 1.1s / 1.2s || 1.1s / 1.2s || 1.1s / 1.1s
+|-
+| Total Blocking Time || 50ms / 70ms || 370ms / 580ms || 110ms / 220ms || 370ms / 210ms
+|-
+| Speed Index || 1.8s / 1.9s || 1.9s / 1.9s || 1.6s / 1.4s || 1.7s / 1.5s
+|-
+| Largest Contentful Paint || 3.3s / 3.4s || 3.0s / 3.6s || 3.4s / 3.7s || 3.4s / 3.0s
+|}
+
+** Analysis
+*** It seems the only metric truly affected IS total blocking time, the rest is pretty much the same
+*** It seems also obvious that the new scripts - prism and instant page - have a significant impact on TBT, but are NOT the only reason because without scripts (meaning also without combined.min.js) it's still not as fast as before
+*** Dev did a diff of OLD and NEW and saw some differences and found that in flyinnotification the image should be decoding="async" loading="lazy" which was already fixed too but didn't change much for pagespeed
+*** Dev also thinks it's possible that deferring Javascript leads to a worse TBT, because [Total blocking time] = [Time to interactive] minus [First contentful paint] → so the longer JS is deferred the longer it might take to reach time to interact. That is however just a speculation. This page here is a great overview over the topic https://www.fasterize.com/en/blog/understand-and-improve-the-time-to-interactive/ - not that this page states '''"It is important to specify that Time To Interactive is not a standardized indicator. It may therefore evolve. Note also that, although Google has included this metric in the calculation of the Lighthouse and PageSpeed Insights score, its weight has decreased during recent changes in the calculation of the score, to the point that it seems to be bound to disappear eventually."'''
+*** Here is some more explanation for total blocking time and suggestions to improve and possible reasons why it might have increased in our development https://calibreapp.com/blog/total-blocking-time
+** How to proceed
+*** Dev suggests admin to define a course: Invest more time into improving this metric or waiting for this metric to phase out?
+*** Because - this was not mentioned before - there were also tests done with gtmetrics which gave very good results and slightly worse results when the "connection" was heavily throttled, indicating that maybe only server speed or dome size could be improved
+
+Patrick:
+
+* also happens with mediawiki therefore probably a pagespeed bug or less likely a mediawiki issue
+* compare with a few other popular websites if they also have this issue now (which might be just a pagespeed bug)
+** therefore not much time need to be used to analyze if we're causing the issue ourselves
+* check with chromium 112 with built in lighthouse in chromium developer toolbar
+** Lighthouse 10 will be available in Chrome 112, currently scheduled for release on March 29, 2023.
+* [https://phabricator.wikimedia.org/T336059 Pagespeed performance dropped significantly due to total blocking time issue]
+
+== Layout was forced console warning ==
+On kicksecure.com with Firefox (new browser profile).
+<pre>
+Layout was forced before the page was fully loaded. If stylesheets are not yet loaded this may cause a flash of unstyled content.
+</pre>
+'''DEV'''
+* Subject was researched. Found relevant sources
+** https://forum.alphasoftware.com/forum/alpha-anywhere-version-12/mobile-browser-applications/925829-javascript-warning-layout-was-forced-before-the-page-was-fully-loaded
+** https://github.com/vercel/next.js/issues/22465
+* It seems this might be a debugger / dev tool issue. Meaning the dev tools reload the content (sometimes) and therefore trigger this error message
+** The worst thing that could happend however - even if this issue occurs in productions (not just for someone who opened dev tools) - is that the page looks strange because it's unstyled for some milliseconds
+* Recommendation: ignore
+* Alternative: We could try to improve load order. But if it's really just an issue with dev tools this won't fix it, because Dev tools may ignore even an improved load order
+
+== MediaWiki Logo HTTP2 Server Push Preload ==
+MediaWiki by upstream default sends a response header which does a HTTP/2 Server Push. Example:
+
+<pre>
+link: </w/images/2/2a/Kicksecure-logo-text.svg?b0edc>;rel=preload;as=image
+</pre>
+
+Not on the main HTML document but for the CSS load.php. Example:
+
+<pre>
+https://www.kicksecure.com/w/load.php?lang=en&modules=ext.DarkMode.styles%7Cext.dismissableSiteNotice.styles%7Cext.flaggedRevs.basic%2Cicons%7Cjquery.makeCollapsible.styles%7Cmediawiki.widgets.styles%7Coojs-ui-core.icons%2Cstyles%7Coojs-ui.styles.indicators%7Cskins.vector.styles.legacy&only=styles&skin=vector
+</pre>
+
+MediaWiki by upstream default uses the <code>$wgLogos</code> configuration variable to determine the link to the logo.
+
+However, the hash <code>?b0edc</code> is auto generated by MediaWiki and after a cursory look at the source code it seems this cannot be disabled.
+
+This causes the following warning with our custom skin:
+
+<pre>
+The resource https://www.kicksecure.com/w/images/2/2a/Kicksecure-logo-text.svg?b0edc was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+</pre>
+
+This is because it does not know the hash <code>?b0edc</code>.
+
+HTTP2 Server Push is being deprecated by upstream browsers: https://developer.chrome.com/blog/removing-push/
+
+https://phabricator.wikimedia.org/T325960
+
+== Troubleshooting ==
+=== session cache disable ===
+In case there are login issues, the following could be attempted:
+
+https://www.mediawiki.org/wiki/Manual:$wgSessionCacheType
+
+CACHE_NONE
+
+== Notes by Patrick ==
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:Common.js&oldid=58177
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:Common.js&oldid=58384
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:Libraries.js&oldid=58825
+* https://www.kicksecure.com/w/index.php?title=MediaWiki:CodeSelect.js&oldid=58367
+
+Header:
+
+* old: https://www.kicksecure.com/w/index.php?title=MediaWiki:Header.js&oldid=58824
+* new: https://www.kicksecure.com/w/index.php?title=MediaWiki:Header.js&oldid=59272
+* diff: https://www.kicksecure.com/w/index.php?title=MediaWiki%3AHeader.js&type=revision&diff=59272&oldid=58824
+
+Entry point is always [[Mediawiki:Common.js]]?
+
+'''Dev''': Common.js has been transformed into a standalone library and is therefore now marked as Multiwiki. Common.js now imports {{CustomRepo|ImportScripts.js}} which is NOT MultiWiki (see [[Dev/mediawiki#Multiwiki_definitions]]). This is done so Common.js is a true library and ImportScripts is now LocalWiki specific and there can be individual imports. Note: ImportScripts is loaded at the bottom of the file for call order reasons, therefore every loaded file will have the wikiJsLoader already available.
+
+To disable all, remove all from [[Mediawiki:Common.js]]?
+
+'''Dev''': To disable all remove the following line at the bottom of Common.js
+<pre>
+mw.loader.load( '/w/index.php?title=MediaWiki:ImportScripts.js&action=raw&ctype=text/javascript' );
+</pre>
+
+What if in the future 1 script breaks? Do all scripts break?
+
+'''Dev''': The wikiJsLoader is totally independent and optional to use. You can call scripts the usual way as before. But now you also have the option to call scripts dependent on each other by using wikiJsLoader. If 1 script breaks this will only affect the script itself and all scripts which are made dependent on this script by using wikiJsLoader. But if those scripts are dependent on a broken script you will have to fix this script anyways to get those scripts running again.
+
+Does a unloadable script show an error in the browser console?
+
+'''Dev''': No. This is because all scripts are loaded asynchronously and the loader is specifically built to load a script only when it is ready. However we could use a timer and show all unloaded scripts after 3 seconds, because it should never take this long to load all the scripts. Or we could write an internal log, which can be called to list all actions by the loader.
+
+What is <code>window.</code>?
+
+'''Dev''': Window is a JS Object representing the browser window. It is always available  and represents the "global namespace" where all global objects are referenced.
+
+How can I manually debug, execute {{CustomRepo|MiniModal.js}}, {{CustomRepo|Footer.js}}, {{CustomRepo|CodeSelect.js}}?
+
+'''Dev''': You can manually load as usual
+
+<pre>
+mw.loader.load( '/w/index.php?title=MediaWiki:MiniModal.js&action=raw&ctype=text/javascript' );
+</pre>
+
+'''Dev''': Or you can use the wikiJsLoader as follows. This is only needed recommended for scripts which are dependent on others.
+
+<pre>
+window.wikiJsLoader.register( 'MiniModal', [], false, function() { ... });
+
+window.wikiJsLoader.exec( ['MiniModal'] );
+</pre>
+
+How to print a debug message with variable name and content to browser console?
+
+'''Dev''': A convenient way is to use console
+
+<pre>
+var whateverYouWantVariable = "String or Object or Boolean or a system variable whatever";
+console.info( "whateverYouWantVariable: ", whateverYouWantVariable );
+</pre>
+
+== pagespeed ==
+
+No longer in use.
+
+* https://www.{{project_clearnet}}
+* https://www.{{project_clearnet}}?PageSpeedFilters=+debug
+* https://www.{{project_clearnet}}?PageSpeed=off
+* https://www.{{project_clearnet}}/wiki/Documentation?PageSpeed=off
+* https://www.{{project_clearnet}}/wiki/Hardened-kernel?PageSpeedFilters=-SupportNoScriptEnabled#Upstreaming
+* [https://github.com/apache/incubator-pagespeed-ngx/issues/1684 https://github.com/apache/incubator-pagespeed-ngx/issues/1684] (fixed by setting <code>pagespeed SupportNoScriptEnabled false;</code>)
+* https://forums.whonix.org/t/speeding-up-whonix-org-through-caching/8733/3
+
+== load.php caching ==
+* https://www.mediawiki.org/wiki/Topic:Vanoebois3bfqxd1
+* https://www.mediawiki.org/wiki/Topic:Runnesgxgk2nc68f
+* https://www.mediawiki.org/wiki/Talk:ResourceLoader
+* https://serverfault.com/questions/677229/setting-expires-headers-for-things-retrieved-via-query-string
+
+== load.php debug mode ==
+* https://www.{{project_clearnet}}/w/index.php?title=Documentation
+* https://www.{{project_clearnet}}/w/index.php?title=Documentation&PageSpeed=off&debug=false
+* https://www.{{project_clearnet}}/w/index.php?title=Documentation&PageSpeed=off&debug=true
+* https://www.{{project_clearnet}}/wiki/Documentation?PageSpeed=off&debug=false
+* https://www.{{project_clearnet}}/wiki/Documentation?PageSpeed=off&debug=true
+
+?pagespeed has no effect on CSS or JavaScript loads
+
+https://github.com/jthingelstad/foreground/issues/370
+
+* debug=true
+49 JS
+12 CSS
+
+* debug=false
+26 JS
+1 CSS
+
+instead of
+
+<pre>
+load.php?[...]modulename.namespace.tool,tool2,tool3|differentmodule.tool,tool2
+</pre>
+
+we have
+
+* load.php?[...]modulename.namespace.tool
+* load.php?[...]modulename.namespace.tool2
+* load.php?[...]modulename.namespace.tool3
+* load.php?[...]differentmodule.tool
+
+== Old CSS Checklist ==
+
+These are actually done but written as if they are not done:
+
+* On for example [[FAQ]] the long title <code>Frequently Asked Questions - Whonix ™ FAQ</code> breaks the layout on mobile. Because the title is too long, one has to scroll to the right side on mobile to read the title in full. Does the title miss some attribute such as "autowrap", "break line if too long"?
+* Images for example on [[Main_Page]] and [[About]] are not response rendered smaller on mobile.
+* blockquotes don't really look like a quote. example:
+
+<blockquote>
+Test
+</blockquote>
+
+* info box overlaps with thumbnail illustrative image
+** Example: [[VirtualBox/Recommended Version]]
+* illustrative image box overwrites normal [[Template:Box]], examples:
+** https://www.{{project_clearnet}}/wiki/First_Time_User
+** https://www.{{project_clearnet}}/wiki/Host_Firewall_Basics
+* [[Template:Box]] generates boxes which are longer than the text which they contain, example:
+** https://www.{{project_clearnet}}/wiki/Host_Firewall_Basics
+* On [[USB Installation]] there is much space between title <code>Installation of Whonix ™ on a USB</code> and the box <code>VM Live Mode	Host Live Mode	Whonix ™ on USB</code>?
+* tables prettification
+** For example on [[Windows Hosts]] the tables look a bit weird. One has to scroll down a lot (specifically on mobile) before having a chance to see what category it is about. Also the colors aren’t great.
+* missing table scroll buttons
+** When viewing {{whonix_wiki
+|wikipage=Comparison_with_Others
+|text=Comparison with Others
+}} on mobile it is not obvious that one can scroll the the right. Maybe a scroll button would help? Doesn’t need to be necessarily a scroll button. Also a different table style might be a better solution.
+
+* beautify breadcrumbs (zB < dev on top of this page)
+
+== Wiki Js Loader ==
+
+# As per now our research shows no option of the MediaWiki mw.loader API to load our own scripts and make them dependent on each other. So user script dependency does not seem to be supported
+# Therefore we created our own resource loader under window.wikiJsLoader, see [[Mediawiki:Common.js]]. The challenge is to provide a mechanism to load modules which are yet unknown and which can only be known once they are loaded and registered due to the asynchronous loading by mw.loader.load
+## '''Caution:''' Circular dependencies are not resolved and will be a roadblock for all batches containing these.
+# The loader offers 4 methods
+## register( name, dependencies, waitForCallback, fn ) - This method registers a function (fn,type:function) in the registry, including its module name (name,type:string), its dependencies (depedencies,type:array-of-strings, other user module names) and if the whole mechanism should wait for their callback (waitForCallback,type:boolean)
+### The function fn will get the following parameters: fn(global, callback). global is the getter-setter described below.
+### If waitForCallback is true then the registration will not be considered complete until the callback (calback,type:function) is called via callback()
+## config( key, value ) - sets a wiki js loader configuration. Currently there is only debug (boolean), if true then all outputs will be shonw, not only warnings and errors
+## global( key, value ) - getter-setter. If only key (type:string) is given then the value will be returned. If key and value are given, then key will be set with value
+## exec( moduleNames ) - sets in motion the loading process. moduleNames (type:array-of-strings) are names of our dev scripts which shall be called and executed.
+### First all depedencies will be checked, if they are not met then the script will not execute futher. But if another register process is completed then load will automatically be triggered again to check if NOW all dependencies are met and we can execute further
+### This way scripts will be able to execute exactly when their dependencies are met, not earlier. This is especially necessary as the mw.loader seems to load our scripts asynchronously
+# Relevant files
+## [[Mediawiki:Common.js]]
+
+=== Wiki Js Loader Usage ===
+
+1. All JS files which either have dependencies or are dependencies for others should be wrapped into
+{{CodeSelect|code=
+window.wikiJsLoader.register( 'NameOfThisFileWithoutDotJs', ['ModuleDepedency1','ModuleDepedency1'], false, function() {
+...
+});
+}}
+
+2. All other files can be implemented as usual
+
+3. All JS files (including with dependencies) can be called via mw.loader.load(...) as usual
+
+4. To actually execute the managed scripts, use the following. This can be used to execute multiple batches of files or just one big batch
+{{CodeSelect|code=
+window.wikiJsLoader.exec( [ 'NameOfThisFileWithoutDotJs1', 'NameOfThisFileWithoutDotJs2' ] );
+}}
+
+=== Wiki Js Loader Debugging ===
+
+* To debug a page where an error with wikiJsLoader was shown simple use the normal wiki url syntax "debug=true", e. g. like <code>https://www.kicksecure.com/wiki/Dev/mediawiki?debug=true</code>
+* wikiJsLoader will automatically go into debug mode as well and show you way more details
+
+== MediaWiki Gadgets Extension ==
+It's been decided not to port to MediaWiki Gadgets. The wiki now now extended as per the mechanisms documented above.
+
+Archived notes:
+
+* Gadgets features:
+** Supports ResourceLoader. Scripts getting combined and minified.
+** ResourceLoader has a concept of dependencies.
+** Gadgets supports loading some feature only when editing a wiki page.
+** Gadgets supports loading scripts on specific wiki pages only
+* https://www.mediawiki.org/wiki/MediaWiki:Gadget-site.js
+* https://www.mediawiki.org/wiki/Gadget_kitchen
+* https://www.mediawiki.org/wiki/MediaWiki:Gadgets-definition
+** [[MediaWiki:Gadgets-definition]]
+* Gadgets version 2 development by MediaWiki stalled
+
+= TASK ARCHIVE : Rejected =
+== mediawiki-extensions-Purge ==
+What does https://github.com/AlPha5130/mediawiki-extensions-Purge/blob/master/resources/ext.purge.js (15 lines only) do?
+
+Probably would have little effect for our wiki because of our custom skin? Does this functionality seem useful?
+
+'''DEV'''
+* The development of this extension seems pretty interesting
+* The new extension (from pseudonym dev) is not much different from the original and seems to fix a faulty behavior of the original extension
+* Both versions consist of 2 parts: ext.purge.js and Hooks.php
+** In Hooks.php in every page (without our skin) there is a link added to call the purge page (which is not part of the extension but of mediawiki itself)
+** This is just a convenience shortcut, but useful - even for us. Because if a dev is already on the edit page then our purge via super menu is not available. Removing this extension however would not be a terrible loss but a small convenience downgrade
+** In ext.purge.js the convenience is even more improved for Javascript users only. Because then the link does not open the purge-page but is stopped and instead the purge action is instantly performed without going to the purge page
+* Both versions are not perfect
+** The original version fails to prevent the link to be augmented by Javascript. This might be due to it being loaded to early or other factors
+** The newer version fixes this behavior but also prevents nojs users to use this button at all. It will be there but non-functional
+* Suggestion (in order of preferability from Dev's perspective)
+*# However because it would be mainly for our convenience I suggest use the newer version
+*# If not then use the older version
+*# If not then write our own fork which would be the perfect solution
+*# Another option would be to just add our own purge button via a simple Javascript file on pages that don't have the skin. That would also be a ONLY-JS solution but it would be a bit quicker than the "perfect fork" solution
+*# If not then don't use at all, because we have instant access to purge via our skin
+
+Patrick:
+
+* Do we even need the purge button still?
+** Only for template changes?
+** Otherwise cache invalidation is stable nowadays?
+* Weird anyhow that non-admins can clear cache.
+* MediaWiki's solution prevents crawlers from accidentally pressing that button.
+* noJS support not required.
+** JS-only solution good enough.
+* Could we make it login-only or admin only?
+* Needs strong rationale. Using different cache busting methods nowadays.
+
+== bug: Custom Scrollbar on mobile not draggable (2024-08-22) ==
+
+* The element itself is draggable, but the scrollbar cannot be touched on mobile.
+* Please test and fix
+
+'''DEV'''
+
+* Analysis complete
+* The option to have the scrollbar draggable is not implemented in tinyscrollbar. This would need us forking the original or making a separate augmentation via JS (not recommended by Dev)
+* Easy improvement suggestion: Make scrollbars much smaller on mobile (half size?), so they are big enough to indicated "scrollability", but small enough so the mobile user is not motivated to try to touch the scollbar
+** Patrick: Also confusing. Not worth it.
+
+== pagespeed ==
+
+=== pagespeed - missing source maps ===
+related to feautre slider SplideJS
+
+<pre>
+Missing source maps for large first-party JavaScript
+</pre>
+
+'''DEV'''
+
+* Problem was checked
+* We're dealing here with our own auto-generated source maps and wiki source maps and a splide source map
+* Hard to say if the source maps are wrong or if pagespeed is wrong
+* Fixing this could take a couple of hours because probably a lot of research is needed (AI could not give quick fix ideas either) into understand source maps in detail, understanding how mediawiki does it, how splide does it and how our autogen (uglify/minify) does it
+* Very probably not feasible
+
+== pagespeed About Whonix and Kicksecure - touch targets spacing ==
+
+https://www.whonix.org/wiki/About problem "Touch targets do not have sufficient size or spacing."
+
+* 4 items are still criticized. Dev could try to fix those too, but it seems to be a tougher task because they could also be "false positives"
+
+== Tor Browser Maximum Security Slider Setting ==
+
+=== Tor Browser Maximum Security Slider Setting - fix logo text version for ===
+With Tor Browser security slider set to maximum, the logo text looks bad.
+
+This is happening because the SVG cannot be load by Tor Browser - which is OK. But would be nice if the text version could look a bit better.
+
+<pre>
+Whonix
+X
+Logo
+</pre>
+
+<pre>
+Kicksec
+ure
+</pre>
+
+TODO: please fix, if feasible
+
+'''DEV'''
+* Done
+* Research was Done. Img not loaded alt text not really stylable except with some workaround (but hack not needed)
+* Admin decided not worth it
+* Dev did some styling so alt text looks decent enough to not be a great distraction
+
+=== Tor Browser Maximum Security Slider Setting - homepage - SUID Disabler and Permission Hardener too large ===
+Image for card SUID Disabler and Permission Hardener is too large.
+
+'''DEV'''
+* Cannot be reproduced
+* Testing in general (with the other task) showed that browser cache busting seems very bad in Tor browser (safest settings). Even with version parameter Tor browser seems to ignore it. After 10 or so reloads it randomly got the new version
+* And this was NOT ONLY on the onion but on the clearnet address as well
+
+=== Tor Browser Maximum Security Slider Setting - registered sign ===
+Looks bad.
+
+* Kicksecure
+* Whonix
+
+TODO: please fix, if feasible
+
+'''DEV'''
+* Not feasable
+* As Tor browser safest ignores our custom font the font that it loads depends on the user computer and installed fonts there. Any attempt to style will look good on one computer and bad on others
+
+The following tasks have been considered for realization but have been rejected due to the contra arguments.
+
+== feature slider - pop out effect bug ==
+When the slider card on the left pops out, it cuts the text on the left side.
+
+Same for rightmost slider card.
+
+'''DEV'''
+* Discussed with admin
+* rejected (because user can read fine in normal state)
+
+== donation appeal page ==
+todo: discuss
+
+* appeal
+** https://www.thunderbird.net/en-US/thunderbird/115.0/appeal/
+** https://web.archive.org/web/20230801072145/https://www.thunderbird.net/en-US/thunderbird/115.0/appeal/
+** can be an HTML standalone page if that simplifies the development
+* needs link to imprint
+* where do we link to this page?
+
+'''DEV'''
+* In principle we already have a donation appeal page - that is [[Donate]]
+* There the appeal is written on the left side with the image accompanying it
+* Of course this can be more optimized and standalone or look like standalone
+* The key question is: Does admin want this page as a new page or to replace [[Donate]]?
+** If it's a new page what would be the exact use case? - Post this page in forums and social media as kind a of "donation landing page" to motivate the own fanbase? - Or motivate new customers? - But then the homepage would be better to first interest users, get them to use Whonix, and then motivate them to donate
+** If it's a replacement, Dev suggests
+**# "scapping" everying that is not needed from the page including footer and work in progress notification.
+**# Keep the header so the user still knows they are on the Whonix wiki and they can navigate back
+**# Stylize the page using HTML via a widget and still using our assets that we build, for example the Paypal widget which could be opened via modal (like Thunderbird does it) or via expandable box
+
+== tab controller - closed by default ==
+todo discuss
+
+* A) close tab controller by default and only open if user clicks it?
+** maybe bad for seo?
+* B) first tab says "select your platform"?
+** maybe also bad for seo?
+
+Both can look weird. For example https://www.kicksecure.com/wiki/Linux the user would be greeted with very little content.
+
+Maybe appropriate for https://www.kicksecure.com/wiki/Verify_the_images_using_Linux?
+
+<pre>
+{{Tab
+|title= = Verification Method Selection =
+|addToClass=info-box
+|active=true
+|content=
+Select either OpenPGP or signify.
+}} <!-- close tab: verification method selection -->
+</pre>
+
+'''DEV'''
+* This could be indeed a useful feature for certain use cases
+* Dev suggests the following solution
+<pre>
+{{Tab
+|type=controller
+|closedInitText=Select either OpenPGP or signify
+}}
+</pre>
+* It's solved with a single parameter that is very expressive "Closed initialization text", meaning it's initialized as closed, but you have to give a text so the user knows what's going on
+* This tasks will prob take 2-3 hours also, because the open-by-hash function has to be adjusted for "closed controllers"
+
+== CodeSelect spacing bug ==
+
+<pre>
+{{CodeSelect|code=
+      - $tag:whonix-updatevm $default allow,target={{project_name_gateway_vm}}
+      - $tag:whonix-updatevm $anyvm deny
+}}
+</pre>
+
+{{CodeSelect|code=
+      - $tag:whonix-updatevm $default allow,target={{project_name_gateway_vm}}
+      - $tag:whonix-updatevm $anyvm deny
+}}
+
+'''DEV'''
+* The problem was researched by DEV
+* The problem seems to lie with mediawiki: MediaWiki "eats up" all the white spaces (incl. line breaks) after a parameter declaration "param=", so in the case above in the first line the white spaces are eaten up
+* Dev could research a solution for this if admin wants. Time for a solution probably 30 min, time for a good solution 1h - 1,5h
+
+== Remove Edit from Search engine index no. 2 ==
+
+'''DEV'''
+* Research was done. This was found
+** https://www.mediawiki.org/wiki/Manual:Section_editing <blockquote>Section editing is a default feature of MediaWiki but can be disabled in a number of ways [...] #disable section edit links for anonymous viewers : $wgDefaultUserOptions ['editsection'] = false; [...] The Magic word <code><nowiki>__NOEDITSECTION__</nowiki></code> can be used to hide all section edit links on a particular page. [...] In Vector and other skins, the section link has the following CSS class: .mw-editsection</blockquote>
+** https://www.freshegg.co.uk/seo/how-does-google-treat-hidden-content/#:~:text=In%20general%2C%20Google%20will%20not,command%20within%20a%20search%20snippet. <blockquote>In general, Google will not display or highlight text that is hidden from initial view using the display</blockquote>
+* Dev suggests
+* A) Disable it altogether for anons (easy solution, but maybe not wanted)
+** Patrick: Yes. Not a good solution because Kicksecure / Whonix got a lot useful anon contributions.
+* B) NOEDITSECTION is probably not very useful
+** Patrick: True. Same as A).
+* C) CSS might help as you see with the Google quote, but that might be a more complex solution because we would have different solutions for NOJS and JS. And on NOJS it probably would have to be invisible anyways
+
+update #2:
+
+* question: Does this bug happen with MediaWiki upstream?
+** If yes: todo: Please write a mediawiki bug report draft that EDIT buttons are indexed and this should be prevented by using something similar to our [[Template:GoogleOff]] (the div tags, not the template).
+** If no: Is this caused by our [[Dev/mediawiki#EnhanceHeadlines|EnhanceHeadlines]]?
+
+'''DEV'''
+* As discussed with admin in chat this is a bug that is reproducible in mediawiki also. Google search <code>site:mediawiki.org "Enabling and disabling section links"</code>. There you will find the superfluous "edit" too in the search results
+* bug report: [https://phabricator.wikimedia.org/T338609 Publicly visible section edit buttons are indexable by search engines]
+
+== Eager image widget ==
+
+'''DEV'''
+* Dev and admin talked about a template or widget which would make it possible to load an image eagerly
+* This does not seem possible without an extension. Widget does not take a rendered template, but only wikitext as plain text. Therefore widget cannot get the dimensions and other attributes of the image. But that would be needed so the widget could replace loading="lazy" with eager
+* Dev thinks the only solution would be an Extension
+
+== check integrity of user downloaded files ==
+does HTML a href support integrity= for user file downloads?
+
+is there any Javascript that i can install on my website that causes on click a file to be downloaded to user's computer and integrity checked?
+
+<pre>
+<a
+href="example-file.zip"
+download="example-file.zip"
+integrity="sha384-B2v2d...">Download Example File
+</a>
+</pre>
+
+<pre>
+function downloadAndVerify(url, expectedHash) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = url.split('/').pop();
+  link.integrity = expectedHash;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// Example usage:
+const url = 'https://example.com/file.zip';
+const expectedHash = 'sha384-B2v2d...';
+downloadAndVerify(url, expectedHash);
+</pre>
+
+https://stackoverflow.com/a/49478626
+
+https://www.dunebook.com/javascript-file-downloader/
+
+https://github.com/openpgpjs/openpgpjs
+
+https://tails.boum.org/contribute/design/download_verification/
+
+https://tails.boum.org/install/inc/js/download.js
+
+'''DEV'''
+* Unfortunately this does seem possible
+* In this post https://stackoverflow.com/questions/9840923/get-browser-download-path-with-javascript there is stated <blockquote>Pure browser-JavaScript is not be able to get information about the user's filesystem. The default download path might also contain sensible information, which is risky:
+
+Imagine that one stores his downloads at C:\CompanyName\RealName\PhoneNumber\Adress\</blockquote>
+** This is due to security risks being exploited in the early days of Javascript, so now Javascript is in a Sandbox
+** In the case of Tails it is possible because the user explicitly selects a filepath in an input:file field and therefore tells the browser. But it's different from a download prompt which is not accessible via Javascript
+** This post https://stackoverflow.com/questions/41334881/detect-when-user-accepts-to-download-a-file has an excellent summary of our problem <blockquote>As i've found from years of maintaining download.js, there simply is no way to tell from JS (or likely in general, see below) what a user chooses to do with the download Open/Save dialog. It's a common feature request, and i've looked into it repeatedly over the years. I can say with confidence that it's impossible; I'll joyfully pay 10 times this bounty if someone an demo a mechanical way to determine the post-prompt user action on any file!</blockquote>
+* There might be clever workarounds to seem when the download has started and ended however https://stackoverflow.com/questions/1106377/detect-when-a-browser-receives-a-file-download, because this is also not directly possible
+* But it seems very much so that the complicated way tails is doing it is the only way at the moment.
+
+Patrick:
+
+* download.js feature request: [https://github.com/rndme/download/issues/120 check integrity of downloaded files #120]
+
+* https://github.com/jimmywarting/StreamSaver.js
+* https://github.com/eligrey/FileSaver.js
+* https://github.com/whatwg/fs
+* https://github.com/rndme/download/
+* https://github.com/jimmywarting/native-file-system-adapter
+
+'''DEV'''
+# Downloading via JavaScript can be done in various ways. But StreamSaver is probably the best or even the only option because the files are so large (e.g., 2.2GB for Whonix). If we download them with JavaScript, everything will be held in RAM and could potentially crash the browser. This becomes especially problematic when we also want to calculate the hash.
+# StreamSaver, on the other hand, breaks the download into small chunks that are manageable for the browser and continually frees up memory.
+# The problem is: How can we calculate the hash if we only ever get chunks and never the whole file?
+# If it's possible, and I understand it correctly, then this developer here has described a process. Although I understand that he is loading the file in chunks from the disk. But we should also be able to apply this during the download: https://medium.com/@0xVaccaro/hashing-big-file-with-filereader-js-e0a5c898fc98
+# Conclusion: I now believe 70-80% that we can achieve this. But: It can take a while. And I can't make a guaranteed statement up to the "crucial point".
+# But if admin says that theoretically, the total hash can also be calculated on the chunks, then this article I linked might be correct. And then I think it could work with StreamSaver.js.
+
+Patrick:
+
+* StreamSaver.js feature request: [https://github.com/jimmywarting/StreamSaver.js/issues/321 check integrity of downloaded files #321]
+
+== Sufficient Color Contrast ==
+Warning about insufficient contest might be true. As per:
+
+* Elements Must Have Sufficient Color Contrast
+* https://github.com/GoogleChrome/lighthouse/issues/5559
+* https://www.plothost.com/kb/lighthouse-report-contrast/
+
+== reload content shift ==
+
+* Write a bug report for chrome content shift
+
+'''DEV'''
+
+* As a draft, so admin can decide if this should really be reported to MediaWiki team
+** Chrome seems to reload pages from the bottom up
+** So every time there is a vertical content shift ABOVE an element Chrome has "jumping" issues
+
+Title
+
+<pre>
+page reload in Chrome results in vertical content shift
+</pre>
+
+Description
+
+<blockquote>
+When using Chrome there is bug which occurs when a page is reloaded and there is vertical content shift happening.
+
+As Chrome does seem to reposition the view of the browser window from the page bottom up when there is content shift on the page, Chrome isn't able to position the browser window on the exact same scroll height as before but often a couple of pixels off.
+
+This affects MediaWiki and Wikipedia on longer articles where there is a good chance of at least a bit of content shift is happening.
+
+A problem with this bug is that it seems not very predictable in nature. So to reproduce you have to load 3-5 long articles on MediaWiki / Wikipedia and jump to the middle or lower half and reload the page a couple of times. Scroll up or scroll down a little bit and reload again. Where e. g. in Firefox after reload you would be on the exact same position after reload with Chrome you can often see the page "wander around" moving up or down in increments of a couple of pixels each time.
+</blockquote>
+
+Patrick:
+
+We cannot really say it's a known chrome bug if no bug report can be found for chrome.
+
+Is it really a chrome bug happening all over the internet?
+
+mediawiki.org doesn't seem to have this bug. For demonstration:
+
+1. go to a [https://www.mediawiki.org/w/index.php?title=Special:LongPages&limit=100&offset=100 very long page in mediawiki.org] such as for example https://www.mediawiki.org/wiki/Manual:Hooks#Documentation
+
+2. reload the page either using F5 or pressing enter in the address bar
+
+This bug only happens for example on https://www.kicksecure.com/wiki/Dev/mediawiki#WikitableAutoWrapper_and_ScrollableIndicator when reloading the page.
+
+The bug also doesn't happen on one of the longest pages in the Kicksecure wiki https://www.kicksecure.com/wiki/Mobile_Phone_Security#Registration_Locks
+
+The bug only seems to happen on Dev/mediawiki.
+
+We could say it's not important enough to investigate this bug because it happens only on one page that isn't focused on users? Otherwise finding out what part results in the content shift would require copying the full content of Dev/mediawiki to a testpage and then keeping removing (bigger) chapters until the bug can no longer be reproduced to find out which part of the wiki markup is causing it.
+
+'''DEV'''
+* Dev sent a video yesterday showing that in all Chromium Browser this content shift problem persists - under specific, but reproducable circumstances
+* Dev can reproduce on https://www.mediawiki.org/wiki/Manual:Hooks#Documentation
+* Dev can also reproduce here, but only on specific position, but there regularely: https://www.kicksecure.com/wiki/Mobile_Phone_Security#Registration_Locks
+* Dev can also reproduce on https://de.wikipedia.org/wiki/Abraham_Lincoln but also only on specific positions
+* So how should be proceed?
+
+== Minify HTML for wiki.min.js (2023-02-13) ==
+
+TODO: discuss
+
+* see https://www.kicksecure.com/mw-autogen/mw-combined-wikijs.min.js
+* As you can see where there is HTML the file is not minified. This means some bloated file size
+* This happens, because strings cannot be minified, because they would change
+* Suggestion: Find or write a function for minifying HTML using Regexp
+
+Patrick:
+
+* Even the main wiki document (kicksecure.com, Main_Page, About, FAQ, all pages) has non-minified HTML.
+* Improvement is possible in theory (nginx module pagespeed but currently doesn't seem under active maintenance).
+* JS loads slow, with fetchpriority=low anyhow and is deferred. Therefore file sizes and CPU speed should be neglible.
+* Speed test websites do not suggest to minify HTML.
+* MediaWiki performance team doesn't think it helps: https://phabricator.wikimedia.org/T110612
+
+== MediaWiki Special Pages CSS Enhancements ==
+
+* There was an issue that the text logo (vertically long) broke MediaWiki special pages because the logo was too long.
+* There is a solution to create a localWiki CSS file where these types of corrections for wikis are made but not globally (MulitWiki) but locally. This file would have to be referenced in mw-combine.
+* Admin rejected this idea due to complexity and uploads another image instead
+
+== MediaWiki Clean vs Unclean Links ==
+
+* It's about this: [[Forum_Best_Practices#Clean_MediaWiki_Links|Clean MediaWiki Links]]
+* After editing a wiki page, now unclean links are back (<code>index.php</code> version).
+* This is caused by the MediaWiki FlaggedRevisions extension.
+* An alternative might be the MediaWiki ApprovedRevs extension. https://www.mediawiki.org/wiki/Extension:Approved_Revs
+
+== Magic Variables Clearnet/Onion ==
+
+* introduce our own magic variables, especially one to differentiate in templates and widgets between clearnet-request and onion-request
+** This is especially useful in cases where a different link needs to be shown depending if it's onion or clearnet. And if that link is not relative
+** Then give task to dev, so he can fix [[VirtualBox]] and remove onion extra link
+* Cumbersome to implement and not that important because there are separate onion download links.
+
+== Expand Button new ==
+
+* usually expand areas are created with .mw-collapsible and .mw-collapsible-content
+** But this is a JavaScript solution and does not work for nojs users. For them the area is automatically expanded
+* A new solution would be to create a widget which creates and expand container and button and content area
+** This solution uses checkboxes for nojs users and a js solution for JavaScript users
+* A second widget might me "Expand All / Collapse all button, like on page [[Documentation]]
+** For nojs users this might also be a checkbox which works in tandem with the other new widget for Expand buttons
+*** A challenge might be that the Expand all checkbox always has to be on the same level as all parent elements of the lower level expand buttons
+* An alternative variant to the Expand all button might be to introduce a parameter to the expand button widget like  "nojsexpanded" where the behavior is like with the current mw-collapsible solution and all areas are expanded if JavaScript is not active
+
+== Sitenotice no-JS Version ==
+
+* The Sitenotice usually is not dismissable by the user
+* We use Extension:DismissableSiteNotice so the user can click away the Sitenotce
+* But the extension has a big flaw. On line 55 to 75 (see [https://github.com/wikimedia/mediawiki-extensions-DismissableSiteNotice/blob/master/includes/Hooks.php git of the extension]) you can see the dev delivers the sitenotice via JavaScript
+** This means the sitenotice is not even visible if the user has JavaScript deactivated.
+** This is not desired behaviour. We want every user to see the notice. And JS users just have the additional luxury of being able to dismiss the sitenotice
+* Solution suggestion
+## We deactivate Extension:DismissableSiteNotice, because the JavaScript way was a deliberate choice of the dev, so even if we can fix the extension the dev very likely won't accept our solution upstream
+## Without the extension the Sitenotice will be there for every user.
+## We write a JavaScript file to make Sitenotice dismissable which saves this info into a cookie similar to Extension:DismissableSiteNotice, so only JS users have the comfort to dismiss a Sitenotice
+
+Patrick said:
+
+* priority: low
+* Let's see what upstream is saying.
+** https://phabricator.wikimedia.org/T11209
+** https://phabricator.wikimedia.org/T225318#7686484
+** Inquiries from 2022-02-06
+
+== CodeSelect Show Copy Contents Feature ==
+
+* pro
+** Would it be possible, and make sense to shop a popup what exactly has been copied to clipboard?
+** Maybe useful for the new donation widget?
+** Maybe useful generally, globally?
+* contra
+** In probably 99.9% of cases the user will immediately insert the contents they just copied into another form or programm. Therefore he will see the full copied content immediately afterwards anyways. So this might be superfluous
+
+== External Redirections Enhancements ==
+
+status: wait
+
+Waiting for new magic words mediawiki extension.
+
+https://github.com/DavisNT/ExternalRedirect/ improvements
+
+example external redirect:
+
+* live:
+** https://www.whonix.org/wiki/OpenPGP
+* wiki source:
+** https://www.whonix.org/w/index.php?title=OpenPGP&redirect=no
+** https://www.whonix.org/w/index.php?title=Moved:OpenPGP&action=edit
+
+* solution?
+** Can we change
+** <code><nowiki>
+{{#externalredirect: https://www.kicksecure.com/wiki/OpenPGP}}
+</nowiki></code>
+** to
+** <code><nowiki>
+{{#externalredirect: {{kicksecure_clearnet_or_onion}}/wiki/OpenPGP}}
+</nowiki></code>
+** ?
+
+* goals:
+** protocol handler respecting redirect.
+*** redirect {{Whonix}} https visitors to {{Kicksecure}} https
+*** redirect {{Whonix}} onion visitors to {{Kicksecure}} onion
+
+* notices:
+** title: <code>Redirection</code>
+** "You are being redirected. Will redirect in 5 seconds to {{Kicksecure}} website."
+** "{{Whonix}} is based on {{Kicksecure}}"
+
+== mininav CSS Improvement ==
+
+* pro
+** The style for example on A) [[USB_Installation]] "table abuse" looks a bit nicer than mininav for example B) [[Dev/website]].
+** "table abuse" is shows all navigation options in the same line on mobile which is great.
+** "table abuse" has a nicer border?
+** "table abuse" has a nicer background color?
+** mininav splits it into multiple lines below each other which is non-ideal.
+* contra
+** mininav is designed with modern standards and especially mobile devices in mind
+** the bottom border indicated like with tabs where the user is at
+** the tabs can be on one line or multiple lines and are therefore responsive
+** the design is subtle and nice and integrates with the rest of the visual language (gray background for code, but white for functional elements of the website)
+
+== homepage html optimizations ==
+For Kicksecure and Whonix homepage. To reduce DOM size.
+
+Something doable, useful here?
+
+Instead of using this code;
+
+<pre>
+<div id = ”navigation-main”>
+
+    <ul>
+
+            etc ..
+
+    </ul>
+
+</div>
+</pre>
+
+It would be better to use this other one;
+
+<pre>
+<ul id = ”navigation-main”>
+
+    etc ..
+
+</ul>
+</pre>
+
+'''DEV'''
+
+* That would be a small optimization, but nothing substantial for the DOM
+* And it would require a lot of work because styles have to be rewritten, sometimes even JS scripts (at least the references)
+* I advice against it
+
+== critical css test ==
+
+info:
+
+* https://web.dev/codelab-extract-and-inline-critical-css/
+
+goals:
+
+* A simplified test if critical CSS inclusion into the head results in faster website speed at all.
+
+non-goals:
+
+* Making mediawiki use critical CSS. How to integrate this with mediawiki will be considered at a later time in a separate task.
+
+tools:
+
+* https://www.sitelocity.com/critical-path-css-generator
+* https://jonassebastianohlsson.com/criticalpathcssgenerator/
+* https://www.corewebvitals.io/tools/critical-css-generator
+* https://web.dev/codelab-extract-and-inline-critical-css/
+
+todo:
+
+* 1) Use a browser where you are logged out and have no cookies. This is because cookies and being logged in has an influence on the HTML provided by mediawiki.
+* 2) on /test/ add Kicksecure homepage with the normal HTML document that we have now: <code>kicksecure-hp-normal-not-critical-css.html</code>. This will be needed for speed comparison.
+* 3) create a copy <code>kicksecure-hp-critical-css.html</code>
+* 4) use some tool to extract the critical css. add the critical css to the head. (https://web-dev.imgix.net/image/admin/RVU3OphqtjlkrlAtKLEn.png)
+* 5) out-comment all other CSS for a simple test. Search the HTML document for <code>stylesheet</code>. (CSS load with <code>media="print" onload="this.media='all'"</code> can and probably should be ignored and left enabled as it already loads async.)
+* 6) load all other CSS async
+* 7) compare speed of the two different HTML documents
+
+'''DEV'''
+* Tests were created https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_css-normal.html and https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_css-critical-sitelocity.html and https://www.kicksecure.com/test/2023-05-06_kicksecure-hp_css-critical-corewebvitals.html - the other tools were not very well suited or suited at all for the task
+* Results (un-comment wikitext below to see results)
+<!--
+{| class="wikitable"
+! version !! FCP !! LCP !! TBTime !! CLShift !! Speed I
+|-
+! normal || 1.1s || 3.4s || 330ms || 0 || 2.2s
+|-
+! coreweb || 2.0s || 3.8s || 360ms || 0 || 2.9s
+|-
+! sitelocity || 1.4s || 2.3s || 360ms || 0.186 || 2.1s
+|}
+-->
+* Conclusion: It seems that
+** Critical CSS works. But it's not speeding up the page
+** This might be because critical CSS is already very large in both versions
+** sitelocity seems to be better with LCP, but has a content layout shift which is not good
+* Dev cannot clearly say what happened here. Instructions were followed as described on the pages
+
+== primitive based hero image ==
+* https://github.com/fogleman/primitive
+** This seems like a pretty brilliant technique. Could also be considered an art style
+** Dev used something similar (but not as advanced) to create the hero image svg previews
+** The question for us if we want to use it in the future is: How easy is it to use? How much control do we get over the interations?
+** If it works with the command line so easily that could be great (needs to be tested)
+** Judging by the possible flags Dev thinks it could be useful
+** So yes, great find. Needs to be tested though
+* Please try.
+
+'''DEV'''
+* DONE
+
+* Patrick: Please try using on the homepage.
+
+'''DEV'''
+* Documentation was transfered and adapted for our main documentation [[Dev/mediawiki#SVG_hero_image_preview_creation_with_library_primitive|SVG hero image preview creation with library primitive]]
+* New hero image for Whonix and for Kicksecure were created and both are used to replace the old image
+* Note, the preview image in Mediawiki (it's a rendered PNG, e. g. https://www.whonix.org/wiki/File:HP-Hero-image-svg-preview.svg) does look less good than the real image https://www.whonix.org/w/images/a/a5/HP-Hero-image-svg-preview.svg which will be used. So always check real image when dealing with SVG in Mediawiki
+* Dev wanted to save at least 90% against the real hero image, so mode "rect" was chosen to save filesize
+* The hero image for Whonix was rendered with 60 cycles: real 54kb → prim 5.3kb
+* The hero image for Kicksecure was rendered with 75 cycles: real 65kb → prim 6.6kb
+* The preview image quality is so good now that dev could change the blur factor from 2.5 to → 1.2. So way less blur and the preview looks better and already recognizable
+
+= TASK ARCHIVE : Backlog (Maybe Future) =
+== Wiki_Enhancements twitter image broken ==
+https://www.kicksecure.com/wiki/Wiki_Enhancements
+
+Twitter preview image is broken. Probably because it is not 2:1?
+
+TODO: please fix, try with a twitter image debugger (check they're functional on other pages first to see if these are generally functional)
+
+'''DEV'''
+* ADMIN ACTION NEEDED
+* Problem could not be fixed yet
+* Research journey
+** Dev assumed it was an image issues.
+*** Dev used one of his own private servers (not known) and uploaded a copy of the Wiki_Enhancements source code to this and also the preview image
+*** This did also not work
+*** Dev tried different image sizes which did also not work.
+*** Dev tried the same experiment and downloaded the apple.com page and the preview image. This worked
+*** Dev tried to change the apple image with a recropped version of our image. This worked
+*** Dev tried again the Wiki_Enhancements source code on his private server with the recropped image. This worked.
+*** Different websites were tested
+**** https://www.wikipedia.org/ works, it is a png, 1:1
+**** https://www.mediawiki.org/wiki/Wikimedia_Hackathon_2024 works, it is a jpg, 16:9 or 1.78:1
+**** https://www.mediawiki.org does not work, it is a jpg, 1:1 - it works on the tester pages though
+**** https://www.apple.com/ works, it is a png, 1.905:1
+**** https://tails.net/ does not work, because it is prevented by robots.txt
+**** https://www.torproject.org/ works. It is a png with 2:1
+**** https://www.qubes-os.org/ works. It is a png with 1.905:1
+**** Also many Kicksecure pages were tested. Homepage, Download, About, Donate worked on Twitter, but did NOT work with the testers. Dev thinks that these pages are also "broken" but twitter does not reload them so the old preview is used and is therefore save. But that's just an assumption
+** Dev concludes
+*** About the image I'm not sure completely, but the following is highly likely
+**** Images are accepted in multiple file types: jpg, png, also webp (not links about but other tests)
+**** Images can have a range of sizes. Common are 1:1 to 2:1 which all do work
+**** The pages do not use twitter:image but mostly og:image meta tag which seems to be accepted by twitter
+**** Use absolute links: Twitter seems to need absolute urls. This was tested on the private server. Relative adresses like <code>/w/images/...</code> do not work. Also absolute image starting with the domain like <code>https://www.kicksecure.com/w/images/2/2c/Wiki-upgrade-social-preview.png?version=26ed5bd8ec8fbabdfec28f40d8463039</code>. This is automatically handled by our SEO extension, but it's worth mentioning in case we ever change it
+**** The https://www.mediawiki.org not working is strange. Maybe also a legacy issue. But also the MediaWiki page (but NOT Wikipedia) have a weird meta tag policy where they have the og:image meta tag 3 times in then og:image:height and og:image:width each time again - the exact same meta tag. This seems supposed to be for the crawler for different sizes to choose, but as it is the same tag the crawler probably just takes the last instance of each tag. And maybe the 640x360 image is accepted from Hackathon 2024, but not the 640x640 image from the main page. So it can be assumed that wide images have different rules than square images. Wikipedia with its square image in contrast has a very large square png (>2000x2000)
+**** It also seems Twitter updates at the earliest every 10 minutes
+**** For later documentation, Dev suggests for Twitter image testing
+****# Test every new url that should go on twitter with these two pages. They sometimes have a refresh delay of max 1 minute each after you change something on the url. https://threadcreator.com/tools/twitter-card-validator and https://renderform.io/tools/twitter-card-preview-tool/#
+****# Test also on this page. Although it's deprecated (only for SEEING previews) by twitter it's still valuable for the log and maybe to trigger twitter to url (seems to sometimes work) https://cards-dev.x.com/validator
+****# The most reliable but also slowest test is on https://x.com/compose/post There you just post the URL and wait a couple of seconds for the preview to show up. If it takes to long reload the page and try again. If it still does not work the check cards-dev validator above again. Maybe there's an important info like <code>ERROR: Fetching the page failed because it's denied by robots.txt.</code> which it was for tails.net
+*** Now to our page: The last idea Dev has is that our CORS headers and other headers are the problem
+**** cross-origin-resource-policy: same-site restricts the resource to be used only by the same site. Twitter's crawler might not be considered part of the "same site". Alternative: cross-origin-resource-policy: cross-origin
+**** The header cross-origin-opener-policy: same-origin could potentially restrict cross-origin data sharing. Alternative cross-origin-opener-policy: unsafe-none
+**** The header x-frame-options: SAMEORIGIN prevents the image from being embedded in frames from other origins
+**** Also there's a content-type mismatch: The header content-type: image/webp indicates that the image is being served as a WebP file, but the file extension in the URL suggests it might be a JPEG (.jpg).
+*** '''TODO Admin'''
+**** Please try experimenting / fixing these 3 policies
+**** After that Dev would like to get this task back up to document the whole process in our Dev documentation
+
+Patrick:
+
+* CORS is unlikely the issue because: Works on different wiki pages but all wiki pages have the same CORS headers. CORS is a a recommendation set by the server. The design idea is to protect a user's browser from a compromised server. The client software (browser or bot) needs to adhere to CORS. See also [[Website_Tests#Content_Security_Policy_.28CSP.29|Content Security Policy (CSP)]].
+* Test tools are not reliable. Twitter draft tool uses caching. Impossible to debug.
+* Can be file format issue. SVG unsupported. WEBP unsupported.
+
+== Newsletter Widget ==
+* Widget here means "widget" generally as in a box with a special feature.
+** Not necessarily a MediaWiki widget.
+** Is there a better terminology than widget to avoid confusion?
+* features:
+** subscribe
+** unsubscribe
+** add the newsletter subscribe/unsubscribe to homepage
+** the widget should be re-usable in other places in the wiki
+** Ideally noJS compatible.
+** Just two (subscribe/unsubscribe) POST submit boxes.
+** The backend on the server could be a simple PHP script that just appends the e-mail address to a file subscribe.txt / unsubscribe.txt.
+*** The PHP script should reject invalid e-mail address formats (such as with spaces in the middle or missing @ sign)
+*** The PHP script would return "Success. Thanks for signing up!" or "Failure to sign-up. Please report this bug in the forums."
+* non-features:
+** double opt-in (this will be done manually at a later stage before sending any e-mails)
+* TODO: discuss
+
+'''DEV'''
+* Topic was discussed. Script should be simple and at best not using a database
+* Dev did newsletter research. Conclusions
+** Most scripts are paid and proprietary, e. g. https://www.formget.com/newsletter-php-script/
+** Most scripts are rather complex
+** Most scripts use MySQL
+* Options
+** We could write a completely new scripts
+** We could base a widget on the research by admin: https://github.com/rodhilton/maillister (an old script)
+** We could by a modern script and set it up with mysql
+* Admin said he will do script research again
+
+== SVG to PNG conversion error probably by ImageMagick ==
+
+'''DEV'''
+* While creating a donor image for FUTO, the FUTO svg was used
+* This created a problem, see here https://www.whonix.org/wiki/File:Futo-logo.svg
+* Superficial research by Dev suggests that this could be a MediaWiki ImageMagick bug
+* The SVG image by FUTO itself seems very simple and was even further simplified by Dev to an "optimized" SVG. Both versions failed in MediaWiki
+* Admin probably should have a look if there's an internal problem
+* For now PNG image was used for page [[Donors]] instead. If issue is resolved then svg image should be used
+** Patrick: Probably MediaWiki bug.
+
+== Top Headline missing edit button ==
+
+* One page Dev/mediawiki a headline was shown as headline level 1 but had no edit button
+
+'''DEV'''
+
+* Semi fix.
+* Bug was thoroughly examined.
+* No Javascript, CSS or HTML bug
+* Previous and following chapter were analyzed
+* Also the previous, this and the following chapter were copied to a testpage were everything worked fine
+* It seemed the previous chapter also loads the chapter with the missing editsection button. So it was assumed the problem lies in the previous chapter, so sections of the were strategically deleted to find the problematic subsection.
+* The problem was a wikitable in the direct previous chapter, a level 2 headline. Removing the wikitable solved the problem. But this is not a solution, so wikitable was just html-commented out (and notice was given)
+* Dev would normally suggest a bug report to MediaWiki. However the bug is not reproducible in a smaller test page, see [[Testpage]]. It seems this is a "complexity bug", which is cause by multiple not obviously connected causes. Dev also performed a full page wikitext analysis and found no syntax errors (just very few of spelling errors which were corrected)
+* So Dev suggests just archiving these finds and for now work with html-commenting out the problematic tables if necessary. If the bug becomes a practical one (and not a theoretical one like now) this should be re-investigated
+
+== MediaWiki:Page_Homepage.css Question ==
+Only a question.
+
+Could {{CustomRepo|alt=/blob/master/mediawiki-shared/src/kicksecure/Page_Homepage.css Page_Homepage.css}} be embedded inline into [[widget:Page_Homepage]]? Good idea?
+
+Reason: Potential website speed improvement?
+
+Would get rid of https://www.whonix.org/w/index.php?title=MediaWiki:Page_Homepage.css&action=raw&ctype=text/css&css-extension=1 (the only call to index.php), would get rid of 1 additional file to download.
+
+Might not be needed if nginx server side PHP caching speeds this up.
+
+'''DEV'''
+* Yes, Page_Homepage.css could be embedded
+** Pro: That would improve parallel loading (because the CSS is there earlier). Speed COULD therefore improve a little bit
+** Con: But that would inflate the page even more (which would also negatively impact the PageSpeed "Dom is too large" warning
+* Alternative idea: Load the script directly from /mw-autogen/src-copy folder. This needs some small tweaks, probably in {{CustomRepo|alt=/tree/master/mediawiki-shared/build config-build-(shared and specific).json}} and/or mw-combine, but might be reasonably quick
+
+== Whonix Homepage Video ==
+=== simplify noJS version ===
+For the more beautiful, feature-rich implementation related to all of these video tasks, would it help if the noJS version would be further simplified?
+
+Potentially acceptable for the homepage noJS version:
+
+* just show the illustrative image
+* direct link to the video
+* video download link
+* could offer many different quality / size versions
+* YouTube link
+* yewtu.be
+* no need to play inside the homepage
+
+=== Separate JS version ===
+Should we add a more pretty video player if JS is available?
+
+The HTML5 player is nice for noJS but has some probably unfixable issues. When playing the video over a slow connection (slow internet; Tor; onion) it starts, is then stuck, loads, play again. That is not very useful. This leads missing the hear the first few seconds of the video and no bearable video experience. Hence above chapter "simplify noJS version".
+
+If we decide to use a JS based video player... Is there a video player for slow connections that
+
+* can buffer the first 10-20 seconds or so?
+* lower the video quality?
+
+=== Streaming Protocols - RTSP RTSPS HLS ===
+What we want is "VOA" - "video on demand". Only playing simple videos. No live streaming.
+
+For adaptive bitrate streaming (lowering the video resolution and quality over slow connections), the whonix.org server would need to support RTSP (actually RTSPS for better security) and HLS? Patrick did preliminary research and thinks its doable.
+
+=== research video players ===
+requirements:
+
+* must be Open Source
+* installed to whonix.org/libs or so (not fetching from third parties such as jsDelivr)
+* can be JS based
+* with HTML5 only (noJS) features are probably limited and no players available?
+* avoid NPM (seems very pretty much doable, players that Patrick has seen are deployed as a single JS file. Trivial to install on the server.)
+
+feature wish list:
+
+* remember video playback position after reload
+* see also requested features above
+
+review todo:
+
+* https://videojs.com/ smoothQualityChange: true, http://rsmck.co.uk/blog/adaptive-hls-streaming-with-nginx/
+* flow player
+* etc
+
+=== lazy load player ===
+If we use a JS based video player, should it be lazy loaded to avoid increasing load times for normal visits?
+
+=== CSS restyle html5 video controls ===
+* Controls always visible because otherwise just a big black area that looks broken over slow connections
+* add additional buttons
+** direct link (https://www.whonix.org/videos/whonix-explainer.mp4)
+** download link
+** youtube link
+** yewtu.be link
+** video supermenu
+** picture in picture restyle
+** always show a progress bar spinner (even if a fake one) (Requires JS? If so, OK.)
+
+resources:
+
+* https://developer.mozilla.org/en-US/docs/Web/Guide/Audio_and_video_delivery/Video_player_styling_basics
+
+=== remember video playback position after reload ===
+
+=== video gallery ===
+Would it make sense to add a video gallery / switcher using arrows so users can watch the other two Whonix explainer videos too?
+
+= FEATURE ARCHIVE =
+
+The following features are RETIRED
+
+== ContentImage (Template) - image wrapper for overlenght images ==
+
+* '''This feature is retired and replaced by a global setting for all content images'''
+* Content images is a term for images used in the content produced. These images usually occur between text, paragraphs, headlines. Sometimes these images can become too large for small display sizes
+* For images which are expected to be too large for some displays, this wrapper template is ideal. Images inside this wrapper will have max-width:100% and height:auto;
+* '''NOTE''' : Thumbnails DO NOT need to be wrapped in ContentImage, because they already have a max-width of 100%, read more here: [[Dev/mediawiki#Responsive_Thumbnails]]
+* '''USAGE'''
+** Simply wrap any image that you suspect could be oversize in this wrapper
+** Parameter
+*** '''addToClass (optional, string)''' : This parameter's text will be added to the class attribute of the content image wrapper container
+*** '''w100 (optional, boolean)''' :  Makes an image always width 100%. This parameter if true will add the class ciw-w100 to the content iamge wrapper container. This will make the container and all its children <code>width: 100%; display: inline-block;</code>. This parameter was introduced as a helper due to a changed in the way images are handled in MediaWiki since version 1.40.
+** Example with wrapper Code {{CodeSelect|code={{ContentImage{{!}}[[File:Image-too-wide-demonstration.jpg]]}}}}
+** Example without wrapper <pre>[[File:Image-too-wide-demonstration.jpg]]</pre>
+** Example with wrapper {{ContentImage|[[File:Image-too-wide-demonstration.jpg]]}}
+* Relevant files
+** [[Template:ContentImage]]
+** {{CustomRepo|Utility.css}}
+
+== sd-start (currently retired) ==
+
+* https://www.{{project_clearnet}}/wiki/Widget:Sd-start-short
+* https://www.{{project_clearnet}}/wiki/Widget:Sd-end-short-start-detailed
+* https://www.{{project_clearnet}}/wiki/Widget:Sd-end-detailed
+* https://www.{{project_clearnet}}/wiki/Template:Sd-start-short
+* https://www.{{project_clearnet}}/wiki/Template:Sd-end-short-start-detailed
+* https://www.{{project_clearnet}}/wiki/Template:Sd-end-detailed
+
+= Footnotes =
+<references />
+
+{{Footer}}
+
+[[Category:Development]]
