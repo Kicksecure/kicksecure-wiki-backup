@@ -2412,6 +2412,24 @@ Deprecated upstream? Problem?
 ## <code>append | string, default: ""</code> : an addition to the link after the domain. Always start with slash "/". Example: "/thread/12387" → "{{project_clearnet}}/thread/12387"
 ## <code>result | string, standard: "link"</code> : determines what the widget returns. Options (A) link - then an a-hyperlink will be created (B) url - then only the final url will be created (C) parts - then a string will be created. First part protocol "http", then comma, then "domain", example: "https,{{project_clearnet}}"
 
+== SVG template and widget ==
+
+* In MediaWiki SVGs in wikitext are always rendered as PNGs, see [https://www.mediawiki.org/wiki/Manual:Image_administration#SVG official MediaWiki documentation].
+** This has significant downsides, because we lose that SVGs can be smaller in size and are infinitely scalable. And the SVG to PNG rendering by MediaWiki is sometimes pretty bad.
+** So we created the Template:SVG (which internally uses the Widget:Template) to fix this problem and use SVGs natively
+* '''Parameters'''
+** '''1 (anonymous) | string, mandatory''' : The filename as it is saved in MediaWiki. No <code><nowiki>[[File:...]]</nowiki></code> or anything, just the plain filename like <code>SvgImage.svg</code>
+** '''width | number, optional''' : The fixed width in pixels. If this parameter is omitted then width will be set to "auto"
+** '''height | number, optional''' : The fixed height in pixels. If this parameter is omitted then height will be set to "auto"
+* '''Note''' : Always use the template, NOT the widget
+* '''Example'''
+** Syntax <code><nowiki>{{SVG|Kicksecure-logo-rectangle.svg|height=50}}</nowiki></code>
+** Result {{SVG|Kicksecure-logo-rectangle.svg|height=50}}
+* More examples: [[Dev/wikitest#SVG_template_and_widget|SVG template and widget]]
+* Relevant files
+** [[Template:SVG]]
+** [[Widget:SVG]]
+
 == Tab Template / Tab Content Controller ==
 
 * A tab controller to conveniently show content as tabbed content areas
@@ -2661,25 +2679,57 @@ Section 2 content
 
 == Columns: use-2-columns, use-3-columns ==
 
-* These classes can be used on any element, which has display:block or something similar. The content of the element will be automatically grouped in 2 or 3 columns, separated by lines between them.
-** Note that under a certain page with the class will produce only 2 columns or 1 column to be responsive for mobile devices
-* additional class "strict-list-columns" : If the parent element with the class "use-2-columns" or "use-3-columns" also gets the class "strict-list-columns" then lists ul/ol will be kept together in 1 column. This can be broken by inserting <code><nowiki><div></div></nowiki></code> into a list to break it cleanly into two and let those 2 lists be in different columns
-* sub class "keep-together" : This class can only be effectively used under the "use-2-columns" or "use-3-columns" class. Usually without "keep-together" the 3 columns will be automatically reorganized to occupy as little vertical space as possible. Thereby it will separate line which is sometimes not desirable. To keep lines together wrap them in a span with class "keep together". Example
-<pre><nowiki><div class="use-3-columns">
-<ul>
-<li>List element 1</li>
-<li><span class="keep-together">List element 2</span></li>
-</ul>
-</div></nowiki></pre>
-Example 2 in a Template with "strict-list-columns"
-<pre><nowiki><div class="use-3-columns strict-list-columns">
-* List element 1
-* List element 2
+* We have two column classes <code>use-2-columns</code> and <code>use-3-columns</code> to display content in 2 or 3 columns which the browser handles automatically for optimal (minimal) height. The content will be automatically grouped in 2 or 3 columns, separated by lines between them.
+* These classes can be used on any element, which has display:block or something similar. Usually you will use them on a <code><nowiki><div class="use-2-columns">...</div></nowiki></code> as your content container.
+* Note that these classes are responsive, so on mobile device the will produce only 2 columns or 1 column to fit on the mobile screen
+* '''Additional classes'''
+** '''additional class "strict-list-columns"''' : If the container element also has the class "strict-list-columns" then lists (ul, ol) will be kept together in 1 column.
+*** If a list gets too long then that list should be split into 2 lists <code><nowiki><ul>...</ul></nowiki></code> into <code><nowiki><ul>...</ul><ul>...</ul></nowiki></code>, so then there is 2 smaller lists that the browser can more easily spread among the columns
+*** If you are using wiki syntax to write lists, you can split them up by using an immediately closed div between them <code><nowiki><div></div></nowiki></code>. This however is rather a suggestion not a forced break. For forced breaks see class <code>force-column-break</code> below
+** '''tool class "keep-together"''' : This class can only be effectively used for a child inside the parent container. Usually without "keep-together" the 3 columns will be automatically reorganized to occupy as little vertical space as possible. Thereby it will separate content elements unpredictably which is sometimes not desirable. To keep content together wrap it in <code><nowiki><span class="keep-together">...</span></nowiki></code>.
+** '''tool class "force-column-break"''' : This class can be used on a div inside the parent container to force a column break. Use <code><nowiki><div class="force-column-break"></div></nowiki></code> to move an element to the next column (if possible)
+* Study the examples [[Dev/wikitest#Columns:_use-2-columns.2C_use-3-columns|Columns: use-2-columns, use-3-columns]] to learn about all relevant use cases
+* '''Full Feature example below'''
+** The lists are strictly held together, they will not be separated into separate columns
+** The normal sample text is devided into columns however it fits
+** The class keep-together text is also strictly held together abd will not be separated into separate columns
+** The second and third list is split up by the div-separation trick mentioned above
+
+'''Example Syntax'''
+
+{{CodeSelect|code=
+<div class="use-3-columns strict-list-columns">
+Sample text Sample text Sample text Sample text Sample text Sample text Sample text Sample text 
+* List 1 item 1
+* List 1 item 2
+
+Sample text Sample text <div class="force-column-break"></div>Sample text Sample text Sample text Sample text Sample text Sample text 
+Sample text Sample text <span class="keep-together">Class keep-together text Class keep-together text 
+Class keep-together text Class keep-together text Class keep-together text Class keep-together text</span>
+Sample text Sample text Sample text Sample text Sample text Sample text Sample text 
+* List 2 item 1
 <div></div>
-* List element 3
-* List element 4
-</ul>
-</div></nowiki></pre>
+* List 3 item 1
+Sample text Sample text Sample text Sample text Sample text Sample text Sample text Sample text 
+</div>
+}}
+
+'''Example Result'''
+
+<div class="use-3-columns strict-list-columns">
+Sample text Sample text Sample text Sample text Sample text Sample text Sample text Sample text 
+* List 1 item 1
+* List 1 item 2
+
+Sample text Sample text <div class="force-column-break"></div>Sample text Sample text Sample text Sample text Sample text Sample text 
+Sample text Sample text <span class="keep-together">Class keep-together text Class keep-together text 
+Class keep-together text Class keep-together text Class keep-together text Class keep-together text</span>
+Sample text Sample text Sample text Sample text Sample text Sample text Sample text 
+* List 2 item 1
+<div></div>
+* List 3 item 1
+Sample text Sample text Sample text Sample text Sample text Sample text Sample text Sample text 
+</div>
 
 == Expand (mw-collapsible) paragraph as label ==
 
