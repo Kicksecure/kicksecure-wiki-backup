@@ -13,20 +13,31 @@ TODO
 == 3mdeb verified boot discussion ==
 * https://github.com/3mdeb/verified-boot/pull/31
 
-== review docker pull request ==
-* https://github.com/derivative-maker/derivative-maker/pull/19
-* forum discussion: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/64
-* please share review in forums
-* Should we start using dockerhub? https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/59
-* Found a build failure in the main derivative-maker repo and resolved it while testing this: https://github.com/ArrayBolt3/derivative-maker/commit/950cf9f15e077a1074c0a30e2cdd04d098d2092d
-
-== user-sysmaint-split - minor improvements ==
-
-* consider <code>test -s</code>
-
-<pre>
--z "$(cat
-</pre>
+== ISO - btrfs versus grub-live bug - real fix ==
+* todo
+* report bug upstream
+* systemd bug report: https://github.com/systemd/systemd/issues/35540
+* fix in dracut
+** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
+** Might use kernel parameters using systemd features that may be available in trixie?
+* since no response from systemd, needs to be fixed without systemd upstream support
+* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
+* Current implementation plan:
+** Create script (or augment existing script) that will look at all mounted filesystems, detect unsafe read/write mounts and report the system as either being fully persistent, semi-persistent, or fully live.
+** Make livecheck recheck the system regularly (perhaps with an event-based mechanism if possible) and update messaging and the icon as necessary to indicate the system's state. Popups should be sent with notify-send to alert the user when something happens that affects the system's live state.
+*** If no writable drives are mounted, show a green light. If writable, ''removable'' drives are mounted under /mnt or /media, show a yellow light. If non-removable drives of any kind are mounted, or if removable drives are mounted anywhere other than /mnt or /media, show a red light. NFS is considered a removable drive.
+*** We should reimplement livecheck in Python + PyQt5. Use a system tray icon to indicate the live state, use a poll on /proc/self/mounts to detect when mounts change and rescan for possible danger.
+** Create a systemd unit that will scan /etc/fstab on boot and mount overlayfs filesystems over the top of most persistent filesystems listed in /etc/fstab, with the exception of mounts under /media and /mnt and filesystems that should always be persistent (NFS specifically). This should run early during boot and block boot, and should not run unless the system is booted in live mode.
+** Research how Tails live mode works in this regard and take inspiration from them if possible.
+*** Won't boot unless it is booting from a USB medium with the removable media bit enabled
+**** Idea - disks mounted that have the removable media bit set are probably OK to mark as yellow, use red when there are mounted "non-removable" disks which are more likely to be internal or external (semi-)permanent hard drives
+*** Cannot mount non-removable drives without setting an administrator password on the initial setup screen and then providing that password when prompted
+*** Removable media is automounted even without clicking on it in the file manager (?!)
+* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
+* research, compare with Tails
+* Avoid writing to arbitrary (non-boot) host disks
+* Disables removable drives auto-mounting
+* Disabled virtual machine shared folders
 
 == sysmaint-panel - allow running in dev mode ==
 * when [[Sysmaint#enable_sudo_access_in_USER_session|enable sudo access in USER session]] has been enabled, allow running sysmaint
@@ -50,6 +61,10 @@ TODO
 
 == kicksecure Qubes Template - app menu ==
 * Qubes start menu: remove Firefox from Qubes Template default app menu (because Firefox should not be started inside Template) (not from App Qube App Menu)
+
+== user-sysmaint-split - investigate polkitd and policykit libraries ==
+
+* https://forums.kicksecure.com/t/investigate-security-suid-impact-of-polkitd-and-policykit-libraries/1075
 
 == browser choice - design ==
 * wiki text only
@@ -115,27 +130,6 @@ sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== ISO - btrfs versus grub-live bug - real fix ==
-* todo
-* report bug upstream
-* systemd bug report: https://github.com/systemd/systemd/issues/35540
-* fix in dracut
-** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
-** Might use kernel parameters using systemd features that may be available in trixie?
-* since no response from systemd, needs to be fixed without systemd upstream support
-* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
-* Current implementation plan:
-** Create script (or augment existing script) that will look at all mounted filesystems, detect unsafe read/write mounts and report the system as either being fully persistent, semi-persistent, or fully live.
-** Make livecheck recheck the system regularly (perhaps with an event-based mechanism if possible) and update messaging and the icon as necessary to indicate the system's state. Popups should be sent with notify-send to alert the user when something happens that affects the system's live state.
-*** If no writable drives are mounted, show a green light. If writable, ''removable'' drives are mounted under /mnt or /media, show a yellow light. If non-removable drives of any kind are mounted, or if removable drives are mounted anywhere other than /mnt or /media, show a red light. NFS is considered a removable drive.
-*** We should reimplement livecheck in Python + PyQt5. Use a system tray icon to indicate the live state, use a poll on /proc/self/mounts to detect when mounts change and rescan for possible danger.
-** Create a systemd unit that will scan /etc/fstab on boot and mount overlayfs filesystems over the top of most persistent filesystems listed in /etc/fstab, with the exception of mounts under /media and /mnt and filesystems that should always be persistent (NFS specifically). This should run early during boot and block boot, and should not run unless the system is booted in live mode.
-** Research how Tails live mode works in this regard and take inspiration from them if possible.
-*** Won't boot unless it is booting from a USB medium with the removable media bit enabled
-**** Idea - disks mounted that have the removable media bit set are probably OK to mark as yellow, use red when there are mounted "non-removable" disks which are more likely to be internal or external (semi-)permanent hard drives
-*** Cannot mount non-removable drives without setting an administrator password on the initial setup screen and then providing that password when prompted
-*** Removable media is automounted even without clicking on it in the file manager (?!)
-
 == emergent shutdown discussion ==
 * please read, comment if applicable
 * https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
@@ -153,13 +147,6 @@ sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
 * when the boot USB drive is removed
 * when panic key is pressed (most obviously probably the power button)
 * https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
-
-== live mode enhancements ==
-* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
-* research, compare with Tails
-* Avoid writing to arbitrary (non-boot) host disks
-* Disables removable drives auto-mounting
-* Disabled virtual machine shared folders
 
 == permission-hardener - live bug ==
 * got a bug report by e-mail
@@ -726,6 +713,20 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== docker cleanup ==
+* as discussed
+* Done: https://github.com/ArrayBolt3/derivative-maker/commit/578bbe9d58402f4aba0d22642af71781a07e63cf
+
+== user-sysmaint-split - minor improvements ==
+
+* consider <code>test -s</code>
+
+<pre>
+-z "$(cat
+</pre>
+
+* Implemented and lightly tested: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/test-s
+
 == live mode systray in python ==
 * keep re-using most of live-check.sh, if sane (keep tested logic and implementation, change variables, output format, refactor, etc.)
 * cli + gui separate?
@@ -740,14 +741,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Migrate these dangerous services to use drop-in configuration dirs with `WantedBy=` dependencies, so that they obey <code>systemctl enable</code> and <code>systemctl disable</code> directives.
 ** This may require some extra code to check if these services are enabled or not already, and re-enable them if they are enabled, so that the needed symlinks for sysmaint sessions are created.
 * Implemented: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/firewall
-
-== user-sysmaint-split - whitelist firewall related systemd units ==
-* such as ufw and other systemd units
-* Implemented in dangerous service drop-in migration task.
-
-== sgdisk create-raw-image - add source code comments ==
-* derivative-maker build-steps.d/3200_create-raw-image - please explain sgdisk related code using source code comment
-** Done: https://github.com/ArrayBolt3/derivative-maker/commit/b881e4475ae6056506f736371dd44ca304ea8556
 
 == user-sysmaint-split - document how to whitelist systemd units in sysmaint mode ==
 * [[sysmaint]]
@@ -797,6 +790,23 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== review docker pull request ==
+* https://github.com/derivative-maker/derivative-maker/pull/19
+* forum discussion: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/64
+* please share review in forums
+* Should we start using dockerhub? https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/59
+* Found a build failure in the main derivative-maker repo and resolved it while testing this: https://github.com/ArrayBolt3/derivative-maker/commit/950cf9f15e077a1074c0a30e2cdd04d098d2092d
+* can be archived
+
+== user-sysmaint-split - whitelist firewall related systemd units ==
+* such as ufw and other systemd units
+* Implemented in dangerous service drop-in migration task.
+
+== sgdisk create-raw-image - add source code comments ==
+* derivative-maker build-steps.d/3200_create-raw-image - please explain sgdisk related code using source code comment
+** Done: https://github.com/ArrayBolt3/derivative-maker/commit/b881e4475ae6056506f736371dd44ca304ea8556
+*** Patrick: Merged.
+
 == permission hardener - review ==
 * https://github.com/Kicksecure/security-misc/pull/307
 ** Mostly good, suggested a change to avoid opening a possible security hole.
