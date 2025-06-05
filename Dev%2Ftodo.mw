@@ -13,32 +13,6 @@ TODO
 == 3mdeb verified boot discussion ==
 * https://github.com/3mdeb/verified-boot/pull/31
 
-== ISO - btrfs versus grub-live bug - real fix ==
-* todo
-* report bug upstream
-* systemd bug report: https://github.com/systemd/systemd/issues/35540
-* fix in dracut
-** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
-** Might use kernel parameters using systemd features that may be available in trixie?
-* since no response from systemd, needs to be fixed without systemd upstream support
-* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
-* Current implementation plan:
-** Create script (or augment existing script) that will look at all mounted filesystems, detect unsafe read/write mounts and report the system as either being fully persistent, semi-persistent, or fully live.
-** Make livecheck recheck the system regularly (perhaps with an event-based mechanism if possible) and update messaging and the icon as necessary to indicate the system's state. Popups should be sent with notify-send to alert the user when something happens that affects the system's live state.
-*** If no writable drives are mounted, show a green light. If writable, ''removable'' drives are mounted under /mnt or /media, show a yellow light. If non-removable drives of any kind are mounted, or if removable drives are mounted anywhere other than /mnt or /media, show a red light. NFS is considered a removable drive.
-*** We should reimplement livecheck in Python + PyQt5. Use a system tray icon to indicate the live state, use a poll on /proc/self/mounts to detect when mounts change and rescan for possible danger.
-** Create a systemd unit that will scan /etc/fstab on boot and mount overlayfs filesystems over the top of most persistent filesystems listed in /etc/fstab, with the exception of mounts under /media and /mnt and filesystems that should always be persistent (NFS specifically). This should run early during boot and block boot, and should not run unless the system is booted in live mode.
-** Research how Tails live mode works in this regard and take inspiration from them if possible.
-*** Won't boot unless it is booting from a USB medium with the removable media bit enabled
-**** Idea - disks mounted that have the removable media bit set are probably OK to mark as yellow, use red when there are mounted "non-removable" disks which are more likely to be internal or external (semi-)permanent hard drives
-*** Cannot mount non-removable drives without setting an administrator password on the initial setup screen and then providing that password when prompted
-*** Removable media is automounted even without clicking on it in the file manager (?!)
-* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
-* research, compare with Tails
-* Avoid writing to arbitrary (non-boot) host disks
-* Disables removable drives auto-mounting
-* Disabled virtual machine shared folders
-
 == sysmaint-panel - allow running in dev mode ==
 * when [[Sysmaint#enable_sudo_access_in_USER_session|enable sudo access in USER session]] has been enabled, allow running sysmaint
 * i.e. check if privilege escalation tool is actually unavailable. Only if actually unavailable and sysmaint mode required, show the error popup.
@@ -454,10 +428,6 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
-== stcat - stdin bugfix review ==
-* please review: https://github.com/Kicksecure/helper-scripts/pull/27
-** Doesn't seem to work, provided debugging info and suggestions.
-
 == Qubes R4.3 - Tor Browser Template Build Installation Issue ==
 * https://forums.whonix.org/t/tor-browser-not-installed-by-default-in-qubes-template-whonix-workstation-17-4-3-0-202505132012-r4-3/21612
 * Looks to be dealt with already, move to Archived if this problem doesn't occur again in another couple of weeks
@@ -713,6 +683,40 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== stcat - stdin bugfix review ==
+* please review: https://github.com/Kicksecure/helper-scripts/pull/27
+* Ready to merge.
+
+== ISO - btrfs versus grub-live bug - real fix ==
+* todo
+* report bug upstream
+* systemd bug report: https://github.com/systemd/systemd/issues/35540
+* fix in dracut
+** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
+** Might use kernel parameters using systemd features that may be available in trixie?
+* since no response from systemd, needs to be fixed without systemd upstream support
+* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
+* Current implementation plan:
+** Create script (or augment existing script) that will look at all mounted filesystems, detect unsafe read/write mounts and report the system as either being fully persistent, semi-persistent, or fully live.
+** Make livecheck recheck the system regularly (perhaps with an event-based mechanism if possible) and update messaging and the icon as necessary to indicate the system's state. Popups should be sent with notify-send to alert the user when something happens that affects the system's live state.
+*** If no writable drives are mounted, show a green light. If writable, ''removable'' drives are mounted under /mnt or /media, show a yellow light. If non-removable drives of any kind are mounted, or if removable drives are mounted anywhere other than /mnt or /media, show a red light. NFS is considered a removable drive.
+*** We should reimplement livecheck in Python + PyQt5. Use a system tray icon to indicate the live state, use a poll on /proc/self/mounts to detect when mounts change and rescan for possible danger.
+** Create a systemd unit that will scan /etc/fstab on boot and mount overlayfs filesystems over the top of most persistent filesystems listed in /etc/fstab, with the exception of mounts under /media and /mnt and filesystems that should always be persistent (NFS specifically). This should run early during boot and block boot, and should not run unless the system is booted in live mode.
+** Research how Tails live mode works in this regard and take inspiration from them if possible.
+*** Won't boot unless it is booting from a USB medium with the removable media bit enabled
+**** Idea - disks mounted that have the removable media bit set are probably OK to mark as yellow, use red when there are mounted "non-removable" disks which are more likely to be internal or external (semi-)permanent hard drives
+*** Cannot mount non-removable drives without setting an administrator password on the initial setup screen and then providing that password when prompted
+*** Removable media is automounted even without clicking on it in the file manager (?!)
+* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
+* research, compare with Tails
+** Avoid writing to arbitrary (non-boot) host disks
+** Disables removable drives auto-mounting
+** Disabled virtual machine shared folders
+* Mostly implemented:
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live
+** Everything else, see livecheck task
+** Still needs more testing, also notify-send popups in livecheck have NOT yet been implemented.
+
 == docker cleanup ==
 * as discussed
 * Done: https://github.com/ArrayBolt3/derivative-maker/commit/578bbe9d58402f4aba0d22642af71781a07e63cf
