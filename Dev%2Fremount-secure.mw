@@ -34,6 +34,10 @@ See also:
 * B) real partitions
 * C) directories
 
+= Mount Users =
+* A) Default system file systems
+* B) Additional, user mounted file systems such as external drives or /etc/fstab modifications
+
 = Build Tools =
 There are at four two major build tools.
 
@@ -41,7 +45,7 @@ These tools are responsible for creating <code>/etc/fstab</code>. That is why ch
 
 * '''VM images:''' {{project_name_short}} VM images are built using derivative-maker which uses grml-debootstrap but might use mkosi in the future.
 * '''ISO installer:''' When installing {{project_name_short}} from [[ISO]] using Calamares creates <code>/etc/fstab</code>.
-* '''Qubes:''' [[Qubes|{{project_name_short}} for Qubes]] (non-existing Template at time of writing) is created by Qubes builder.
+* '''Qubes:''' [[Qubes|{{project_name_short}} for Qubes]] Template is created by Qubes builder.
 ** https://github.com/QubesOS/qubes-core-agent-linux/blob/main/filesystem/fstab
 * '''Others:''' [[chroot]] and [[Distribution Morphing]].
 
@@ -241,6 +245,35 @@ Disadvantages:
 Plan:
 
 * If and only if needed: Combine this with [[#systemd kernel parameter based mount options hardening]] for the API file systems.
+
+== remount-secure daemon ==
+
+Implement remount-secure as a daemon that runs before <code>sysinit.target</code> and after <code>local-fs.target</code>. It will do an initial scan of filesystems and remount applicable filesystems and directories securely, then monitor the system's mounts and remount newly introduced filesystems securely as needed. Configuration files will be used to allow adding new bind-mounts to directories that are not real mountpoints, and to allow applying more permissive mount options to certain mountpoints. The system administrator will be able to modify this configuration as desired.
+
+Advantages:
+
+* No initrd modifications.
+* Not touching /etc/fstab.
+* Handles filesystems introduced at runtime, not just ones present at bootup.
+* Handles filesystems that aren't known about while in the initrd (i.e. those for which mount units exist outside of the initrd).
+* Can be used for all mount points.
+* Allows sysadmin customization.
+
+Disadvantages:
+
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+* May be confusing to users who don't expect mount options to be manipulated by remount-secure.
+* Requires remounting, we can't reconfigure <code>mount</code> to use more secure default mount options.
+* Will override settings like <code>-o exec,dev,suid</code> unless those settings are configured in the remount-secure configuration files.
+
+=== remount-secure daemon potential race conditions ===
+* might be a weakness, not a vulnerability
+* might only be circumvented if malware with exec permission is running but without SUID access waiting for a SUID race condition
+* abusing the race condition in most cases will require root
+** but if malware already has root, SUID race condition is no longer required
+** because only root can create SUID binaries that set user id to root
+** only an issue if there's already vulnerable SUID on the mounted device
+* still a lot more secure than without remount-secure daemon
 
 = Issues =
 * [https://github.com/Kicksecure/security-misc/issues/198 pam-tmpdir-helper breaks certain initramfs-update actions on systems with noexec on the /tmp mount]

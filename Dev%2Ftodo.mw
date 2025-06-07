@@ -13,17 +13,34 @@ TODO
 == 3mdeb verified boot discussion ==
 * https://github.com/3mdeb/verified-boot/pull/31
 
-== debug USB installation boot failure ==
-* https://forums.kicksecure.com/t/installing-kicksecure-to-usb-stick/1074/7
+== get_writable_fs_lists - minor code improvements ==
+* helper-scripts /usr/libexec/helper-scripts/get_writable_fs_lists.sh
+* <code>if [[ "${src_device}" =~ ^/dev/ ]]</code>
+** try to clause the if indentation early if this is false?
 
-== Secure Mount Options for better Security Hardening ==
-* review discussions, wiki
-* comment
-* improve the solutions research
-* https://www.kicksecure.com/wiki/Dev/remount-secure
-* https://www.kicksecure.com/wiki/Noexec
-* https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707
-* vm-config-dist chmod 777 on /mnt/shared conflicts with noexec
+<pre>
+[ "$(printf '%s' "${src_device}" | sed 's/[^\/]//g' | wc -c)" = 2 ]
+</pre>
+
+* Make it multi step?
+* Consider if <code>/sys/class/block/${src_device}/removable</code> is non-existing.
+
+<pre>
+src_device="${BASH_REMATCH[1]}"
+</pre>
+
+* Might crash with set -o nounset if there is no match?
+
+== live-mode.sh - add unit tests ==
+* please add unit tests (simulating different environments)
+
+== systemcheck improvements ==
+* check if root account is locked and warn if it is not
+* user-sysmaint-skip check: skip on Whonix-Gateway or point out that it is not yet applicable
+* check secure boot status (see dist-installer-cli for example source code)
+* check if tirdad kernel module is loaded and warn if it is not
+* detect Qubes EOL using local files
+* detect Debian EOL using local files, if available
 
 == kicksecure Qubes Template - sdwdate qrexec Denied message ==
 * [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
@@ -116,6 +133,10 @@ sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
 * when the boot USB drive is removed
 * when panic key is pressed (most obviously probably the power button)
 * https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
+
+== calamares - unmount issues ==
+* Calamares is not unmounting an encrypted filesystem after installation is complete, thus making livecheck warn about an "unsafe" live state.
+* Investigate, determine if this is already fixed in Trixie or in newer versions of Calamares, or if a bugfix needs to be made.
 
 == permission-hardener - live bug ==
 * got a bug report by e-mail
@@ -665,68 +686,58 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== ISO - btrfs versus grub-live bug - real fix ==
-* todo
-* report bug upstream
-* systemd bug report: https://github.com/systemd/systemd/issues/35540
-* fix in dracut
-** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
-** Might use kernel parameters using systemd features that may be available in trixie?
-* since no response from systemd, needs to be fixed without systemd upstream support
-* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
-* Current implementation plan:
-** Create script (or augment existing script) that will look at all mounted filesystems, detect unsafe read/write mounts and report the system as either being fully persistent, semi-persistent, or fully live.
-** Make livecheck recheck the system regularly (perhaps with an event-based mechanism if possible) and update messaging and the icon as necessary to indicate the system's state. Popups should be sent with notify-send to alert the user when something happens that affects the system's live state.
-*** If no writable drives are mounted, show a green light. If writable, ''removable'' drives are mounted under /mnt or /media, show a yellow light. If non-removable drives of any kind are mounted, or if removable drives are mounted anywhere other than /mnt or /media, show a red light. NFS is considered a removable drive.
-*** We should reimplement livecheck in Python + PyQt5. Use a system tray icon to indicate the live state, use a poll on /proc/self/mounts to detect when mounts change and rescan for possible danger.
-** Create a systemd unit that will scan /etc/fstab on boot and mount overlayfs filesystems over the top of most persistent filesystems listed in /etc/fstab, with the exception of mounts under /media and /mnt and filesystems that should always be persistent (NFS specifically). This should run early during boot and block boot, and should not run unless the system is booted in live mode.
-** Research how Tails live mode works in this regard and take inspiration from them if possible.
-*** Won't boot unless it is booting from a USB medium with the removable media bit enabled
-**** Idea - disks mounted that have the removable media bit set are probably OK to mark as yellow, use red when there are mounted "non-removable" disks which are more likely to be internal or external (semi-)permanent hard drives
-*** Cannot mount non-removable drives without setting an administrator password on the initial setup screen and then providing that password when prompted
-*** Removable media is automounted even without clicking on it in the file manager (?!)
-* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
-* research, compare with Tails
-** Avoid writing to arbitrary (non-boot) host disks
-** Disables removable drives auto-mounting
-** Disabled virtual machine shared folders
-* Implemented:
-** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live
-** Everything else, see livecheck task
-** Tested thoroughly, works in all known edge cases
+== live-hardener improvements - minor code improvements ==
+* use end of options for mount, umount
+* consider non-existing /proc/cmdline
+* Implemented: https://github.com/ArrayBolt3/grub-live/commit/5e4ef191d4858cdfbd1a5a0298454cd82b29963f
 
-== docker cleanup ==
-* as discussed
-* Done: https://github.com/ArrayBolt3/derivative-maker/commit/578bbe9d58402f4aba0d22642af71781a07e63cf
-
-== user-sysmaint-split - minor improvements ==
-
-* consider <code>test -s</code>
+== live-hardener improvements - AI based comments ==
+* AI based review - please disregard without comment if nonsensical
+* array and unquoted variables
 
 <pre>
--z "$(cat
+for kernel_param in ${kernel_cmdline[@]}
 </pre>
 
-* Implemented and lightly tested: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/test-s
+<pre>
+read -ra kernel_params <<< "${kernel_cmdline}"
+for kernel_param in "${kernel_params[@]}"; do
+  ...
+done
+</pre>
 
-== live mode systray in python ==
-* keep re-using most of live-check.sh, if sane (keep tested logic and implementation, change variables, output format, refactor, etc.)
-* cli + gui separate?
-* Implemented:
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/livecheck
-** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/livecheck
-** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/livecheck
+* Aaron: The code variant with <code>read -ra</code> is AFAICT functionally equivalent, it's still word splitting on spaces. However, <code>kernel_params</code> is a string, not an array, so I will fix that.
+** Fixed: https://github.com/ArrayBolt3/grub-live/commit/c4a6b5e742e7c18b05d470541bddb122c6e993d6
+* mount cmd?
 
-== user-sysmaint-split - migrate dangerous service dependencies to drop-ins ==
-* <code>Wants=</code> could be dangerous if dealing with security-sensitive or mutually exclusive services.
-* Migrate these dangerous services to use drop-in configuration dirs with `WantedBy=` dependencies, so that they obey <code>systemctl enable</code> and <code>systemctl disable</code> directives.
-** This may require some extra code to check if these services are enabled or not already, and re-enable them if they are enabled, so that the needed symlinks for sysmaint sessions are created.
-* Implemented: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/firewall
+<pre>
+lowerdir, upperdir, workdir must be part of a single -o option with commas.
+</pre>
 
-== user-sysmaint-split - document how to whitelist systemd units in sysmaint mode ==
-* [[sysmaint]]
-* Documented.
+<pre>
+mount -t overlay overlay \
+  -o "lowerdir=${target_overlay_mount},upperdir=${tmpfs_upper_dir},workdir=${tmpfs_work_dir}" \
+  "${target_overlay_mount}"
+</pre>
+
+* Aaron: The AI is incorrect. Using separate <code>-o</code> arguments works in practice.
+
+* use <code>mountpoint</code>?
+** Aaron: I don't really see the point of doing so, the directories being treated as mountpoints are read from <code>/proc/self/mounts</code> which should only contain valid mountpoints. That's the file's job.
+
+== privleap - add group ==
+* for better multi-user support
+** https://forums.kicksecure.com/t/multi-user-privleap-issue-systemcheck-updatecheck/1046
+* Implemented, required changes to many packages to give the new group proper permissions:
+** sdwdate: https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/privleap
+** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/privleap
+** anon-connection-wizard: https://github.com/ArrayBolt3/anon-connection-wizard/tree/arraybolt3/privleap
+** setup-dist: https://github.com/ArrayBolt3/setup-dist/tree/arraybolt3/privleap
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/privleap
+** tb-starter: https://github.com/ArrayBolt3/tb-starter/tree/arraybolt3/privleap
+** tb-updater: https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/privleap
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/privleap
+** privleap: https://github.com/ArrayBolt3/privleap/commit/736f145b5bb3276c8e76319dbf23772ff31d69cf
 
 == mouse fingerprinting ==
 * todo
@@ -772,6 +783,97 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== live mode systray in python ==
+* keep re-using most of live-check.sh, if sane (keep tested logic and implementation, change variables, output format, refactor, etc.)
+* cli + gui separate?
+* Implemented:
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/livecheck
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/livecheck
+** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/livecheck
+** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/live-mode
+* Patrick: All merged.
+
+== user-sysmaint-split - document how to whitelist systemd units in sysmaint mode ==
+* [[sysmaint]]
+* Documented.
+
+== user-sysmaint-split - migrate dangerous service dependencies to drop-ins ==
+* <code>Wants=</code> could be dangerous if dealing with security-sensitive or mutually exclusive services.
+* Migrate these dangerous services to use drop-in configuration dirs with `WantedBy=` dependencies, so that they obey <code>systemctl enable</code> and <code>systemctl disable</code> directives.
+** This may require some extra code to check if these services are enabled or not already, and re-enable them if they are enabled, so that the needed symlinks for sysmaint sessions are created.
+* Implemented: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/firewall
+* Patrick: Merged.
+
+== user-sysmaint-split - minor improvements ==
+
+* consider <code>test -s</code>
+
+<pre>
+-z "$(cat
+</pre>
+
+* Implemented and lightly tested: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/test-s
+* Patrick: Merged.
+
+== docker cleanup ==
+* as discussed
+* Done: https://github.com/ArrayBolt3/derivative-maker/commit/578bbe9d58402f4aba0d22642af71781a07e63cf
+* Patrick: Merged.
+
+== ISO - btrfs versus grub-live bug - real fix ==
+* todo
+* report bug upstream
+* systemd bug report: https://github.com/systemd/systemd/issues/35540
+* fix in dracut
+** Cannot be fixed in dracut, dracut doesn't handle mounting /home. Instead opting to fix in grub-live.
+** Might use kernel parameters using systemd features that may be available in trixie?
+* since no response from systemd, needs to be fixed without systemd upstream support
+* in case a reliable, solid implementation is not easy or not possible, this should either not be implemented or needs runtime sanity tests
+* Current implementation plan:
+** Create script (or augment existing script) that will look at all mounted filesystems, detect unsafe read/write mounts and report the system as either being fully persistent, semi-persistent, or fully live.
+** Make livecheck recheck the system regularly (perhaps with an event-based mechanism if possible) and update messaging and the icon as necessary to indicate the system's state. Popups should be sent with notify-send to alert the user when something happens that affects the system's live state.
+*** If no writable drives are mounted, show a green light. If writable, ''removable'' drives are mounted under /mnt or /media, show a yellow light. If non-removable drives of any kind are mounted, or if removable drives are mounted anywhere other than /mnt or /media, show a red light. NFS is considered a removable drive.
+*** We should reimplement livecheck in Python + PyQt5. Use a system tray icon to indicate the live state, use a poll on /proc/self/mounts to detect when mounts change and rescan for possible danger.
+** Create a systemd unit that will scan /etc/fstab on boot and mount overlayfs filesystems over the top of most persistent filesystems listed in /etc/fstab, with the exception of mounts under /media and /mnt and filesystems that should always be persistent (NFS specifically). This should run early during boot and block boot, and should not run unless the system is booted in live mode.
+** Research how Tails live mode works in this regard and take inspiration from them if possible.
+*** Won't boot unless it is booting from a USB medium with the removable media bit enabled
+**** Idea - disks mounted that have the removable media bit set are probably OK to mark as yellow, use red when there are mounted "non-removable" disks which are more likely to be internal or external (semi-)permanent hard drives
+*** Cannot mount non-removable drives without setting an administrator password on the initial setup screen and then providing that password when prompted
+*** Removable media is automounted even without clicking on it in the file manager (?!)
+* related to [[Grub-live#Comparison_between_grub-live_and_Tails|Comparison between grub-live and Tails]]
+* research, compare with Tails
+** Avoid writing to arbitrary (non-boot) host disks
+** Disables removable drives auto-mounting
+** Disabled virtual machine shared folders
+* Implemented:
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live
+** Everything else, see livecheck task
+** Tested thoroughly, works in all known edge cases
+* Patrick: Merged.
+
+== debug USB installation boot failure ==
+* https://forums.kicksecure.com/t/installing-kicksecure-to-usb-stick/1074/7
+* Debugged, fix implemented.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/boot-menu
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/grub-menu
+** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/grub-menu
+** anon-ws-base-files: https://github.com/ArrayBolt3/anon-ws-base-files/tree/arraybolt3/grub-menu
+** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/grub-menu
+* Patrick: All merged.
+
+== Secure Mount Options for better Security Hardening ==
+* review discussions, wiki
+* comment
+* improve the solutions research
+* https://www.kicksecure.com/wiki/Dev/remount-secure
+* https://www.kicksecure.com/wiki/Noexec
+* https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707
+* vm-config-dist chmod 777 on /mnt/shared conflicts with noexec
+** Left notes on future implementation ideas, discussed with Patrick.
+** Documented in wiki.
+
 == Qubes R4.3 - Tor Browser Template Build Installation Issue ==
 * https://forums.whonix.org/t/tor-browser-not-installed-by-default-in-qubes-template-whonix-workstation-17-4-3-0-202505132012-r4-3/21612
 * Looks to be dealt with already, move to Archived if this problem doesn't occur again in another couple of weeks
@@ -786,6 +888,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == privleap - redesign command line tool names name and add group ==
 * for better multi-user support
 ** https://forums.kicksecure.com/t/multi-user-privleap-issue-systemcheck-updatecheck/1046
+*** migrated to separate ticket
 * The currently used Linux user group <code>leaprun-users</code> is kinda confusing (comparable to group "<code>sudo</code>")
 * or should we call this group <code>leaprun</code> for simplicity?
 * even even simpler, call the group <code>privleap</code>?
