@@ -251,8 +251,8 @@ https://github.com/QubesOS/qubes-issues/issues/1563
 |-
 
 ! Live Mode Usability <ref>The user being aware of currently running in live mode vs persistent mode.</ref>
-| style="background-color: {{Yellow}}"| Average <ref>
-Without Live Mode Indicator Systray (see below), it is not obvious to the user if they booted into persistent or live mode. This might lead to a mistake where live boot is not selected from the grub boot menu (persistent mode is instead set), but the user believes otherwise.
+| style="background-color: {{Green}}"| Good <ref>
+The live mode status is reported by the Live Mode Indicator Systray widget, which is a Kicksecure feature and not part of <code>grub-live</code>.
 </ref>
 | style="background-color: {{Green}}"| Good <ref name=tails-amnesia-usability>Consistently good because amnesia has always been a core Tails feature. It is obvious to the user that nothing persists except folders that have selective persistence enabled.</ref>
 | style="background-color: {{Green}}"| Good <ref name=tails-amnesia-usability />
@@ -260,12 +260,9 @@ Without Live Mode Indicator Systray (see below), it is not obvious to the user i
 |-
 
 ! Live Mode Indicator Systray
-|
-* Xfce: {{yes_green}} <ref>
-https://github.com/Kicksecure/desktop-config-dist
-</ref>
-* [[sysmaint|sysmaint session]]: {{yes_green}}
-* [[Other Desktop Environments]]: {{no_red}}
+| style="background-color: {{Green}}"| Yes (Kicksecure feature) <ref>
+The systray widget is implemented in [https://github.com/Kicksecure/desktop-config-dist <code>desktop-config-dist</code>] and is not included in <code>grub-live</code>.
+</ref><ref>Without Live Mode Indicator Systray (see below), it is not obvious to the user if they booted into persistent or live mode. This might lead to a mistake where live boot is not selected from the grub boot menu (persistent mode is instead set), but the user believes otherwise.</ref>
 | style="background-color: {{Green}}"| Unneeded
 | style="background-color: {{Green}}"| Unneeded
 | style="background-color: {{Green}}"| Unneeded
@@ -471,6 +468,7 @@ Here are some problems you might encounter and their possible solutions.
 Platform specific.
 
 * Kicksecure: In recent versions of Kicksecure, <code>dracut</code> is installed by default. To boot into live mode without using <code>grub-live</code>, simply add the {{CodeSelect|inline=true|code=rootovl}} kernel parameter. Instructions for adding kernel parameters can be found on the [[Grub|grub]] wiki page.
+** Note that booting with the {{CodeSelect|inline=true|code=rootovl}} kernel parameter will only mount the root filesystem live. If you have other filesystems that are mounted by default when the system starts, such as <code>/home</code> on a separate partition, those filesystems will '''NOT''' be mounted live when doing this. <code>grub-live</code> remedies this via a <code>live-hardener</code> script that detects additional persistent mountpoints and remounts them read-only with a live writable overlay.
 * Kicksecure for Qubes: For Qubes OS, the process may not work as expected. For further details, refer to the related Qubes feature request [https://github.com/QubesOS/qubes-issues/issues/4982 Implement live boot by porting grub-live to Qubes - amnesia / non-persistent boot / anti-forensics]
 
 It is recommended to [[Live_Mode#Functionality Test of Live mode|Functionality Test of Live mode]] to verify non-persistence.
@@ -540,34 +538,17 @@ The live mode is indicated by a Live Check Systray icon. It can happen that this
 
 First of all, this is <u>not</u> an [[Malware_and_Firmware_Trojans#Valid_Compromise_Indicators_versus_Invalid_Compromise_Indicators|indication of compromise by malware]]. The real issue is as simple as: the Live Check Systray is broken.
 
-'''1.''' Is <code>livecheck.sh</code> showing an error?
+'''1.''' Is <code>live-mode.sh</code> showing an error?
 
 {{CodeSelect|code=
-/usr/share/livecheck/livecheck.sh
+bash -x /usr/libexec/helper-scripts/live-mode.sh
 }}
 
-'''2.''' <code>lsblk</code> multi-user issues?
-
-If [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/usr/share/livecheck/livecheck.sh <code>/usr/share/livecheck/livecheck.sh</code>] is showing an error, it might be due to the following issue. Live check runs the command <code>sudo --non-interactive /bin/lsblk --noheadings --raw --output RO</code> as the current unprivileged account. You can test this yourself with the following command. If this works, then this is NOT the issue.
+'''2.''' Is <code>get_writable_fs_lists.sh</code> showing an error?
 
 {{CodeSelect|code=
-sudo --non-interactive /bin/lsblk --noheadings --raw --output RO
+bash -x /usr/libexec/helper-scripts/get_writable_fs_lists.sh
 }}
-
-If this does not work, the problem might be that [https://forums.whonix.org/t/whonix-xfce-development/6213/102 this only works by default for the account <code>user</code>], and not for others. For example, it will not work by default for the Linux user account <code>user2</code> or anyone other than <code>user</code>.
-
-If the problem is that an account other than <code>user</code> is the one logged in, then
-
-* '''option (A)''' the current account, for example, <code>user2</code>, needs an exception in <code>/etc/sudoers.d</code>. For comparison, see file [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/etc/sudoers.d/desktop-config-dist <code>/etc/sudoers.d/desktop-config-dist</code>].
-* '''option (B)''' the current account, for example, <code>user2</code>, needs to be or become a member of any of the following Linux user groups:
-<code>users</code>
-<code>staff</code>
-<code>adm</code>
-<code>sudo</code>
-<code>root</code>
-<code>wheel</code>
-<code>console</code>
-<code>console-unrestricted</code>
 
 '''3.''' Try <code>lsblk</code>.
 
@@ -597,57 +578,7 @@ If not booting into live mode, these kernel parameters should not be there.
 
 '''5.''' Bug report.
 
-If you are still having issues, you can [[Reporting_Bugs|report a bug]] with the output from the two <code>lsblk</code> and kernel parameter check commands included above.
-
-== Technical Details of livecheck.sh ==
-This chapter is for advanced users only.
-
-Most users can skip this chapter. See [https://github.com/{{project_name_short}}/desktop-config-dist/blob/master/usr/share/livecheck/livecheck.sh livecheck.sh] for further script details.
-
-* The meaning of <code>0</code> in <code>lsblk</code> output is <code>read-write</code>.
-* The meaning of <code>1</code> in <code>lsblk</code> output is <code>read-only</code>.
-
-If anything in the column <code>RO</code> is set to <code>0</code>, then it is not blessed with [[read-only|read-only hard drive mode]].
------
-Example <code>lsblk</code> without any <code>snapd</code> installed, {{project_name_gateway_short}}, live mode, and [[read-only|read-only hard drive mode]] enabled.
-
-<pre>
-sudo lsblk
-</pre>
-
-<pre>
-NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-sda      8:0    0  100G  1 disk
-└─sda1   8:1    0  100G  1 part /lib/live/mount/medium
-</pre>
------
-Example <code>lsblk</code> without any <code>snapd</code> installed, {{project_name_gateway_short}}, live mode, and [[read-only|read-only hard drive mode]] disabled.
-
-<pre>
-sudo lsblk
-</pre>
-
-<pre>
-NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-sda      8:0    0  100G  0 disk
-└─sda1   8:1    0  100G  0 part /lib/live/mount/medium
-</pre>
------
-Example <code>lsblk</code> with <code>snapd</code> and <code>WickrMe</code> installed, {{project_name_workstation_long}}, persistent mode, and [[read-only|read-only hard drive mode]] disabled.
-
-<pre>
-sudo lsblk
-</pre>
-
-<pre>
-NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-loop0    7:0    0 62.1M  1 loop /snap/gtk-common-themes/1506
-loop1    7:1    0  446M  1 loop /snap/wickrme/352
-loop2    7:2    0   55M  1 loop /snap/core18/1754
-sda      8:0    0  100G  0 disk
-└─sda1   8:1    0  100G  0 part /lib/live/mount/medium
-sr0     11:0    1 1024M  0 rom
-</pre>
+If you are still having issues, you can [[Reporting_Bugs|report a bug]] with the output from the commands included above.
 
 == dracut ==
 '''Optional.'''
@@ -658,7 +589,7 @@ Changing from initramfs-tools to dracut is optional and can cause dracut issues,
 Users can skip this chapter and below.
 
 == Implementation ==
-This is based on dracut module <code>90overlay-root</code> which gets enabled when kernel parameter <code>rootovl</code> is set. <code>90overlay-root</code> is only available in the Debian fork of dracut.
+The <code>grub-live</code> implementation combines the dracut module <code>90overlay-root</code> with a script <code>/usr/libexec/grub-live/live-hardener</code> to mount all possible writable filesystems read-only, with a writable RAM-based overlay to allow normal system operation without persistence. <code>90overlay-root</code> and <code>live-hardener</code> get enabled when kernel parameter <code>rootovl</code> is set. <code>90overlay-root</code> is only available in the Debian fork of dracut.
 
 * dracut module source file: {{CodeSelect|code=/usr/lib/dracut/modules.d/90overlay-root/overlay-mount.sh|inline=true}}
 * [https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/10_20_linux_live <code>/etc/grub.d/10_20_linux_live</code> on GitHub]
@@ -667,9 +598,7 @@ This is based on dracut module <code>90overlay-root</code> which gets enabled wh
 * https://github.com/dracutdevs/dracut/issues/1565
 
 == Simplified Summary ==
-<code>grub-live</code> is a "simple" implementation. It was certainly not simple to invent and document, but when looking at the actual source code, it is now rather simple to review.
-
-The main source file is this one: [https://github.com/{{project_name_short}}/grub-live/blob/master/etc/grub.d/10_20_linux_live <code>/etc/grub.d/10_20_linux_live</code>]
+The first main source file is this one: [https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/10_20_linux_live <code>/etc/grub.d/10_20_linux_live</code>]
 
 The most relevant parts...
 
@@ -690,9 +619,18 @@ GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rootovl"
 #GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX rd.live.overlay.overlayfs=1 rd.live.overlay.readonly=1"
 }}
 
-Therefore, as of August 2024, technically all <code>grub-live</code> does is provide a convenient way (the GRUB boot menu entry) to easily set the kernel parameter <code>rootovl</code>, which is a feature provided by Debian's forked version of dracut, module <code>90overlay-root</code>. In the future, the dracut upstream module <code>90overlayfs</code> should be used instead. See also [[Grub-live#Development|Development]]. These dracut modules in turn make use of Linux kernel features.
+Therefore, as of June 2025, the majority of what <code>grub-live</code> does is provide a convenient way (the GRUB boot menu entry) to easily set the kernel parameter <code>rootovl</code>, which is a feature provided by Debian's forked version of dracut, module <code>90overlay-root</code>. In the future, the dracut upstream module <code>90overlayfs</code> should be used instead. See also [[Grub-live#Development|Development]]. These dracut modules in turn make use of Linux kernel features.
 
-In summary, the most heavy lifting is done by the initramfs generator (<code>initramfs-tools</code> or <code>dracut</code>) and the Linux kernel. <code>grub-live</code> only implements usability (GRUB boot menu entry) and documentation.
+The other primary source file is this one: [https://github.com/Kicksecure/grub-live/blob/master/usr/libexec/grub-live/live-hardener <code>live-hardener</code>]. This script detects writable filesystems and remounts most of them read-only, then adds a live overlay on top. This is similar to what Debian's dracut's <code>90overlay-root</code> does for the root filesystem, but applies to most other writable filesystems on the system, thus preventing reducing persistence even in more complex setups.
+
+<code>live-hardener</code> does not remount writable filesystems if both of the following conditions are met:
+
+* The filesystem is mounted to <code>/media</code>, <code>/mnt</code>, or a subdirectory thereof, and
+* The drive containing the filesystem is detected to be a removable drive (<code>/sys/class/block/DRIVE_ID/removable</code> is equal to <code>1</code>).
+
+<code>live-hardener</code> is not always able to mount a writable RAM-based overlay on top of all filesystems, as some filesystems are not compatible with the <code>overlayfs</code> kernel feature. These filesystems are simply remounted read-only, without providing a writable overlay.
+
+In summary, the most heavy lifting is done by the initramfs generator (<code>initramfs-tools</code> or <code>dracut</code>) and the Linux kernel. <code>grub-live</code> only implements usability (GRUB boot menu entry), documentation, and a more thorough hardening mechanism for filesystems beyond the root filesystem.
 
 == Development ==
 Should port to [https://github.com/dracutdevs/dracut/tree/master/modules.d/90overlayfs <code>90overlayfs</code>]
@@ -717,7 +655,10 @@ Porting <code>grub-live</code> to other Linux Distributions might be rather simp
 
 What <code>grub-live</code> technically in essence does:
 
-* 1) The <code>grub-live</code> is just shipping 1 grub config file [https://github.com/{{project_name_short}}/grub-live/blob/master/etc/grub.d/10_20_linux_live <code>/etc/grub.d/10_20_linux_live</code>].
+* 1) The <code>grub-live</code> is mainly shipping three files:
+** GRUB config file [https://github.com/Kicksecure/grub-live/blob/master/etc/grub.d/10_20_linux_live <code>/etc/grub.d/10_20_linux_live</code>]
+** live-hardener script [https://github.com/Kicksecure/grub-live/blob/master/usr/libexec/grub-live/live-hardener <code>live-hardener</code>].
+** systemd service [https://github.com/Kicksecure/grub-live/blob/master/usr/lib/systemd/system/live-hardener.service <code>live-hardener.service</code>].
 * 2) Pull required dependencies in [https://github.com/{{project_name_short}}/grub-live/blob/master/debian/control <code>debian/control</code>]
 * 3) Postinst runs: "<code>sudo update-grub</code>"
 
