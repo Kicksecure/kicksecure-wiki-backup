@@ -16,12 +16,12 @@ TODO
 == kicksecure Qubes Template - sdwdate qrexec Denied message ==
 * [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
 
-== kicksecure Qubes Template - app menu ==
-* Qubes start menu: remove Firefox from Qubes Template default app menu (because Firefox should not be started inside Template) (not from App Qube App Menu)
+== polkit - investigate impact of disabling ==
+* See how many issues are caused by disabling polkit entirely in user sessions (not sysmaint sessions!)
+* Document how to disable polkit as an opt-in hardening option, possibly useful for browser-only VMs or other situations where a user is not expected to take any privileged operations outside the scope of privleap
 
-== user-sysmaint-split - investigate polkitd and policykit libraries ==
-
-* https://forums.kicksecure.com/t/investigate-security-suid-impact-of-polkitd-and-policykit-libraries/1075
+== polkit - review default configuration security ==
+* Look for possible flaws in all polkit configuration files installed by default
 
 == browser choice - design ==
 * wiki text only
@@ -657,6 +657,14 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== user-sysmaint-split - investigate polkitd and policykit libraries ==
+* https://forums.kicksecure.com/t/investigate-security-suid-impact-of-polkitd-and-policykit-libraries/1075
+* Investigated, wrote results on Kicksecure forums.
+
+== kicksecure Qubes Template - app menu ==
+* Qubes start menu: remove Firefox from Qubes Template default app menu (because Firefox should not be started inside Template) (not from App Qube App Menu)
+* Done, also added sysmaint-panel after noticing my local qubes-template-kicksecure repo had that change from some time ago and I had never pushed it: https://github.com/ArrayBolt3/qubes-template-kicksecure/tree/arraybolt3/user-sysmaint-split
+
 == systemcheck improvements ==
 * check if root account is locked and warn if it is not
 * user-sysmaint-test check: skip on Whonix-Gateway or point out that it is not yet applicable
@@ -671,21 +679,11 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Per Marek, this is not yet possible.
 ** Related feature request: https://github.com/QubesOS/qubes-issues/issues/9965
 
-== calamares - re-enable btrfs support ==
-* todo
-* Done: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/btrfs
-
 == livecheck - read-only mode ==
 * bring back read-only mode in livecheck
 * Done:
 ** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck
 ** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/livecheck
-
-== live-hardener and livecheck - document ==
-* on [[grub-live]]
-* de-mystify
-* similar to existing documentation for bash genmon based livecheck
-* Documented, changes were somewhat invasive and should be reviewed carefully in case I removed content that should have stayed.
 
 == live-hardener and livecheck - error handling ==
 * please review, improve
@@ -697,19 +695,6 @@ source /usr/libexec/helper-scripts/wc-test.sh
 
 * Done: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-mode
 ** Only live-hardener needed better parsing, testing, and error handling, livecheck.py appears to have sufficient error handling already.
-
-== helper-scripts stcatn CI failing ==
-* https://github.com/Kicksecure/helper-scripts/issues/21#issuecomment-2950809045
-* Root cause of issue determined and fixed: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/fix-stcatn
-* Need to discuss with Ben the details of the space issue he noted, he may have found a different issue than the one fixed above?
-** Discussed over Matrix, other issue does not appear to be a concern.
-
-== Argon2 pbkdf setup and hardening in Kicksecure ==
-* https://forums.kicksecure.com/t/argon2-pbkdf-setup-and-hardening-in-kicksecure/1079/1
-* please reply
-* consider if needed for calamares default
-* consider for [[FDE]] documentation
-* Aaron: Replied. I don't think we should document this (rationale given in reply), and I don't think we need to change the Calamares default.
 
 == live-mode.sh - add unit tests ==
 * please add unit tests (simulating different environments)
@@ -739,40 +724,6 @@ src_device="${BASH_REMATCH[1]}"
 * use end of options for mount, umount
 * consider non-existing /proc/cmdline
 * Implemented: https://github.com/ArrayBolt3/grub-live/commit/5e4ef191d4858cdfbd1a5a0298454cd82b29963f
-
-== live-hardener improvements - AI based comments ==
-* AI based review - please disregard without comment if nonsensical
-* array and unquoted variables
-
-<pre>
-for kernel_param in ${kernel_cmdline[@]}
-</pre>
-
-<pre>
-read -ra kernel_params <<< "${kernel_cmdline}"
-for kernel_param in "${kernel_params[@]}"; do
-  ...
-done
-</pre>
-
-* Aaron: The code variant with <code>read -ra</code> is AFAICT functionally equivalent, it's still word splitting on spaces. However, <code>kernel_params</code> is a string, not an array, so I will fix that.
-** Fixed: https://github.com/ArrayBolt3/grub-live/commit/c4a6b5e742e7c18b05d470541bddb122c6e993d6
-* mount cmd?
-
-<pre>
-lowerdir, upperdir, workdir must be part of a single -o option with commas.
-</pre>
-
-<pre>
-mount -t overlay overlay \
-  -o "lowerdir=${target_overlay_mount},upperdir=${tmpfs_upper_dir},workdir=${tmpfs_work_dir}" \
-  "${target_overlay_mount}"
-</pre>
-
-* Aaron: The AI is incorrect. Using separate <code>-o</code> arguments works in practice.
-
-* use <code>mountpoint</code>?
-** Aaron: I don't really see the point of doing so, the directories being treated as mountpoints are read from <code>/proc/self/mounts</code> which should only contain valid mountpoints. That's the file's job.
 
 == privleap - add group ==
 * for better multi-user support
@@ -832,6 +783,64 @@ mount -t overlay overlay \
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== Argon2 pbkdf setup and hardening in Kicksecure ==
+* https://forums.kicksecure.com/t/argon2-pbkdf-setup-and-hardening-in-kicksecure/1079/1
+* please reply
+* consider if needed for calamares default
+* consider for [[FDE]] documentation
+* Aaron: Replied. I don't think we should document this (rationale given in reply), and I don't think we need to change the Calamares default.
+
+== helper-scripts stcatn CI failing ==
+* https://github.com/Kicksecure/helper-scripts/issues/21#issuecomment-2950809045
+* Root cause of issue determined and fixed: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/fix-stcatn
+* Need to discuss with Ben the details of the space issue he noted, he may have found a different issue than the one fixed above?
+** Discussed over Matrix, other issue does not appear to be a concern.
+
+== live-hardener and livecheck - document ==
+* on [[grub-live]]
+* de-mystify
+* similar to existing documentation for bash genmon based livecheck
+* Documented, changes were somewhat invasive and should be reviewed carefully in case I removed content that should have stayed.
+
+== live-hardener improvements - AI based comments ==
+* AI based review - please disregard without comment if nonsensical
+* array and unquoted variables
+
+<pre>
+for kernel_param in ${kernel_cmdline[@]}
+</pre>
+
+<pre>
+read -ra kernel_params <<< "${kernel_cmdline}"
+for kernel_param in "${kernel_params[@]}"; do
+  ...
+done
+</pre>
+
+* Aaron: The code variant with <code>read -ra</code> is AFAICT functionally equivalent, it's still word splitting on spaces. However, <code>kernel_params</code> is a string, not an array, so I will fix that.
+** Fixed: https://github.com/ArrayBolt3/grub-live/commit/c4a6b5e742e7c18b05d470541bddb122c6e993d6
+* mount cmd?
+
+<pre>
+lowerdir, upperdir, workdir must be part of a single -o option with commas.
+</pre>
+
+<pre>
+mount -t overlay overlay \
+  -o "lowerdir=${target_overlay_mount},upperdir=${tmpfs_upper_dir},workdir=${tmpfs_work_dir}" \
+  "${target_overlay_mount}"
+</pre>
+
+* Aaron: The AI is incorrect. Using separate <code>-o</code> arguments works in practice.
+
+* use <code>mountpoint</code>?
+** Aaron: I don't really see the point of doing so, the directories being treated as mountpoints are read from <code>/proc/self/mounts</code> which should only contain valid mountpoints. That's the file's job.
+
+== calamares - re-enable btrfs support ==
+* todo
+* Done: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/btrfs
+** Patrick: Merged.
+
 == live mode systray in python ==
 * keep re-using most of live-check.sh, if sane (keep tested logic and implementation, change variables, output format, refactor, etc.)
 * cli + gui separate?
