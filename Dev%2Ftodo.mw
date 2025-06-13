@@ -13,37 +13,8 @@ TODO
 == 3mdeb verified boot discussion ==
 * https://github.com/3mdeb/verified-boot/pull/31
 
-== fasttrack build error ==
-
-* CI failing: https://github.com/Whonix/derivative-maker/actions/runs/15558245482
-* if transitory can be ignored
-* maybe an error with fasttrack, maybe apt-cacher-ng issue
-* please investigate
-
-<pre>
-Ign:5 http://HTTPS///fasttrack.debian.net/debian-fasttrack bookworm-backports-staging InRelease
-Err:4 http://HTTPS///fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
-  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
-Err:5 http://HTTPS///fasttrack.debian.net/debian-fasttrack bookworm-backports-staging InRelease
-  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
-Fetched 19.9 MB in 32s (625 kB/s)
-Reading package lists...
-E: Failed to fetch http://HTTPS///fasttrack.debian.net/debian-fasttrack/dists/bookworm-fasttrack/InRelease  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
-E: Failed to fetch http://HTTPS///fasttrack.debian.net/debian-fasttrack/dists/bookworm-backports-staging/InRelease  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
-E: Some index files failed to download. They have been ignored, or old ones used instead.
-++ exception_handler_general ERR
-</pre>
-
-== livecheck python improvements ==
-* bug: left click performs same action as right click
-* missing feature: lacks right click -> quit button
-
 == kicksecure Qubes Template - sdwdate qrexec Denied message ==
 * [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
-
-== polkit - investigate impact of disabling ==
-* See how many issues are caused by disabling polkit entirely in user sessions (not sysmaint sessions!)
-* Document how to disable polkit as an opt-in hardening option, possibly useful for browser-only VMs or other situations where a user is not expected to take any privileged operations outside the scope of privleap
 
 == polkit - review default configuration security ==
 * Look for possible flaws in all polkit configuration files installed by default
@@ -391,6 +362,10 @@ sudo apt install serial-console-enable
 ** Patrick: Please implement.
 ** Patrick: Note, Whonix VMs are built using grml-debootstrap. While using a package to handle these files might be the wrong way. Whonix VMs still need these.
 
+== per-app UID sandboxing ==
+* todo: discuss
+* related to the following tasks
+
 == stackable wrappers ==
 * in preparation for the next two tasks
 * https://forums.whonix.org/t/stackable-wrappers/7944
@@ -441,21 +416,6 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
-== user-sysmaint-split - sysmaint user versus R4.3 issue ==
-* https://github.com/Whonix/updates-status/issues/240
-* Upstream fix in progress: https://github.com/QubesOS/qubes-core-admin/pull/681
-* Kicksecure change to go with upstream fix, '''DO NOT MERGE UNTIL UPSTREAM PART IS MERGED''': https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/default-user
-
-== dracut - upstream generic initrd default ==
-* in reference to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#80
-* does dracut upstream currently use hostonly=no by default, i.e creates generic initrd by default?
-* if not, that is what dracut should do. please write a feature request.
-* reasons: reproducible builds, universal boot (install once, boot anyhwere), [https://0pointer.net/blog/fitting-everything-together.html ecosystem direction]
-* bug: dracut upstream <code>hostonly=yes</code> + <code>hostonly_mode=sloppy</code> has better support than <code>hostonly=no</code> (generic initrd)?
-* Discussion: https://github.com/dracut-ng/dracut-ng/pull/1238
-* https://github.com/dracut-ng/dracut-ng/issues/748
-* https://github.com/dracut-ng/dracut-ng/pull/1283#pullrequestreview-2785669230
-
 == RPi GRUB - contribute to Debian ==
 * Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
 * This and the above ticket might result in implementation feedback, such as for options in config.txt.
@@ -692,6 +652,66 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== fasttrack build error ==
+* CI failing: https://github.com/Whonix/derivative-maker/actions/runs/15558245482
+* if transitory can be ignored
+* maybe an error with fasttrack, maybe apt-cacher-ng issue
+* please investigate
+
+<pre>
+Ign:5 http://HTTPS///fasttrack.debian.net/debian-fasttrack bookworm-backports-staging InRelease
+Err:4 http://HTTPS///fasttrack.debian.net/debian-fasttrack bookworm-fasttrack InRelease
+  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
+Err:5 http://HTTPS///fasttrack.debian.net/debian-fasttrack bookworm-backports-staging InRelease
+  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
+Fetched 19.9 MB in 32s (625 kB/s)
+Reading package lists...
+E: Failed to fetch http://HTTPS///fasttrack.debian.net/debian-fasttrack/dists/bookworm-fasttrack/InRelease  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
+E: Failed to fetch http://HTTPS///fasttrack.debian.net/debian-fasttrack/dists/bookworm-backports-staging/InRelease  503  SSL error: certificate verify failed [IP: 127.0.0.1 3142]
+E: Some index files failed to download. They have been ignored, or old ones used instead.
+++ exception_handler_general ERR
+</pre>
+
+* Appears to be a very tricky bug in apt-cacher-ng itself.
+* Can reliably reproduce, but cannot find a reliable workaround. It seems to randomly start working for no reason in some instances.
+* Discussed with Patrick, chose to port to the <code>approx</code> package caching proxy instead.
+* Current implementation, tested relatively well:
+** derivative-maker: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/approx
+** genmkfile: https://github.com/ArrayBolt3/genmkfile/tree/arraybolt3/approx
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/approx
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/approx
+** whonix-base-files: https://github.com/ArrayBolt3/whonix-base-files/tree/arraybolt3/approx
+
+== systemcheck crash when reading livecheck-lsblk file ==
+* Needs an apparmor config change to fix.
+* Fixed, untested but should work: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/apparmor
+
+== dracut - upstream generic initrd default ==
+* in reference to https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1078792#80
+* does dracut upstream currently use hostonly=no by default, i.e creates generic initrd by default?
+* if not, that is what dracut should do. please write a feature request.
+* reasons: reproducible builds, universal boot (install once, boot anyhwere), [https://0pointer.net/blog/fitting-everything-together.html ecosystem direction]
+* bug: dracut upstream <code>hostonly=yes</code> + <code>hostonly_mode=sloppy</code> has better support than <code>hostonly=no</code> (generic initrd)?
+* Discussion: https://github.com/dracut-ng/dracut-ng/pull/1238
+* https://github.com/dracut-ng/dracut-ng/issues/748
+* https://github.com/dracut-ng/dracut-ng/pull/1283#pullrequestreview-2785669230
+* Appears to be done, sloppy hostonly mode is now substantially more generic. If we experience problems with it, those can reasonably be considered bugs that we can help fix in Stable.
+
+== polkit - investigate impact of disabling ==
+* See how many issues are caused by disabling polkit entirely in user sessions (not sysmaint sessions!)
+** Reboot and poweroff from the GUI is no longer possible, as systemd treats rebooting as a privileged operation.
+** Removable media can no longer be mounted, as udisksd treats removable media mounting as a privileged operation.
+** Graphical user creation tools (i.e. users-admin, from gnome-system-tools) no longer function properly, probably because accountsservice is treating user creation as a privileged operation.
+** Network configuration via nmtui or similar (probably includes the network widget in the panel) will probably no longer be configurable, since networkmanager appears to treat network reconfiguration as a privileged operation.
+** System usually takes longer to boot, probably because of things trying and failing to start polkit.
+* Document how to disable polkit as an opt-in hardening option, possibly useful for browser-only VMs or other situations where a user is not expected to take any privileged operations outside the scope of privleap
+** polkit.service cannot be disabled, it has to be masked, meaning we would have to unmask it during sysmaint sessions and mask it for user sessions. Thus this cannot simply be done by the user without modification of system files, we would have to provide explicit support for this.
+
+== livecheck python improvements ==
+* bug: left click performs same action as right click
+* missing feature: lacks right click -> quit button
+* Fixed: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-exit
+
 == systemcheck improvements ==
 * check if root account is locked and warn if it is not
 * user-sysmaint-test check: skip on Whonix-Gateway or point out that it is not yet applicable
@@ -750,6 +770,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== user-sysmaint-split - sysmaint user versus R4.3 issue ==
+* https://github.com/Whonix/updates-status/issues/240
+* Upstream fix in progress: https://github.com/QubesOS/qubes-core-admin/pull/681
+* Kicksecure change to go with upstream fix, '''DO NOT MERGE UNTIL UPSTREAM PART IS MERGED''': https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/default-user
+* All is merged, seems to be working correctly.
+
 == privleap - add group ==
 * for better multi-user support
 ** https://forums.kicksecure.com/t/multi-user-privleap-issue-systemcheck-updatecheck/1046
@@ -997,7 +1023,7 @@ mount -t overlay overlay \
 ** privleapd is the reference implementation of a server process that speaks the privleap protocol and runs actions upon request.
 ** leaprun is the reference implementation of a client process that speaks the privleap protocol and requests privleapd to do things.
 ** Renaming leaprun to privleap would potentially result in more confusing documentation.
-** Lots of Linux server applications use a <code>d> to indicate "daemon/background process/server".
+** Lots of Linux server applications use a <code>d</code> to indicate "daemon/background process/server".
 
 == stcat - stdin bugfix review ==
 * please review: https://github.com/Kicksecure/helper-scripts/pull/27
