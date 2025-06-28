@@ -149,17 +149,83 @@ rm: cannot remove '/': Is a directory
 Setting <code>UNSET_VAR=""</code> would not fix this issue, but that is another problem, checking if every used variable can be empty or not.
 
 = local =
-Note:
+== Error swallowing ==
+<u>Note:</u>
 
+{{CodeSelect|code=
 local testbar=$(false)
+}}
 
-expected: error
+<u>expected:</u> error
 
-actual: no error
+<u>actual:</u> no error
 
 better:
+
+{{CodeSelect|code=
 local testvar
 testvar=$(false)
+}}
+
+== Unexpected scoping with functions ==
+<code>local</code> variables in one function will be accessible within nested function calls.
+
+<u>Example:</u>
+
+{{CodeSelect|code=
+fn_01 () {
+  local myvar
+  myvar='supposedly local'
+  printf '%s\n' "in fn_01, myvar is $myvar"
+  fn_02
+  printf '%s\n' "in fn_01, myvar is now $myvar"
+}
+
+fn_02 () {
+  printf '%s\n' "in fn_02, myvar is $myvar"
+  myvar='not so local after all'
+  printf '%s\n' "in fn_02, myvar is now $myvar"
+}
+
+fn_01
+}}
+
+<u>Output:</u>
+
+<pre>
+in fn_01, myvar is supposedly local
+in fn_02, myvar is supposedly local
+in fn_02, myvar is now not so local after all
+in fn_01, myvar is now not so local after all
+</pre>
+
+To avoid problems from this, it's best to declare all function-local variables as <code>local</code> at the head of a function. For example:
+
+{{CodeSelect|code=
+fn_01 () {
+  local myvar
+  myvar='local to fn_01'
+  printf '%s\n' "in fn_01, myvar is $myvar"
+  fn_02
+  printf '%s\n' "in fn_01, myvar is now $myvar"
+}
+
+fn_02 () {
+  local myvar
+  myvar='local to fn_02'
+  printf '%s\n' "in fn_02, myvar is $myvar"
+}
+
+fn_01
+}}
+
+<u>Output:</u>
+
+<pre>
+in fn_01, myvar is local to fn_01
+in fn_02, myvar is local to fn_02
+in fn_01, myvar is now local to fn_01
+</pre>
 
 = POSIX array =
 
@@ -258,6 +324,77 @@ safe_echo_nonewline "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -p
 
 use <code>stprint</code> instead?
 
+= loops =
+== magic subshells ==
+Avoid piping data from a command into a loop. This spawns a subshell even without using <code>$()</code> syntax. Bad code example:
+
+<pre>
+str="abc
+def
+ghi"
+line_count=0
+
+printf '%s\n' "${str}" | while read -r line; do
+  ((line_count += 1))
+done
+
+printf '%s\n' "${line_count}"
+
+## Expected result: 3
+## Actual result: 0
+</pre>
+
+Instead, redirect files or command output into the loop. Good code example:
+
+<pre>
+str="abc
+def
+ghi"
+line_count=0
+
+while read -r line; do
+  ((line_count += 1))
+done < <(printf '%s\n' "${str}")
+
+printf '%s\n' "${line_count}"
+
+## Result: 3
+</pre>
+
+== stdin stealing ==
+Commands that read from stdin can swallow data that was supposed to be processed by the <code>read</code> component of a <code>while read</code> loop. <code>qrexec-client-vm</code> is an example, <code>vim</code> is another example. Bad code example:
+
+<pre>
+str="abc
+def
+ghi"
+
+while read -r line; do
+  vim "$line"
+done < <(printf '%s\n' "${str}")
+
+## Output:
+##
+## Vim: Warning: Input is not from a terminal
+## Vim: Error reading input, exiting...
+## Vim: preserving files...
+## Vim: Finished.
+</pre>
+
+Work around this by using alternative file descriptors and redirection. Good code example:
+
+<pre>
+str="abc
+def
+ghi"
+
+while read -r line 0<&3; do
+  vim "$line"
+done 3< <(printf '%s\n' "${str}")
+
+## Result: Opens "abc" in Vim, then "def", then "ghi".
+</pre>
+
 = misc =
 <pre>
 base_name="${file_name##*/}"
@@ -331,11 +468,11 @@ Actually not needed. When a subshell detects an error (thanks to errexit and err
 = Resources =
 * https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md
 * https://dwheeler.com/essays/fixing-unix-linux-filenames.html
-* {{VideoLink
+* use with care: {{VideoLink
 |videoid=DvDu8_A2uhs
 |text=Seat Belts and Airbags for bash
 }}
-** https://github.com/pottmi/stringent.sh
+** use with care: https://github.com/pottmi/stringent.sh
 
 = See Also =
 * [[Dev/coding style]]

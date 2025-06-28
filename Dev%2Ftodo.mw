@@ -10,6 +10,15 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== review and improve docker and git integration code ==
+* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
+* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
+* holistic review (security, usability for developers)
+* ./build-steps.d/1200_prepare-build-machine
+* ./help-steps/git-gpg-verify
+* ./help-steps/git_sanity_test
+* developer-meta-files /usr/bin/dm-git-tag-checkout-latest
+
 == chat messenger research ==
 * https://forums.whonix.org/t/recommended-private-chats-and-social-networks-for-whonix/21561/14
 * For inspiration on the best messenger:
@@ -18,19 +27,28 @@ TODO
 ** https://www.privacyguides.org/en/real-time-communication/
 * review, improve https://www.whonix.org/wiki/Chat
 
-== bash seatbelt ==
-* please watch: {{VideoLink
-|videoid=DvDu8_A2uhs
-|text=Seat Belts and Airbags for bash
-}}
-** https://github.com/pottmi/stringent.sh
-* edit [[Dev/bash]] if something is missing
+== separation of system packages from user packages ==
+* create or update a wiki page discussion this topic
+* post a Kicksecure feature request to implement this
+* implementation will come much later. After verified boot. This is only to have a ticket to point to and to describe the very long term roadmap.
+* Quick notes:
+** System packages = packages installed directly on the system. User packages = packages installed in a sandbox of some sort. "System" and "user" packages are not used to describe packages, but to describe how packages are installed and where they are located.
+** Android provides a separation between the OS and apps, we're hoping to do something similar to this, but that allows arbitrary Debian packages to be used.
+** Containerization mechanisms do not generally provide strong security guarantees. Docker, for instance, has [https://www.google.com/search?q=docker+container+escape&ie=UTF-8 numerous techniques one can use for escaping a container].
+** Chrome OS implements something similar to what we're looking for with their Crostini technology, by simply using a virtual machine with enough guest-to-host integration to make applications in the VM behave somewhat like native applications. Android support is implemented in a similar fashion.
+** https://github.com/cloud-hypervisor/cloud-hypervisor could be used as a base for a virtualization-based sandbox.
+
+== browser choice ==
+* [[Dev/browser-choice]]
+* please implement
 
 == wayland - gui applications with root rights ==
+{{CodeSelect|code=
 sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
+}}
 
-* [[Root#Wayland|Wayland]]
-* should use <code>lxsudo</code>?
+* related wiki chapter: [[Root#Wayland|Wayland]]
+* should use <code>lxsudo</code> instead of plain <code>sudo</code>? This currently contradicts chapter [[Root#Graphical_Applications_and_Root_Rights|Graphical Applications and Root Rights]].
 * or <code>sudo --set-home</code>?
 
 == user-sysmaint-split - Whonix-Gateway ==
@@ -318,6 +336,11 @@ sudo apt install serial-console-enable
 ** Patrick: Please implement.
 ** Patrick: Note, Whonix VMs are built using grml-debootstrap. While using a package to handle these files might be the wrong way. Whonix VMs still need these.
 
+== Polkit - run only in sysmaint mode ==
+* [[Polkit]]
+* todo: discuss
+* find solutions on how to have functional shutdown/restart/etc. buttons
+
 == per-app UID sandboxing ==
 * todo: discuss
 * related to the following tasks
@@ -372,6 +395,18 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== kicksecure Qubes Template - sdwdate qrexec Denied message ==
+* [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
+* Rewrote sdwdate-gui to function better under Qubes. '''NOT READY FOR MERGE, REQUIRES CHANGES ON THE QUBES OS SIDE ALSO.'''
+** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/qubes-redesign
+** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sdwdate-gui
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/sdwdate-gui
+* Qubes side:
+** https://github.com/QubesOS/qubes-issues/issues/10020
+** https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/21
+* pending questions by Patrick on migration path
+** Aaron: Absent <code>rm_conffile</code> commands were an oversight. Corrected now.
+
 == RPi GRUB - contribute to Debian ==
 * Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
 * This and the above ticket might result in implementation feedback, such as for options in config.txt.
@@ -608,32 +643,9 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== browser choice - design ==
-* wiki text only
-* please review, improve [[Dev/browser-choice]]
-* Fleshed out both internal and user-facing design quite a bit more, including creating UI mockups.
-* please review wiki history (Patrick made changes)
-* change to "always cards design" for installation method
-* show installation command (even if hidden behind expand box) before execution (for transparency and so that advanced users can stay in the loop what is actually happening, less "magic")
-** Aaron: Reviewed and added requested changes.
-* boilerplate: https://github.com/Kicksecure/browser-choice
-* Patrick:
-** open-link-confirmation might need a better error message if no browser is installed yet
-** Please point out that "Open Source browser only" and link to criteria. If too much text, perhaps a link to the criteria only.
-** Please re-review changes.
-** Maybe the tool could indicated somewhere how the browser is currently installed? - Like either "Firefox is not installed" or "Firefox is installed as Firefox Stable from Flathub"
-* Aaron:
-** Re-reviewed changes, made adjustments as appropriate and added requested adjustments from this task.
-** open-link-confirmation can be dealt with once we start actually implementing code, however the code implementation task should have a note about it once we get to that point
-* Patrick:
-** How to handle user-sysmaint-split?
-*** Are we going towards rootless appstore? [https://forums.whonix.org/t/user-sysmaint-split-role-based-boot-modes-persistent-user-live-user-persistent-sysmaint-system-maintenance/7708/59 No.]
-** How to handle Qubes Template implementation?
-*** If run inside Template based App Qube: point out that browser choice will be functional but browser will not persist due to Qubes default Template implementation.
-*** If run inside Qubes Template: point out being run inside Qubes Template. Prepend required http_proxy variable as documented in [[Install_Software#Install_from_Flatpak|Install from Flatpak]]?
-*** If run inside Qubes Standalone: point out being run inside Qubes Standalone.
-* Aaron:
-** Suggestions look good to me. Added additional design documentation to take these edge cases into account.
+== msgcollector output_func - refactor and add chunking ==
+* todo
+* Implemented: https://github.com/ArrayBolt3/msgcollector/tree/arraybolt3/chunking
 
 == strip html improvements ==
 * https://github.com/Kicksecure/msgcollector/blob/master/usr/libexec/msgcollector/striphtml
@@ -652,62 +664,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 *** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/strip-html
 *** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/tree/arraybolt3/strip-html
 *** tb-updater: https://github.com/ArrayBolt3/tb-updater/tree/arraybolt3/strip-html
-
-== 3mdeb verified boot discussion ==
-* https://github.com/3mdeb/verified-boot/pull/31
-* Looks like we've reached agreement on all sides.
-
-== kicksecure Qubes Template - sdwdate qrexec Denied message ==
-* [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
-* Rewrote sdwdate-gui to function better under Qubes. '''NOT READY FOR MERGE, REQUIRES CHANGES ON THE QUBES OS SIDE ALSO.'''
-** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/qubes-redesign
-** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sdwdate-gui
-** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/sdwdate-gui
-* Qubes side:
-** https://github.com/QubesOS/qubes-issues/issues/10020
-** https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/21
-
-== polkit - review default configuration security ==
-* Look for possible flaws in all polkit configuration files installed by default
-* Research done, results shared with Patrick.
-
-== polkit - investigate impact of disabling ==
-* See how many issues are caused by disabling polkit entirely in user sessions (not sysmaint sessions!)
-** Reboot and poweroff from the GUI is no longer possible, as systemd treats rebooting as a privileged operation.
-** Removable media can no longer be mounted, as udisksd treats removable media mounting as a privileged operation.
-** Graphical user creation tools (i.e. users-admin, from gnome-system-tools) no longer function properly, probably because accountsservice is treating user creation as a privileged operation.
-** Flatpaks can no longer be installed user-local, the installation errors out:
-
-<pre>
-Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-Warning: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-Warning: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-Warning: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-error: Failed to install org.gnome.Platform: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
-</pre>
-
-** Network configuration via nmtui or similar (probably includes the network widget in the panel) will probably no longer be configurable, since networkmanager appears to treat network reconfiguration as a privileged operation.
-** System usually takes longer to boot, probably because of things trying and failing to start polkit.
-* Document how to disable polkit as an opt-in hardening option, possibly useful for browser-only VMs or other situations where a user is not expected to take any privileged operations outside the scope of privleap
-** polkit.service cannot be disabled, it has to be masked, meaning we would have to unmask it during sysmaint sessions and mask it for user sessions. Thus this cannot simply be done by the user without modification of system files, we would have to provide explicit support for this.
-*** Patrick had the good idea of using a ConditionKernelCommandLine or similar parameter for making polkit refuse to start. This is probably a better solution than masking.
-
-== systemcheck improvements ==
-* check if root account is locked and warn if it is not
-* user-sysmaint-test check: skip on Whonix-Gateway or point out that it is not yet applicable
-* check secure boot status (see dist-installer-cli for example source code)
-* check if tirdad kernel module is loaded and warn if it is not
-* detect Debian EOL using local files, if available
-** Aaron: All of the above implemented.
-*** https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/enhancements
-*** Could use more thorough testing.
-*** Debian EOL detection is date-based, could be problematic if the clock is wrong. I am not aware of a non-date-based mechanism for this, the existing mechanism does avoid using the network though.
-* detect Qubes EOL using local files
-** Per Marek, this is not yet possible.
-** Related feature request: https://github.com/QubesOS/qubes-issues/issues/9965
 
 == mouse fingerprinting ==
 * todo
@@ -753,6 +709,89 @@ error: Failed to install org.gnome.Platform: Failed to activate service 'org.fre
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== polkit - investigate impact of disabling ==
+* See how many issues are caused by disabling polkit entirely in user sessions (not sysmaint sessions!)
+** Reboot and poweroff from the GUI is no longer possible, as systemd treats rebooting as a privileged operation.
+** Removable media can no longer be mounted, as udisksd treats removable media mounting as a privileged operation.
+** Graphical user creation tools (i.e. users-admin, from gnome-system-tools) no longer function properly, probably because accountsservice is treating user creation as a privileged operation.
+** Flatpaks can no longer be installed user-local, the installation errors out:
+
+<pre>
+Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+Warning: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+Warning: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+Warning: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+Warning: Failed to get revokefs-fuse socket from system-helper: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+error: Failed to install org.gnome.Platform: Failed to activate service 'org.freedesktop.Flatpak.SystemHelper': timed out (service_start_timeout=25000ms)
+</pre>
+
+** Network configuration via nmtui or similar (probably includes the network widget in the panel) will probably no longer be configurable, since networkmanager appears to treat network reconfiguration as a privileged operation.
+** System usually takes longer to boot, probably because of things trying and failing to start polkit.
+* Document how to disable polkit as an opt-in hardening option, possibly useful for browser-only VMs or other situations where a user is not expected to take any privileged operations outside the scope of privleap
+** Using systemd ConditionKernelCommandLine or similar parameter for making polkit refuse to start.
+* Patrick: documented here [[Polkit]]
+
+== systemcheck improvements ==
+* check if root account is locked and warn if it is not
+* user-sysmaint-test check: skip on Whonix-Gateway or point out that it is not yet applicable
+* check secure boot status (see dist-installer-cli for example source code)
+* check if tirdad kernel module is loaded and warn if it is not
+* detect Debian EOL using local files, if available
+** Aaron: All of the above implemented.
+*** https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/enhancements
+*** Could use more thorough testing.
+*** Debian EOL detection is date-based, could be problematic if the clock is wrong. I am not aware of a non-date-based mechanism for this, the existing mechanism does avoid using the network though.
+* detect Qubes EOL using local files
+** Per Marek, this is not yet possible.
+** Related feature request: https://github.com/QubesOS/qubes-issues/issues/9965
+
+== polkit - review default configuration security ==
+* Look for possible flaws in all polkit configuration files installed by default
+* Research done, results shared with Patrick.
+
+== 3mdeb verified boot discussion ==
+* https://github.com/3mdeb/verified-boot/pull/31
+* Looks like we've reached agreement on all sides.
+
+== browser choice - design ==
+* wiki text only
+* please review, improve [[Dev/browser-choice]]
+* Fleshed out both internal and user-facing design quite a bit more, including creating UI mockups.
+* please review wiki history (Patrick made changes)
+* change to "always cards design" for installation method
+* show installation command (even if hidden behind expand box) before execution (for transparency and so that advanced users can stay in the loop what is actually happening, less "magic")
+** Aaron: Reviewed and added requested changes.
+* boilerplate: https://github.com/Kicksecure/browser-choice
+* Patrick:
+** open-link-confirmation might need a better error message if no browser is installed yet
+** Please point out that "Open Source browser only" and link to criteria. If too much text, perhaps a link to the criteria only.
+** Please re-review changes.
+** Maybe the tool could indicated somewhere how the browser is currently installed? - Like either "Firefox is not installed" or "Firefox is installed as Firefox Stable from Flathub"
+* Aaron:
+** Re-reviewed changes, made adjustments as appropriate and added requested adjustments from this task.
+** open-link-confirmation can be dealt with once we start actually implementing code, however the code implementation task should have a note about it once we get to that point
+* Patrick:
+** How to handle user-sysmaint-split?
+*** Are we going towards rootless appstore? [https://forums.whonix.org/t/user-sysmaint-split-role-based-boot-modes-persistent-user-live-user-persistent-sysmaint-system-maintenance/7708/59 No.]
+** How to handle Qubes Template implementation?
+*** If run inside Template based App Qube: point out that browser choice will be functional but browser will not persist due to Qubes default Template implementation.
+*** If run inside Qubes Template: point out being run inside Qubes Template. Prepend required http_proxy variable as documented in [[Install_Software#Install_from_Flatpak|Install from Flatpak]]?
+*** If run inside Qubes Standalone: point out being run inside Qubes Standalone.
+* Aaron:
+** Suggestions look good to me. Added additional design documentation to take these edge cases into account.
+
+== bash seatbelt ==
+* please watch: {{VideoLink
+|videoid=DvDu8_A2uhs
+|text=Seat Belts and Airbags for bash
+}}
+** https://github.com/pottmi/stringent.sh
+* edit [[Dev/bash]] if something is missing
+* Aaron: Watched, took notes, added some info to the wiki.
+** Would not recommend adding the video itself as a resource on the page. Some of the info was factually inaccurate, broken, or typoed.
+
 == livecheck python improvements ==
 * bug: left click performs same action as right click
 * missing feature: lacks right click -> quit button
