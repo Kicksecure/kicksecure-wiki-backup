@@ -172,41 +172,24 @@ The next step is to set up secure settings for the client and server configurati
 
 [https://forums.whonix.org/t/locking-down-your-ssh-client/7896/9 Review needed!] See also https://manpages.debian.org/ssh_config
 
-<code>/etc/ssh/ssh_config</code>:
+'''1.''' {{Open with root rights|filename=
+/etc/ssh/ssh_config.d/30_security-misc.conf
+}}
 
-<pre>
+'''2.''' The file will be empty, paste the following content:
+
+{{CodeSelect|code=
 Host *
+        AddressFamily inet
+        VisualHostKey yes
+        Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+        MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+        KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+        HostKeyAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+        PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+}}
 
-## ipv4
-AddressFamily inet
-
-IdentityFile ~/.ssh/id_ed25519
-
-Port 22
-Protocol 2
-ForwardX11 no
-PubkeyAuthentication yes
-StrictHostKeyChecking ask
-VisualHostKey yes
-HashKnownHosts yes
-User user
-Host host
-SendEnv LANG LC_*
-
-## Strongest ciphers:
-Ciphers chacha20-poly1305@openssh.com
-
-## Most secure MACs:
-MACs hmac-sha2-512-etm@openssh.com
-
-## Secure Kex algos:
-KexAlgorithms curve25519-sha256
-
-Tunnel no
-#TunnelDevice any:any
-#PermitLocalCommand no
-#ProxyCommand ssh -q -W %h:%p gateway.example.com
-</pre>
+'''3.''' Next SSH connections will be made using the new configuration.
 
 === Server Configuration File ===
 {{testers-only}}
@@ -293,166 +276,105 @@ It will look similar to the following.
 256 SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649 root@node (ED25519)
 </pre>
 
-'''6.''' Make a backup of the old SSH configuration file.
+'''6.''' Create the SSH group and add your SSH user (in this example, the user <code>user</code>) to the SSH group.
 
 {{CodeSelect|code=
-cp /etc/ssh/sshd_config /etc/ssh/sshd_config_backup
+sudo groupadd -f ssh
+sudo usermod -aG ssh user
 }}
 
-'''7.''' View the backup file <code>/etc/ssh/ssh_config_backup</code> with a text editor to check if the backup was successful.
+If you want to allow <code>root</code> login, also add <code>root</code> to the <code>ssh</code> group and [[SSH#Key_Installation|copy the client's public key to <code>root</code>'s authorized key file]].
 
-'''8.''' Clear contents of <code>/etc/ssh/sshd_config</code>.
+'''7.''' {{Open with root rights|filename=
+/etc/ssh/sshd_config.d/30_security-misc.conf
+}}
 
-TODO: Since Debian <code>bullseye</code> it might be better to use file <code>/etc/ssh/sshd_config.d/50_user.conf</code> instead.
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=Whonix first time users warning]]
+| text    =
+'''Warning:'''
+
+The following configuration file no longer allows root login with a password, make sure that at least one user that is in the <code>ssh</code> group has rights to edit this configuration and restart the systemd service in case of some failure.
+}}
+
+'''8.''' The file will be empty, paste the following content:
 
 {{CodeSelect|code=
-echo "" {{!}} sudo tee /etc/ssh/sshd_config
-}}
+## Don't edit this file, to overwrite any options, edit a file with a higher number that is
+## read later by SSHD, such as '/etc/ssh/sshd_config.d/50_user.conf'.
 
-'''9.''' Open file <code>/etc/ssh/sshd_config</code> with root rights.
+## Only members of this group are allowed to attempt login.
+AllowGroups ssh
 
-TODO: Since Debian <code>bullseye</code> it might be better to use file <code>/etc/ssh/sshd_config.d/50_user.conf</code> instead.
-
-'''10.''' Paste the following contents.
-
-Notes:
-
-* The following config file no longer allows root login. Either allow it as per next bullet point or make sure that account <code>user</code> can login using ssh (or a different user name).
-* Review the <code>AllowUsers</code> keyword in the following configuration file. Replace <code>AllowUsers user</code> with the actual user name(s) that should still be permitted to login using ssh. For example <code>AllowUsers user root</code> (in case root login should still be permitted).
-* Make sure that any of the <code>AllowUsers</code> are still permitted to gain root using <code>sudo</code> (or otherwise).
-
-<pre>
-## this is a white space separated list of allowed user login names. Only user names on this list will be allowed to login
-AllowUsers user
-
-## Protocol 1 is dangerously outdated!
-Protocol 2
-
-## 22 is standard, you can make it anything.
-## On commandline, when connecting as client,
-## use the “-p” option if not port 22;
-## example port 3243; ssh user@host -p 3243
-Port 22
-
-## means only ipv4, no v6 allowed
+## Only IPv4.
 AddressFamily inet
-
-## this is okay because of strict firewall/ AppArmor. For an onion-only server, you listen on 127.0.0.1
+## This is okay because of strict firewall. For an onion-only server, listen on 127.0.0.1
 ListenAddress 0.0.0.0
-
-## comment out if ipv6 is disabled via sysctl or iptables or both
-## comment in if ipv6 should be enabled
+## Comment out if ipv6 is disabled via sysctl or iptables, else comment in.
 #ListenAddress ::
 
-## location of server private key
-HostKey /etc/ssh/ssh_host_ed25519_key
-
-## Strongest ciphers:
-Ciphers chacha20-poly1305@openssh.com
-
-## Most secure MACs:
-MACs hmac-sha2-512-etm@openssh.com
-
-## Secure Kex algos:
-KexAlgorithms curve25519-sha256
-
-## Logging - optional - okay to leave commented out
-#SyslogFacility AUTH
-
-# unless you need logging, leave commented out
-#LogLevel INFO
-
-# how long does the prompt stay if client has a passphrase to enter
-LoginGraceTime 2m
-
-# Safer to deny root obviously
-#PermitRootLogin no
-
-# With keypairs, the "prohibit-password" option accomplishes the same thing so root is denied
-PermitRootLogin prohibit-password
-
-## Specifies whether password authentication is allowed. The default is yes.
-## use public keys ed25519 so no password authentication.
-## A passphrase is optional for the key, but that is not part of this option.
-## This option refers to old style password-only authentication (not secure)
-PasswordAuthentication no
-
-# Change to yes to enable challenge-response passwords (beware issues with
-# some PAM modules and threads)
-ChallengeResponseAuthentication no
-
-## number of allowed login attempts, if there is a passphrase associated with the key
+## Number of allowed login attempts per connection.
 MaxAuthTries 3
 
-## number of allowed sessions with the same client
-## TODO: why would we modify that?
-#MaxSessions 4
+## Require strong ciphers and algorithms.
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKeyAlgorithms ssh-ed25519
+PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
 
-## Specifies whether public key authentication is allowed. The default is yes.
-## always use public keys, not passwords
-#PubkeyAuthentication yes
+## Set 'no' to fully deny root login or set 'prohibit-password' for denying
+## root password login but still allowing other authentication methods such
+## as public key.
+PermitRootLogin prohibit-password
 
-# Set this to 'yes' to enable PAM authentication, account processing,
-# and session processing. If this is enabled, PAM authentication will
-# be allowed through the ChallengeResponseAuthentication and
-# PasswordAuthentication.  Depending on your PAM configuration,
-# PAM authentication via ChallengeResponseAuthentication may bypass
-# the setting of "PermitRootLogin without-password".
-# If you just want the PAM account and session checks to run without
-# PAM authentication, then enable this but set PasswordAuthentication
-# and ChallengeResponseAuthentication to 'no'.
-# The default is no.
+## Public key authentication is transparent, non-interactive and more secure.
+PasswordAuthentication no
+
+## Change to 'yes' to enable challenge-response passwords (beware issues with
+## some PAM modules and threads)
+KbdInteractiveAuthentication no
+
+## PAM can be used for account and session processing when using
+## ChallengeResponseAuthentication or PasswordAuthentication.
+##
+## Depending on your PAM configuration, PAM authentication via
+## ChallengeResponseAuthentication may bypass the setting of
+## "PermitRootLogin without-password".
+##
+## If you want PAM account and session checks to run without
+## PAM authentication, then enable this but set PasswordAuthentication
+## and ChallengeResponseAuthentication to 'no'.
+##
+## The default upstream is 'no', Debian sets this to 'yes'. If using a
+## locked account, read:
+##   https://www.kicksecure.com/wiki/SSH#SSH_Login_Comparison_Table
 UsePAM no
 
-## circumstance specific.
-## This refers to the ssh-agent.
-## Useful when running a local instance and client/server exist on same machine
+## Block dangerous forwarding.
 AllowAgentForwarding no
-
-## Be careful with this. Avoid forwarding if you can.
-## If you do not forward tcp, leave this commented out.
-## Default is yes.
 AllowTcpForwarding no
 
-## dependent on connection and network.
-## Sometimes useful, sometimes not.
-## And okay default is to say “no” and if it turns out you need it, then do “yes.”
-TCPKeepAlive yes
-
-## Forwarding X11 is not a good idea
-X11Forwarding no
-
+## Hide unecessary login banners.
 PrintMotd no
-
-## this prints the "Last login: Mon Dec 5 08:21:15 2019 from 192.33.4444" message
-#PrintLastLog yes
-
-#UseLogin no
-
-#PermitUserEnvironment no
-
-## second amount to keep connection alive
-#ClientAliveInterval 0
-
-UseDNS no
-
 #Banner /etc/issue.net
-
-AcceptEnv LANG LC_*
-
 #Hiding debian version from ssh banner (obsecurity)
 DebianBanner no
 
-#Subsystem sftp /usr/lib/openssh/sftp-server
+## Some options are dangerous but may be required in certain circumstances.
+## As an example, if forwarding is required, selectively allow it with a 'Match'
+## block, consider a new separate user named 'tunnel' which wants to forward
+## its local port to be available on the server on port 443. Note that a tunnel
+## user doesn't even require a TTY nor a shell, so don't forget to change the
+## 'ssh-tcp' shell to something that prevents login such as '/usr/sbin/nologin'.
+#Match User ssh-tcp
+#        AllowTcpForwarding yes
+#        PermitListen localhost:443
+#        PermitTTY no
+}}
 
-#PermitTunnel no
-
-#ChrootDirectory none
-</pre>
-
-Save the file.
-
-'''11.''' Restart the <code>sshd</code> daemon. All existing SSH connections will remain open.
+'''9.''' Restart the <code>sshd</code> daemon. All existing SSH connections will remain open.
 
 {{CodeSelect|code=
 sudo systemctl restart sshd
@@ -460,7 +382,7 @@ sudo systemctl restart sshd
 
 Keep the ssh connection open.
 
-'''12.''' Open another terminal (tab) and try to SSH to the server.
+'''10.''' Open another terminal (tab) and try to SSH to the server.
 
 * If it works, the process is complete.
 * If it does not work, use your still open terminal to check for configuration errors before trying again.
