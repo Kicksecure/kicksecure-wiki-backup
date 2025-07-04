@@ -176,20 +176,22 @@ The next step is to set up secure settings for the client and server configurati
 /etc/ssh/ssh_config.d/30_security-misc.conf
 }}
 
-'''2.''' The file will be empty, paste the following content:
+'''2.''' The file will be empty. Paste the following content:
 
 {{CodeSelect|code=
 Host *
-        AddressFamily inet
-        VisualHostKey yes
-        Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
-        MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
-        KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
-        HostKeyAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
-        PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+AddressFamily inet
+VisualHostKey yes
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+HostKeyAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
 }}
 
-'''3.''' Next SSH connections will be made using the new configuration.
+'''3.''' Done.
+
+Future SSH connections will use the new configuration.
 
 === Server Configuration File ===
 {{testers-only}}
@@ -203,7 +205,7 @@ Host *
 
 * Changing the <code>sshd</code> configuration can prevent future successful SSH connections to your servers.
 * It is probably best to only set this up for new servers or if you do not mind re-installing the server should you lock yourself out.
-* If a server console interface (ability to run repair commands from server host web administrator interface) is available, it is certainly far less risky to make huge changes to the ssh configuration.
+* If a server console interface (ability to run repair commands from the server host web administrator interface) is available, it is certainly far less risky to make major changes to the SSH configuration.
 * Do not proceed without a backup of the server and knowledge of how to restore the server should anything go wrong.
 }}
 
@@ -212,7 +214,7 @@ Host *
 
 * How to open a terminal (emulator) such as xfce4-terminal.
 * How to open two terminal emulators or multiple terminal emulator tabs at the same time.
-* Using command line text editors such as <code>nano</code>.
+* Using command-line text editors such as <code>nano</code>.
 }}
 
 {{Box|text=
@@ -250,7 +252,7 @@ If yes, proceed.
 
 '''5.''' Notes.
 
-''Note:'' When using the configuration file below, the following warning might appear. IP address and SHA256 hash will be different.
+''Note:'' When using the configuration file below, the following warning might appear. The IP address and SHA256 hash will be different.
 
 <pre>
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -276,16 +278,7 @@ It will look similar to the following.
 256 SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649 root@node (ED25519)
 </pre>
 
-'''6.''' Create the SSH group and add your SSH user (in this example, the user <code>user</code>) to the SSH group.
-
-{{CodeSelect|code=
-sudo groupadd -f ssh
-sudo usermod -aG ssh user
-}}
-
-If you want to allow <code>root</code> login, also add <code>root</code> to the <code>ssh</code> group and [[SSH#Key_Installation|copy the client's public key to <code>root</code>'s authorized key file]].
-
-'''7.''' {{Open with root rights|filename=
+'''6.''' {{Open with root rights|filename=
 /etc/ssh/sshd_config.d/30_security-misc.conf
 }}
 
@@ -294,17 +287,14 @@ If you want to allow <code>root</code> login, also add <code>root</code> to the 
 | text    =
 '''Warning:'''
 
-The following configuration file no longer allows root login with a password, make sure that at least one user that is in the <code>ssh</code> group has rights to edit this configuration and restart the systemd service in case of some failure.
+The following configuration file no longer allows root or any other user to log in with a password. Make sure that you can do maintenance tasks physically, via another user, or configure a privileged user to have another authentication method such as public key before finishing this setup.
 }}
 
-'''8.''' The file will be empty, paste the following content:
+'''7.''' The file will be empty. Paste the following content:
 
 {{CodeSelect|code=
 ## Don't edit this file, to overwrite any options, edit a file with a higher number that is
 ## read later by SSHD, such as '/etc/ssh/sshd_config.d/50_user.conf'.
-
-## Only members of this group are allowed to attempt login.
-AllowGroups ssh
 
 ## Only IPv4.
 AddressFamily inet
@@ -350,21 +340,22 @@ KbdInteractiveAuthentication no
 ## The default upstream is 'no', Debian sets this to 'yes'. If using a
 ## locked account, read:
 ##   https://www.kicksecure.com/wiki/SSH#SSH_Login_Comparison_Table
-UsePAM no
+## We set it to 'yes' to work with libpam-tmpdir.
+UsePAM yes
 
 ## Block dangerous forwarding.
 AllowAgentForwarding no
 AllowTcpForwarding no
 
-## Hide unecessary login banners.
+## Hide unnecessary login banners.
 PrintMotd no
 #Banner /etc/issue.net
-#Hiding debian version from ssh banner (obsecurity)
+#Hiding Debian version from SSH banner (obsecurity)
 DebianBanner no
 
 ## Some options are dangerous but may be required in certain circumstances.
 ## As an example, if forwarding is required, selectively allow it with a 'Match'
-## block, consider a new separate user named 'tunnel' which wants to forward
+## block. Consider a new separate user named 'tunnel' which wants to forward
 ## its local port to be available on the server on port 443. Note that a tunnel
 ## user doesn't even require a TTY nor a shell, so don't forget to change the
 ## 'ssh-tcp' shell to something that prevents login such as '/usr/sbin/nologin'.
@@ -374,15 +365,43 @@ DebianBanner no
 #        PermitTTY no
 }}
 
-'''9.''' Restart the <code>sshd</code> daemon. All existing SSH connections will remain open.
+'''8.''' Create the SSH group and add your SSH user (in this example, the user <code>user</code>) to the SSH group.
+
+{{CodeSelect|code=
+sudo groupadd -f ssh
+sudo usermod -aG ssh user
+}}
+
+If you want to allow <code>root</code> login, also add <code>root</code> to the <code>ssh</code> group and [[SSH#Key_Installation|copy the client's public key to <code>root</code>'s authorized key file]].
+
+'''9.''' {{Open with root rights|filename=
+/etc/ssh/sshd_config.d/50_user.conf
+}}
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=Whonix first time users warning]]
+| text    =
+'''Warning:'''
+
+The following configuration file no longer allows non-members of the <code>ssh</code> group to log in. Make sure that at least one user in the <code>ssh</code> group has rights to edit this configuration and restart the systemd service in case of any failure.
+}}
+
+'''10.''' The file will be empty. Paste the following content:
+
+{{CodeSelect|code=
+## Only members of this group are allowed to attempt login.
+AllowGroups ssh
+}}
+
+'''11.''' Restart the <code>sshd</code> daemon. All existing SSH connections will remain open.
 
 {{CodeSelect|code=
 sudo systemctl restart sshd
 }}
 
-Keep the ssh connection open.
+Keep the SSH connection open.
 
-'''10.''' Open another terminal (tab) and try to SSH to the server.
+'''12.''' Open another terminal (tab) and try to SSH to the server.
 
 * If it works, the process is complete.
 * If it does not work, use your still open terminal to check for configuration errors before trying again.
@@ -390,13 +409,13 @@ Keep the ssh connection open.
 
 === Notes ===
 
-Those are the completed SSH configuration files. Please note that the entries preceded by a <code>#</code> are not necessary for functional use; they are included only as examples of what is possible in SSH. If you do not have a specific use for any of the commented out options in either configuration file, do not use them at all.
+These are the completed SSH configuration files. Please note that the entries preceded by a <code>#</code> are not necessary for functional use; they are included only as examples of what is possible in SSH. If you do not have a specific use for any of the commented-out options in either configuration file, do not use them at all.
 
-The Ciphers, MACs and Kex algorithms are all the strongest possible at the time of writing with OpenSSH version 7.9 on Debian buster. The entries in the configuration files above are the most important and will establish a functional and well-guarded setup. Use ed25519 keys only -- rsa and ecdsa are outdated. Use the <code>ssh-keygen</code> command to generate the keys.
+The Ciphers, MACs, and Kex algorithms are all the strongest available at the time of writing with OpenSSH version 7.9 on Debian buster. The entries in the configuration files above are the most important and will establish a functional and well-guarded setup. Use ed25519 keys only. RSA and ECDSA are outdated. Use the <code>ssh-keygen</code> command to generate the keys.
 
-The <code>VisualHostKey yes</code> entry in the <code>/etc/ssh/ssh_config</code> file is so when you login, openssh shows you an ascii-generated picture of what the key looks like. In addition to all the other verifications, this is one last line of defense to alert you to a changed or wrong key.
+The <code>VisualHostKey yes</code> entry in the <code>/etc/ssh/ssh_config</code> file ensures that when you log in, OpenSSH shows you an ASCII-generated picture of what the key looks like. In addition to all other verifications, this is one last line of defense to alert you to a changed or incorrect key.
 
-Generally the newer OpenSSH versions will choose the strongest cipher on their own when negotiating a connection, but the configuration files establish in what order they are parsed. Both sides need to have the same or compatible openssh versions and cipher, mac, and kex algorithm options.
+Generally, newer OpenSSH versions will choose the strongest cipher on their own when negotiating a connection, but the configuration files establish in what order they are parsed. Both sides need to have the same or compatible OpenSSH versions and cipher, MAC, and Kex algorithm options.
 
 == Firewall Settings and Rules ==
 {{Testers-only}}

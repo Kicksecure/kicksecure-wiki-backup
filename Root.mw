@@ -464,7 +464,7 @@ The account has been added to group <code>console</code>.
 === Rationale for Separate sysmaint Account ===
 {{anchor|Rationale for Separate admin Account}}
 
-If Linux user account <code>user</code> is compromised, malware can easily steal the administrative ("<code>sudo</code>") password. <ref>
+If Linux user account <code>user</code> is compromised and has <code>sudo</code> access, malware can easily steal the administrative ("<code>sudo</code>") password. <ref>
 Any graphical application can see what is typed in another graphical application, for any account.
 
 [https://blog.invisiblethings.org/2011/04/23/linux-security-circus-on-gui-isolation.html Quote] Joanna Rutkowska, security researcher, founder and advisor (formerly architecture, security, and development) of Qubes OS:
@@ -476,7 +476,7 @@ One application can sniff or inject keystrokes to another one, can take snapshot
 If an application is compromised with an exploit due to a security vulnerability, it can be used as malware by the attacker. Once/if the application is not effectively confined by a mandatory access control (MAC) framework like AppArmor or firejail, it can compromise the user account where it is running and then proceed from there.
 
 See also [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sudo password sniffing]] for technical details.
-</ref> Therefore it is more secure ([[#Rationale|rationale)]] to perform administrative actions such as running <code>sudo</code> from a separate <code>sysmaint</code> account that is less likely to get compromised, since this reduces the chances of malware sniffing the password to escalate to administrative ("<code>root</code>") access.
+</ref> Therefore it is more secure ([[#Rationale|rationale]]) to perform administrative actions such as running <code>sudo</code> from a separate [[sysmaint|<code>sysmaint</code> (System Maintenance) account]] that is less likely to get compromised, since this reduces the chances of malware sniffing the password to escalate to administrative ("<code>root</code>") access.
 
 The basic concept is a separation of the following accounts:
 
@@ -486,7 +486,7 @@ The basic concept is a separation of the following accounts:
 Questions and answers:
 
 * Is running applications such as browser under account <code>sysmaint</code> less secure? Yes, that defeats this concept.
-* Is running applications such as browser under account <code>user</code> more secure? Yes, because it becomes harder for malware to perform privilege escalation attacks to gain to administrative ("<code>root</code>") access.
+* Is running applications such as browser under account <code>user</code> more secure? Yes, because it becomes harder for malware to perform privilege escalation attacks to gain administrative ("<code>root</code>") access.
 * What is so bad about malware escalating to administrative? See [[#Rationale|rationale]].
 * Why use account <code>sysmaint</code> and not simply the <code>root</code> account? See [[Root#Avoid_Root_Login|Avoid <code>Root</code> Login]].
 
@@ -499,47 +499,60 @@ To more securely perform administrative tasks that require <code>root</code> acc
 
 === Detailed Steps ===
 
-This setup only needs to be completed once.
+{{IconSet|h2|1}} '''Check if <code>user-sysmaint-split</code> is already installed.'''
 
-<u>'''TODO: This documentation chapter needs to be updated. Meanwhile, use: [[sysmaint]].'''</u>
+See [[Sysmaint#Default_Installation_Status|sysmaint Default Installation Status]].
 
-{{IconSet|h2|1}} '''Platform specific notice:'''
+{{IconSet|h2|2}} '''Install the <code>user-sysmaint-split</code> package, if needed.'''
 
-* {{non_q_project_name_short}}: No special notice.
-* ([[Qubes|{{q_project_name_short}}]]: {{project_name_workstation_long}} Template)
+This is required to create user <code>sysmaint</code>. For instructions, see [[Sysmaint#Installation|<code>user-sysmaint-split</code> Installation]].
 
-{{IconSet|h2|2}} '''Create a new account account <code>sysmaint</code>.'''
-
-{{CodeSelect|code=
-sudo adduser sysmaint
-}}
-
-{{IconSet|h2|3}} '''Add account <code>sysmaint</code> to group <code>sudo</code> and <code>console</code>.'''
-
-{{CodeSelect|code=
-sudo adduser sysmaint sudo
-}}
-
-Allow login into [[login]] console.
-
-{{CodeSelect|code=
-sudo adduser sysmaint console
-}}
-
-{{IconSet|h2|4}} '''Perform the following steps securely using <code>sudo</code>. Use <u>one</u> of the methods below.'''
+{{IconSet|h2|3}} '''Perform the following steps securely using <code>sudo</code>. Use <u>one</u> of the methods below.'''
 
 {{Tab
 |type=controller
 |content=
+
+{{Tab
+|title= ===Power-off and Power-on Cycle Method===
+|type=section
+|content=
+
+* Advantages:
+** Recommended.
+** Most secure method.
+* Disadvantage:
+** Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications run under account <code>user</code> will be terminated.
+
+{{IconSet|h3|1}} Power off.
+
+Shutdown the system. Really power off. Not shutdown. Why? To defeat [[login spoofing]].
+
+{{IconSet|h3|2}} Power on.
+
+{{IconSet|h3|3}} See [[Sysmaint#Usage|Usage]].
+
+{{IconSet|h3|4}} Perform any necessary administrative tasks.
+
+{{IconSet|h3|5}} Power off.
+
+{{IconSet|h3|6}} Power on.
+
+{{IconSet|h3|7}} Done.
+}}
+
 {{Tab
 |title= ===Non-GUI Environment Method===
 |type=section
 |content=
 
 * Advantage: can keep current account session(s) and/or graphical session (X Window System) running.
-* Disadvantages: cannot use graphical session during administrative tasks <ref>
-Unless perhaps advanced users manage to run a different X server on a different virtual console. This might not be possible, secure. Depends on if the exclusive lock of X can be suspended while using an X server in a different virtual console. This has not been researched.
-</ref> and requires SysRq, which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
+* Disadvantages:
+** [[Unsupported]]. Less secure. ([[Dev/user-sysmaint-split#Fast_User_Switching|<code>user-sysmaint-split</code> (developers), Fast User Switching]])
+** Cannot use graphical session during administrative tasks <ref>
+Unless perhaps advanced users manage to run a different X server on a different virtual console. This might not be possible or secure. Depends on if the exclusive lock of X can be suspended while using an X server in a different virtual console. This has not been researched.
+</ref> 
+** Requires [[SysRq]], which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
 
 {{IconSet|h3|1}} [[SysRq#Enable_SysRq|Enable SysRq]].
 
@@ -576,28 +589,22 @@ An X Window System non-<code>root</code> account cannot sniff keystrokes of diff
 
 {{IconSet|h3|6}} Perform any necessary administrative tasks.
 
-{{IconSet|h3|7}} Remove account <code>user</code> from group <code>sudo</code>.
-
-<u>Note</u>: This only needs to be performed once.
-
-{{CodeSelect|code=
-sudo delgroup user sudo
-}}
-
-{{IconSet|h3|8}} Logout account <code>sysmaint</code>.
+{{IconSet|h3|7}} Logout account <code>sysmaint</code>.
 
 {{CodeSelect|code=
 logout
 }}
 
-{{IconSet|h3|9}} Switch back to previous virtual console.
+{{IconSet|h3|8}} Switch back to previous virtual console.
 
 X Window System runs in:
 
 * most Linux distributions: virtual console <code>7</code> (Press <code>Alt + Crtl + F7</code>)
 * Qubes: virtual console <code>1</code> (Press <code>Alt + Crtl + F1</code>)
 
-{{IconSet|h3|10}} Re-login if needed and continue usual work as account <code>user</code>.
+{{IconSet|h3|9}} Re-login if needed and continue usual work as account <code>user</code>.
+
+{{IconSet|h3|10}} Done.
 }}
 
 {{Tab
@@ -605,75 +612,46 @@ X Window System runs in:
 |type=section
 |content=
 
-* Advantage: can use graphical session (X Window System) during administrative tasks using privileged account <code>sysmaint</code>.
-* Disadvantage: cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications run under account <code>user</code> will be terminated <ref>
+* Advantage:
+** Can use graphical session (X Window System) during administrative tasks using privileged account <code>sysmaint</code>.
+* Disadvantages:
+** [[Unsupported]]. Less secure. ([[Dev/user-sysmaint-split#Fast_User_Switching|<code>user-sysmaint-split</code> (developers), Fast User Switching]])
+** Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications run under account <code>user</code> will be terminated. <ref>
 Non-simplified: applications run by account <code>user</code> in a different virtual console or run through systemd (<code>--system</code> or <code>--user</code>) services can be left running.
-</ref> and requires SysRq, which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
+</ref>
+** Requires [[SysRq]], which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
 
-{{IconSet|h3|1}} Terminate all running applications in current graphical (X) session.
+{{IconSet|h3|1}} [[SysRq#Enable_SysRq|Enable SysRq]].
 
-{{IconSet|h3|2}} Log out.
+{{IconSet|h3|2}} Terminate all running applications in current graphical (X) session.
 
-start menu -> log out
+{{IconSet|h3|3}} Log out.
 
-{{IconSet|h3|3}} Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark />
+<code>Start Menu</code> -> <code>Log Out</code>
+
+{{IconSet|h3|4}} Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark />
 
 [[SysRq]] + <code>w</code>
 
 (Press <code>Alt + SysRq + w</code>)
 
-{{IconSet|h3|4}} Press Secure Access Key also to [[Login spoofing|defeat login spoofing]].
+{{IconSet|h3|5}} Press Secure Access Key also to [[Login spoofing|defeat login spoofing]].
 
 [[SysRq]] + <code>k</code>
 
 (Press <code>Alt + SysRq + k</code>)
 
-{{IconSet|h3|5}} Login as account <code>sysmaint</code>.
+{{IconSet|h3|6}} Login as account <code>sysmaint</code>.
 
-{{IconSet|h3|6}} Perform any necessary administrative tasks.
-
-{{IconSet|h3|7}} Remove account <code>user</code> from group <code>sudo</code>.
-
-<u>Note</u>: This step only needs to be performed once.
-
-{{CodeSelect|code=
-sudo delgroup user sudo
-}}
+{{IconSet|h3|7}} Perform any necessary administrative tasks.
 
 {{IconSet|h3|8}} Logout account <code>sysmaint</code>.
 
 {{IconSet|h3|9}} Re-login as account <code>user</code>.
 
 {{IconSet|h3|10}} Continue usual work as account <code>user</code>.
-}}
 
-{{Tab
-|title= ===Power-off and Power-on Cycle Method===
-|type=section
-|content=
-
-* Advantages: Use graphical session during administrative tasks. No need for complicated use of SysRq.
-* Disadvantages: Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications run under account <code>user</code> will be terminated.
-
-{{IconSet|h3|1}} Power off.
-
-Shutdown the system. Really power off. Not shutdown. Why? To defeat [[login spoofing]].
-
-{{IconSet|h3|2}} Power on.
-
-{{IconSet|h3|3}} Do not login as account <code>user</code>.
-
-{{IconSet|h3|4}} Login as account <code>sysmaint</code>.
-
-{{IconSet|h3|5}} Perform any necessary administrative tasks.
-
-{{IconSet|h3|6}} Remove account <code>user</code> from group <code>sudo</code>.
-
-<u>Note</u>: This step only needs to be performed once.
-
-{{IconSet|h3|7}} Power off.
-
-{{IconSet|h3|8}} Continue usual work as account <code>user</code>.
+{{IconSet|h3|11}} Done.
 }}
 
 }}
@@ -714,7 +692,7 @@ sudo adduser user root
 
 {{IconSet|h2|3}} '''[[SUID_Disabler_and_Permission_Hardener#Re-enable_Specific_SUID_Binaries|Re-enable SUID]].'''
 
-Set suid. Note: It is okay if the second command fails.
+Set <code>suid</code>. Note: It is okay if the second command fails.
 
 {{CodeSelect|code=
 sudo permission-hardener disable /bin/su
