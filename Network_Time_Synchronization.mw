@@ -108,6 +108,8 @@ Mon Apr 22 04:30:44 UTC 2019
 {{CURRENTMONTHABBREV}} {{CURRENTDAY2}} {{CURRENTTIME}}:44 UTC {{CURRENTYEAR}}
 }}
 
+'''x.''' {{sysmaint_notice}}
+
 '''2.''' Set the correct time in {{project_name_gateway_short}}.
 
 Run the following command with the correct date and time parameters. <ref>
@@ -147,7 +149,54 @@ sudo service tor restart
 }}
 
 Tor should work once correct clock values are set, but that can be manually tested with [[systemcheck]].
+
+'''5.''' [[Network_Time_Synchronization#Set_Hardware_Clock_Time|Set Hardware Clock Time]]
 }}
+
+= Set Hardware Clock Time =
+
+Most systems have a Real-Time Clock (RTC) on the motherboard that keeps track of time while the system is powered down. On boot, the RTC is read and used to set the system clock to a sensible value. If a system is powered down for any length of time, it is important that it have a functional, up-to-date hardware clock.
+
+{{project_name_short}} does not currently synchronize the hardware clock to the system clock on shutdown. As a result, if the hardware clock is drifting out of date, it will continue to drift further and further out of date until problems result. To correct this:
+
+'''1.''' {{sysmaint_notice}}
+
+'''2.''' [[#Manually_Set_Clock_Time_and_Date|Set the system clock]].
+
+'''3.''' Run:
+
+{{CodeSelect|code=
+sudo hwclock --systohc
+}}
+
+'''4.''' Done.
+
+The hardware clock has now been updated.
+
+== Broken / Missing Hardware Clocks ==
+
+Many single-board computers do not have a hardware clock. Many systems also have a broken, drained, or missing BIOS battery, which will result in the hardware clock pausing or becoming corrupted if power is removed from the system even briefly. Usually these systems will need to have their clock [[#Manually_Set_Clock_Time_and_Date|manually set]] on every boot.
+
+There are a number of things that can be done to fix or mitigate this problem:
+
+* Replace the system's [https://en.wikipedia.org/wiki/Nonvolatile_BIOS_memory BIOS battery], if it has one. This is usually a CR2032 coin cell battery located in a socket on the motherboard. but some laptops may enclose the battery in plastic and connect it to the motherboard with a short electrical cable.
+* Install the [https://packages.debian.org/bookworm/fake-hwclock fake-hwclock] package. This will save the system clock to disk periodically (including before shutdown), and restore it on boot, so that your system's time freezes while powered off. This may make it easier to update the system's clock to a sufficiently accurate time for Tor and sdwdate to function.
+* Install the [https://packages.debian.org/bookworm/ntpsec-ntpdate ntpsec-ntpdate] package. This provides the <code>ntpdate</code> command, which can be used to update the system's clock from an NTP server. '''Note that NTP time synchronization may be vulnerable to man-in-the-middle attacks if the date and time is not double-checked against a known-good clock.'''
+** Do NOT install the <code>ntpsec</code> package. It conflicts with sdwdate and will uninstall it (along with many {{project_name_short}}-related metapackages).
+
+To update the system's clock using <code>ntpdate</code>:
+
+'''1.''' Run <code>ntpdate -q pool.ntp.org</code> to display the time and date from pool.ntp.org.
+
+'''2.''' Double-check the display6ed date and time against a clock you know is accurate.
+
+'''3.''' Use <code>sudo ntpdate pool.ntp.org</code> to update the clock and display the time that the clock has updated to.
+
+'''4.''' Ensure that the date displayed when setting the clock is close to the date displayed when querying the server.
+
+'''5.''' Done.
+
+The process of setting the system's time using NTP is complete.
 
 = Block Networking until sdwdate Finishes =
 
