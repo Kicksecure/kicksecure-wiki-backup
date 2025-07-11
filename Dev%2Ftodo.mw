@@ -10,23 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== browser choice ==
-* [[Dev/browser-choice]]
-* please implement
-* Alpha-quality implementation: https://github.com/ArrayBolt3/browser-choice
-* Known issues:
-** The last page of the wizard has a ridiculous amount of empty space in it, the wizard window needs to resize itself on the last step to fix this.
-** The precheck and postcheck scripts aren't being run at all.
-** Quite a bit of variable naming could stand to be better.
-** Chromium Flatpak doesn't install for reasons discussed in chat.
-** Tor Browser won't launch in sysmaint mode due to (I think) a particular systemd unit not being started. Unsure if we want to do anything about that.
-** Logging is ephemeral and all logs are lost as soon as you continue past the "Applying Software Changes" screen. We need to be logging to a file, not just to the display.
-** The Mozilla apt repository version of Firefox cannot be installed, as the helper script needed for it hasn't been written yet.
-
-== user-sysmaint-split - Whonix-Gateway ==
-* think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
-* document on [[Dev/user-sysmaint-split]]
-
 == SSH wiki page review ==
 * review [[SSH]] wiki page
 * this is in preparation for later when porting to Debian trixie, because then the SSH client and separate SSH server configuration snippets should be shipped together with security-misc (there is already a separate task for that)
@@ -66,6 +49,19 @@ TODO
 * when the boot USB drive is removed
 * when panic key is pressed (most obviously probably the power button)
 * https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
+
+== verified boot implementation ==
+* assume firmware can extend trust to kernel via Sovereign Boot
+* create a system for extending trust from kernel to initramfs and userland
+* possibly investigate immutable images?
+* Implementation idea notes:
+** A system running with Verified Boot enabled must have the root partition in live mode (read only with tmpfs overlay). Therefore something similar to live mode will be needed when running in "verified mode"
+** dm-verify is what Google uses, there seems to be no compelling reason for us to avoid it.
+** Kernel modifications are not permitted, Kicksecure will be signing Debian's shim meaning only vanilla Debian kernels will be bootable. Rely on alternative ways of storing the dm-verify root hash in a secure immutable fashion, such as:
+*** TPM / Measured Boot? Highly desirable if security issues don't result, as this avoids the need for user interaction unless something goes wrong.
+**** Would require some way of authenticating that the TPM has not been reset (similar to Heads TOTP/HOTP codes)
+*** User providing the hash on an external drive?
+*** Verification passphrase similar to LUKS passphrase?
 
 == calamares - unmount issues ==
 * Calamares is not unmounting an encrypted filesystem after installation is complete, thus making livecheck warn about an "unsafe" live state.
@@ -646,6 +642,43 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== user-sysmaint-split - Whonix-Gateway ==
+* think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
+* document on [[Dev/user-sysmaint-split]]
+** Create a new "VERIFIED Mode | USER Session | daily activities" that is essentially live mode but with /home persistent and dm-verity enabled.
+** This should be used for verified boot in general most likely.
+
+== browser choice ==
+* [[Dev/browser-choice]]
+* please implement
+* Alpha-quality implementation: https://github.com/ArrayBolt3/browser-choice
+* Known issues:
+** The last page of the wizard has a ridiculous amount of empty space in it, the wizard window needs to resize itself on the last step to fix this.
+*** Fixed.
+** The precheck and postcheck scripts aren't being run at all.
+*** Precheck and postcheck scripts removed, they are difficult to implement as a separate field if the check scripts require privileges without resulting in multiple password prompts. Moreover, apt does package consistency checks before installing or removing software and will error out if things are problematic. If a particular installation or removal routine does require consistency checks, those can be built directly into the install/remove/purge command lines.
+** Quite a bit of variable naming could stand to be better.
+*** Renamed a bunch of things for clarity.
+** Chromium Flatpak doesn't install for reasons discussed in chat.
+*** Fixed, unverified flatpak warning added.
+** Tor Browser won't launch in sysmaint mode due to (I think) a particular systemd unit not being started. Unsure if we want to do anything about that.
+*** Changed handling mechanism so that whether a browser can be managed in user mode or not is up to capability scripts. Also allowed user-sysmaint-split to be run in a user session.
+** Logging is ephemeral and all logs are lost as soon as you continue past the "Applying Software Changes" screen. We need to be logging to a file, not just to the display.
+*** Real logging is now implemented.
+** The Mozilla apt repository version of Firefox cannot be installed, as the helper script needed for it hasn't been written yet.
+*** Script is now written and appears to be functional when tested.
+* Further ideas for consideration:
+** Check for network access and warn the user if it is not available?
+** Don't show the launch checkbox when running in sysmaint sessions? That checkbox makes it worryingly easy to launch a web browser in a sysmaint session, something we've worked to avoid.
+** Naming considerations? Right now the program calls itself "Application Chooser" in the window titlebar, but "Browser Choice" in the application menu (since "Application Chooser" sounds very generic).
+** Add Mullvad Browser plugin?
+** Add plugins for email clients and ensure the application works in that scenario? Maybe chat clients too?
+*** (Tabs currently don't have special considerations made for them as far as alphabetizing, so there probably is some additional work needed to make the experience perfect in that regard.)
+* Further TODOs:
+** Test on Qubes OS
+** Test on Whonix-Workstation
+** Add warning popup when run in a Qubes OS AppVM (this is mentioned in the spec but not yet implemented)
+
 == dracut initrd compression ==
 * research compression options
 * probably use zstd
