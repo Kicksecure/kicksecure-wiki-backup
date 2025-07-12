@@ -117,7 +117,7 @@ Copy the key to the server you want to sign into.
 
 Notes:
 
-* <u>Once:</u> This only needs to be done once per server. The <code>ssh-copy-id</code> command works for this task, run.
+* <u>Once:</u> This only needs to be done once per server. The <code>ssh-copy-id</code> command works for this task.
 * <u>IP:</u> Replace <code>127.0.0.1</code> with the actual IP address of the server.
 * <u>User account name:</u> The example user name below is <code>root</code> which is the default first time login user name by many server providers.
 * <u>Credentials:</u> If this is a first time login and/or password based login, enter the SSH login password. Password should be provided by server provider. No password might be provided if the server provider already pre-installed a ssh key.
@@ -157,7 +157,7 @@ ssh root@127.0.0.1
 
 A password prompt for the key would be shown if a passphrase has been previously set.
 
-If the ssh login was successful, like the shell prompt will be different from the usual {{project_name_short}} shell prompt <code>user@host</code>. For example <code>root@server</code>.
+If the ssh login was successful, the shell prompt will be different from the usual {{project_name_short}} shell prompt <code>user@host</code>. For example <code>root@server</code>.
 
 '''Figure:''' ''Example SSH Login'' <ref>https://devconnected.com/how-to-install-and-enable-ssh-server-on-debian-10/</ref>
 
@@ -180,18 +180,120 @@ The next step is to set up secure settings for the client and server configurati
 
 {{CodeSelect|code=
 Host *
-AddressFamily inet
-VisualHostKey yes
-Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
-MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
-KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
-HostKeyAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
-PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
+        VisualHostKey yes
+        Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes256-ctr
+        MACs umac-128-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+        KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+        ## To force the use of quantum-resistant key exchange algorithms, comment out the above line and uncomment the next line.
+        # KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com
+        HostKeyAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519
+        PubkeyAcceptedAlgorithms sk-ssh-ed25519@openssh.com,ssh-ed25519
 }}
 
 '''3.''' Done.
 
 Future SSH connections will use the new configuration.
+
+==== Rationale on recommended encryption algorithms ====
+
+The above client configuration sets a number of cryptography-related algorithms as preferred over others and disables several others. The rationale for these choices is described below. Algorithms are sorted by order of preference.
+
+* '''Ciphers'''
+** <u>Description</u>: Symmetric encryption ciphers used to secure data in real time as it is passed between the SSH client and server.
+** <u>Algorithms</u>:
+*** <code>chacha20-poly1305@openssh.com</code>: Has a higher security margin than any other algorithm provided in Debian Bookworm.<ref>
+https://crypto.stackexchange.com/a/101056
+</ref> <ref>
+https://eprint.iacr.org/2019/1492.pdf
+</ref> This mode provides authenticated encryption, which prevents malleability attacks.<ref>
+https://andrea.corbellini.name/2023/03/09/authenticated-encryption/
+</ref>
+*** <code>aes256-gcm@openssh.com</code>: An AES mode that provides authenticated encryption.<ref>
+https://crypto.stackexchange.com/questions/103242/why-gcm-is-used-more-often-than-ctr
+</ref> This algorithm is ranked below <code>chacha20-poly1305@openssh.com</code> because of potential safety concerns with nonce handling and poorly designed implementations.<ref>https://crypto.stackexchange.com/questions/42982/safety-of-random-nonce-with-aes-gcm
+</ref> <ref>
+https://eprint.iacr.org/2016/475.pdf
+</ref>
+*** <code>aes256-ctr</code>: Does not provide authenticated encryption and should be combined with an encrypt-then-MAC algorithm (as described in the MACs section below). <ref>
+https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html#MACs
+</ref> This encryption method is likely safe even when using a MAC algorithm that verifies integrity after decryption, due to SSH's implementation of MAC verification. <ref>
+https://crypto.stackexchange.com/a/44028
+</ref> Still, verification after decryption is generally dangerous, so this method is ranked lower than the others.
+*** Other algorithms are not recommended; all cipher block chaining (CBC) algorithms in OpenSSH have been disabled by default since OpenSSH 7.6. <ref>
+https://www.openssh.com/txt/release-7.6
+</ref> Variants of AES with 128 bits of security are believed to be quantum-safe but may not be, depending on the speed at which quantum computers develop. <ref>
+https://crypto.stackexchange.com/a/102672/133564
+</ref> There is little reason to use 192-bit AES keys when 256-bit keys are available.
+
+* '''MACs'''
+** <u>Description</u>: Message Authentication Codes used to ensure the integrity of data passed between the client and server.
+** <u>Algorithms</u>:
+*** <code>umac-128-etm@openssh.com</code>: UMAC has strong, proven security guarantees - UMAC is essentially only as breakable as the cipher or hash it uses. <ref>
+https://datatracker.ietf.org/doc/html/rfc4418#section-6.1
+</ref> OpenSSH's UMAC implementation uses AES with 128-bit keys, <ref>
+https://github.com/openssh/openssh-portable/blob/eddd1d2daa64a6ab1a915ca88436fa41aede44d4/umac.c#L104
+</ref> which is post-quantum secure in this context since the keys are only used to generate authentication codes for SSH packets. Once the SSH session ends, the keys lose all value. Even a quantum computer capable of a practical attack against 128-bit AES keys would likely not operate fast enough to pose any threat here.
+*** <code>hmac-sha2-512-etm@openssh.com</code>: HMAC's security is uncertain - there are no public known attacks yet, but it could happen.<ref>
+https://crypto.stackexchange.com/a/67350/133564
+</ref> Thus, this is not as good as UMAC but still decent. This is the "least bad" choice after UMAC.
+*** <code>hmac-sha2-256-etm@openssh.com</code>: Same as the previous algorithm but with a shorter tag length.
+*** Other algorithms are not recommended; MAC tag lengths shorter than 128 bits are sometimes considered insecure. <ref>
+https://www.virtuesecurity.com/kb/ssh-weak-mac-algorithms-enabled/
+</ref> SHA1- and md5-based algorithms are potentially insecure due to known vulnerabilities in their hash functions. SHA2 without HMAC is potentially dangerous due to length extension attacks. <ref>
+https://crypto.stackexchange.com/a/50881/133564, search answer for "length extension"
+</ref> Generating the MAC first, then encrypting, is generally a bad idea, as mentioned in the <code>aes256-ctr</code> rationale above.
+
+* '''KexAlgorithms'''
+** <u>Description</u>: Encryption algorithms used for exchanging the symmetric encryption keys that will secure the connection.
+** <u>Algorithms</u>:
+*** <code>sntrup761x25519-sha512</code>: Believed to be at least equivalent in security to Curve25519, which is the best non-quantum-secure algorithm provided. <ref>
+https://www.ietf.org/archive/id/draft-josefsson-ntruprime-ssh-02.html
+</ref> This algorithm combines Curve25519 with NTRU Prime, which is currently believed to be post-quantum secure. <ref>
+https://eprint.iacr.org/2016/461
+</ref>
+*** <code>mlkem768x25519-sha256</code>: Proven to be at least equivalent to Curve25519 in security.<ref>
+https://www.ietf.org/archive/id/draft-ietf-sshm-mlkem-hybrid-kex-02.html#name-security-considerations
+</ref> Ranked below NTRU Prime because it is possible, or even likely, that ML-KEM is intentionally weakened. Cryptographer [https://en.wikipedia.org/wiki/Daniel_J._Bernstein Daniel J. Bernstein] has raised serious concerns about ML-KEM (a.k.a. Kyber) and the trustworthiness of NIST in standardizing it. <ref>
+https://blog.cr.yp.to/20231003-countcorrectly.html
+</ref> <ref>
+https://blog.cr.yp.to/20231125-kyber.html
+</ref> It is therefore recommended to assume ML-KEM is not post-quantum secure and offers no additional protection over Curve25519.
+**** Note: In the recommended configuration above, <code>mlkem768x25519-sha256</code> is not included because it is not supported in Debian 12 and, thus, not supported in {{project_name_short}} 17. It will be added when Debian 13 is released and Kicksecure is ported to it.
+*** <code>curve25519-sha256</code>: Not post-quantum-secure. Widely used and believed to be secure against classical computers.
+*** Other algorithms are not recommended; nistp-based algorithms are likely intentionally broken <ref>
+https://credelius.com/credelius/?p=97
+</ref> and are difficult to implement correctly. <ref>
+https://cr.yp.to/talks/2013.05.31/slides-dan+tanja-20130531-4x3.pdf
+</ref> Diffie-Hellman algorithms are rarely used, computationally expensive, and offer no security advantages over Curve25519. <ref>
+https://www.openssh.com/txt/release-10.0
+</ref>
+
+* '''HostKeyAlgorithms'''
+** <u>Description</u>: Signature algorithms used for verifying the SSH server's identity.
+** <u>Algorithms</u>:
+*** <code>sk-ssh-ed25519@openssh.com</code>: Closely related to Curve25519. <ref>
+https://crypto.stackexchange.com/a/43058/133564
+</ref> The <code>sk</code> variant is designed specifically for use with FIDO/U2F tokens, which may be useful in some setups. <ref>
+https://www.openssh.com/txt/release-8.2
+</ref>
+*** <code>ssh-ed25519</code>: Same as above, but a standalone key with no hardware token involved.
+*** Both <code>sk-ssh-ed25519@openssh.com</code> and <code>ssh-ed25519</code> have corresponding certificate authrity based modes that may be useful in some scenarios, namely <code>sk-ssh-ed25519-cert-v01@openssh.com</code> and <code>ssh-ed25519-cert-v01@openssh.com</code>. <ref>
+https://superuser.com/a/1225476/1734781
+</ref> These modes are not enabled by default, but should be safe to enable if you need them.
+*** Other algorithms are not recommended; nistp-based algorithms are likely intentionally broken. RSA can be dangerous due to difficulties in correct implementation. <ref>
+https://blog.trailofbits.com/2019/07/08/fuck-rsa/
+</ref> DSS is intentionally disabled by OpenSSH by default. <ref>
+https://www.openssh.com/legacy.html, search for "dsa"
+</ref> 
+*** There appear to be no post-quantum-secure signature algorithms supported by OpenSSH at this time. In a post-quantum world, anyone with a sufficiently powerful quantum computer could forge a host key and perform a MITM attack on the SSH connection. <ref>
+https://crypto.stackexchange.com/a/56197/133564
+</ref> There is currently no way to address this with OpenSSH client configuration. Some experiments have been done with adding post-quantum-secure signatures to OpenSSH. <ref>
+https://lists.mindrot.org/pipermail/openssh-unix-dev/2025-July/041979.html
+</ref>
+
+* '''PubkeyAcceptedAlgorithms'''
+** <u>Description</u>: Signature algorithms used for the client to authenticate itself to the server.
+** <u>Algorithms</u>: Identical to those available for HostKeyAlgorithms; thus, the advice given for HostKeyAlgorithms applies here as well.
 
 === Server Configuration File ===
 {{testers-only}}
@@ -296,12 +398,10 @@ The following configuration file no longer allows root or any other user to log 
 ## Don't edit this file, to overwrite any options, edit a file with a higher number that is
 ## read later by SSHD, such as '/etc/ssh/sshd_config.d/50_user.conf'.
 
-## Only IPv4.
-AddressFamily inet
 ## This is okay because of strict firewall. For an onion-only server, listen on 127.0.0.1
 ListenAddress 0.0.0.0
-## Comment out if ipv6 is disabled via sysctl or iptables, else comment in.
-#ListenAddress ::
+## Comment out if ipv6 is disabled via sysctl or iptables, else leave uncommented.
+ListenAddress ::
 
 ## Number of allowed login attempts per connection.
 MaxAuthTries 3
@@ -311,8 +411,10 @@ HostKey /etc/ssh/ssh_host_ed25519_key
 HostKeyAlgorithms ssh-ed25519
 PubkeyAcceptedAlgorithms ssh-ed25519,sk-ssh-ed25519@openssh.com
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com
-MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+MACs umac-128-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
 KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org
+## To force the use of quantum-resistant key exchange algorithms, comment out the above line and uncomment the next line.
+# KexAlgorithms sntrup761x25519-sha512,sntrup761x25519-sha512@openssh.com
 
 ## Set 'no' to fully deny root login or set 'prohibit-password' for denying
 ## root password login but still allowing other authentication methods such
@@ -350,7 +452,7 @@ AllowTcpForwarding no
 ## Hide unnecessary login banners.
 PrintMotd no
 #Banner /etc/issue.net
-#Hiding Debian version from SSH banner (obsecurity)
+#Hiding Debian version from SSH banner (obscurity)
 DebianBanner no
 
 ## Some options are dangerous but may be required in certain circumstances.
@@ -411,16 +513,16 @@ Keep the SSH connection open.
 
 These are the completed SSH configuration files. Please note that the entries preceded by a <code>#</code> are not necessary for functional use; they are included only as examples of what is possible in SSH. If you do not have a specific use for any of the commented-out options in either configuration file, do not use them at all.
 
-The Ciphers, MACs, and Kex algorithms are all the strongest available at the time of writing with OpenSSH version 7.9 on Debian buster. The entries in the configuration files above are the most important and will establish a functional and well-guarded setup. Use ed25519 keys only. RSA and ECDSA are outdated. Use the <code>ssh-keygen</code> command to generate the keys.
+The Ciphers, MACs, and Kex algorithms are all the strongest available at the time of writing with OpenSSH 9.2p1 on Debian Bookworm. The entries in the configuration files above are the most important and will establish a functional and well-guarded setup. Use ed25519 keys only. RSA and ECDSA are outdated. Use the <code>ssh-keygen</code> command to generate the keys.
 
-The <code>VisualHostKey yes</code> entry in the <code>/etc/ssh/ssh_config</code> file ensures that when you log in, OpenSSH shows you an ASCII-generated picture of what the key looks like. In addition to all other verifications, this is one last line of defense to alert you to a changed or incorrect key.
+The <code>VisualHostKey yes</code> entry in the <code>/etc/ssh/ssh_config.d/30_security-misc.conf</code> file ensures that when you log in, OpenSSH shows you an ASCII-generated picture of what the key looks like. In addition to all other verifications, this is one last line of defense to alert you to a changed or incorrect key.
 
-Generally, newer OpenSSH versions will choose the strongest cipher on their own when negotiating a connection, but the configuration files establish in what order they are parsed. Both sides need to have the same or compatible OpenSSH versions and cipher, MAC, and Kex algorithm options.
+Generally, newer OpenSSH versions will choose the strongest cipher on their own when negotiating a connection, but the configuration files establish in what order they are parsed. Both sides need to have the same or compatible OpenSSH versions and Ciphers, MACs, KexAlgorithms, HostKeyAlgorithms, and PubkeyAcceptedAlgorithms options.
 
 == Firewall Settings and Rules ==
 {{Testers-only}}
 
-It is necessary to make specific firewall rules for your intended SSH activity. For example, if you wanted to connect to a server at <code>123.45.678</code> and both your configuration and the server's configuration specify port <code>4675</code> to communicate over:
+It is necessary to make specific firewall rules for your intended SSH activity. For example, if you wanted to connect to a server at <code>123.45.678.910</code> and both your configuration and the server's configuration specify port <code>4675</code> to communicate over:
 
 {{CodeSelect|code=
 sudo iptables -A OUTPUT -p tcp -o [interface-name] -s [your client ssh ip] -d [ssh server ip] --dport 4675 --j ACCEPT
@@ -444,7 +546,7 @@ This should complete the SSH setup. Some people also recommend re-generating the
 
 = SSH Login Comparison Table =
 
-'''Note''': Shadowed file password symbol evaluation is done left to right, if a password locked or disabled and a plain-text or encrypted password is set, the password can't be used for password-based logins. Please consult [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_.2Fetc.2Fshadow_File|the User page]] for more information.
+'''Note''': <code>/etc/shadow</code> password symbol evaluation is done left to right. If a password is locked or disabled and a plain-text or encrypted password is set, the password can't be used for password-based logins. Please consult [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_.2Fetc.2Fshadow_File|the User page]] for more information.
 
 '''Disclaimer''': This information is provided as-is without any guarantees or warranties of any kind, including but not limited to correctness, completeness, or fitness for a particular purpose. Users are responsible for testing and verifying their specific configurations to ensure security and functionality. Our [[Terms of Service]] apply.
 

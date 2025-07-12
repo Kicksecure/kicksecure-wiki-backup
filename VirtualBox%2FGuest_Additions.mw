@@ -64,10 +64,8 @@ Select the operating system running inside the VM.
 | type    = notice
 | image   = [[File:Ambox_notice.png|40px|alt=Info]]
 | text    = <u>Note</u>:
-It is unnecessary to power off the virtual machine. <ref>
-From VirtualBox v6+.
-</ref> No group modifications required. Documentation is complete as is. <ref>
-For better usability, the pre-installed {{project_name_short}} package [https://github.com/{{project_name_short}}/vm-config-dist vm-config-dist] has already added the account <code>user</code> to the group <code>vboxsf</code>. This is implemented in [https://github.com/{{project_name_short}}/vm-config-dist/blob/master/usr/lib/systemd/system/mnt-shared-vbox.service <code>/lib/systemd/system/mnt-shared-vbox.service</code>].
+No group modifications required. Documentation is complete as is. <ref>
+For better usability, the pre-installed {{project_name_short}} package [https://github.com/{{project_name_short}}/vm-config-dist vm-config-dist] has already added the account <code>user</code> to the group <code>vboxsf</code>. This is implemented in [https://github.com/{{project_name_short}}/vm-config-dist/blob/master/usr/libexec/vm-config-dist/mount-shared <code>/usr/libexec/vm-config-dist/mount-shared</code>], which runs automatically on boot.
 </ref>
 }}
 
@@ -86,7 +84,7 @@ For better usability, the pre-installed {{project_name_short}} package [https://
 
 [[File:vbox-shared-folder-3.png|600px]]
 
-5. <code>Folder Name</code> &rarr; Type: <code>shared</code>. A different folder name can be used, but <code>shared</code> is recommended so it matches the example documented below, Then press on <code>Select Folder</code>. <ref>do <u>not</u> use <code>share</code> (without the trailing <code>d</code>)!</ref>
+5. <code>Folder Name</code> &rarr; Type: <code>shared</code>. A different folder name can be used, but <code>shared</code> is recommended so it matches the example documented below, Then press on <code>Select Folder</code>. <ref>Do <u>not</u> use <code>share</code> (without the trailing <code>d</code>)!</ref>
 
 [[File:vbox-shared-folder-4.png|600px]]
 
@@ -94,18 +92,14 @@ For better usability, the pre-installed {{project_name_short}} package [https://
 If you do not wish to write to that folder from within the VM, you are free to check/enable this setting.
 </ref>
 
-7. Check <code>Auto-mount</code>. <ref name=vboxversiondependent>
-If the option is unavailable, upgrade VirtualBox.
-</ref>
+7. Ensure <code>Auto-mount</code> is unchecked.
 
-8. <code>Mount Point</code> &rarr; Leave as is (leave it empty and do not make any changes). <ref>
-Alternatively, the folder <code>/home/user/shared</code> can be chosen. The VirtualBox default means that the folder would be owned by <code>root</code> and the group <code>vboxsf</code>.
-</ref>
+8. <code>Mount Point</code> &rarr; Leave as is (leave it empty and do not make any changes).
 
 9. Check <code>Make Permanent</code> (if that option exists). <ref>
 This is specific to the VirtualBox version; newer versions may no longer have this option.
 
-Check <code>Make Permanent</code> if this setting should persist after restarting the virtual machine. Otherwise, this setting will be temporary.
+Check <code>Make Permanent</code> if this setting should persist after fully shutting down the virtual machine and booting it again. Otherwise, this setting will be temporary (though it will survive a reboot that does not involve a full shutdown).
 </ref>
 
 [[File:vbox-shared-folder-5.png|600px]]
@@ -116,14 +110,14 @@ Check <code>Make Permanent</code> if this setting should persist after restartin
 
 [[File:vbox-shared-folder-6.png|600px]]
 
-12. The process is now complete, and the shared folder can be used.
+12. Reboot the virtual machine.
 
-In the above example, the <code>shared</code> folder will accessible as <code>/media/sf_shared</code>. <ref>
-By default, VirtualBox uses the prefix <code>sf_</code>.
-</ref> The folder can be opened using a [[Software#File Manager|file manager]] such as Thunar, for example. To open it using the command line, run:
+13. The process is now complete, and the shared folder can be used.
+
+The shared folder will be accessible as <code>/mnt/shared</code>. <ref>This is hardcoded in [https://github.com/{{project_name_short}}/vm-config-dist/blob/master/usr/libexec/vm-config-dist/mount-shared <code>/usr/libexec/vm-config-dist/mount-shared</code>]. Previously, VirtualBox's built-in shared folder mounting was used, but it is no longer used because it sometimes silently fails to mount a shared folder, and has very inflexible permissions.</ref> The folder can be opened using a [[Software#File Manager|file manager]] such as Thunar, for example. To open it using the command line, run:
 
 {{CodeSelect|code=
-cd /media/sf_shared
+cd /mnt/shared
 }}
 }}
 }}
@@ -152,7 +146,7 @@ With the shared folders feature of Oracle VM VirtualBox, you can access files of
 sudo adduser user vboxsf
 }}
 # A reboot is required to make group changes take effect.
-# Follow the instructions for [[#{{project_name_short}}|{{project_name_short}}]].
+# Follow the instructions for [[#{{project_name_short}}|{{project_name_short}}]], but check the <code>Auto-mount</code> checkbox when adding the shared folder. The folder will be made available in the VM under <code>/media/sf_shared</code>.
 }}
 }} <!-- end of tab controller 1 -->
 
@@ -163,13 +157,13 @@ sudo adduser user vboxsf
 If running the following command...
 
 {{CodeSelect|code=
-cd /media/sf_shared
+cd /mnt/shared
 }}
 
 Leads to the following error:
 
 <pre>
-cd: permission denied: /media/sf_shared
+cd: permission denied: /mnt/shared
 </pre>
 
 Only then try the commands below.
@@ -180,17 +174,15 @@ This is a simple Linux file permissions issue. These are usually easy to fix whe
 
 This issue should be mostly [[unspecific|unspecific to {{project_name_short}}]]. [[Self Support First Policy]] is applicable. [[Please Use Search Engines And See Documentation First]].
 
-'''1.''' '''Warnings.'''
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = Do not attempt to use <code>chown</code> or <code>chmod</code> to fix the permissions of the shared folder. VirtualBox's shared folder feature does not understand UNIX file permissions. Attempting to change the permissions on the shared folder or its contents will fail.
+}}
 
-The following command uses the parameter <code>--recursive</code>, which is "risky"... What does that mean?
+'''1.''' {{sysmaint_notice}}
 
-* <u>Security risk:</u> No.
-* <u>Corner cases risk:</u> Yes. If something is relying on permissions and group memberships. For example, if there was a full Linux operating system inside folder <code>/media/sf_shared</code>, these would be changed, which would make the operating system unbootable. But that might be unlikely. Unless the user copied a whole operating system into the <code>/media/sf_shared</code> folder, there should be no such issue.
-* [[Untested]]!
-
-'''2.''' {{sysmaint_notice}}
-
-'''3.''' '''Group configuration.'''
+'''2.''' '''Group configuration.'''
 
 Add the Linux user account that will utilize shared folders from inside the VM to group <code>vboxsf</code>. The following example will use account "<code>user</code>".
 
@@ -204,19 +196,7 @@ sudo adduser user vboxsf
 sudo adduser sysmaint vboxsf
 }}
 
-'''4.''' '''File permissions configuration.'''
-
-{{CodeSelect|code=
-sudo chmod --recursive 770 /media/sf_shared
-}}
-
-'''5.''' '''File ownership configuration.'''
-
-{{CodeSelect|code=
-sudo chown --recursive root:vboxsf /media/sf_shared
-}}
-
-'''6.''' '''Reboot required.''' <ref>
+'''3.''' '''Reboot required.''' <ref>
 Due to <code>adduser</code> making Linux user group modification.
 </ref>
 
@@ -224,7 +204,7 @@ Due to <code>adduser</code> making Linux user group modification.
 reboot
 }}
 
-'''7.''' '''Done.'''
+'''4.''' '''Done.'''
 
 Linux file permissions should be fixed.
 

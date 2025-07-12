@@ -10,15 +10,14 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== SSH wiki page review ==
-* review [[SSH]] wiki page
-* this is in preparation for later when porting to Debian trixie, because then the SSH client and separate SSH server configuration snippets should be shipped together with security-misc (there is already a separate task for that)
-* should we use <code>UsePAM No</code>?
-** Issue when using <code>UsePAM No</code>: libpam-tmpdir is ignored, because not using PAM and folder <code>/run/user/1000</code> is not created after login.
-* SSH Login Comparison Table doesn't need a through review.
-* Sane to use PQR (post quantum cryptography) ciphers as much as possible only?
-** Aaron: The default key exchange algorithm in Debian 13 is mlkem768x25519-sha256 (which is quantum-resistant). It might be a good idea to not change the default settings so as to prevent people locking themselves out of their servers on upgrade. Perhaps we should document how to turn off non-quantum-resistant algorithms manually?
-*** Patrick: Yes.
+== user-sysmaint-split - Whonix-Gateway ==
+* think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
+* document on [[Dev/user-sysmaint-split]]
+** Create a new "VERIFIED Mode | USER Session | daily activities" that is essentially live mode but with /home persistent and dm-verity enabled.
+** This should be used for verified boot in general most likely.
+** Patrick: Any immediate changes useful on Whonix-Gateway long as verified boot does not get implemented?
+** Patrick: If verified boot gets enabled on Whonix-Gateway, how the user would modify system Tor configuration? Use /usr/local similar as it is done in Qubes-Whonix?
+** Patrick: If "PERSISTENT Mode | USER Session" gets renamed to verified mode, that seems to blurry the boundary between persistent mode and live mode? Maybe we don't need to rename any boot modes but implement verified boot invisible to the user? Because if we s/persistent/verified, how would we rename live mode?
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -642,11 +641,63 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== user-sysmaint-split - Whonix-Gateway ==
-* think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
-* document on [[Dev/user-sysmaint-split]]
-** Create a new "VERIFIED Mode | USER Session | daily activities" that is essentially live mode but with /home persistent and dm-verity enabled.
-** This should be used for verified boot in general most likely.
+== SSH wiki page review ==
+* review [[SSH]] wiki page
+* this is in preparation for later when porting to Debian trixie, because then the SSH client and separate SSH server configuration snippets should be shipped together with security-misc (there is already a separate task for that)
+* should we use <code>UsePAM No</code>?
+** Issue when using <code>UsePAM No</code>: libpam-tmpdir is ignored, because not using PAM and folder <code>/run/user/1000</code> is not created after login.
+* SSH Login Comparison Table doesn't need a through review.
+* Sane to use PQR (post quantum cryptography) ciphers as much as possible only?
+** Aaron: The default key exchange algorithm in Debian 13 is mlkem768x25519-sha256 (which is quantum-resistant). It might be a good idea to not change the default settings so as to prevent people locking themselves out of their servers on upgrade. Perhaps we should document how to turn off non-quantum-resistant algorithms manually?
+*** Patrick: Yes.
+* Aaron: Reviewed, revised.
+** Also started an OpenSSH mailing list thread to see what the status is on implementing post-quantum-secure signatures in OpenSSH, since this seems to be the only piece of OpenSSH's cryptography that is not yet quantum-secure.
+
+== vm-config-dist - add sysmaint support and refactoring ==
+* refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
+* sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
+* harden permissions: <code>mkdir --mode 777 --parents /mnt/shared</code> might be non-ideal
+* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
+** For permission hardening, the ownership of the directory is set to <code>root:vboxsf</code> (or the KVM equivalent <code>root:kvmsf</code>, which I "made up" for the script), and the permissions are set to 770, allowing any user in the kvmsf or vboxsf group to read and write files in the shared folder.
+** VirtualBox automatic directory mounting was placing the directory at <code>/media/sf_shared</code> and not permitting permission changes, thus VBox shared folders are manually mounted with appropriate settings. We should probably change https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Kicksecure to match with this. (<code>chown</code> and <code>chmod</code> are no-ops on vboxsf filesystems, likely due to the fact that VirtualBox can't guarantee the host will even understand UNIX file permissions since VirtualBox also works on Windows and macOS.)
+** QEMU passes through file permissions much better than VirtualBox when using 9pfs, but as a result the permissions of the shared folder will carry over directly into the guest and there is no overriding them.
+** We don't have any documentation at all on QEMU/KVM shared folders yet, to my awareness. Should we write some?
+*** Patrick: Documentation is Whonix only because Kicksecure KVM is not so popular yet. We might migrate the docuemntation at a much later point from Whonix to Kicksecure. Please check existing Whonix documentation and adjust for new shared-folder-help: https://www.whonix.org/wiki/KVM#Shared_Folders
+** Patrick: Merged.
+** Patrick: Suitable for instant package migration?
+*** Aaron: Might be worth testing for some time to make sure spurious systemd unit failures don't result. Regression impact is likely to be low though (automatic shared folder mounting didn't work that well to begin with), so we could stand to deploy it sooner than the next release possibly. Shared a minor code patch that may potentially be useful to apply in chat.
+** Patrick: Please update documentation for VirtualBox / Whonix KVM.
+*** Aaron: Created https://www.kicksecure.com/wiki/KVM#Shared_Folders (specifically the Shared Folders section), updated https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Shared_Folder, https://www.kicksecure.com/wiki/About#Usability_by_Default, and https://www.whonix.org/w/index.php?title=KVM&stable=0#Shared_Folders
+*** Did not realize that I was supposed to only put the KVM documentation under Whonix, mistakenly thought I should put it under Kicksecure as well. Can remove if desirable.
+
+== review and improve docker and git integration code ==
+* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
+* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
+* holistic review (security, usability for developers)
+* [1] ./build-steps.d/1200_prepare-build-machine
+** Aaron: Didn't appear to need changes to me. There might be some reorganization we could do around when packages are installed when working with Docker but that's it.
+* [2] ./help-steps/git-gpg-verify
+** Aaron: Obsoleted by derivative-update, removed.
+* [3] ./help-steps/git_sanity_test
+** Aaron: Doesn't look like it needs any changes.
+* [4] developer-meta-files /usr/bin/dm-git-tag-checkout-latest
+** Aaron: Obsoleted by derivative-update option <code>--tag latest</code>. Can be removed once derivative-update is known to be robust.
+* Post-review changes: https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
+** Leaving room for tabletseeker to implement the derivative-update script if they want to, otherwise we can add that to the task list for me to work on.
+** Patrick: please implement derivative-update script and re-design/re-factor above scripts [1] [2] [3] [4]
+* https://github.com/derivative-maker/derivative-maker/pull/26
+** Patrick: please take over
+* Aaron: Current implementation: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/docker
+** All update code has been removed from derivative-maker-docker for reasons explained below.
+** derivative-update is intended to act as a general-purpose checkout, fetch, and merge tool for derivative-maker. It attempts to verify refs and tags BEFORE checking them out if at all possible, and reverts back to known-good refs and tags if that isn't possible. It also verifies the active commit before checking out another ref, allowing it to act as a trust-on-first-use mechanism for users who aren't technically skilled enough to verify the repo themselves. THis provides some level of security even if it isn't perfect.
+** derivative-maker-docker can't safely do updates within the Docker container because it may break (or at least complicate) this TOFU mechanism to some degree. The user would end up with a container-specific keyring and their own GPG keyring, which could result in inconsistencies between what the user thinks they trust and what they actually trust.
+** Code should be considered beta-status. It ''looks'' right to me, but it has not been heavily tested, and it needs careful peer review to ensure it never leaves the repository in a state where code in the working tree is malicious in the event of a repo compromise.
+* Patrick: added TODO items to the script
+* Aaron: Implemented remaining TODOs in derivative-update: https://github.com/ArrayBolt3/derivative-maker/commit/6e7bcd108e8a0b397b5be0f4f7ee67a91654a821
+* Patrick: Please re-review, fix.
+* Aaron: Re-reviewed, fixed some bugs and a possible (minor) security issue related to ambiguous references.
+* Patrick: Added todo and minor changes. Please re-review, fix.
+* Aaron: Looked at new TODOs, left notes in chat for those which shouldn't be implemented, and implemented one that was good. Also reviewed minor changes, they look good to me for the most part except for one comment which I left a note about in chat.
 
 == browser choice ==
 * [[Dev/browser-choice]]
@@ -684,79 +735,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * probably use zstd
 * Done: https://forums.kicksecure.com/t/dracut-compression-research/1131
 ** Would suggest using <code>xz</code>, but <code>zstd</code> is quite good also.
-
-== wayland - gui applications with root rights ==
-{{CodeSelect|code=
-sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
-}}
-
-* related wiki chapter: [[Root#Wayland|Wayland]]
-* should use <code>lxsudo</code> instead of plain <code>sudo</code>? This currently contradicts chapter [[Root#Graphical_Applications_and_Root_Rights|Graphical Applications and Root Rights]].
-** Aaron: Tested, <code>lxsudo</code> does not work for launching graphical applications as root under Wayland. <code>sudo</code> with the described environment variable does as long as the graphical toolkit being used attempts to use Wayland.
-* or <code>sudo --set-home</code>?
-** Aaron: Unsure how this would be helpful.
-* Aaron: Added some additional documentation to resolve the contradiction somewhat and fix a Qt-related issue.
-* Patrick: Please reconsider <code>sudo --set-home</code> as mentioned.
-* Aaron: Added <code>--set-home</code>. Based on experimentation, it looks like this was the default at least in Debian 13 anyway, but adding it can't hurt.
-
-== systemcheck - add account_locked_check ==
-* check that root account is locked in systemcheck
-* check that other accounts are locked when they are expected to be locked
-** in user session: sysmaint account - if existing - should be locked
-** any other accounts, if any come to mind
-*** Aaron: I believe this is already implemented in the root account lockdown task, accounts that are locked are now shown as locked. We could add an extra bit of code for highlighting the sysmaint account in red if it isn't locked while in user mode, but that would require some more (semi-complicated) code and I'm not sure it's needed. It's very hard for a user to unlock the sysmaint account in user mode, impossible to do on accident.
-
-== root account lockdown ==
-* systemcheck: make sure <code>check_login_security</code> would notify root autologin
-* systemcheck: make sure <code>check_login_security</code> would notify root account without password
-* Implemented:
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/root-login-check
-** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/root-login-check
-
-== vm-config-dist - add sysmaint support and refactoring ==
-* refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
-* sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
-* harden permissions: <code>mkdir --mode 777 --parents /mnt/shared</code> might be non-ideal
-* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
-** For permission hardening, the ownership of the directory is set to <code>root:vboxsf</code> (or the KVM equivalent <code>root:kvmsf</code>, which I "made up" for the script), and the permissions are set to 770, allowing any user in the kvmsf or vboxsf group to read and write files in the shared folder.
-** VirtualBox automatic directory mounting was placing the directory at <code>/media/sf_shared</code> and not permitting permission changes, thus VBox shared folders are manually mounted with appropriate settings. We should probably change https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Kicksecure to match with this. (<code>chown</code> and <code>chmod</code> are no-ops on vboxsf filesystems, likely due to the fact that VirtualBox can't guarantee the host will even understand UNIX file permissions since VirtualBox also works on Windows and macOS.)
-** QEMU passes through file permissions much better than VirtualBox when using 9pfs, but as a result the permissions of the shared folder will carry over directly into the guest and there is no overriding them.
-** We don't have any documentation at all on QEMU/KVM shared folders yet, to my awareness. Should we write some?
-
-== clock-random-manual-cli - set hwclock ==
-* set hwclock from clock-random-manual-cli
-* Implemented: https://github.com/ArrayBolt3/bootclockrandomization/tree/arraybolt3/hwclock
-
-== sdwdate - set hwclock ==
-* set hwclock from sdwdate
-* Implemented: https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/hwclock
-
-== review and improve docker and git integration code ==
-* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
-* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
-* holistic review (security, usability for developers)
-* [1] ./build-steps.d/1200_prepare-build-machine
-** Aaron: Didn't appear to need changes to me. There might be some reorganization we could do around when packages are installed when working with Docker but that's it.
-* [2] ./help-steps/git-gpg-verify
-** Aaron: Obsoleted by derivative-update, removed.
-* [3] ./help-steps/git_sanity_test
-** Aaron: Doesn't look like it needs any changes.
-* [4] developer-meta-files /usr/bin/dm-git-tag-checkout-latest
-** Aaron: Obsoleted by derivative-update option <code>--tag latest</code>. Can be removed once derivative-update is known to be robust.
-* Post-review changes: https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
-** Leaving room for tabletseeker to implement the derivative-update script if they want to, otherwise we can add that to the task list for me to work on.
-** Patrick: please implement derivative-update script and re-design/re-factor above scripts [1] [2] [3] [4]
-* https://github.com/derivative-maker/derivative-maker/pull/26
-** Patrick: please take over
-* Aaron: Current implementation: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/docker
-** All update code has been removed from derivative-maker-docker for reasons explained below.
-** derivative-update is intended to act as a general-purpose checkout, fetch, and merge tool for derivative-maker. It attempts to verify refs and tags BEFORE checking them out if at all possible, and reverts back to known-good refs and tags if that isn't possible. It also verifies the active commit before checking out another ref, allowing it to act as a trust-on-first-use mechanism for users who aren't technically skilled enough to verify the repo themselves. THis provides some level of security even if it isn't perfect.
-** derivative-maker-docker can't safely do updates within the Docker container because it may break (or at least complicate) this TOFU mechanism to some degree. The user would end up with a container-specific keyring and their own GPG keyring, which could result in inconsistencies between what the user thinks they trust and what they actually trust.
-** Code should be considered beta-status. It ''looks'' right to me, but it has not been heavily tested, and it needs careful peer review to ensure it never leaves the repository in a state where code in the working tree is malicious in the event of a repo compromise.
-* Patrick: added TODO items to the script
-* Aaron: Implemented remaining TODOs in derivative-update: https://github.com/ArrayBolt3/derivative-maker/commit/6e7bcd108e8a0b397b5be0f4f7ee67a91654a821
-* Patrick: Please re-review, fix.
-* Aaron: Re-reviewed, fixed some bugs and a possible (minor) security issue related to ambiguous references.
 
 == mouse fingerprinting ==
 * todo
@@ -802,6 +780,45 @@ sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== sdwdate - set hwclock ==
+* set hwclock from sdwdate
+* Implemented: https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/hwclock
+
+== clock-random-manual-cli - set hwclock ==
+* set hwclock from clock-random-manual-cli
+* Implemented: https://github.com/ArrayBolt3/bootclockrandomization/tree/arraybolt3/hwclock
+* Patrick: Merged.
+
+== root account lockdown ==
+* systemcheck: make sure <code>check_login_security</code> would notify root autologin
+* systemcheck: make sure <code>check_login_security</code> would notify root account without password
+* Implemented:
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/root-login-check
+*** Patrick: Merged.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/root-login-check
+*** Patrick: Merged.
+
+== systemcheck - add account_locked_check ==
+* check that root account is locked in systemcheck
+* check that other accounts are locked when they are expected to be locked
+** in user session: sysmaint account - if existing - should be locked
+** any other accounts, if any come to mind
+*** Aaron: I believe this is already implemented in the root account lockdown task, accounts that are locked are now shown as locked. We could add an extra bit of code for highlighting the sysmaint account in red if it isn't locked while in user mode, but that would require some more (semi-complicated) code and I'm not sure it's needed. It's very hard for a user to unlock the sysmaint account in user mode, impossible to do on accident.
+
+== wayland - gui applications with root rights ==
+{{CodeSelect|code=
+sudo XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
+}}
+
+* related wiki chapter: [[Root#Wayland|Wayland]]
+* should use <code>lxsudo</code> instead of plain <code>sudo</code>? This currently contradicts chapter [[Root#Graphical_Applications_and_Root_Rights|Graphical Applications and Root Rights]].
+** Aaron: Tested, <code>lxsudo</code> does not work for launching graphical applications as root under Wayland. <code>sudo</code> with the described environment variable does as long as the graphical toolkit being used attempts to use Wayland.
+* or <code>sudo --set-home</code>?
+** Aaron: Unsure how this would be helpful.
+* Aaron: Added some additional documentation to resolve the contradiction somewhat and fix a Qt-related issue.
+* Patrick: Please reconsider <code>sudo --set-home</code> as mentioned.
+* Aaron: Added <code>--set-home</code>. Based on experimentation, it looks like this was the default at least in Debian 13 anyway, but adding it can't hurt.
+
 == Set Mousepad to Launch in New Windows instead of Tabs by Default ==
 * please implement, if sane
 * https://forums.kicksecure.com/t/set-mousepad-to-launch-in-new-windows-instead-of-tabs-by-default/1107/1
