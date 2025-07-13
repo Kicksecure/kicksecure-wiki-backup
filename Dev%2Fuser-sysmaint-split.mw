@@ -37,6 +37,7 @@ These goals guide the user/sysmaint isolation implementation:
 
 The default GRUB boot menu entries are:
 
+* {{BootEntries|key=userver}}
 * {{BootEntries|key=userpers}}
 * {{BootEntries|key=syspers}}
 * {{BootEntries|key=userlive}}
@@ -46,21 +47,28 @@ The default GRUB boot menu entries are:
 
 Common use cases tailored to the available boot modes:
 
-* {{BootEntries|key=userpers}}
+* {{BootEntries|key=userver}}
 ** Ideal for browsing, email, chat, or running a pre-configured server.
-** read-only <code>/usr</code>, <code>/etc</code>. (Planned. Currently inability to elevate to root means that <code>/usr</code> and <code>/etc</code> are still read-write, but normal user accounts can't write anything there due to file permissions.)
+** read-only <code>/</code>, <code>/usr</code>, <code>/etc</code>, <code>/var</code>, etc. All directories that are part of the root filesystem are read-only and have an ephemeral RAM-based overlay mounted on top of them.
 ** read-write <code>/home</code>
-** Verified Boot: enabled. (Planned.)
+** Verified Boot: enabled.
+* {{BootEntries|key=userpers}}
+** Ideal for servers. Usable for desktops where unrestricted admin mode is needed.
+** read-write <code>/usr</code>, <code>/etc</code>. (Currently inability to elevate to root means that <code>/usr</code> and <code>/etc</code> are still read-write, but normal user accounts can't write anything there due to file permissions. In unrestricted admin mode, these paths are writable if the user elevates to root.)
+** read-write <code>/home</code>
+** Verified Boot: disabled.
+** If <code>user-sysmaint-split</code> is installed, this boot entry is hidden.
 * {{BootEntries|key=syspers}}: Allows running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER session afterward.
-** read-write <code>/usr</code>, <code>/etc</code>, <code>/home</code>
+** read-write <code>/</code>, <code>/usr</code>, <code>/etc</code>, <code>/home</code>
 ** Verified Boot: disabled
-* {{BootEntries|key=userlive}}: Similar to {{BootEntries|key=userpers}} but <u>without</u> persistence.
-*{{BootEntries|key=syslive}}: Similar to {{BootEntries|key=syspers}} but <u>without</u> persistence.
+* {{BootEntries|key=userlive}}: Similar to {{BootEntries|key=userver}} but <u>without</u> <code>/home</code> persistence.
+*{{BootEntries|key=syslive}}: Similar to {{BootEntries|key=syspers}} but <u>without</u> any form of persistence, and with Verified Boot enabled.
 
 = Boot Modes Comparison Table =
 
 {| class="wikitable"
 ! Feature
+! <code>[[Persistent Mode|{{nowrap|VERIFIED}} Mode]] {{nowrap|USER Session}}</code>
 ! <code>[[Persistent Mode|{{nowrap|PERSISTENT}} Mode]] {{nowrap|USER Session}}</code>
 ! <code>[[Live Mode|{{nowrap|LIVE Mode}}]] {{nowrap|USER Session}}</code>
 ! <code>[[Live Mode|{{nowrap|LIVE Mode}}]] {{nowrap|SYSMAINT Session}}</code>
@@ -69,19 +77,22 @@ Common use cases tailored to the available boot modes:
 
 ! Description
 | For daily activities such as browsing, email, chat, or running a pre-configured server.
-| Similar to {{BootEntries|key=userpers}} but without persistence.
+| For servers and desktops where unrestricted admin mode is needed. Hidden when <code>user-sysmaint-split</code> is installed.
+| Similar to {{BootEntries|key=userver}} but without persistence.
 | Similar to {{BootEntries|key=syspers}} but without persistence.
 | For system maintenance tasks such as running <code>sudo apt install [package]</code>, editing <code>/etc/apt/sources.list.d</code>, and similar tasks. Reboot into USER session afterward.
 |-
 
 ! File System Access: <code>/usr</code>, <code>/etc</code>
-| {{No}}, read-only
+| {{No}}, read-only with ephemeral overlay on <code>/</code>
+| {{Yes}}, read-write
 | {{No}}, read-only
 | {{No}}, read-only with ephemeral overlay
 | {{Yes}}, read-write
 |-
 
 ! File System Access: <code>/home</code>
+| {{Yes}}, read-write
 | {{Yes}}, read-write
 | {{No}}, read-only with ephemeral overlay
 | {{No}}, read-only with ephemeral overlay
@@ -91,12 +102,14 @@ Common use cases tailored to the available boot modes:
 ! Minimal Services
 | {{No}}
 | {{No}}
+| {{No}}
 | {{Yes}} (<code>sysmaint-boot.target</code>)
 | {{Yes}} (<code>sysmaint-boot.target</code>)
 |-
 
 ! [[Verified Boot]] ('''<u>planned</u>''')
 | {{Yes}}, Enabled
+| {{No}}, Disabled
 | {{Yes}}, Enabled
 | {{Yes}}, Enabled
 | {{No}}, Disabled
@@ -108,7 +121,7 @@ Common use cases tailored to the available boot modes:
 
 When booting into SYSMAINT Session, [[Verified Boot|verified boot]] will be disabled for the purpose of updates, software installation, and system configuration. During shutdown, the checksums required for verified boot will be created.
 
-When booting into USER Session, verified boot will be enabled for the purpose of improved security.
+When booting into VERIFIED Mode, verified boot will be enabled for the purpose of improved security.
 
 See also [[Verified_Boot#Verified_Boot_for_account_user_but_not_for_account_sysmaint|Verified Boot for account <code>user</code> but not for account <code>sysmaint</code>]].
 
@@ -343,11 +356,19 @@ Future work ideas:
 Initial implementation.
 
 <pre>
-PERSISTENT Mode | USER Session | For daily activities
+VERIFIED Mode | USER Session | For daily activities
 LIVE Mode | USER Session | For disposable use
 PERSISTENT Mode | SYSMAINT Session | For maintenance tasks
 LIVE Mode | SYSMAINT Session | For maintenance testing
 REMOVE sysmaint-user-split | Enable unrestricted admin mode
+</pre>
+
+=== Mode First Ordering without <code>user-sysmaint-split</code> ===
+
+<pre>
+VERIFIED Mode | USER Session | For daily activities
+PERSISTENT Mode | USER Session | For power user activities
+LIVE Mode | USER Session | For disposable use
 </pre>
 
 === Session First Ordering ===
@@ -355,7 +376,7 @@ REMOVE sysmaint-user-split | Enable unrestricted admin mode
 Potential future implementation based on user feedback.
 
 <pre>
-USER Session | PERSISTENT Mode | For daily activities
+USER Session | VERIFIED Mode | For daily activities
 USER Session | LIVE Mode | For disposable use
 SYSMAINT Session | PERSISTENT Mode | For maintenance tasks
 SYSMAINT Session | LIVE Mode | For maintenance testing
