@@ -10,6 +10,22 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== dracut initrd compression ==
+* research compression options
+* probably use zstd
+* Done: https://forums.kicksecure.com/t/dracut-compression-research/1131
+** Would suggest using <code>xz</code>, but <code>zstd</code> is quite good also.
+* Patrick: See forum thread.
+* Patrick: Please investigate why our initrd is uncompressed by default since dracut allegedly uses <code>zstd</code> by default.
+* Patrick: Please test Fedora's configuration snippet (linked in above forum thread).
+* Aaron: Our initrd is gzip-compressed by default. The note about zstd compression defaults in Fedora CoreOS's configuration is not saying that the dracut default is zstd to my awareness, it's saying they're resuing the default settings dracut uses for zstd when zstd is used. From the Dracut manual, "If you pass it just the name of a compression program, it will call that program with known-working arguments."
+* Aaron: Tested configuration snippet, performed worse than xz in all metrics.
+* Patrick: Please implement xz.
+
+== Stable vs Rolling Distributions - Development Considerations ==
+* add more considerations, development ideas
+* https://www.kicksecure.com/wiki/Dev/Stable_vs_Rolling_Distributions
+
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -658,36 +674,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 **** Patrick: In case unverified vs verified persistent mode has a use case that we want to support, how would we name unverified live mode versus verified live mode? (That is, in case if there is a use case for unverified live mode that we want to support.)
 **** Aaron: Current suggested naming is "VERIFIED Mode" and "PERSISTENT Mode", but maybe "VERIFIED Mode" and "UNVERIFIED Mode" or "VERIFIED Mode" and "UPDATE Mode" would be better? Should discuss in chat.
 
-== dracut initrd compression ==
-* research compression options
-* probably use zstd
-* Done: https://forums.kicksecure.com/t/dracut-compression-research/1131
-** Would suggest using <code>xz</code>, but <code>zstd</code> is quite good also.
-* Patrick: See forum thread.
-* Patrick: Please investigate why our initrd is uncompressed by default since dracut allegedly uses <code>zstd</code> by default.
-* Patrick: Please test Fedora's configuration snippet (linked in above forum thread).
-* Aaron: Our initrd is gzip-compressed by default. The note about zstd compression defaults in Fedora CoreOS's configuration is not saying that the dracut default is zstd to my awareness, it's saying they're resuing the default settings dracut uses for zstd when zstd is used. From the Dracut manual, "If you pass it just the name of a compression program, it will call that program with known-working arguments."
-* Aaron: Tested configuration snippet, performed worse than xz in all metrics.
-
-== vm-config-dist - add sysmaint support and refactoring ==
-* refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
-* sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
-* harden permissions: <code>mkdir --mode 777 --parents /mnt/shared</code> might be non-ideal
-* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
-** For permission hardening, the ownership of the directory is set to <code>root:vboxsf</code> (or the KVM equivalent <code>root:kvmsf</code>, which I "made up" for the script), and the permissions are set to 770, allowing any user in the kvmsf or vboxsf group to read and write files in the shared folder.
-** VirtualBox automatic directory mounting was placing the directory at <code>/media/sf_shared</code> and not permitting permission changes, thus VBox shared folders are manually mounted with appropriate settings. We should probably change https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Kicksecure to match with this. (<code>chown</code> and <code>chmod</code> are no-ops on vboxsf filesystems, likely due to the fact that VirtualBox can't guarantee the host will even understand UNIX file permissions since VirtualBox also works on Windows and macOS.)
-** QEMU passes through file permissions much better than VirtualBox when using 9pfs, but as a result the permissions of the shared folder will carry over directly into the guest and there is no overriding them.
-** We don't have any documentation at all on QEMU/KVM shared folders yet, to my awareness. Should we write some?
-*** Patrick: Documentation is Whonix only because Kicksecure KVM is not so popular yet. We might migrate the docuemntation at a much later point from Whonix to Kicksecure. Please check existing Whonix documentation and adjust for new shared-folder-help: https://www.whonix.org/wiki/KVM#Shared_Folders
-** Patrick: Merged.
-** Patrick: Suitable for instant package migration?
-*** Aaron: Might be worth testing for some time to make sure spurious systemd unit failures don't result. Regression impact is likely to be low though (automatic shared folder mounting didn't work that well to begin with), so we could stand to deploy it sooner than the next release possibly. Shared a minor code patch that may potentially be useful to apply in chat.
-** Patrick: Please update documentation for VirtualBox / Whonix KVM.
-*** Aaron: Created https://www.kicksecure.com/wiki/KVM#Shared_Folders (specifically the Shared Folders section), updated https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Shared_Folder, https://www.kicksecure.com/wiki/About#Usability_by_Default, and https://www.whonix.org/w/index.php?title=KVM&stable=0#Shared_Folders
-*** Did not realize that I was supposed to only put the KVM documentation under Whonix, mistakenly thought I should put it under Kicksecure as well. Can remove if desirable.
-* Patrick: https://www.whonix.org/wiki/KVM#Shared_Folders still uses <code>chmod 777 /home/user/shared</code>. Can be changed to <code>770</code>?
-** Aaron: <code>chmod 770</code> would not be advisable here. KVM will not expose the shared folder as owned by the "kvmsf" group, it will expose the original group membership and permissions of the shared folder. If the host user's UID is 1001, and the guest user's UID is 1000, using <code>chmod 770</code> will likely result in the shared folder being inaccessible within the guest without potentially dangerous permission changes.
-
 == review and improve docker and git integration code ==
 * https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
 * please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
@@ -794,6 +780,25 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== vm-config-dist - add sysmaint support and refactoring ==
+* refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
+* sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
+* harden permissions: <code>mkdir --mode 777 --parents /mnt/shared</code> might be non-ideal
+* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
+** For permission hardening, the ownership of the directory is set to <code>root:vboxsf</code> (or the KVM equivalent <code>root:kvmsf</code>, which I "made up" for the script), and the permissions are set to 770, allowing any user in the kvmsf or vboxsf group to read and write files in the shared folder.
+** VirtualBox automatic directory mounting was placing the directory at <code>/media/sf_shared</code> and not permitting permission changes, thus VBox shared folders are manually mounted with appropriate settings. We should probably change https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Kicksecure to match with this. (<code>chown</code> and <code>chmod</code> are no-ops on vboxsf filesystems, likely due to the fact that VirtualBox can't guarantee the host will even understand UNIX file permissions since VirtualBox also works on Windows and macOS.)
+** QEMU passes through file permissions much better than VirtualBox when using 9pfs, but as a result the permissions of the shared folder will carry over directly into the guest and there is no overriding them.
+** We don't have any documentation at all on QEMU/KVM shared folders yet, to my awareness. Should we write some?
+*** Patrick: Documentation is Whonix only because Kicksecure KVM is not so popular yet. We might migrate the docuemntation at a much later point from Whonix to Kicksecure. Please check existing Whonix documentation and adjust for new shared-folder-help: https://www.whonix.org/wiki/KVM#Shared_Folders
+** Patrick: Merged.
+** Patrick: Suitable for instant package migration?
+*** Aaron: Might be worth testing for some time to make sure spurious systemd unit failures don't result. Regression impact is likely to be low though (automatic shared folder mounting didn't work that well to begin with), so we could stand to deploy it sooner than the next release possibly. Shared a minor code patch that may potentially be useful to apply in chat.
+** Patrick: Please update documentation for VirtualBox / Whonix KVM.
+*** Aaron: Created https://www.kicksecure.com/wiki/KVM#Shared_Folders (specifically the Shared Folders section), updated https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Shared_Folder, https://www.kicksecure.com/wiki/About#Usability_by_Default, and https://www.whonix.org/w/index.php?title=KVM&stable=0#Shared_Folders
+*** Did not realize that I was supposed to only put the KVM documentation under Whonix, mistakenly thought I should put it under Kicksecure as well. Can remove if desirable.
+* Patrick: https://www.whonix.org/wiki/KVM#Shared_Folders still uses <code>chmod 777 /home/user/shared</code>. Can be changed to <code>770</code>?
+** Aaron: <code>chmod 770</code> would not be advisable here. KVM will not expose the shared folder as owned by the "kvmsf" group, it will expose the original group membership and permissions of the shared folder. If the host user's UID is 1001, and the guest user's UID is 1000, using <code>chmod 770</code> will likely result in the shared folder being inaccessible within the guest without potentially dangerous permission changes.
+
 == SSH wiki page review ==
 * review [[SSH]] wiki page
 * this is in preparation for later when porting to Debian trixie, because then the SSH client and separate SSH server configuration snippets should be shipped together with security-misc (there is already a separate task for that)
