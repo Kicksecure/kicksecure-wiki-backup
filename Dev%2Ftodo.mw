@@ -10,75 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== review and improve docker and git integration code ==
-* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
-* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
-* holistic review (security, usability for developers)
-* [1] ./build-steps.d/1200_prepare-build-machine
-** Aaron: Didn't appear to need changes to me. There might be some reorganization we could do around when packages are installed when working with Docker but that's it.
-* [2] ./help-steps/git-gpg-verify
-** Aaron: Obsoleted by derivative-update, removed.
-* [3] ./help-steps/git_sanity_test
-** Aaron: Doesn't look like it needs any changes.
-* [4] developer-meta-files /usr/bin/dm-git-tag-checkout-latest
-** Aaron: Obsoleted by derivative-update option <code>--tag latest</code>. Can be removed once derivative-update is known to be robust.
-* Post-review changes: https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
-** Leaving room for tabletseeker to implement the derivative-update script if they want to, otherwise we can add that to the task list for me to work on.
-** Patrick: please implement derivative-update script and re-design/re-factor above scripts [1] [2] [3] [4]
-* https://github.com/derivative-maker/derivative-maker/pull/26
-** Patrick: please take over
-* Aaron: Current implementation: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/docker
-** All update code has been removed from derivative-maker-docker for reasons explained below.
-** derivative-update is intended to act as a general-purpose checkout, fetch, and merge tool for derivative-maker. It attempts to verify refs and tags BEFORE checking them out if at all possible, and reverts back to known-good refs and tags if that isn't possible. It also verifies the active commit before checking out another ref, allowing it to act as a trust-on-first-use mechanism for users who aren't technically skilled enough to verify the repo themselves. THis provides some level of security even if it isn't perfect.
-** derivative-maker-docker can't safely do updates within the Docker container because it may break (or at least complicate) this TOFU mechanism to some degree. The user would end up with a container-specific keyring and their own GPG keyring, which could result in inconsistencies between what the user thinks they trust and what they actually trust.
-** Code should be considered beta-status. It ''looks'' right to me, but it has not been heavily tested, and it needs careful peer review to ensure it never leaves the repository in a state where code in the working tree is malicious in the event of a repo compromise.
-* Patrick: added TODO items to the script
-* Aaron: Implemented remaining TODOs in derivative-update: https://github.com/ArrayBolt3/derivative-maker/commit/6e7bcd108e8a0b397b5be0f4f7ee67a91654a821
-* Patrick: Please re-review, fix.
-* Aaron: Re-reviewed, fixed some bugs and a possible (minor) security issue related to ambiguous references.
-* Patrick: Added todo and minor changes. Please re-review, fix.
-* Aaron: Looked at new TODOs, left notes in chat for those which shouldn't be implemented, and implemented one that was good. Also reviewed minor changes, they look good to me for the most part except for one comment which I left a note about in chat.
-* Patrick: Please improve commentary (unneeded or impossible use of /ref/) based on chat.
-
-== vm-config-dist - add sysmaint support and refactoring ==
-* refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
-* sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
-* harden permissions: <code>mkdir --mode 777 --parents /mnt/shared</code> might be non-ideal
-* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
-** For permission hardening, the ownership of the directory is set to <code>root:vboxsf</code> (or the KVM equivalent <code>root:kvmsf</code>, which I "made up" for the script), and the permissions are set to 770, allowing any user in the kvmsf or vboxsf group to read and write files in the shared folder.
-** VirtualBox automatic directory mounting was placing the directory at <code>/media/sf_shared</code> and not permitting permission changes, thus VBox shared folders are manually mounted with appropriate settings. We should probably change https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Kicksecure to match with this. (<code>chown</code> and <code>chmod</code> are no-ops on vboxsf filesystems, likely due to the fact that VirtualBox can't guarantee the host will even understand UNIX file permissions since VirtualBox also works on Windows and macOS.)
-** QEMU passes through file permissions much better than VirtualBox when using 9pfs, but as a result the permissions of the shared folder will carry over directly into the guest and there is no overriding them.
-** We don't have any documentation at all on QEMU/KVM shared folders yet, to my awareness. Should we write some?
-*** Patrick: Documentation is Whonix only because Kicksecure KVM is not so popular yet. We might migrate the docuemntation at a much later point from Whonix to Kicksecure. Please check existing Whonix documentation and adjust for new shared-folder-help: https://www.whonix.org/wiki/KVM#Shared_Folders
-** Patrick: Merged.
-** Patrick: Suitable for instant package migration?
-*** Aaron: Might be worth testing for some time to make sure spurious systemd unit failures don't result. Regression impact is likely to be low though (automatic shared folder mounting didn't work that well to begin with), so we could stand to deploy it sooner than the next release possibly. Shared a minor code patch that may potentially be useful to apply in chat.
-** Patrick: Please update documentation for VirtualBox / Whonix KVM.
-*** Aaron: Created https://www.kicksecure.com/wiki/KVM#Shared_Folders (specifically the Shared Folders section), updated https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Shared_Folder, https://www.kicksecure.com/wiki/About#Usability_by_Default, and https://www.whonix.org/w/index.php?title=KVM&stable=0#Shared_Folders
-*** Did not realize that I was supposed to only put the KVM documentation under Whonix, mistakenly thought I should put it under Kicksecure as well. Can remove if desirable.
-* Patrick: https://www.whonix.org/wiki/KVM#Shared_Folders still uses <code>chmod 777 /home/user/shared</code>. Can be changed to <code>770</code>?
-
-== user-sysmaint-split - Whonix-Gateway ==
-* think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
-* document on [[Dev/user-sysmaint-split]]
-** Create a new "VERIFIED Mode | USER Session | daily activities" that is essentially live mode but with /home persistent and dm-verity enabled.
-** This should be used for verified boot in general most likely.
-** Patrick: Any immediate changes useful on Whonix-Gateway long as verified boot does not get implemented?
-*** Aaron: Not that I'm aware of.
-** Patrick: If verified boot gets enabled on Whonix-Gateway, how the user would modify system Tor configuration? Use /usr/local similar as it is done in Qubes-Whonix?
-*** Aaron: Users could apply Tor configuration the same way as they always would, it would simply be reset on reboot. For persistent changes, users would boot into <code>PERSISTENT Mode | USER Session | power user activities</code>, and make their changes. This is somewhat similar to sysmaint mode, but not as restrictive. A better way to do this could be to allow the user to store their Tor (and maybe specific other system wide) configuration files somewhere that requires admin permissions to modify, but that is not protected by verified boot - perhaps we need to add the concept of a "configuration volume" to our verified boot documentation?
-**** Patrick: Yes, we might need something similar to Qubes bind-dirs. In case of Tor, we do already support /usr/local/etc/torrc'''.d''' as documented in https://www.whonix.org/wiki/Tor#Edit_Tor_Configuration
-** Patrick: If "PERSISTENT Mode | USER Session" gets renamed to verified mode, that seems to blurry the boundary between persistent mode and live mode? Maybe we don't need to rename any boot modes but implement verified boot invisible to the user? Because if we s/persistent/verified, how would we rename live mode?
-*** Aaron: Verified mode won't replace persistent mode unless user-sysmaint-split is installed. Persistent mode will still have a use.
-**** Patrick: What is the use case of unverified persistent mode if verified persistent mode is available?
-**** Patrick: In case unverified vs verified persistent mode has a use case that we want to support, how would we name unverified live mode versus verified live mode? (That is, in case if there is a use case for unverified live mode that we want to support.)
-
-== Qubes-Whonix qrexec review ==
-* threat model: compromised workstation 
-* please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
-* check for privacy issues
-* fix in case issues are found
-
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -701,6 +632,93 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== Qubes-Whonix qrexec review ==
+* threat model: compromised workstation 
+* please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
+* check for privacy issues
+* fix in case issues are found
+* Aaron: Audited, could not find any way to cause an IP leak without lots of user interaction. Did find at least one possible way to cause one with user interaction.
+** Filed feature request: https://github.com/QubesOS/qubes-issues/issues/10051
+** Patch to implement: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/22
+
+== user-sysmaint-split - Whonix-Gateway ==
+* think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
+* document on [[Dev/user-sysmaint-split]]
+** Create a new "VERIFIED Mode | USER Session | daily activities" that is essentially live mode but with /home persistent and dm-verity enabled.
+** This should be used for verified boot in general most likely.
+** Patrick: Any immediate changes useful on Whonix-Gateway long as verified boot does not get implemented?
+*** Aaron: Not that I'm aware of.
+** Patrick: If verified boot gets enabled on Whonix-Gateway, how the user would modify system Tor configuration? Use /usr/local similar as it is done in Qubes-Whonix?
+*** Aaron: Users could apply Tor configuration the same way as they always would, it would simply be reset on reboot. For persistent changes, users would boot into <code>PERSISTENT Mode | USER Session | power user activities</code>, and make their changes. This is somewhat similar to sysmaint mode, but not as restrictive. A better way to do this could be to allow the user to store their Tor (and maybe specific other system wide) configuration files somewhere that requires admin permissions to modify, but that is not protected by verified boot - perhaps we need to add the concept of a "configuration volume" to our verified boot documentation?
+**** Patrick: Yes, we might need something similar to Qubes bind-dirs. In case of Tor, we do already support /usr/local/etc/torrc'''.d''' as documented in https://www.whonix.org/wiki/Tor#Edit_Tor_Configuration
+** Patrick: If "PERSISTENT Mode | USER Session" gets renamed to verified mode, that seems to blurry the boundary between persistent mode and live mode? Maybe we don't need to rename any boot modes but implement verified boot invisible to the user? Because if we s/persistent/verified, how would we rename live mode?
+*** Aaron: Verified mode won't replace persistent mode unless user-sysmaint-split is installed. Persistent mode will still have a use.
+**** Patrick: What is the use case of unverified persistent mode if verified persistent mode is available?
+**** Aaron: Necessary to do things like updating software or making persistent configuration changes. Software updates and reconfiguration can be done in verified mode but those changes will be lost upon reboot.
+**** Patrick: In case unverified vs verified persistent mode has a use case that we want to support, how would we name unverified live mode versus verified live mode? (That is, in case if there is a use case for unverified live mode that we want to support.)
+**** Aaron: Current suggested naming is "VERIFIED Mode" and "PERSISTENT Mode", but maybe "VERIFIED Mode" and "UNVERIFIED Mode" or "VERIFIED Mode" and "UPDATE Mode" would be better? Should discuss in chat.
+
+== dracut initrd compression ==
+* research compression options
+* probably use zstd
+* Done: https://forums.kicksecure.com/t/dracut-compression-research/1131
+** Would suggest using <code>xz</code>, but <code>zstd</code> is quite good also.
+* Patrick: See forum thread.
+* Patrick: Please investigate why our initrd is uncompressed by default since dracut allegedly uses <code>zstd</code> by default.
+* Patrick: Please test Fedora's configuration snippet (linked in above forum thread).
+* Aaron: Our initrd is gzip-compressed by default. The note about zstd compression defaults in Fedora CoreOS's configuration is not saying that the dracut default is zstd to my awareness, it's saying they're resuing the default settings dracut uses for zstd when zstd is used. From the Dracut manual, "If you pass it just the name of a compression program, it will call that program with known-working arguments."
+* Aaron: Tested configuration snippet, performed worse than xz in all metrics.
+
+== vm-config-dist - add sysmaint support and refactoring ==
+* refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
+* sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
+* harden permissions: <code>mkdir --mode 777 --parents /mnt/shared</code> might be non-ideal
+* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
+** For permission hardening, the ownership of the directory is set to <code>root:vboxsf</code> (or the KVM equivalent <code>root:kvmsf</code>, which I "made up" for the script), and the permissions are set to 770, allowing any user in the kvmsf or vboxsf group to read and write files in the shared folder.
+** VirtualBox automatic directory mounting was placing the directory at <code>/media/sf_shared</code> and not permitting permission changes, thus VBox shared folders are manually mounted with appropriate settings. We should probably change https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Kicksecure to match with this. (<code>chown</code> and <code>chmod</code> are no-ops on vboxsf filesystems, likely due to the fact that VirtualBox can't guarantee the host will even understand UNIX file permissions since VirtualBox also works on Windows and macOS.)
+** QEMU passes through file permissions much better than VirtualBox when using 9pfs, but as a result the permissions of the shared folder will carry over directly into the guest and there is no overriding them.
+** We don't have any documentation at all on QEMU/KVM shared folders yet, to my awareness. Should we write some?
+*** Patrick: Documentation is Whonix only because Kicksecure KVM is not so popular yet. We might migrate the docuemntation at a much later point from Whonix to Kicksecure. Please check existing Whonix documentation and adjust for new shared-folder-help: https://www.whonix.org/wiki/KVM#Shared_Folders
+** Patrick: Merged.
+** Patrick: Suitable for instant package migration?
+*** Aaron: Might be worth testing for some time to make sure spurious systemd unit failures don't result. Regression impact is likely to be low though (automatic shared folder mounting didn't work that well to begin with), so we could stand to deploy it sooner than the next release possibly. Shared a minor code patch that may potentially be useful to apply in chat.
+** Patrick: Please update documentation for VirtualBox / Whonix KVM.
+*** Aaron: Created https://www.kicksecure.com/wiki/KVM#Shared_Folders (specifically the Shared Folders section), updated https://www.kicksecure.com/wiki/VirtualBox/Guest_Additions#Shared_Folder, https://www.kicksecure.com/wiki/About#Usability_by_Default, and https://www.whonix.org/w/index.php?title=KVM&stable=0#Shared_Folders
+*** Did not realize that I was supposed to only put the KVM documentation under Whonix, mistakenly thought I should put it under Kicksecure as well. Can remove if desirable.
+* Patrick: https://www.whonix.org/wiki/KVM#Shared_Folders still uses <code>chmod 777 /home/user/shared</code>. Can be changed to <code>770</code>?
+** Aaron: <code>chmod 770</code> would not be advisable here. KVM will not expose the shared folder as owned by the "kvmsf" group, it will expose the original group membership and permissions of the shared folder. If the host user's UID is 1001, and the guest user's UID is 1000, using <code>chmod 770</code> will likely result in the shared folder being inaccessible within the guest without potentially dangerous permission changes.
+
+== review and improve docker and git integration code ==
+* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
+* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
+* holistic review (security, usability for developers)
+* [1] ./build-steps.d/1200_prepare-build-machine
+** Aaron: Didn't appear to need changes to me. There might be some reorganization we could do around when packages are installed when working with Docker but that's it.
+* [2] ./help-steps/git-gpg-verify
+** Aaron: Obsoleted by derivative-update, removed.
+* [3] ./help-steps/git_sanity_test
+** Aaron: Doesn't look like it needs any changes.
+* [4] developer-meta-files /usr/bin/dm-git-tag-checkout-latest
+** Aaron: Obsoleted by derivative-update option <code>--tag latest</code>. Can be removed once derivative-update is known to be robust.
+* Post-review changes: https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
+** Leaving room for tabletseeker to implement the derivative-update script if they want to, otherwise we can add that to the task list for me to work on.
+** Patrick: please implement derivative-update script and re-design/re-factor above scripts [1] [2] [3] [4]
+* https://github.com/derivative-maker/derivative-maker/pull/26
+** Patrick: please take over
+* Aaron: Current implementation: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/docker
+** All update code has been removed from derivative-maker-docker for reasons explained below.
+** derivative-update is intended to act as a general-purpose checkout, fetch, and merge tool for derivative-maker. It attempts to verify refs and tags BEFORE checking them out if at all possible, and reverts back to known-good refs and tags if that isn't possible. It also verifies the active commit before checking out another ref, allowing it to act as a trust-on-first-use mechanism for users who aren't technically skilled enough to verify the repo themselves. THis provides some level of security even if it isn't perfect.
+** derivative-maker-docker can't safely do updates within the Docker container because it may break (or at least complicate) this TOFU mechanism to some degree. The user would end up with a container-specific keyring and their own GPG keyring, which could result in inconsistencies between what the user thinks they trust and what they actually trust.
+** Code should be considered beta-status. It ''looks'' right to me, but it has not been heavily tested, and it needs careful peer review to ensure it never leaves the repository in a state where code in the working tree is malicious in the event of a repo compromise.
+* Patrick: added TODO items to the script
+* Aaron: Implemented remaining TODOs in derivative-update: https://github.com/ArrayBolt3/derivative-maker/commit/6e7bcd108e8a0b397b5be0f4f7ee67a91654a821
+* Patrick: Please re-review, fix.
+* Aaron: Re-reviewed, fixed some bugs and a possible (minor) security issue related to ambiguous references.
+* Patrick: Added todo and minor changes. Please re-review, fix.
+* Aaron: Looked at new TODOs, left notes in chat for those which shouldn't be implemented, and implemented one that was good. Also reviewed minor changes, they look good to me for the most part except for one comment which I left a note about in chat.
+* Patrick: derivative-update: Please improve commentary (unneeded or impossible use of /ref/) based on chat.
+* Aaron: Done: https://github.com/ArrayBolt3/derivative-maker/commit/35e4d9b9114c42908f093165c716b69c93e9df4f
+
 == browser choice ==
 * [[Dev/browser-choice]]
 * please implement
@@ -731,12 +749,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Test on Qubes OS
 ** Test on Whonix-Workstation
 ** Add warning popup when run in a Qubes OS AppVM (this is mentioned in the spec but not yet implemented)
-
-== dracut initrd compression ==
-* research compression options
-* probably use zstd
-* Done: https://forums.kicksecure.com/t/dracut-compression-research/1131
-** Would suggest using <code>xz</code>, but <code>zstd</code> is quite good also.
 
 == mouse fingerprinting ==
 * todo
