@@ -10,10 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== Stable vs Rolling Distributions - Development Considerations ==
-* add more considerations, development ideas
-* https://www.kicksecure.com/wiki/Dev/Stable_vs_Rolling_Distributions
-
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -367,6 +363,17 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== Qubes-Whonix qrexec review ==
+* threat model: compromised workstation 
+* please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
+* check for privacy issues
+* fix in case issues are found
+* Aaron: Audited, could not find any way to cause an IP leak without lots of user interaction. Did find at least one possible way to cause one with user interaction.
+** Filed feature request: https://github.com/QubesOS/qubes-issues/issues/10051
+** Patch to implement: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/22
+*** Patrick: Please implement as suggested by Marek.
+**** Aaron: Implemented, left some notes about shortcomings of the current implementation and suggestions for how to further improve things. Waiting on further discussion.
+
 == grml-debootstrap bootloader installation failure in Docker ==
 * https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
 * please use discretion on how worthwhile it is to spend time on this. as in, if you think it's doable without huge effort and you like docker, please implement. Otherwise, please only provide instructions for reproduction and leave it to upstream or tableseeker to fix.
@@ -383,10 +390,6 @@ sudo apt install serial-console-enable
 * Clock applet awaiting input from Patrick.
 ** Patrick: Clock applet: Can be done when porting to Debian 13 / trixie or Wayland. Preferably not inventing a clock/date widget.
 *** Aaron: Moved to "WAITING ON" since the clock is the last part of this that needs implemented, and we don't intend on doing that until the Trixie port is done.
-
-== Enterprise Laptop style WiFi Switch causes Permanent freeze ==
-* please reply, if possible: https://forums.kicksecure.com/t/enterprise-laptop-style-wifi-switch-causes-permanent-freeze/1105
-* Replied, awaiting response.
 
 == kicksecure Qubes Template - sdwdate qrexec Denied message ==
 * [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
@@ -636,6 +639,25 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== qubes integration - missing default start menu entry ==
+* missing by default:
+** Qubes App Launcher (blue/grey "Q") → Whonix-Gateway App Qube (commonly called sys-whonix) → User Firewall Settings
+** Qubes App Launcher (blue/grey "Q") → Whonix-Gateway App Qube (commonly called sys-whonix) → Global Firewall Settings
+* please do a full review for all of Qubes-Whonix for which other default start menu entries could/should be added where appropriate
+* please do a full review for all of Kicksecure for which other default start menu entries could/should be added where appropriate
+* Aaron: Made the following changes:
+** Kicksecure AppVM: Include Settings Manager, for better feature parity with the Debian 12 AppVM
+** Kicksecure TemplateVM: Remove thunar and add Settings Manager, for better feature parity with the Debian 12 TemplateVM
+** Kicksecure NetVM: Remove thunar, for better feature parity with the Debian 12 TemplateVM
+** Whonix-Workstation AppVM: Include Settings Manager, for better feature parity with the Debian 12 AppVM
+** Whonix-Workstation TemplateVM: Add sysmaint-panel. Remove thunar and add Settings Manager, for better feature parity with the Debian 12 TemplateVM.
+** Whonix-Workstation NetVM: Sync with Whonix-Workstation AppVM settings.
+** Whonix-Gateway AppVM: Add firewall configuration buttons. Include Settings Manager, for better feature parity with the Debian 12 AppVM.
+** Whonix-Gateway TemplateVM: Add sysmaint-panel. Remove thunar, add Settings Manager, for better feature parity with the Debian 12 TemplateVM. Sync with Whonix-Gateway NetVM settings.
+** Whonix-Gateway NetVM: Sync with Whonix-Gateway AppVM settings.
+*** qubes-template-kicksecure changes: https://github.com/ArrayBolt3/qubes-template-kicksecure/tree/arraybolt3/appmenu
+*** qubes-template-whonix changes: https://github.com/ArrayBolt3/qubes-template-whonix/tree/arraybolt3/appmenu
+
 == dracut initrd compression ==
 * research compression options
 * probably use zstd
@@ -650,15 +672,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Done: https://github.com/ArrayBolt3/dist-base-files/tree/arraybolt3/initrd-compress
 ** Implemented as a file directly in /etc/dracut.conf.d, since if the user chooses to modify this file, I believe this ''should'' trigger a conffile prompt if we ever modify this again.
 ** Tested in a VM, appears to work. It does ''not'' immediately regenerate the initramfs, but it will have an effect the next time the initramfs is regenerated. I believe this is the desired behavior (making the initramfs be regenerated every time dist-base-files is updated would be excessive).
-
-== Qubes-Whonix qrexec review ==
-* threat model: compromised workstation 
-* please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
-* check for privacy issues
-* fix in case issues are found
-* Aaron: Audited, could not find any way to cause an IP leak without lots of user interaction. Did find at least one possible way to cause one with user interaction.
-** Filed feature request: https://github.com/QubesOS/qubes-issues/issues/10051
-** Patch to implement: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/22
 
 == user-sysmaint-split - Whonix-Gateway ==
 * think through what verified_boot=on versus verified_boot=off should do on Whonix-Gateway
@@ -676,37 +689,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 **** Aaron: Necessary to do things like updating software or making persistent configuration changes. Software updates and reconfiguration can be done in verified mode but those changes will be lost upon reboot.
 **** Patrick: In case unverified vs verified persistent mode has a use case that we want to support, how would we name unverified live mode versus verified live mode? (That is, in case if there is a use case for unverified live mode that we want to support.)
 **** Aaron: Current suggested naming is "VERIFIED Mode" and "PERSISTENT Mode", but maybe "VERIFIED Mode" and "UNVERIFIED Mode" or "VERIFIED Mode" and "UPDATE Mode" would be better? Should discuss in chat.
-
-== review and improve docker and git integration code ==
-* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
-* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
-* holistic review (security, usability for developers)
-* [1] ./build-steps.d/1200_prepare-build-machine
-** Aaron: Didn't appear to need changes to me. There might be some reorganization we could do around when packages are installed when working with Docker but that's it.
-* [2] ./help-steps/git-gpg-verify
-** Aaron: Obsoleted by derivative-update, removed.
-* [3] ./help-steps/git_sanity_test
-** Aaron: Doesn't look like it needs any changes.
-* [4] developer-meta-files /usr/bin/dm-git-tag-checkout-latest
-** Aaron: Obsoleted by derivative-update option <code>--tag latest</code>. Can be removed once derivative-update is known to be robust.
-* Post-review changes: https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
-** Leaving room for tabletseeker to implement the derivative-update script if they want to, otherwise we can add that to the task list for me to work on.
-** Patrick: please implement derivative-update script and re-design/re-factor above scripts [1] [2] [3] [4]
-* https://github.com/derivative-maker/derivative-maker/pull/26
-** Patrick: please take over
-* Aaron: Current implementation: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/docker
-** All update code has been removed from derivative-maker-docker for reasons explained below.
-** derivative-update is intended to act as a general-purpose checkout, fetch, and merge tool for derivative-maker. It attempts to verify refs and tags BEFORE checking them out if at all possible, and reverts back to known-good refs and tags if that isn't possible. It also verifies the active commit before checking out another ref, allowing it to act as a trust-on-first-use mechanism for users who aren't technically skilled enough to verify the repo themselves. THis provides some level of security even if it isn't perfect.
-** derivative-maker-docker can't safely do updates within the Docker container because it may break (or at least complicate) this TOFU mechanism to some degree. The user would end up with a container-specific keyring and their own GPG keyring, which could result in inconsistencies between what the user thinks they trust and what they actually trust.
-** Code should be considered beta-status. It ''looks'' right to me, but it has not been heavily tested, and it needs careful peer review to ensure it never leaves the repository in a state where code in the working tree is malicious in the event of a repo compromise.
-* Patrick: added TODO items to the script
-* Aaron: Implemented remaining TODOs in derivative-update: https://github.com/ArrayBolt3/derivative-maker/commit/6e7bcd108e8a0b397b5be0f4f7ee67a91654a821
-* Patrick: Please re-review, fix.
-* Aaron: Re-reviewed, fixed some bugs and a possible (minor) security issue related to ambiguous references.
-* Patrick: Added todo and minor changes. Please re-review, fix.
-* Aaron: Looked at new TODOs, left notes in chat for those which shouldn't be implemented, and implemented one that was good. Also reviewed minor changes, they look good to me for the most part except for one comment which I left a note about in chat.
-* Patrick: derivative-update: Please improve commentary (unneeded or impossible use of /ref/) based on chat.
-* Aaron: Done: https://github.com/ArrayBolt3/derivative-maker/commit/35e4d9b9114c42908f093165c716b69c93e9df4f
 
 == browser choice ==
 * [[Dev/browser-choice]]
@@ -783,6 +765,48 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== review and improve docker and git integration code ==
+* https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/136
+* please start reading from here: https://forums.whonix.org/t/docker-container-that-builds-whonix-images/17494/117
+* holistic review (security, usability for developers)
+* [1] ./build-steps.d/1200_prepare-build-machine
+** Aaron: Didn't appear to need changes to me. There might be some reorganization we could do around when packages are installed when working with Docker but that's it.
+* [2] ./help-steps/git-gpg-verify
+** Aaron: Obsoleted by derivative-update, removed.
+* [3] ./help-steps/git_sanity_test
+** Aaron: Doesn't look like it needs any changes.
+* [4] developer-meta-files /usr/bin/dm-git-tag-checkout-latest
+** Aaron: Obsoleted by derivative-update option <code>--tag latest</code>. Can be removed once derivative-update is known to be robust.
+* Post-review changes: https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
+** Leaving room for tabletseeker to implement the derivative-update script if they want to, otherwise we can add that to the task list for me to work on.
+** Patrick: please implement derivative-update script and re-design/re-factor above scripts [1] [2] [3] [4]
+* https://github.com/derivative-maker/derivative-maker/pull/26
+** Patrick: please take over
+* Aaron: Current implementation: https://github.com/ArrayBolt3/derivative-maker/tree/arraybolt3/docker
+** All update code has been removed from derivative-maker-docker for reasons explained below.
+** derivative-update is intended to act as a general-purpose checkout, fetch, and merge tool for derivative-maker. It attempts to verify refs and tags BEFORE checking them out if at all possible, and reverts back to known-good refs and tags if that isn't possible. It also verifies the active commit before checking out another ref, allowing it to act as a trust-on-first-use mechanism for users who aren't technically skilled enough to verify the repo themselves. THis provides some level of security even if it isn't perfect.
+** derivative-maker-docker can't safely do updates within the Docker container because it may break (or at least complicate) this TOFU mechanism to some degree. The user would end up with a container-specific keyring and their own GPG keyring, which could result in inconsistencies between what the user thinks they trust and what they actually trust.
+** Code should be considered beta-status. It ''looks'' right to me, but it has not been heavily tested, and it needs careful peer review to ensure it never leaves the repository in a state where code in the working tree is malicious in the event of a repo compromise.
+* Patrick: added TODO items to the script
+* Aaron: Implemented remaining TODOs in derivative-update: https://github.com/ArrayBolt3/derivative-maker/commit/6e7bcd108e8a0b397b5be0f4f7ee67a91654a821
+* Patrick: Please re-review, fix.
+* Aaron: Re-reviewed, fixed some bugs and a possible (minor) security issue related to ambiguous references.
+* Patrick: Added todo and minor changes. Please re-review, fix.
+* Aaron: Looked at new TODOs, left notes in chat for those which shouldn't be implemented, and implemented one that was good. Also reviewed minor changes, they look good to me for the most part except for one comment which I left a note about in chat.
+* Patrick: derivative-update: Please improve commentary (unneeded or impossible use of /ref/) based on chat.
+* Aaron: Done: https://github.com/ArrayBolt3/derivative-maker/commit/35e4d9b9114c42908f093165c716b69c93e9df4f
+* Patrick: Merged.
+
+== Stable vs Rolling Distributions - Development Considerations ==
+* add more considerations, development ideas
+* https://www.kicksecure.com/wiki/Dev/Stable_vs_Rolling_Distributions
+* Aaron: Added a lot of info to the page. Not sure if there are concrete development ideas yet, however it is worth pointing out that Fedora's "semi-stable" approach seems to have many of the security advantages of both stable and rolling releases. Inspiration for further development ideas could potentially be taken from them.
+
+== Enterprise Laptop style WiFi Switch causes Permanent freeze ==
+* please reply, if possible: https://forums.kicksecure.com/t/enterprise-laptop-style-wifi-switch-causes-permanent-freeze/1105
+* Replied, awaiting response.
+* Thread has been inactive for a while, considering complete for now.
+
 == vm-config-dist - add sysmaint support and refactoring ==
 * refactoring: out source systemd unit entry <code>ExecStart=/bin/bash -c ...</code> into standalone script
 * sysmaint support: <code>/usr/sbin/adduser sysmaint vboxsf</code>
