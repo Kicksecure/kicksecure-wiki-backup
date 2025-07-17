@@ -7,7 +7,7 @@ Secure Boot
 |image=Secureboot12312.png
 }}
 {{boot_firmware}}
-[[File:Secureboot12312.png|thumb|200px]]
+[[File:Secureboot12312.png|thumb|50px]]
 {{intro|
 Information on Secure Boot and DKMS Signing Key (MOK Key) Enrollment to ensure kernel modules can be loaded on systems with Secure Boot enabled.
 }}
@@ -30,13 +30,71 @@ Without a DKMS Signing Key Enrollment, the following functionality will be broke
 This is because, when Secure Boot is enabled, custom (non-mainline in Linux) kernel modules are rejected by the Linux kernel.
 
 = Symptoms =
-You will see a journal message if Secure Boot is disabled and an unsigned kernel module is being loaded.
+== module verification failed: signature and/or required key missing - tainting kernel ==
+This message appears in Linux systems when you load a kernel module that is either unsigned or signed with a key the running kernel doesn't recognize. It usually looks like this:
 
 <pre>
 tirdad: module verification failed: signature and/or required key missing - tainting kernel
 </pre>
 
+'''Recommended user action:'''
+
+Choose <u>either</u> option A <u>or</u> B.
+
+* '''A)''' <u>No action:</u> No user action is necessarily required.; <u>Or</u>,
+* '''B)''' <u>Secure Boot compliance:</u> Enable Secure Boot and [[Secure_Boot#Secure_Boot_DKMS_Signing_Key_Enrollment|Secure Boot DKMS Signing Key Enrollment]].
+
+'''What is happening:'''
+
+The kernel loads the module normally and then ''taints'' itself, marking the state as potentially unsafe. This is mainly for diagnostic and support purposes and may matter in enterprise contexts where running a tainted kernel (unsigned kernel modules) is prohibited.
+
+Note that the package that shipped the kernel module was probably signed, but the module as a whole isn't signed with a separate key. This is not an issue for Open Source modules that are compiled using DKMS at build time such as <code>tirdad</code>.
+
+'''Effects of this message:'''
+
+* <u>Only a warning:</u> Not an error. Most of the time, the module still loads and works as intended. The message is a warning indicating your security policy was bypassed.
+* <u>Tainted Kernel:</u> The kernel logs the event, and the running kernel is marked as "tainted." Some modules (especially modules not coming together with the Linux kernel) cause this tainting even if they work normally.
+
+'''Relation to Secure Boot:'''
+
+This message can only happen if Secure Boot is disabled. If Secure Boot were enabled, the kernel module load would be rejected.
+
+== systemd-modules-load - Failed to insert module module name - Key was rejected by service ==
+
+This message appears when a kernel module fails to load because its signature could not be verified under Secure Boot policies. Examples:
+
+<pre>
+systemd-modules-load[PID]: Failed to insert module '[module name]': Key was rejected by service
+</pre>
+
+<pre>
+systemd-modules-load[795]: Failed to insert module ‘tirdad’: Key was rejected by service
+</pre>
+
+'''Recommended user action:'''
+
+Choose <u>either</u> option A <u>or</u> B.
+
+* '''A)''' <u>Secure Boot non-compliance:</u> [[Secure_Boot#Disable_Secure_Boot|Disable Secure Boot]]; <u>or</u>
+* '''B)''' <u>Secure Boot compliance:</u> [[Secure_Boot#Secure_Boot_DKMS_Signing_Key_Enrollment|Secure Boot DKMS Signing Key Enrollment]]
+
+'''What is happening:'''
+
+With Secure Boot enabled, the kernel enforces strict module signing policies. The module in question is likely unsigned, signed with an untrusted key, or otherwise incompatible with the Secure Boot trust chain. As a result, the kernel refuses to load it.
+
+'''Effects of this message:'''
+
+* <u>Module not loaded:</u> The affected module will not function, potentially disabling related functionality (e.g., device drivers or security modules).
+* <u>Security:</u> The recommended kernel module <code>tirdad</code> will fail to load. Also other potentially wanted kernel modules  not included with the Linux kernel will fail to load. 
+
+'''Relation to Secure Boot:'''
+
+This message only occurs when Secure Boot is enabled. Secure Boot ensures that only signed and trusted kernel modules are allowed to run. If a module’s key is not enrolled, the kernel will reject it.
+
 = Secure Boot DKMS Signing Key Enrollment =
+
+* <u>context:</u> [[Secure_Boot#Introduction|Secure Boot, Introduction]]
+* <u>purpose:</u> [[Secure_Boot#Rationale_for_DKMS_Signing_Key_Enrollment|Rationale for DKMS Signing Key Enrollment]]
 
 '''1.''' To import the MOK certificate, make sure <code>mokutil</code> is installed.
 
@@ -58,7 +116,11 @@ Expected output:
 SecureBoot enabled
 </pre>
 
-If Secure Boot is not enabled, no further steps from this wiki chapter need to be applied.
+* If Secure Boot is disabled:
+** If you wish to enable it, see [[Secure_Boot#Enable_Secure_Boot|Enable Secure Boot]].
+** If you do not wish to enable it, no further steps from this wiki chapter need to be applied.
+* If Secure Boot is enabled:
+** Proceed with the steps below.
 
 '''3.''' Import the DKMS MOK key.
 
@@ -130,13 +192,24 @@ The module can now be loaded without issues.
 
 Credits: Based on https://github.com/dell/dkms?tab=readme-ov-file#secure-boot
 
-= Disable Secure Boot =
-== Disable Secure Boot using update-secureboot-policy ==
+= Enable or Disable Secure Boot =
+== Disable Secure Boot ==
+Choose an option.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= === Disable Secure Boot using update-secureboot-policy ===
+|content=
 Secure Boot can be disabled using <code>update-secureboot-policy</code>.
 
-This tool is available only for Debian-based distributions, such as Kicksecure and Whonix. For other Linux distributions, see the alternative below.
+This tool is available only for Debian-based distributions, such as Kicksecure and Whonix. For other Linux distributions, see the alternative option.
 
-'''1.''' Choose one of these methods:
+'''1.''' {{sysmaint_notice}}
+
+'''2.''' Choose one of these methods:
 
 * '''A)''' Terminal-based graphical user interface: {{CodeSelect|code=
 sudo update-secureboot-policy
@@ -145,11 +218,15 @@ sudo update-secureboot-policy
 sudo update-secureboot-policy --disable
 }}
 
-'''2.''' Reboot your system.
+'''3.''' Reboot your system.
 
-'''3.''' Done.
+'''4.''' Done.
+}} <!-- close tab -->
 
-== Disable Secure Boot in BIOS/UEFI ==
+{{Tab
+|title= === Disable Secure Boot in BIOS/UEFI ===
+
+|content=
 Alternatively, Secure Boot can be disabled using the firmware setup (BIOS/UEFI).
 
 '''1.''' Restart your computer and enter the BIOS/UEFI settings.
@@ -159,6 +236,37 @@ Alternatively, Secure Boot can be disabled using the firmware setup (BIOS/UEFI).
 '''3.''' Save changes and exit.
 
 '''4.''' Done.
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
+
+== Enable Secure Boot ==
+If the user wishes to use Secure Boot, it must be enabled using the firmware setup (BIOS/UEFI).
+
+'''1.''' Restart your computer and enter the BIOS/UEFI settings.
+
+'''2.''' Locate the Secure Boot option and enable it.
+
+'''3.''' Save changes and exit.
+
+'''4.''' Enable Secure Boot using <code>update-secureboot-policy</code>.
+
+This may or may not be needed. Most likely not needed, unless Secure boot has been previously disabled using <code>update-secureboot-policy</code>. As be instruction below.
+
+'''5.''' {{sysmaint_notice}}
+
+'''6.''' Choose one of these methods:
+
+* '''A)''' Terminal-based graphical user interface: {{CodeSelect|code=
+sudo update-secureboot-policy
+}}
+* '''B)''' Command-line interface: {{CodeSelect|code=
+sudo update-secureboot-policy --enable
+}}
+
+'''7.''' Reboot your system.
+
+'''8.''' Done.
 
 = Errors =
 == EFI variables are not supported on this system ==
