@@ -363,6 +363,24 @@ With a real immutable filesystem, updates become hard. It would require system i
 
 For real immutability, we would need to invent A/B updates for Debian. Vanilla OS is doing A/B updates with Debian Sid.
 
+Operating systems like Debian oftentimes do not work well with a read-only root filesystem. Numerous system tasks require parts of the filesystem to be read-write, to allow saving various kinds of persistent state (log files, flag files, databases, etc.). Resolving this while still keeping the root filesystem read-only can be done in one of several ways, with their own advantages and disadvantages:
+
+* Fully mutable ephemeral overlay: mount a tmpfs somewhere and overlay it on <code>/</code>. Similar to live mode.
+** This resolves almost all software compatibility issues, but may allow malware to temporarily persist on the system until a reboot clears it.
+** Malware that could compromise the kernel or an application running as root could acheive this kind of temporary persistence anyway by mounting a tmpfs overlay over a convenient location, but being unable to write to the disk until having arbitrary code execution as root would make it harder to exploit some kinds of vulnerabilities.
+* As-needed ephemeral overlays: leave as much of the root filesystem read-only as possible, only mount overlays over specific locations that need it.
+** Software that is explicitly taken into account by this will work, but software that isn't may break. Would require a config file to allow the user to add additional overlays of their own choosing, which would also require the user to have deep knowledge about the applications that were malfunctioning.
+** Entire directories have to be overlayed at once, which could cause a significant weakening of the future if the overlayed directory was something like <code>/etc</code>.
+* As-needed symlinks to redirect files or directories to a mutable filesystem.
+** Most of the same problems as the as-needed ephemeral overlays solution, but can work with individual files as well, not just entire directories.
+** Some applications treat symlinks differently than normal links, which may cause unfixable or difficult-to-resolve issues.
+* As-needed bind mounts to redirect files or directories to a mutable filesystem
+** Most of the same problems as the as-needed ephemeral overlays solution, but can work with individual files as well, not just entire directories.
+** Avoids symlink issues, but some applications like <code>updatedb</code> / <code>locate</code> treat bind mounts differently than normal mounts or directories, introducing additional issues.
+* Use alternate software that doesn't require root to be writable
+** The best solution, similar to what Android uses. However, doesn't prevent software like Magisk from working (which mounts an overlay apparently), so it's dubious if the security benefits are any better.
+** Requires an entire ecosystem to properly support, not something that can simply be retrofit onto Debian or another mutable distribution.
+
 == Verified Boot for Specialized Operating Systems ==
 So verified boot can only always be specialized operating systems, not general-purpose operating systems?
 

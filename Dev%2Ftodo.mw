@@ -24,12 +24,40 @@ TODO
 * Test on Qubes OS
 * Test on Whonix-Workstation
 * Add warning popup when run in a Qubes OS AppVM (this is mentioned in the spec but not yet implemented)
+* Implementation work in progress, not yet tested:
+** browser-choice: https://github.com/ArrayBolt3/browser-choice/commit/482ebb9a938c4236ac65bb723904400bae1717a5
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/network-check
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/refactor-network-check
+** remove /home/aaron string
+
+<pre>
+ui/applyingchangespage.ui:         <normaloff>../../../../../../../home/aaron</normaloff>../../../../../../../home/aaron</iconset>
+</pre>
 
 == stable vs rolling - create ticket ==
 * mention efforts towards Debian rolling and its failure
 * mention rolling not necessarily more secure
 * link the to the wiki https://www.kicksecure.com/wiki/Dev/Stable_vs_Rolling_Distributions
 * purpose of ticket: to get the discussion started with the purpose of improving our developer documentation, problems and future solution tickets
+
+== improve systemd shutdown reliability ==
+* this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
+* add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
+** use: <code>KillMode=none</code>
+** use other settings coming to mind making the systemd unit harder to kill
+** this is for testing purposes only
+** once this ticket is done, we will comment it out by default and keep it as comments-only for reference, future testing
+* check, adjust global values such as:
+** <code>timeout</code> is mentioned in /etc/systemd/system.conf logind.conf user.conf
+
+<pre>
+DefaultTimeoutStopSec=30s
+DefaultTimeoutStartSec=30s
+DefaultTimeoutAbortSec=30s
+</pre>
+
+* investigate if there is any other ways to make the systemd force shutdown
+* investigate if there is any other ways to make the system force shutdown
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -43,23 +71,12 @@ TODO
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== emergent shutdown discussion ==
-* please read, comment if applicable
-* https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
-* https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755
-* Implemented, but may need further polish:
-** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/emerg-shutdown
-*** On my test system, this reliably causes the screen to black out and the OS to become inaccessible when I unplug the root filesystem device, but sometimes the power LED will remain lit and the fans will keep running. This happens about 50% of the time, the other 50% of the time a proper shutdown is done. Because of the shutdown method being used, I currently suspect this is the fault of my hardware and not of the implementation, but further testing will be needed to confirm that and documentation should indicate that users must test this feature thoroughly before relying on it in a security-sensitive situation.
-*** This is supposed to work even if Kicksecure is burned to an optical disc and that disc is ejected, but I believe is currently will not work. I believe the kernel sends a different event for an ejected optical disc than for a removed USB drive.
-*** Panic button support not yet implemented.
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/emerg-shutdown
-*** The root device finding script could use more thorough testing and could be expanded to support more scenarios.
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/emerg-shutdown
-
-== emergency shutdown implementation ==
-* when the boot USB drive is removed
-* when panic key is pressed (most obviously probably the power button)
-* https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
+== Debian on true read-only filesystem without ephemeral overlay ==
+* in preparation for verified boot implementation
+* research
+* investigate, document which locations require ephemeral overlays
+* investigate, document which locations are useful to persist even when booting with verified boot such as logs
+* report bugs or missing features upstream (so we have something to point to to justify our implementation)
 
 == verified boot implementation ==
 * assume firmware can extend trust to kernel via Sovereign Boot
@@ -74,6 +91,14 @@ TODO
 *** User providing the hash on an external drive?
 *** Verification passphrase similar to LUKS passphrase?
 ** Patrick: TPM is unavailable inside VMs? In this case, verified boot support is still desirable.
+* Patrick
+** Whonix-Gateway: either no verified boot initially or install user-sysmaint-split by default
+** persistent mode, verified boot should still allow for logs persistent
+** [[Verified_Boot#When_the_verification_is_over.3F|When the verification is over?]]:
+*** "verification is a continuous process happening as data is loaded into memory"
+*** "This means if malware manages to modify the /usr/bin/mv program despite immutability, then dm-verity would notice this the next time the user or system is attempting to execute that command."
+*** This security gained from this feature is somewhat reduced if the attacker can use ephermal overlays.
+** consider [[Sysmaint#enable_sudo_access_in_USER_session|enable sudo access in USER session]] (developer debug mode): disable verified boot + write to disk + regenerate verified boot hash tree (this is to ease debugging issues only happening in user session but not in sysmaint session)
 
 == calamares - unmount issues ==
 * Calamares is not unmounting an encrypted filesystem after installation is complete, thus making livecheck warn about an "unsafe" live state.
@@ -385,6 +410,12 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== emergency shutdown implementation ==
+* when the boot USB drive is removed
+* when panic key is pressed (most obviously probably the power button)
+* https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
+* Moved to "WAITING ON" because despite the feature working well on vanilla Debian 12, I could not get it to work on Kicksecure regardless of what I tried. I tried removing all kernel parameters that weren't vital to system boot, moved sysctl and modprobe files to backup locations, regenerated the initramfs, and even tried a different method of shutting down the system (specifically writing <code>o</code> to <code>/proc/sysrq-trigger</code>), all without success. Will try again once we port to Trixie.
+
 == Qubes-Whonix qrexec review ==
 * threat model: compromised workstation 
 * please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
@@ -661,11 +692,16 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== document debian versus read-only root file system without overlay issues ==
+* document on [[Verified Boot]]
+* mention on [[Dev/user-sysmaint-split]]
+* Aaron: Added documentation.
+
 == mouse fingerprinting ==
 * todo
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
 * notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
-* update [[Keystroke_and_Mouse_Deanonymization|Keystroke and Mouse Deanonymization]]
+* update https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
 * Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
 ** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
 ** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
@@ -705,6 +741,20 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== emergent shutdown discussion ==
+* please read, comment if applicable
+* https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
+* https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755
+* Implemented, but may need further polish:
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/emerg-shutdown
+*** On my test system, this reliably causes the screen to black out and the OS to become inaccessible when I unplug the root filesystem device, but sometimes the power LED will remain lit and the fans will keep running. This happens about 50% of the time, the other 50% of the time a proper shutdown is done. Because of the shutdown method being used, I currently suspect this is the fault of my hardware and not of the implementation, but further testing will be needed to confirm that and documentation should indicate that users must test this feature thoroughly before relying on it in a security-sensitive situation.
+*** This is supposed to work even if Kicksecure is burned to an optical disc and that disc is ejected, but I believe is currently will not work. I believe the kernel sends a different event for an ejected optical disc than for a removed USB drive.
+*** Panic button support not yet implemented.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/emerg-shutdown
+*** The root device finding script could use more thorough testing and could be expanded to support more scenarios.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/emerg-shutdown
+* Left comments documenting that this is now on hold until the Trixie port is done.
+
 == browser choice ==
 * [[Dev/browser-choice]]
 * please implement
@@ -1275,7 +1325,7 @@ source /usr/libexec/helper-scripts/wc-test.sh
 * https://forums.kicksecure.com/t/argon2-pbkdf-setup-and-hardening-in-kicksecure/1079/1
 * please reply
 * consider if needed for calamares default
-* consider for [[FDE]] documentation
+* consider for [[Full Disk Encryption]] documentation
 * Aaron: Replied. I don't think we should document this (rationale given in reply), and I don't think we need to change the Calamares default.
 
 == helper-scripts stcatn CI failing ==
