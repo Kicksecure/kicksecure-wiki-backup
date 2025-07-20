@@ -10,6 +10,19 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== user-sysmaint-split: fix Whonix-Workstation StandaloneVM breakage ==
+* newly created Whonix-Workstation StandaloneVM suffers from a number of issues:
+** default NetVM is sys-firewall, not sys-whonix
+** <code>/dev/xvdb</code> is unformatted and blank, resulting in mount failure, which ends up preventing the VM from booting to the point where graphical windows can be displayed
+** apt still attempts to use the TemplateVM proxy for downloads
+* fedora-41-xfce and debian-12-xfce both work without issues
+* we're likely failing to pull in a necessary service in sysmaint sessions
+* Aaron: Fixes for most issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-standalone
+** Patrick: Merged.
+** Issue filed for the NetVM problem: https://github.com/QubesOS/qubes-issues/issues/10067
+** Please move to "WAITING ON" if good, so further work can be done on the NetVM issue.
+** Moved to todo dev because action required. (pylint)
+
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
 * add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
@@ -30,6 +43,27 @@ DefaultTimeoutAbortSec=30s
 * investigate if there is any other ways to make the system force shutdown
 * Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
 ** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
+
+== timesync developer wiki page improvements ==
+* https://www.whonix.org/wiki/Dev/TimeSync
+* [[anondate]]
+* https://www.kicksecure.com/wiki/Dev/sdwdate
+* please study, improve
+* take note of Tor consensus and replay attacks
+* in preparation for follow-up tasks
+
+== sdwdate refactoring and improvements ==
+* study sdwdate source code
+* lightweight refactoring (such as no longer using classes because these are used inconsistently)
+* separate into sdwdate-daemon and sdwdate-time-fetcher?
+** sdwdate oneshot feature (pick the median time from the 3 pools, output to console, then exit) if considered useful for the next bullet point
+* add support for sdwdate to be used as a [https://forums.whonix.org/t/qubes-whonix-gateway-as-clockvm/19015 Qubes-Whonix-Gateway as ClockVM]
+* note: sdwdate can already fix the clock if it is very slow (with the help of Tor consensus and anondate)
+* add feature to sdwdate to allow it fixing the clock if it is very fast too
+** it may not be possible to implement such a feature securely (setting the clock forward has no security risk but setting the clock backwards makes already expired keys valid again). perhaps should just be a manual action? in theory, by setting the clock backwards very far into the past, sdwdate should be able to fix it. Perhaps we could try once to set the clock backwards just a few hours (not years) based on Tor consensus / anondate? Or perhaps this should only be possible by manual user action?
+* use chrony - time setting only - not time fetching - as a replacement for sclockadj as per [[Dev/sdwdate]]
+** or if easier, saner, port sclockadj from clock_settime to adjtimex?
+** please research, consider various options
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -549,6 +583,21 @@ if pkg_installed initramfs-tools ; then?
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
 
+== trixie port - emergent shutdown discussion ==
+* priority: lower - this can be done after the first trixie based release
+* please read, comment if applicable
+* https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
+* https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755
+* Implemented, but may need further polish:
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/emerg-shutdown
+*** On my test system, this reliably causes the screen to black out and the OS to become inaccessible when I unplug the root filesystem device, but sometimes the power LED will remain lit and the fans will keep running. This happens about 50% of the time, the other 50% of the time a proper shutdown is done. Because of the shutdown method being used, I currently suspect this is the fault of my hardware and not of the implementation, but further testing will be needed to confirm that and documentation should indicate that users must test this feature thoroughly before relying on it in a security-sensitive situation.
+*** This is supposed to work even if Kicksecure is burned to an optical disc and that disc is ejected, but I believe is currently will not work. I believe the kernel sends a different event for an ejected optical disc than for a removed USB drive.
+*** Panic button support not yet implemented.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/emerg-shutdown
+*** The root device finding script could use more thorough testing and could be expanded to support more scenarios.
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/emerg-shutdown
+* Left comments documenting that this is now on hold until the Trixie port is done.
+
 == calamares - make 3.3.12 available in Bookworm ==
 * necessary to fix bugs related to the disk encryption user interface
 * Sid and Trixie are still at 3.3.9, does maintainer need help packaging 3.3.12?
@@ -664,62 +713,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== user-sysmaint-split: fix Whonix-Workstation StandaloneVM breakage ==
-* newly created Whonix-Workstation StandaloneVM suffers from a number of issues:
-** default NetVM is sys-firewall, not sys-whonix
-** <code>/dev/xvdb</code> is unformatted and blank, resulting in mount failure, which ends up preventing the VM from booting to the point where graphical windows can be displayed
-** apt still attempts to use the TemplateVM proxy for downloads
-* fedora-41-xfce and debian-12-xfce both work without issues
-* we're likely failing to pull in a necessary service in sysmaint sessions
-* Aaron: Fixes for most issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-standalone
-** Issue filed for the NetVM problem: https://github.com/QubesOS/qubes-issues/issues/10067
-** Please move to "WAITING ON" if good, so further work can be done on the NetVM issue.
-
-== browser choice - #3 ==
-* bug: mozilla repository warning gone? please re-add
-* Please add third-party APT repository warning and link to the wiki where applicable.
-* Perhaps some repetitive warnings should be declarative and a special box?
-** such as: https://www.kicksecure.com/wiki/Install_Software#Third_Party_Repository_Warning
-** and: https://www.kicksecure.com/wiki/Install_Software#Programs_in_Home_Folder
-* Aaron: Added additional warnings for third-party APT repositories, plus a general warning for software installation risks.
-** Also created https://www.kicksecure.com/wiki/Install_Software#Trust_Considerations to link to in the general risks warning.
-
-== sysmaint-panel and browser-choice - build improvements ==
-* implement "make" and "make clean" as discussed
-* run build-ui.sh from an override_dh_build section in debian/rules
-* no longer add autogenerated files to git source code folder
-* improve name of "core" files
-* Aaron: Implemented:
-** browser-choice: https://github.com/ArrayBolt3/browser-choice/commit/14e029beca186de22bc4c82c184c14a1a769272d
-** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/ui-refactor
-
-== browser choice - #2 ==
-* simplify mozilla stable helper: simply ship/hardcode/add the key or better use extrepo (already installed by default)
-* Check for network access and warn the user if it is not available
-** implement as global "plug-in"? (or hardcoded for Kicksecure)
-** do it similar as in /usr/libexec/systemcheck/updatecheck
-** convert the "am I online" / "do i have internet access" check in /usr/libexec/systemcheck/updatecheck into a helper-script shell library
-* Don't show the launch checkbox when running in sysmaint sessions
-* Naming considerations? Right now the program calls itself "Application Chooser" in the window titlebar, but "Browser Choice" in the application menu (since "Application Chooser" sounds very generic). -> let's settle on Browser Choice (as long as we don't implement a full blown app store)
-* add browser plugins:
-** Mullvad Browser
-** Brave Browser
-* Test on Qubes OS
-* Test on Whonix-Workstation
-* Add warning popup when run in a Qubes OS AppVM (this is mentioned in the spec but not yet implemented)
-* remove /home/aaron string from applyingchangespage.ui
-* Implementation (mostly tested, could use one more thorough methodical test but should be merge-ready)
-** browser-choice: https://github.com/ArrayBolt3/browser-choice/tree/master
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/network-check
-** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/refactor-network-check
-
-== stable vs rolling - create ticket ==
-* mention efforts towards Debian rolling and its failure
-* mention rolling not necessarily more secure
-* link the to the wiki https://www.kicksecure.com/wiki/Dev/Stable_vs_Rolling_Distributions
-* purpose of ticket: to get the discussion started with the purpose of improving our developer documentation, problems and future solution tickets
-* Aaron: Ticket created: https://forums.kicksecure.com/t/rolling-vs-stable-release-brainstorming/1139
-
 == document debian versus read-only root file system without overlay issues ==
 * document on [[Verified Boot]]
 * mention on [[Dev/user-sysmaint-split]]
@@ -769,19 +762,53 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
-== emergent shutdown discussion ==
-* please read, comment if applicable
-* https://forums.kicksecure.com/t/unplugging-external-drive-doesnt-trigger-a-shutdown/994
-* https://forums.whonix.org/t/panic-button-panic-shutdown-buskill-the-usb-kill-cord-for-your-laptop/13755
-* Implemented, but may need further polish:
-** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/emerg-shutdown
-*** On my test system, this reliably causes the screen to black out and the OS to become inaccessible when I unplug the root filesystem device, but sometimes the power LED will remain lit and the fans will keep running. This happens about 50% of the time, the other 50% of the time a proper shutdown is done. Because of the shutdown method being used, I currently suspect this is the fault of my hardware and not of the implementation, but further testing will be needed to confirm that and documentation should indicate that users must test this feature thoroughly before relying on it in a security-sensitive situation.
-*** This is supposed to work even if Kicksecure is burned to an optical disc and that disc is ejected, but I believe is currently will not work. I believe the kernel sends a different event for an ejected optical disc than for a removed USB drive.
-*** Panic button support not yet implemented.
-** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/emerg-shutdown
-*** The root device finding script could use more thorough testing and could be expanded to support more scenarios.
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/emerg-shutdown
-* Left comments documenting that this is now on hold until the Trixie port is done.
+== stable vs rolling - create ticket ==
+* mention efforts towards Debian rolling and its failure
+* mention rolling not necessarily more secure
+* link the to the wiki https://www.kicksecure.com/wiki/Dev/Stable_vs_Rolling_Distributions
+* purpose of ticket: to get the discussion started with the purpose of improving our developer documentation, problems and future solution tickets
+* Aaron: Ticket created: https://forums.kicksecure.com/t/rolling-vs-stable-release-brainstorming/1139
+
+== browser choice - #3 ==
+* bug: mozilla repository warning gone? please re-add
+* Please add third-party APT repository warning and link to the wiki where applicable.
+* Perhaps some repetitive warnings should be declarative and a special box?
+** such as: https://www.kicksecure.com/wiki/Install_Software#Third_Party_Repository_Warning
+** and: https://www.kicksecure.com/wiki/Install_Software#Programs_in_Home_Folder
+* Aaron: Added additional warnings for third-party APT repositories, plus a general warning for software installation risks.
+** Also created https://www.kicksecure.com/wiki/Install_Software#Trust_Considerations to link to in the general risks warning.
+
+== browser choice - #2 ==
+* simplify mozilla stable helper: simply ship/hardcode/add the key or better use extrepo (already installed by default)
+* Check for network access and warn the user if it is not available
+** implement as global "plug-in"? (or hardcoded for Kicksecure)
+** do it similar as in /usr/libexec/systemcheck/updatecheck
+** convert the "am I online" / "do i have internet access" check in /usr/libexec/systemcheck/updatecheck into a helper-script shell library
+* Don't show the launch checkbox when running in sysmaint sessions
+* Naming considerations? Right now the program calls itself "Application Chooser" in the window titlebar, but "Browser Choice" in the application menu (since "Application Chooser" sounds very generic). -> let's settle on Browser Choice (as long as we don't implement a full blown app store)
+* add browser plugins:
+** Mullvad Browser
+** Brave Browser
+* Test on Qubes OS
+* Test on Whonix-Workstation
+* Add warning popup when run in a Qubes OS AppVM (this is mentioned in the spec but not yet implemented)
+* remove /home/aaron string from applyingchangespage.ui
+* Implementation (mostly tested, could use one more thorough methodical test but should be merge-ready)
+** browser-choice: https://github.com/ArrayBolt3/browser-choice/tree/master
+*** Patrick: Merged.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/network-check
+*** Patrick: Merged.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/refactor-network-check
+*** Patrick: Merged.
+
+== sysmaint-panel and browser-choice - build improvements ==
+* implement "make" and "make clean" as discussed
+* run build-ui.sh from an override_dh_build section in debian/rules
+* no longer add autogenerated files to git source code folder
+* improve name of "core" files
+* Aaron: Implemented:
+** browser-choice: https://github.com/ArrayBolt3/browser-choice/commit/14e029beca186de22bc4c82c184c14a1a769272d
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/ui-refactor
 
 == browser choice ==
 * [[Dev/browser-choice]]

@@ -11,14 +11,14 @@ Fingerprinting versus Security
 }}
 = chrony as a replacement for sclockadj =
 == Introduction ==
-Idea: use sdwdate to fetch the time. But set the time using chrony (new method). Instead of using sclockadj (current method).
+Idea: use sdwdate to fetch the time, but set the time using chrony (new method) instead of using sclockadj (current method).
 
-Problem with [https://github.com/{{project_name_short}}/sdwdate/blob/master/usr/src/sdwdate/sclockadj.c sclockadj] is that it is using clock_settime which is causing issues. chrony is using [https://www.whonix.org/wiki/Dev/TimeSync#Adjusting_time_slowly_using_adjtimex/ntp_adjtime adjtimex] which will probably work better.
+Problem with [https://github.com/{{project_name_short}}/sdwdate/blob/master/usr/src/sdwdate/sclockadj.c sclockadj] is that it uses clock_settime, which is causing issues. chrony uses [https://www.whonix.org/wiki/Dev/TimeSync#Adjusting_time_slowly_using_adjtimex/ntp_adjtime adjtimex], which will probably work better.
 
-For that, chrony is configured in "offline mode". I.e. not contacting any remote servers for fetching the time. Chrony is supposed to be used for setting the time only which sdwdate should feed into chrony through its unix domain socket driver protocol.
+For that, chrony is configured in "offline mode", i.e., not contacting any remote servers to fetch the time. chrony is only supposed to set the time, which sdwdate should feed into chrony through its unix domain socket driver protocol.
 
 == Instructions ==
-'''1.''' Platform specific.
+'''1.''' Platform-specific.
 
 * Debian: No special steps required.
 * Qubes: Required in Qubes only.
@@ -73,7 +73,7 @@ Out-comment or delete the following line.
 pool 2.debian.pool.ntp.org iburst
 </pre>
 
-Non-ideal. Would be nicer if configuration of offline mode could be done with a drop-in snippet in folder <code>/etc/chrony/conf.d</code> but this might not be possible.
+Non-ideal. It would be nicer if offline mode configuration could be done with a drop-in snippet in folder <code>/etc/chrony/conf.d</code>, but this might not be possible.
 
 '''8.''' Save and exit.
 
@@ -91,7 +91,7 @@ Alias=chronyd.service
 </pre>
 </ref>
 
-'''11.''' Check if unix domain socket file <code>/var/run/chrony.ttyS0.sock</code> exists.
+'''11.''' Check if the unix domain socket file <code>/var/run/chrony.ttyS0.sock</code> exists.
 
 {{CodeSelect|code=
 ls /var/run/chrony.ttyS0.sock
@@ -169,7 +169,7 @@ Expected printout:
 
 '''17.''' TODO: task
 
-Write a python3.9 or bash script that expects unixtime and writes into unix domain socket file <code>/var/run/chrony.ttyS0.sock</code>.
+Write a python3.9 or bash script that expects unixtime and writes it into the unix domain socket file <code>/var/run/chrony.ttyS0.sock</code>.
 
 interface draft, TODO:
 
@@ -208,36 +208,36 @@ Jun 05 04:53:52 disp5211 chronyd[6133]: System clock TAI offset set to 37 second
 ----
 
 = Fingerprinting versus Security =
-An optimization problem.  There are conflicting goals.
+An optimization problem. There are conflicting goals.
 
 * goal: Saving remote server resources &rarr; implementation: use <code>HEAD</code> (implemented)
 ** (similar to <code>curl --head HEAD</code>)
 ** is what sdwdate uses.
 ** [https://gitlab.tails.boum.org/tails/tails/-/issues/5924 Tails discussed using <code>GET</code> instead of <code>HEAD</code> for Tails <code>htpdate</code> but rejected that.]
-* goal: Fingerprinting resistance at remote server level. &rarr; implementation: Hide outdated user agent version numbers (not implemented)
+* goal: Fingerprinting resistance at the remote server level &rarr; implementation: Hide outdated user agent version numbers (not implemented)
 ** similar to <code>--user-agent curl</code> or even a fake user agent.
-** Disadvantage being that this user agent makes use really unique.
-** Hiding version number might not help with security either. If a user was running a vulnerable version, an adversary could just try out every exploit independent of version number in user agent. The only solution are timely software upgrades by the user.
+** Disadvantage: this user agent may make use really unique.
+** Hiding version numbers might not help with security either. If a user runs a vulnerable version, an adversary could try every exploit independent of the user agent version. The only solution is timely software upgrades by the user.
 ** [https://lists.autistici.org/thread/20121015.131424.1e9070fd.gl.html#i20121015.131424.1e9070fd Tails-dev - Faking htpdate user agent worth it?]
-* goal: Maximization of security of sdwdate (implemented) &rarr; implementation: use most remote code execution resistant backend (such as <code>curl</code> vs full web browser vs python3 requests) for <code>url_to_unixtime</code>
-** Use python3 requests since (implemented in memory safe python3 code) instead of curl (implemented in unsafe memory language C).
-* goal: Maximization of fingerprinting resistance from viewpoint of remote server &rarr; implementation: emulate being a full browser by using selenium or similar. (not implemented)
-** Convincingly emulating being a browser is impossible. Changing the user agent is insufficient. The only way of convincingly emulating being a browser is to actually run a browser.
-** Running a full browser inside sdwdate however would mess up security. Also very difficult to implement. Running a full browser GUI with an invisible X server and then somehow only exacting HTTP DATE header from the GUI. Also might actually worsen the web fingerprint of sdwdate since sdwdate would fetch and run any tracking (google analytics) script that the remote server has. Then also which browser? Tor Browser + selenium? Keep that browser updated. Seems way too complex to implement.
+* goal: Maximization of security of sdwdate (implemented) &rarr; implementation: use the most remote code execution resistant backend (such as <code>curl</code> vs full web browser vs python3 requests) for <code>url_to_unixtime</code>
+** Use python3 requests (implemented in memory-safe python3) instead of curl (implemented in unsafe memory language C).
+* goal: Maximization of fingerprinting resistance from the viewpoint of the remote server &rarr; implementation: emulate being a full browser by using selenium or similar. (not implemented)
+** Convincingly emulating a browser is impossible. Changing the user agent is insufficient. The only way is to actually run a browser.
+** Running a full browser inside sdwdate would mess up security. Also very difficult to implement. Running a full browser GUI with an invisible X server and then somehow extracting only the HTTP DATE header. Might also worsen sdwdate's web fingerprint since it would run any tracking script (e.g., Google Analytics) present on the remote server. Then also, which browser? Tor Browser + selenium? Keep that browser updated? Too complex.
 
-A compromise had to be made. Priority goals had to be chosen. Maximization of security of sdwdate and saving remote server resources was chosen.
+A compromise had to be made. Priority goals were chosen: maximizing sdwdate security and saving remote server resources.
 
 = sdwdate linux user account =
 
 * sdwdate is a daemon designed to be executed by an init system.
 * There is <u>no</u> hard dependency on systemd by sdwdate.
-* Currently there is only a systemd unit file in the sdwdate github repository.
-* Other systems could be supported in principle too but this is currently [[unsupported]] because no contributor has contributed that functionality.
-** What would be needed is to (at least minimally) port https://github.com/{{project_name_short}}/sdwdate/tree/master/usr/lib/systemd/system to a different init system such as SysVinit.
-* sdwdate designed to run under linux user account <code>sdwdate</code>.
+* Currently, there is only a systemd unit file in the sdwdate GitHub repository.
+* Other systems could be supported in principle, but this is currently [[unsupported]] as no contributor has added that functionality.
+** To support others, one would need to (at least minimally) port https://github.com/{{project_name_short}}/sdwdate/tree/master/usr/lib/systemd/system to a different init system such as SysVinit.
+* sdwdate is designed to run under the linux user account <code>sdwdate</code>.
 * Running sdwdate as root is neither desired nor required.
-* Thanks to systemd, sdwdate can benefit from systemd sandboxing which would be unavailable if starting sdwdate manually under the same privileges as the user.
-** Using Linux capabilities. Has <code>AmbientCapabilities=CAP_SYS_TIME</code> and <code>CapabilityBoundingSet=CAP_SYS_TIME</code>. Therefore linux user account <code>sdwdate</code> can set the time without any requirement for root.
+* Thanks to systemd, sdwdate can benefit from systemd sandboxing, which would be unavailable if started manually with user privileges.
+** Using Linux capabilities. Has <code>AmbientCapabilities=CAP_SYS_TIME</code> and <code>CapabilityBoundingSet=CAP_SYS_TIME</code>. Therefore, the linux user account <code>sdwdate</code> can set the time without root.
 
 = Footnotes =
 {{reflist|close=1}}
