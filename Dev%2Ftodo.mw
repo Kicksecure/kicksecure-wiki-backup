@@ -10,19 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== user-sysmaint-split: fix Whonix-Workstation StandaloneVM breakage ==
-* newly created Whonix-Workstation StandaloneVM suffers from a number of issues:
-** default NetVM is sys-firewall, not sys-whonix
-** <code>/dev/xvdb</code> is unformatted and blank, resulting in mount failure, which ends up preventing the VM from booting to the point where graphical windows can be displayed
-** apt still attempts to use the TemplateVM proxy for downloads
-* fedora-41-xfce and debian-12-xfce both work without issues
-* we're likely failing to pull in a necessary service in sysmaint sessions
-* Aaron: Fixes for most issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-standalone
-** Patrick: Merged.
-** Issue filed for the NetVM problem: https://github.com/QubesOS/qubes-issues/issues/10067
-** Please move to "WAITING ON" if good, so further work can be done on the NetVM issue.
-** Moved to todo dev because action required. (pylint)
-
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
 * add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
@@ -56,13 +43,18 @@ DefaultTimeoutAbortSec=30s
 * study sdwdate source code
 * lightweight refactoring (such as no longer using classes because these are used inconsistently)
 * separate into sdwdate-daemon and sdwdate-time-fetcher?
-** sdwdate oneshot feature (pick the median time from the 3 pools, output to console, then exit) if considered useful for the next bullet point
+** Aaron: sdwdate-daemon is a very interesting idea, most likely useful for the ClockVM idea, however it is only feasible in situations where one either has multiple networked physical machines or multiple connected virtual machines (i.e. VBox with one Whonix-Gateway and many Whonix-Workstations, or Qubes OS). This is because the daemon has to be able to change the system's time as it sees fit in order to get Tor working (i.e. first get consensus to work by using certificate lifetime if possible, then get circuits to work using consensus, then get real time from three separate servers which are now accessible since circuits work). There is no way to isolate CLOCK_REALTIME changes from the rest of the system, Linux has time namespaces but they don't virtualize CLOCK_REALTIME. Thus sdwdate-daemon would have to be able to modify the system time freely in its mission to find the right time.
+** In theory, this could be avoided if time changes could be communicated to the Tor daemon without modifying the system's wall clock. I do not know if this is possible, I suspect it isn't. Even though it is technically feasible, it would potentially be immensely complicated to implement.
+** Perhaps implement sdwdate-daemon as a process that only returns whatever the next time step is, and also indicate whether there are further steps? Then sdwdate-time-fetcher could either ignore the date if the daemon indicates more steps are still to come, or accept it. The ClockVM itself would unconditionally accept sdwdate-daemon's reported time values in order to assist it in finding the correct time, then client VMs would only update their clock once the "final step" was reached.
+* sdwdate oneshot feature (pick the median time from the 3 pools, output to console, then exit) if considered useful for the next bullet point
 * add support for sdwdate to be used as a [https://forums.whonix.org/t/qubes-whonix-gateway-as-clockvm/19015 Qubes-Whonix-Gateway as ClockVM]
 * note: sdwdate can already fix the clock if it is very slow (with the help of Tor consensus and anondate)
+** Aaron: If the clock is very very slow, this seems to not work. Might be possible to use Tor certificates to get within a year of the correct date, then attempt to brute-force a month that will allow Tor consensus to work. As long as the Tor network itself will not work if the clock is too far off, we don't have to worry too much about replay attacks, untrusted data, etc. - the worst an attacker could do is denial of service, we'll only get working connectivity if we get very close to the correct time (or an adversary controls so many of the servers we're using it can trick us into thinking our time is correct, which is statistically unlikely...? is it actually statistically unlikely?)
 * add feature to sdwdate to allow it fixing the clock if it is very fast too
 ** it may not be possible to implement such a feature securely (setting the clock forward has no security risk but setting the clock backwards makes already expired keys valid again). perhaps should just be a manual action? in theory, by setting the clock backwards very far into the past, sdwdate should be able to fix it. Perhaps we could try once to set the clock backwards just a few hours (not years) based on Tor consensus / anondate? Or perhaps this should only be possible by manual user action?
 * use chrony - time setting only - not time fetching - as a replacement for sclockadj as per [[Dev/sdwdate]]
 ** or if easier, saner, port sclockadj from clock_settime to adjtimex?
+** Aaron: Probably easier to port sclockadj, chrony looks a bit dangerous to me.
 ** please research, consider various options
 
 == investigate Debian Rolling ==
@@ -416,6 +408,67 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== investigate Tor Browser metadata signing and expiration ==
+* in context of: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3028994433
+* Tor Browser does not appear to sign metadata. Even metadata used by Tor Browser's internal updater might be relying on unsigned metadata.
+* Important to explain: Not only signed metadata is required, also fresh metadata is required. Therefore periodic re-signing is required.
+* Compare with Firefox: Does Firefox's internal updater even have this feature? If Firefox has it, making the argument for Tor Browser to enable it might be much easier. If not, it might be better to request this feature from Mozilla as well.
+* goal of this ticket: The only goal of this ticket is to post feature requests / bug reports on Tor Project (and Mozilla issue tracker if applicable) and to properly communicate this.
+* <u>non</u>-goal: implementation
+* info:
+** Tor Browser uses json files: https://aus1.torproject.org/torbrowser/update_3/release/download-linux-x86_64.json
+** Firefox uses xml as per https://firefox-source-docs.mozilla.org/toolkit/mozapps/update/docs/InAppUpdateProcess.html
+* draft:
+
+<blockquote>
+'''Rollback Attacks Definition:'''
+
+The Update Framework (TUF) defines `rollback attacks` [x]
+
+> An attacker presents files to a software update system that are older than those the client has already seen. With no way to tell it is an obsolete version that may contain vulnerabilities, the user installs the software. Later on, the vulnerabilities can be exploited by attackers.
+
+'''Rollback Attack Protection and Valid-Until Field'''
+
+Rollback attacks attempt to trick the updater into applying an outdated (and potentially vulnerable) version of the software. One widely recommended mitigation against rollback attacks is using a "Valid-Until" field or equivalent freshness period in the signed metadata, after which a given update should no longer be accepted.
+
+Firefox's internal updater does not publicly mention using a "Valid-Until" field (or explicit expiration on update metadata) to guarantee update freshness or safeguard against replay/rollback attacks in the same way as systems like The Update Framework (TUF) or Debian's APT
+
+'''Non-solutions:'''
+
+TLS might mitigate this attack but higher security than what TLS can offer should be provided in case TLS or server compromise.
+
+'''Solution:'''
+
+Server side:
+Sign, automatically periodically re-sign update metadata. 
+
+Client side:
+Accept only metadata signed up to a certain age.
+
+'''Resources:'''
+
+Mozilla has blogged about rollback attacks in the past. [x]
+
+[x] https://theupdateframework.io/docs/security/
+
+[x] https://blog.mozilla.org/attack-and-defense/2020/10/12/guest-blog-post-rollback-attack/
+</blockquote>
+
+* Aaron: Filed issue against Tor Browser, pending moderator approval. Also requested a Tor Project Gitlab account, which is also pending approval.
+** I did not file a report against Mozilla Firefox, because their update mechanism involves automatically generated XML created by a backend server, whereas The Tor Project's update metadata seems to be static and not nearly as complicated.
+
+== user-sysmaint-split: fix Whonix-Workstation StandaloneVM breakage ==
+* newly created Whonix-Workstation StandaloneVM suffers from a number of issues:
+** default NetVM is sys-firewall, not sys-whonix
+** <code>/dev/xvdb</code> is unformatted and blank, resulting in mount failure, which ends up preventing the VM from booting to the point where graphical windows can be displayed
+** apt still attempts to use the TemplateVM proxy for downloads
+* fedora-41-xfce and debian-12-xfce both work without issues
+* we're likely failing to pull in a necessary service in sysmaint sessions
+* Aaron: Fixes for most issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-standalone
+** Patrick: Merged.
+** Issue filed for the NetVM problem: https://github.com/QubesOS/qubes-issues/issues/10067
+*** PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/23
+
 == emergency shutdown implementation ==
 * when the boot USB drive is removed
 * when panic key is pressed (most obviously probably the power button)
@@ -432,6 +485,7 @@ sudo apt install serial-console-enable
 ** Patch to implement: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/22
 *** Patrick: Please implement as suggested by Marek.
 **** Aaron: Implemented, left some notes about shortcomings of the current implementation and suggestions for how to further improve things. Waiting on further discussion.
+**** Aaron: Awaiting merge, this will be able to be moved to archived once done.
 
 == grml-debootstrap bootloader installation failure in Docker ==
 * https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
@@ -575,7 +629,13 @@ if pkg_installed initramfs-tools ; then?
 * related: [[dracut]]
 
 == trixie port - port to Wayland ==
-* https://github.com/Kicksecure/kicksecure-meta-packages/pull/2
+* LXQt - maybe:
+** https://github.com/Kicksecure/kicksecure-meta-packages/pull/2
+** Avoidable?
+* Xfce:
+** Preferable?
+** https://alexxcons.github.io/blogpost_14.html
+** https://forums.whonix.org/t/whonix-xfce-development/6213/106
 
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
