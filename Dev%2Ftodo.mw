@@ -10,6 +10,11 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== browser-choice - integrations ==
+* Kicksecure: no longer install firefox, thunderbird by default
+* make browser-choice the default browser? (lowest priority so it does not take effect over other installed browsers)
+* other required or useful integrations?
+
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
 * add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
@@ -30,6 +35,7 @@ DefaultTimeoutAbortSec=30s
 * investigate if there is any other ways to make the system force shutdown
 * Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
 ** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
+* Patrick: Please consider a small custom (C) program to run kernel call reboot or poweroff in case that is more reliable than sysrq.
 
 == timesync developer wiki page improvements ==
 * https://www.whonix.org/wiki/Dev/TimeSync
@@ -69,12 +75,15 @@ DefaultTimeoutAbortSec=30s
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== Debian on true read-only filesystem without ephemeral overlay ==
-* in preparation for verified boot implementation
-* research
-* investigate, document which locations require ephemeral overlays
-* investigate, document which locations are useful to persist even when booting with verified boot such as logs
-* report bugs or missing features upstream (so we have something to point to to justify our implementation)
+== docker inside whonix-workstation versus whonix-workstation-firewall ==
+* please comment: https://forums.whonix.org/t/how-can-you-make-a-docker-container-inside-whonix-workstation-connect-to-the-internet/21772/5
+
+== display manager selection ==
+* What is "the best" display manager?
+* please read history: https://forums.whonix.org/t/display-manager-lightdm-gdm3-sddm-or-no-display-manager-startx/12457
+* in preparation for the next task
+* might resolve the verified boot issue for lightdm requiring read-write access to /var/lib/lightdm
+* can be refereed until after Debian trixie or during port to Debian trixie
 
 == verified boot implementation ==
 * assume firmware can extend trust to kernel via Sovereign Boot
@@ -457,18 +466,6 @@ Mozilla has blogged about rollback attacks in the past. [x]
 * Aaron: Filed issue against Tor Browser, pending moderator approval. Also requested a Tor Project Gitlab account, which is also pending approval.
 ** I did not file a report against Mozilla Firefox, because their update mechanism involves automatically generated XML created by a backend server, whereas The Tor Project's update metadata seems to be static and not nearly as complicated.
 
-== user-sysmaint-split: fix Whonix-Workstation StandaloneVM breakage ==
-* newly created Whonix-Workstation StandaloneVM suffers from a number of issues:
-** default NetVM is sys-firewall, not sys-whonix
-** <code>/dev/xvdb</code> is unformatted and blank, resulting in mount failure, which ends up preventing the VM from booting to the point where graphical windows can be displayed
-** apt still attempts to use the TemplateVM proxy for downloads
-* fedora-41-xfce and debian-12-xfce both work without issues
-* we're likely failing to pull in a necessary service in sysmaint sessions
-* Aaron: Fixes for most issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-standalone
-** Patrick: Merged.
-** Issue filed for the NetVM problem: https://github.com/QubesOS/qubes-issues/issues/10067
-*** PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/23
-
 == emergency shutdown implementation ==
 * when the boot USB drive is removed
 * when panic key is pressed (most obviously probably the power button)
@@ -773,10 +770,30 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== document debian versus read-only root file system without overlay issues ==
-* document on [[Verified Boot]]
-* mention on [[Dev/user-sysmaint-split]]
-* Aaron: Added documentation.
+== Debian on true read-only filesystem without ephemeral overlay ==
+* in preparation for verified boot implementation
+* research
+* investigate, document which locations require ephemeral overlays
+* investigate, document which locations are useful to persist even when booting with verified boot such as logs
+* report bugs or missing features upstream (so we have something to point to to justify our implementation)
+* Aaron: Got vanilla Debian 12 Xfce to get to a functional GUI with a read-only root filesystem.
+** Needed to mount a tmpfs to the following directories:
+*** <code>/tmp</code>
+*** <code>/var/tmp</code>
+*** Both of these are simply expected to be world-writable by systemd, see https://systemd.io/TEMPORARY_DIRECTORIES/ and https://github.com/systemd/systemd/issues/17701#issuecomment-734302274
+** Needed to mount tmpfs overlays to the following directories:
+*** <code>/var/lib/lightdm</code>
+*** <code>/home</code>
+** In actual use, <code>/home</code> would probably be on a separate partition, as would <code>/var</code> unless aiming for it to be non-persistent. Note that Fedora Silverblue operates in a similar fashion - <code>/var</code> is a separate partition, and <code>/home</code> is mounted from it.
+** exim4 and anacron failed to start. anacron complains that it cannot open the timestamp file for job <code>cron.daily</code>, while exim4 complains it cannot touch <code>/var/lib/exim4/config.autogenerated.tmp</code>. Having <code>/var</code> writable would resolve this.
+** Once the GUI came up, LibreOffice and Firefox ESR both were able to launch. Web browsing in Firefox seemed to operate normally.
+** Should repeat this test, but with Kicksecure 17 rather than a plain Debian VM.
+* Aaron: Got Kicksecure 17 to boot directly to a GUI using a read-only root filesystem.
+** Reused same mounts as above, except I overlaid all of <code>/var</code> with a tmpfs, and also used a systemd unit to automate the overlay setup process.
+** sdwdate-pre.service fails because it is unable to write <code>/usr/libexec/sdwdate/sclockadj</code>. Could be easily ported to drop the file under <code>/run</code> instead.
+** swap-file-creator.service fails for obvious reasons
+** sysmaint boot malfunctions, at least in part because <code>/etc/passwd</code> can no longer be written to in order to unlock the sysmaint account
+** Firefox ESR works when booted into a user session
 
 == mouse fingerprinting ==
 * todo
@@ -822,6 +839,24 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== document debian versus read-only root file system without overlay issues ==
+* document on [[Verified Boot]]
+* mention on [[Dev/user-sysmaint-split]]
+* Aaron: Added documentation.
+
+== user-sysmaint-split: fix Whonix-Workstation StandaloneVM breakage ==
+* newly created Whonix-Workstation StandaloneVM suffers from a number of issues:
+** default NetVM is sys-firewall, not sys-whonix
+** <code>/dev/xvdb</code> is unformatted and blank, resulting in mount failure, which ends up preventing the VM from booting to the point where graphical windows can be displayed
+** apt still attempts to use the TemplateVM proxy for downloads
+* fedora-41-xfce and debian-12-xfce both work without issues
+* we're likely failing to pull in a necessary service in sysmaint sessions
+* Aaron: Fixes for most issues: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/qubes-standalone
+** Patrick: Merged.
+** Issue filed for the NetVM problem: https://github.com/QubesOS/qubes-issues/issues/10067
+*** PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/23
+**** Merged. Can this be archived?
+
 == stable vs rolling - create ticket ==
 * mention efforts towards Debian rolling and its failure
 * mention rolling not necessarily more secure
