@@ -10,10 +10,63 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== browser-choice - integrations ==
-* Kicksecure: no longer install firefox, thunderbird by default
-* make browser-choice the default browser? (lowest priority so it does not take effect over other installed browsers)
-* other required or useful integrations?
+== browser-choice - improvements ==
+* Should use <code>&&</code> instead of <code>;</code>?
+<pre>
+usr/share/browser-choice/plugins/chromium.txt:update-and-install-script=pkexec bash -c -- 'apt-get update; apt-get-noninteractive -y install chromium'
+usr/share/browser-choice/plugins/firefox.txt:update-and-install-script=pkexec bash -c -- 'apt-get update; apt-get-noninteractive -y install firefox-esr'
+usr/share/browser-choice/plugins/firefox.txt:install-script=pkexec bash -c -- 'extrepo enable mozilla; apt-get update; apt-get-noninteractive -y install firefox'
+</pre>
+* There might be more such cases. (I did only grep for <code>update;</code>.)
+* always "set -x" for transparency
+* feature request: Please make text copy/pasteable (useful for users so they can ask for support).
+* feature request: always show commands executed in browser choice's console window (this is for transparency - user should be able to follow that's happening under the hood. this enables more users to follow what is going on, debug, etc.)
+* feature request: allow maximzing browser choice console window
+* bug: after installing Brave Browser using APT using Browser Choice, clicking the browser icon in Xfce (quick start menu), Browser Choice reports that no browser is installed - even though Brave Browser has been installed.
+* Tor Browser installation: failed - because package tb-updater is not installed. Solution? Install tb-updater, tb-starter using APT first if not yet installed. But this is a problem. Because tb-updater/tb-starter installation requires root. running update-torbrowser does not. Perhaps we should install tb-updater/tb-starter by default?
+** tb-starter by default might add a confusing start menu entry. Perhaps acceptable.
+** Should tb-default-browser be installed?
+** Best to add support for running update-torbrowser in sysmaint session for simplicity?
+*** Similar to running dist-installer-cli in sysmaint but installing to account "user".
+*** Security impact?
+*** Then all actions could be run from within sysmaint session. Less exceptions. Less user confusion.
+* "click done to exit this wizard" -> Please expand "You can restart this wizard any time by ..."
+* feature request: advice user on how to start the installed browser
+* feature request: ask to start the browser after installation (will be limited due to sysmaint versus user session - but useful for browsers such as Tor Browser)
+* feature request: ability to start an already installed browser from browser choice?
+* feature request: in user session, some options are not possible. The window the is grayed out. This is good. Please add a sysmaint notice. (I am sure users will ignore the sysmaint popup or not understand it, then post a screenshot of the grayed out window and ask how. This is a feature request to prevent that.)
+* feature reques: clarify "system-wide". Users will have trouble to understand which options are available in user session (Tor Browser) versus
+* feature request: increase default size of screen so all browsers are visible by default?
+* feature request: allow all screens to maximize?
+
+== browser-choice - integrations - #2 ==
+* add to Qubes Kicksecure Template default Qubes app menu
+* integration with setup-wizard-dist?
+** mention Browser Choice in setup-wizard-dist?
+** add a button to start Browser Choice from setup-wizard-dist?
+** port setup-wizard-dist to designer for prettification?
+* open-link-confirmation: If no browser is installed yet in sysmaint mode, it advises the user "boot into user session" but that would be not of much help, because no browser is installed yet. Please add a message in such cases "open-link-confirmation could not detect an installed browser yet. Consider using a different device or VM to open the link or install a browser." (Needs polishing.)
+
+== livecheck - improvements ==
+* bug: clicking on "persistent mode" link bug: nothing happens (also no error when run from terminal)
+* feature request: make text copy/pasteable
+* feature request: improve the right click menu a bit. (show the name of the application "livecheck" to have some context what it is about)
+
+== test all vms - systemcheck --verbose --leak-tests ==
+* KS, GW, WS:
+** systemcheck --verbose --leak-tests
+* some new issues: apparmor, erst disable
+* please investigate
+
+== remove unnecessary dependencies from arc-theme ==
+* https://github.com/UbuntuBudgie/arc-theme/pull/2
+* since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
+* or perhaps a different, better theme? separate ticket: [[#desktop theme improvements]]
+
+== desktop theme improvements ==
+* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
+* useful to change the desktop theme?
+* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXqt.
 
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
@@ -36,6 +89,8 @@ DefaultTimeoutAbortSec=30s
 * Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
 ** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
 * Patrick: Please consider a small custom (C) program to run kernel call reboot or poweroff in case that is more reliable than sysrq.
+** Aaron: Continuing to investigate the cause of shutdown failure - C programs are no more reliable than using SysRq in my testing.
+*** So far I have been able to determine that removing i915 (Intel graphics) firmware from <code>/lib/firmware</code> is enough to resolve the issue. However, this shouldn't be needed because vanilla Debian 12 is able to emergency shut down properly with i915 firmware present. Therefore a Kicksecure configuration change is likely interacting poorly with the firmware or driver.
 
 == timesync developer wiki page improvements ==
 * https://www.whonix.org/wiki/Dev/TimeSync
@@ -770,6 +825,19 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== browser-choice - integrations ==
+* Kicksecure: no longer install firefox, thunderbird by default
+* make browser-choice the default browser? (lowest priority so it does not take effect over other installed browsers)
+* other required or useful integrations?
+* Aaron: Implemented:
+** browser-choice: https://github.com/ArrayBolt3/browser-choice/commit/8498e02b0afa5e3c107877d057c849e12cc76514 Code and UX improvements, including better guidance about what to do if you're trying to install browsers in a user session.
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/tree/arraybolt3/default-browser Adds browser-choice as a low-priority default browser.
+*** Should we be adding other browsers that we advertise in browser-choice here, i.e Mullvad and Brave? Mullvad's "set as default" feature fails silently, so this may be the only way for some users to get a default browser if they choose something non-standard.
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/tree/arraybolt3/default-browser Added a button for launching Browser Choice, since this is going to be vitally necessary.
+** kicksecure-meta-packages: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/default-browser Removed firefox-esr from dependencies, added browser-choice. (Note that dummy-dependency still provides firefox-esr, I wasn't sure whether I should remove that or not. I'd argue it should not be removed, if the user has some other package that "requires" firefox-esr and we remove dummy-dependency's "provides firefox-esr", it may result in the user's package manager getting stuck or trying to force installation of firefox-esr.)
+** anon-meta-packages: https://github.com/ArrayBolt3/anon-meta-packages/tree/arraybolt3/default-browser Removed thunderbird from dependencies, added browser-choice.
+** Unrelated, but I also ended up reviewing derivative-maker changes and did some fixes to derivative-update and approx caching while I was there: https://github.com/ArrayBolt3/derivative-maker/commit/58ed8b162dcc868ff8d5e5d57f0066b8a42b82c5
+
 == Debian on true read-only filesystem without ephemeral overlay ==
 * in preparation for verified boot implementation
 * research
