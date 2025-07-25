@@ -10,56 +10,33 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== test all vms - systemcheck --verbose --leak-tests ==
-* KS, GW, WS:
-** systemcheck --verbose --leak-tests
-* some new issues: apparmor, erst disable
-* please investigate
-* Done so far:
-** KS VBox
-** WS VBox
-** GW VBox
-** WS KVM
-** GW KVM
-* Left to do:
-** KS KVM
-** KS Qubes
-** WS Qubes
-** GW Qubes
-* maybe unfixable:
-<pre>
-Jul 18 06:31:08 localhost mount-shared[855]: /sbin/mount.vboxsf: mounting failed with the error: No such file or directory
-Jul 18 06:31:08 localhost kernel: vboxsf: Host rejected mount of 'shared' with error -2
-</pre>
-* only inside KVM, do not run in VBox (spice-vdagentd.service systemd drop-in file required in vm-config-dist probably:
-<pre>
-Jul 18 06:31:08 localhost systemd[1]: spice-vdagentd.service: Failed to parse PID from file /run/spice-vdagentd/spice-vdagentd.pid: Invalid argument
-</pre>
-* fixable:
-<pre>
-Jul 22 10:15:47 host mount-shared[815]: accountctl: [ERROR]: User does not exist: 'sysmaint'
-</pre>
-* apparmor:
-<pre>
-/usr/libexec/systemcheck/check_tor_socks_or_trans_port.bsh: line 116: /usr/bin/curl.anondist-orig: Permission denied
-</pre>
-
-== investigate networkmanager issue ==
-* Kicksecure
-<pre>
-Mar 25 10:11:41 localhost NetworkManager[990]:   [1742911901.7721] failed to open /run/network/ifstate
-</pre>
-* issue or safely ignored?
-
-== remove unnecessary dependencies from arc-theme ==
-* https://github.com/UbuntuBudgie/arc-theme/pull/2
-* since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
-* or perhaps a different, better theme? separate ticket: [[#desktop theme improvements]]
-
 == desktop theme improvements ==
 * suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
 * useful to change the desktop theme?
 * Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXqt.
+
+== review login security ==
+* account user without a password might be an issue? Yes, but we have these under control:
+** sudo - either unavailable in user session, unavailable for accounts other than account user and/or password protected
+** su - nosuid
+** login - requires root
+** ssh - not installed by default
+** loginctl?
+** anything else?
+* please document
+
+== review /etc/zsh configuration ==
+* https://forums.whonix.org/t/change-default-shell-from-bash-to-zsh-by-default/14792
+* https://github.com/Kicksecure/desktop-config-dist/tree/master/etc/zsh
+* security review
+* please suggest other useful changes, if applicable
+
+== autostart system-maintenance-panel on Whonix-Gateway ==
+* https://forums.whonix.org/t/autostart-system-maintenance-panel-on-whonix-gateway/21928
+
+== system-maintenance-panel on Whonix-Gateway - improvements ==
+* "network connections" tries to start nmtui which isn't installed by design on Whonix-Gateway
+* should other utilities be added such as onioncircuits, tor-control-panel, anon-connection-wizard or best avoided to avoid overloading and code complexity?
 
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
@@ -154,6 +131,11 @@ DefaultTimeoutAbortSec=30s
 *** "This means if malware manages to modify the /usr/bin/mv program despite immutability, then dm-verity would notice this the next time the user or system is attempting to execute that command."
 *** This security gained from this feature is somewhat reduced if the attacker can use ephermal overlays.
 ** consider [[Sysmaint#enable_sudo_access_in_USER_session|enable sudo access in USER session]] (developer debug mode): disable verified boot + write to disk + regenerate verified boot hash tree (this is to ease debugging issues only happening in user session but not in sysmaint session)
+* prefer Debian on true read-only filesystem without ephemeral overlay to benefit from kernel verified continuous verification after boot feature
+** [[Verified_Boot#Challenges_with_Immutable_Filesystems|Challenges with Immutable Filesystems]]
+*** As-needed ephemeral overlays
+*** Use alternate software that doesn't require root to be writable
+*** as feasible, up for discussion
 
 == calamares - unmount issues ==
 * Calamares is not unmounting an encrypted filesystem after installation is complete, thus making livecheck warn about an "unsafe" live state.
@@ -465,6 +447,12 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== remove unnecessary dependencies from arc-theme ==
+* https://github.com/UbuntuBudgie/arc-theme/pull/2
+* since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
+* or perhaps a different, better theme? separate ticket: [[#desktop theme improvements]]
+* Aaron: Pinged Ubuntu Budgie upstream via Matrix, got a response, waiting to see how (or if) that develops. Debian is likely not the right place to override this unless we absolutely have to do that. In either event, the dependencies won't be removed until Forky at best.
+
 == investigate Tor Browser metadata signing and expiration ==
 * in context of: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3028994433
 * Tor Browser does not appear to sign metadata. Even metadata used by Tor Browser's internal updater might be relying on unsigned metadata.
@@ -520,18 +508,6 @@ Mozilla has blogged about rollback attacks in the past. [x]
 * https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
 * Moved to "WAITING ON" because despite the feature working well on vanilla Debian 12, I could not get it to work on Kicksecure regardless of what I tried. I tried removing all kernel parameters that weren't vital to system boot, moved sysctl and modprobe files to backup locations, regenerated the initramfs, and even tried a different method of shutting down the system (specifically writing <code>o</code> to <code>/proc/sysrq-trigger</code>), all without success. Will try again once we port to Trixie.
 
-== Qubes-Whonix qrexec review ==
-* threat model: compromised workstation 
-* please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
-* check for privacy issues
-* fix in case issues are found
-* Aaron: Audited, could not find any way to cause an IP leak without lots of user interaction. Did find at least one possible way to cause one with user interaction.
-** Filed feature request: https://github.com/QubesOS/qubes-issues/issues/10051
-** Patch to implement: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/22
-*** Patrick: Please implement as suggested by Marek.
-**** Aaron: Implemented, left some notes about shortcomings of the current implementation and suggestions for how to further improve things. Waiting on further discussion.
-**** Aaron: Awaiting merge, this will be able to be moved to archived once done.
-
 == grml-debootstrap bootloader installation failure in Docker ==
 * https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
 * please use discretion on how worthwhile it is to spend time on this. as in, if you think it's doable without huge effort and you like docker, please implement. Otherwise, please only provide instructions for reproduction and leave it to upstream or tableseeker to fix.
@@ -560,6 +536,7 @@ Mozilla has blogged about rollback attacks in the past. [x]
 ** https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/21
 * pending questions by Patrick on migration path
 ** Aaron: Absent <code>rm_conffile</code> commands were an oversight. Corrected now.
+* Qubes OS side changes merged, waiting to merge sdwdate-gui changes until Trixie port.
 
 == RPi GRUB - contribute to Debian ==
 * Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
@@ -818,36 +795,125 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== livecheck - improvements ==
-* bug: clicking on "persistent mode" link bug: nothing happens (also no error when run from terminal)
-* feature request: make text copy/pasteable
-* feature request: improve the right click menu a bit. (show the name of the application "livecheck" to have some context what it is about)
-* Aaron: Implemented, but wasn't sure about the UX for adding the Livecheck name to the applet, so I made two different implementations. '''Only one should be merged,''' pick whichever one you like more (screenshots shared in chat). Both variants have the link bug fixed and the text copy-pastable.
-** Applet name under exit button: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-enhance
-** Applet name as part of exit button: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-enhance-alt
+== add prevent login test to systemcheck ==
+* add a new test to systemcheck?
 
-== browser-choice - integrations - #2 ==
-* add to Qubes Kicksecure Template default Qubes app menu
-** Aaron: Added.
-* integration with setup-wizard-dist?
-** mention Browser Choice in setup-wizard-dist?
-*** Aaron: Good idea, added.
-** add a button to start Browser Choice from setup-wizard-dist?
-*** Aaron: This may not be helpful - both Whonix-Workstation and Kicksecure come with user-sysmaint-split by default, so launching Browser Choice on first user session boot could be confusing.
-** port setup-wizard-dist to designer for prettification?
-*** Aaron: I don't think this is necessary, the application seems to be "pretty" enough and it isn't complicated enough for the extra abstraction of using Designer to be useful IMO.
-* open-link-confirmation: If no browser is installed yet in sysmaint mode, it advises the user "boot into user session" but that would be not of much help, because no browser is installed yet. Please add a message in such cases "open-link-confirmation could not detect an installed browser yet. Consider using a different device or VM to open the link or install a browser." (Needs polishing.)
-** Aaron: This is a bit tricky to do for multiple reasons:
-*** We'd have to load the <code>install-status</code> snippets from browser-choice and execute them in open-link-confirmation in order to check for the existence of a web browser. This is technically feasible (the <code>install-status</code> snippets are simply Bash code), but complicated and makes me a bit nervous.
-*** User-specific browsers can fool a naive approach that simply runs the <code>install-status</code> snippets - if the user has installed Tor Browser in a sysmaint session, the torbrowser check will pass.
-*** Ignoring user-specific browsers will result in some users being told they have no browser installed when they do have a browser installed.
-*** Checking for user-specific browsers isn't possible because we don't know which user account the user will log into ahead of time.
-*** The best way of doing this autodetection I can see is to look for system-wide browsers using browser-choice's plugin code, and suggest the user install a browser if no system-wide browsers are found (noting that this may not be necessary if the user has a user-specific browser installed).
-*** A simpler solution, and the one I started out with to avoid overcomplicating things, is to change the last line of the message to say "Ensure a suitable web browser is installed, then reboot into...". This leaves it to the user to decide whether a suitable browser is actually installed or not, something they are better-equipped to do than the program is.
-* Aaron: Implemented:
-** qubes-template-kicksecure: https://github.com/ArrayBolt3/qubes-template-kicksecure
-** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/browser-choice
-** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/tree/arraybolt3/default-browser
+<pre>
+sudo -u nobody su user
+sudo: unable to execute /usr/bin/su: Permission denied
+</pre>
+
+* Aaron: Implemented using <code>stat</code> rather than a direct execution attempt to make the results independent of the executing user account: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/su-test
+
+== reconsider qubes login security ==
+* reconsider running systemcheck function check_login_security also inside Qubes
+* at time of writing:
+
+<pre>
+[INFO] [systemcheck] Kicksecure Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Locked (Present)       Enabled       |
+| user     | Absent                 Enabled       |
+| sysmaint | Locked                 Enabled       |
++----------+--------------------------------------+
+</pre>
+
+* root account locked: important to check
+* gui autologin: in user session, disable for root, sysmaint?
+* Aaron: Implemented Qubes support: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/qubes-login-security
+** For GUI autologin, I chose to mimic the behavior of the tool on non-Qubes platforms as much as possible by making it clear that both the default user *and* the sysmaint account were considered as having "autologin" enabled. This isn't totally identical to display manager autologin, so I didn't implement this in helper-scripts /usr/sbin/autologinchange, but instead implemented it directly in systemcheck since applications should be using separate handlers for Qubes "autologin" and lightdm/sddm autologin.
+
+== mouse fingerprinting ==
+* todo
+* https://forums.whonix.org/t/better-mouse-obfuscation/21445
+* notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
+* update https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
+* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
+** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
+** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
+** Remaining work:
+*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
+*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
+*** Use normal kloak buffering to obfuscate mouse movements and timings
+*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
+* research reading list:
+** https://www.mimic.sbs/
+** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
+** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
+*** Aaron: These look potentially useful, but I'm not experienced enough with the math being used here to really understand how this works. Given the final equations and a sufficiently powerful math library however, it might be possible to wrap the algorithms into a library which could then be made part of an application, where the user could define where to click, what area to move the mouse in, and the time period during which the mouse should move, then click a "play" button that would move the mouse and execute the clicks using these synthesized movements. It might even be possible to somehow integrate this into kloak, though I'm unsure if that would actually be advantageous or not.
+* test page:
+** http://jcarlosnorte.com/assets/fingerprint/
+*** please document, if useful
+**** Aaron: Does not appear particularly useful, only runs tests on scroll wheel behavior.
+* Aaron: Current alpha-quality implementation: https://github.com/ArrayBolt3/kloak-v2
+
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+
+= ARCHIVED =
+== Qubes-Whonix qrexec review ==
+* threat model: compromised workstation 
+* please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
+* check for privacy issues
+* fix in case issues are found
+* Aaron: Audited, could not find any way to cause an IP leak without lots of user interaction. Did find at least one possible way to cause one with user interaction.
+** Filed feature request: https://github.com/QubesOS/qubes-issues/issues/10051
+** Patch to implement: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/22
+*** Patrick: Please implement as suggested by Marek.
+**** Aaron: Implemented, left some notes about shortcomings of the current implementation and suggestions for how to further improve things. Waiting on further discussion.
+**** Aaron: Awaiting merge, this will be able to be moved to archived once done.
+***** Merged.
+
+== Debian on true read-only filesystem without ephemeral overlay ==
+* in preparation for verified boot implementation
+* research
+* investigate, document which locations require ephemeral overlays
+* investigate, document which locations are useful to persist even when booting with verified boot such as logs
+* report bugs or missing features upstream (so we have something to point to to justify our implementation)
+* Aaron: Got vanilla Debian 12 Xfce to get to a functional GUI with a read-only root filesystem.
+** Needed to mount a tmpfs to the following directories:
+*** <code>/tmp</code>
+*** <code>/var/tmp</code>
+*** Both of these are simply expected to be world-writable by systemd, see https://systemd.io/TEMPORARY_DIRECTORIES/ and https://github.com/systemd/systemd/issues/17701#issuecomment-734302274
+** Needed to mount tmpfs overlays to the following directories:
+*** <code>/var/lib/lightdm</code>
+*** <code>/home</code>
+** In actual use, <code>/home</code> would probably be on a separate partition, as would <code>/var</code> unless aiming for it to be non-persistent. Note that Fedora Silverblue operates in a similar fashion - <code>/var</code> is a separate partition, and <code>/home</code> is mounted from it.
+** exim4 and anacron failed to start. anacron complains that it cannot open the timestamp file for job <code>cron.daily</code>, while exim4 complains it cannot touch <code>/var/lib/exim4/config.autogenerated.tmp</code>. Having <code>/var</code> writable would resolve this.
+** Once the GUI came up, LibreOffice and Firefox ESR both were able to launch. Web browsing in Firefox seemed to operate normally.
+** Should repeat this test, but with Kicksecure 17 rather than a plain Debian VM.
+* Aaron: Got Kicksecure 17 to boot directly to a GUI using a read-only root filesystem.
+** Reused same mounts as above, except I overlaid all of <code>/var</code> with a tmpfs, and also used a systemd unit to automate the overlay setup process.
+** sdwdate-pre.service fails because it is unable to write <code>/usr/libexec/sdwdate/sclockadj</code>. Could be easily ported to drop the file under <code>/run</code> instead.
+** swap-file-creator.service fails for obvious reasons
+** sysmaint boot malfunctions, at least in part because <code>/etc/passwd</code> can no longer be written to in order to unlock the sysmaint account
+** Firefox ESR works when booted into a user session
+
+== investigate networkmanager issue ==
+* Kicksecure
+<pre>
+Mar 25 10:11:41 localhost NetworkManager[990]:   [1742911901.7721] failed to open /run/network/ifstate
+</pre>
+* issue or safely ignored?
+** Aaron: I believe this can be safely ignored, /run/network is an ifupdown thing that (to my awareness) we don't use in Kicksecure. Added a line to systemcheck to silence the warning.
 
 == browser-choice - improvements ==
 * Should use <code>&&</code> instead of <code>;</code>?
@@ -910,76 +976,75 @@ usr/share/browser-choice/plugins/firefox.txt:install-script=pkexec bash -c -- 'e
 ** kicksecure-meta-packages: https://github.com/ArrayBolt3/kicksecure-meta-packages/tree/arraybolt3/default-browser Removed firefox-esr from dependencies, added browser-choice. (Note that dummy-dependency still provides firefox-esr, I wasn't sure whether I should remove that or not. I'd argue it should not be removed, if the user has some other package that "requires" firefox-esr and we remove dummy-dependency's "provides firefox-esr", it may result in the user's package manager getting stuck or trying to force installation of firefox-esr.)
 ** anon-meta-packages: https://github.com/ArrayBolt3/anon-meta-packages/tree/arraybolt3/default-browser Removed thunderbird from dependencies, added browser-choice.
 ** Unrelated, but I also ended up reviewing derivative-maker changes and did some fixes to derivative-update and approx caching while I was there: https://github.com/ArrayBolt3/derivative-maker/commit/58ed8b162dcc868ff8d5e5d57f0066b8a42b82c5
+* Patrick: All merged.
 
-== Debian on true read-only filesystem without ephemeral overlay ==
-* in preparation for verified boot implementation
-* research
-* investigate, document which locations require ephemeral overlays
-* investigate, document which locations are useful to persist even when booting with verified boot such as logs
-* report bugs or missing features upstream (so we have something to point to to justify our implementation)
-* Aaron: Got vanilla Debian 12 Xfce to get to a functional GUI with a read-only root filesystem.
-** Needed to mount a tmpfs to the following directories:
-*** <code>/tmp</code>
-*** <code>/var/tmp</code>
-*** Both of these are simply expected to be world-writable by systemd, see https://systemd.io/TEMPORARY_DIRECTORIES/ and https://github.com/systemd/systemd/issues/17701#issuecomment-734302274
-** Needed to mount tmpfs overlays to the following directories:
-*** <code>/var/lib/lightdm</code>
-*** <code>/home</code>
-** In actual use, <code>/home</code> would probably be on a separate partition, as would <code>/var</code> unless aiming for it to be non-persistent. Note that Fedora Silverblue operates in a similar fashion - <code>/var</code> is a separate partition, and <code>/home</code> is mounted from it.
-** exim4 and anacron failed to start. anacron complains that it cannot open the timestamp file for job <code>cron.daily</code>, while exim4 complains it cannot touch <code>/var/lib/exim4/config.autogenerated.tmp</code>. Having <code>/var</code> writable would resolve this.
-** Once the GUI came up, LibreOffice and Firefox ESR both were able to launch. Web browsing in Firefox seemed to operate normally.
-** Should repeat this test, but with Kicksecure 17 rather than a plain Debian VM.
-* Aaron: Got Kicksecure 17 to boot directly to a GUI using a read-only root filesystem.
-** Reused same mounts as above, except I overlaid all of <code>/var</code> with a tmpfs, and also used a systemd unit to automate the overlay setup process.
-** sdwdate-pre.service fails because it is unable to write <code>/usr/libexec/sdwdate/sclockadj</code>. Could be easily ported to drop the file under <code>/run</code> instead.
-** swap-file-creator.service fails for obvious reasons
-** sysmaint boot malfunctions, at least in part because <code>/etc/passwd</code> can no longer be written to in order to unlock the sysmaint account
-** Firefox ESR works when booted into a user session
+== browser-choice - integrations - #2 ==
+* add to Qubes Kicksecure Template default Qubes app menu
+** Aaron: Added.
+* integration with setup-wizard-dist?
+** mention Browser Choice in setup-wizard-dist?
+*** Aaron: Good idea, added.
+** add a button to start Browser Choice from setup-wizard-dist?
+*** Aaron: This may not be helpful - both Whonix-Workstation and Kicksecure come with user-sysmaint-split by default, so launching Browser Choice on first user session boot could be confusing.
+** port setup-wizard-dist to designer for prettification?
+*** Aaron: I don't think this is necessary, the application seems to be "pretty" enough and it isn't complicated enough for the extra abstraction of using Designer to be useful IMO.
+* open-link-confirmation: If no browser is installed yet in sysmaint mode, it advises the user "boot into user session" but that would be not of much help, because no browser is installed yet. Please add a message in such cases "open-link-confirmation could not detect an installed browser yet. Consider using a different device or VM to open the link or install a browser." (Needs polishing.)
+** Aaron: This is a bit tricky to do for multiple reasons:
+*** We'd have to load the <code>install-status</code> snippets from browser-choice and execute them in open-link-confirmation in order to check for the existence of a web browser. This is technically feasible (the <code>install-status</code> snippets are simply Bash code), but complicated and makes me a bit nervous.
+*** User-specific browsers can fool a naive approach that simply runs the <code>install-status</code> snippets - if the user has installed Tor Browser in a sysmaint session, the torbrowser check will pass.
+*** Ignoring user-specific browsers will result in some users being told they have no browser installed when they do have a browser installed.
+*** Checking for user-specific browsers isn't possible because we don't know which user account the user will log into ahead of time.
+*** The best way of doing this autodetection I can see is to look for system-wide browsers using browser-choice's plugin code, and suggest the user install a browser if no system-wide browsers are found (noting that this may not be necessary if the user has a user-specific browser installed).
+*** A simpler solution, and the one I started out with to avoid overcomplicating things, is to change the last line of the message to say "Ensure a suitable web browser is installed, then reboot into...". This leaves it to the user to decide whether a suitable browser is actually installed or not, something they are better-equipped to do than the program is.
+* Aaron: Implemented:
+** qubes-template-kicksecure: https://github.com/ArrayBolt3/qubes-template-kicksecure
+** setup-wizard-dist: https://github.com/ArrayBolt3/setup-wizard-dist/tree/arraybolt3/browser-choice
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/tree/arraybolt3/default-browser
+* Patrick: All merged.
 
-== mouse fingerprinting ==
-* todo
-* https://forums.whonix.org/t/better-mouse-obfuscation/21445
-* notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
-* update https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
-* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
-** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
-** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
-** Remaining work:
-*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
-*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
-*** Use normal kloak buffering to obfuscate mouse movements and timings
-*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
-* research reading list:
-** https://www.mimic.sbs/
-** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
-** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
-*** Aaron: These look potentially useful, but I'm not experienced enough with the math being used here to really understand how this works. Given the final equations and a sufficiently powerful math library however, it might be possible to wrap the algorithms into a library which could then be made part of an application, where the user could define where to click, what area to move the mouse in, and the time period during which the mouse should move, then click a "play" button that would move the mouse and execute the clicks using these synthesized movements. It might even be possible to somehow integrate this into kloak, though I'm unsure if that would actually be advantageous or not.
-* test page:
-** http://jcarlosnorte.com/assets/fingerprint/
-*** please document, if useful
-**** Aaron: Does not appear particularly useful, only runs tests on scroll wheel behavior.
-* Aaron: Current alpha-quality implementation: https://github.com/ArrayBolt3/kloak-v2
+== livecheck - improvements ==
+* bug: clicking on "persistent mode" link bug: nothing happens (also no error when run from terminal)
+* feature request: make text copy/pasteable
+* feature request: improve the right click menu a bit. (show the name of the application "livecheck" to have some context what it is about)
+* Aaron: Implemented, but wasn't sure about the UX for adding the Livecheck name to the applet, so I made two different implementations. '''Only one should be merged,''' pick whichever one you like more (screenshots shared in chat). Both variants have the link bug fixed and the text copy-pastable.
+** Applet name under exit button: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-enhance
+*** Patrick: Merged.
+** Applet name as part of exit button: https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/livecheck-enhance-alt
+*** Patrick: Ignored.
 
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+== test all vms - systemcheck --verbose --leak-tests ==
+* KS, GW, WS:
+** systemcheck --verbose --leak-tests
+* some new issues: apparmor, erst disable
+* please investigate
+* maybe unfixable:
+** Aaron: Very likely unfixable or too difficult to fix, as we'd have to somehow request info from the vboxsf driver about what mount tags are available. Silenced via /etc/systemcheck.d/30_default.conf.
+<pre>
+Jul 18 06:31:08 localhost mount-shared[855]: /sbin/mount.vboxsf: mounting failed with the error: No such file or directory
+Jul 18 06:31:08 localhost kernel: vboxsf: Host rejected mount of 'shared' with error -2
+</pre>
+* only inside KVM, do not run in VBox (spice-vdagentd.service systemd drop-in file required in vm-config-dist probably:
+** Aaron: Cannot reproduce with virt-manager or with bare QEMU+KVM, did not attempt to mitigate.
+<pre>
+Jul 18 06:31:08 localhost systemd[1]: spice-vdagentd.service: Failed to parse PID from file /run/spice-vdagentd/spice-vdagentd.pid: Invalid argument
+</pre>
+* fixable:
+** Aaron: Fixed.
+<pre>
+Jul 22 10:15:47 host mount-shared[815]: accountctl: [ERROR]: User does not exist: 'sysmaint'
+</pre>
+* apparmor:
+** Aaron: fixed.
+<pre>
+/usr/libexec/systemcheck/check_tor_socks_or_trans_port.bsh: line 116: /usr/bin/curl.anondist-orig: Permission denied
+</pre>
+* Aaron: Fixes and workarounds implemented:
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/warn-fix
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/systemcheck-warn-fix
+** vm-config-dist: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/enhance
+** sdwdate: https://github.com/ArrayBolt3/sdwdate/tree/arraybolt3/qubes
+* Patrick: All merged.
 
-= ARCHIVED =
 == document debian versus read-only root file system without overlay issues ==
 * document on [[Verified Boot]]
 * mention on [[Dev/user-sysmaint-split]]
