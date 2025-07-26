@@ -10,11 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== desktop theme improvements ==
-* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
-* useful to change the desktop theme?
-* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXqt.
-
 == review login security ==
 * account user without a password might be an issue? Yes, but we have these under control:
 ** sudo - either unavailable in user session, unavailable for accounts other than account user and/or password protected
@@ -25,18 +20,10 @@ TODO
 ** anything else?
 * please document
 
-== review /etc/zsh configuration ==
-* https://forums.whonix.org/t/change-default-shell-from-bash-to-zsh-by-default/14792
-* https://github.com/Kicksecure/desktop-config-dist/tree/master/etc/zsh
-* security review
-* please suggest other useful changes, if applicable
-
-== autostart system-maintenance-panel on Whonix-Gateway ==
-* https://forums.whonix.org/t/autostart-system-maintenance-panel-on-whonix-gateway/21928
-
-== system-maintenance-panel on Whonix-Gateway - improvements ==
-* "network connections" tries to start nmtui which isn't installed by design on Whonix-Gateway
-* should other utilities be added such as onioncircuits, tor-control-panel, anon-connection-wizard or best avoided to avoid overloading and code complexity?
+== systemcheck login security check ==
+* systemcheck run in user session shows password for account "user" as "Absent" and account "sysmaint" as "Locked"
+* however, sysmaint does not really have a password set.
+* Should be "Locked (Absent)" in orange color instead?
 
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
@@ -405,6 +392,9 @@ sudo apt install serial-console-enable
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=822693
 * review, comment, pull request where applicable
 * draft and/or open a discussion on debian-devel
+* use cases:
+** automatically sandbox applications (such as when typing "browser-name")
+** warn user against starting certain applications inside sysmaint mode such as browsers
 
 == check out bubblejail ==
 * https://github.com/igo95862/bubblejail
@@ -659,6 +649,13 @@ if pkg_installed initramfs-tools ; then?
 ** https://alexxcons.github.io/blogpost_14.html
 ** https://forums.whonix.org/t/whonix-xfce-development/6213/106
 
+== trixie port - polish default browser handling ==
+* open-link-confirmation should be the canonical default browser in all instances
+* merge the functionality of tb-default-browser into open-link-confirmation
+* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
+* Whonix: open-link-confirmation should only consider torbrowser
+* uninstall tb-default-browser inside release-upgrade (if useful)
+
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
 
@@ -795,6 +792,40 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== system-maintenance-panel - improvements ==
+* Whonix-Gateway: "network connections" tries to start nmtui which isn't installed by design on Whonix-Gateway
+** Aaron: "Install a Browser" shouldn't be displayed in Whonix-Gateway or Whonix-Workstation either. Hid both buttons when running on Whonix.
+* Whonix-Gateway: should other utilities be added such as onioncircuits, tor-control-panel, anon-connection-wizard or best avoided to avoid overloading and code complexity?
+** Aaron: Fine to add those tools, doesn't add much complexity. Added all three of these to Whonix-Gateway, plus Tor Status Monitor (Nyx) to keep the button panel well-balanced.
+* lock screen: If no password is set, this does not actually lock the screen. Should show an error popup that suggests to set a password and run login security check?
+** Aaron: Good idea. We should also refuse to lock the screen if the password is locked or "restricted" since it will be impossible to unlock in those situations.
+* Aaron: Implemented all requested enhancements:
+** systemcheck needed to be changed since the get-password-status-list script had to move to helper-scripts: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/move-password-list-script
+** helper-scripts (enhanced the actual lock script, also moved get-password-status-list into this): https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/screen-locking
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/76366bab51e3614e70739a539da79ba65a13e1b3
+
+== autostart system-maintenance-panel on Whonix-Gateway ==
+* https://forums.whonix.org/t/autostart-system-maintenance-panel-on-whonix-gateway/21928
+* Aaron: Implemented: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sysmaint-panel
+
+== desktop theme improvements ==
+* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
+* useful to change the desktop theme?
+* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXQt.
+* Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
+
+== browser choice - bugs ==
+* bug: user session -> chromium -> install as flatpak -> fails at pkexec. Should not be allowed to reach that point.
+* Aaron: Fixed (along with a few other bugs): https://github.com/ArrayBolt3/browser-choice/commit/fc37dfb44af5ce47fb550515e3070ed4900addcf
+
+== review /etc/zsh configuration ==
+* https://forums.whonix.org/t/change-default-shell-from-bash-to-zsh-by-default/14792
+* https://github.com/Kicksecure/desktop-config-dist/tree/master/etc/zsh
+* security review
+* please suggest other useful changes, if applicable
+* Aaron: Audited, added suggested security and usability enhancements in https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/zsh-harden
+** Note, one of the changes is to remove the <code>-N</code> option from the default ls alias - this aids usability in my opinion, but might not be desirable? Would be happy to undo that if this is considered too much of a change.
+
 == add prevent login test to systemcheck ==
 * add a new test to systemcheck?
 
