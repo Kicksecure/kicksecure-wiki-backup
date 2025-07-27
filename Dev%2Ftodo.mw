@@ -20,11 +20,6 @@ TODO
 ** anything else?
 * please document
 
-== systemcheck login security check ==
-* systemcheck run in user session shows password for account "user" as "Absent" and account "sysmaint" as "Locked"
-* however, sysmaint does not really have a password set.
-* Should be "Locked (Absent)" in orange color instead?
-
 == improve systemd shutdown reliability ==
 * this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
 * add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
@@ -96,6 +91,15 @@ DefaultTimeoutAbortSec=30s
 * in preparation for the next task
 * might resolve the verified boot issue for lightdm requiring read-write access to /var/lib/lightdm
 * can be refereed until after Debian trixie or during port to Debian trixie
+
+== repository-dist - improvements ==
+* https://github.com/Kicksecure/repository-dist
+* GUI: detect stable, stable-proposed-updates, testers, developers setting in GUI. I.e. if re-running the tool, keep the former setting. Should this depend on previous choice in the GUI (status files, probably easier) or actual status on the disk (might be manually modified by the user)?
+* add support for switching back and forth between clearnet and onion
+
+== Tool to onionize all APT sources ==
+* https://forums.whonix.org/t/tool-to-onionize-all-apt-sources/13367
+* Should it be part of repository-dist or a standalone tool?
 
 == verified boot implementation ==
 * assume firmware can extend trust to kernel via Sovereign Boot
@@ -662,6 +666,13 @@ if pkg_installed initramfs-tools ; then?
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
 
+== trixie port - desktop theme improvements ==
+* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
+* useful to change the desktop theme?
+* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXQt.
+* Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
+* Can be postponed after the first trixie based release.
+
 == trixie port - emergent shutdown discussion ==
 * priority: lower - this can be done after the first trixie based release
 * please read, comment if applicable
@@ -792,70 +803,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== system-maintenance-panel - improvements ==
-* Whonix-Gateway: "network connections" tries to start nmtui which isn't installed by design on Whonix-Gateway
-** Aaron: "Install a Browser" shouldn't be displayed in Whonix-Gateway or Whonix-Workstation either. Hid both buttons when running on Whonix.
-* Whonix-Gateway: should other utilities be added such as onioncircuits, tor-control-panel, anon-connection-wizard or best avoided to avoid overloading and code complexity?
-** Aaron: Fine to add those tools, doesn't add much complexity. Added all three of these to Whonix-Gateway, plus Tor Status Monitor (Nyx) to keep the button panel well-balanced.
-* lock screen: If no password is set, this does not actually lock the screen. Should show an error popup that suggests to set a password and run login security check?
-** Aaron: Good idea. We should also refuse to lock the screen if the password is locked or "restricted" since it will be impossible to unlock in those situations.
-* Aaron: Implemented all requested enhancements:
-** systemcheck needed to be changed since the get-password-status-list script had to move to helper-scripts: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/move-password-list-script
-** helper-scripts (enhanced the actual lock script, also moved get-password-status-list into this): https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/screen-locking
-** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/76366bab51e3614e70739a539da79ba65a13e1b3
-
-== autostart system-maintenance-panel on Whonix-Gateway ==
-* https://forums.whonix.org/t/autostart-system-maintenance-panel-on-whonix-gateway/21928
-* Aaron: Implemented: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sysmaint-panel
-
-== desktop theme improvements ==
-* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
-* useful to change the desktop theme?
-* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXQt.
-* Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
-
-== browser choice - bugs ==
-* bug: user session -> chromium -> install as flatpak -> fails at pkexec. Should not be allowed to reach that point.
-* Aaron: Fixed (along with a few other bugs): https://github.com/ArrayBolt3/browser-choice/commit/fc37dfb44af5ce47fb550515e3070ed4900addcf
-
-== review /etc/zsh configuration ==
-* https://forums.whonix.org/t/change-default-shell-from-bash-to-zsh-by-default/14792
-* https://github.com/Kicksecure/desktop-config-dist/tree/master/etc/zsh
-* security review
-* please suggest other useful changes, if applicable
-* Aaron: Audited, added suggested security and usability enhancements in https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/zsh-harden
-** Note, one of the changes is to remove the <code>-N</code> option from the default ls alias - this aids usability in my opinion, but might not be desirable? Would be happy to undo that if this is considered too much of a change.
-
-== add prevent login test to systemcheck ==
-* add a new test to systemcheck?
-
-<pre>
-sudo -u nobody su user
-sudo: unable to execute /usr/bin/su: Permission denied
-</pre>
-
-* Aaron: Implemented using <code>stat</code> rather than a direct execution attempt to make the results independent of the executing user account: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/su-test
-
-== reconsider qubes login security ==
-* reconsider running systemcheck function check_login_security also inside Qubes
-* at time of writing:
-
-<pre>
-[INFO] [systemcheck] Kicksecure Login Security Check:
-+----------+--------------------------------------+
-| Users    | Password               GUI Autologin |
-+----------+--------------------------------------+
-| root     | Locked (Present)       Enabled       |
-| user     | Absent                 Enabled       |
-| sysmaint | Locked                 Enabled       |
-+----------+--------------------------------------+
-</pre>
-
-* root account locked: important to check
-* gui autologin: in user session, disable for root, sysmaint?
-* Aaron: Implemented Qubes support: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/qubes-login-security
-** For GUI autologin, I chose to mimic the behavior of the tool on non-Qubes platforms as much as possible by making it clear that both the default user *and* the sysmaint account were considered as having "autologin" enabled. This isn't totally identical to display manager autologin, so I didn't implement this in helper-scripts /usr/sbin/autologinchange, but instead implemented it directly in systemcheck since applications should be using separate handlers for Qubes "autologin" and lightdm/sddm autologin.
-
 == mouse fingerprinting ==
 * todo
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
@@ -900,6 +847,83 @@ sudo: unable to execute /usr/bin/su: Permission denied
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== browser choice - bugs ==
+* bug: user session -> chromium -> install as flatpak -> fails at pkexec. Should not be allowed to reach that point.
+* Aaron: Fixed (along with a few other bugs): https://github.com/ArrayBolt3/browser-choice/commit/fc37dfb44af5ce47fb550515e3070ed4900addcf
+** Patrick: Merged.
+
+== autostart system-maintenance-panel on Whonix-Gateway ==
+* https://forums.whonix.org/t/autostart-system-maintenance-panel-on-whonix-gateway/21928
+* Aaron: Implemented: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sysmaint-panel
+** Patrick: Merged.
+
+== system-maintenance-panel - improvements ==
+* Whonix-Gateway: "network connections" tries to start nmtui which isn't installed by design on Whonix-Gateway
+** Aaron: "Install a Browser" shouldn't be displayed in Whonix-Gateway or Whonix-Workstation either. Hid both buttons when running on Whonix.
+* Whonix-Gateway: should other utilities be added such as onioncircuits, tor-control-panel, anon-connection-wizard or best avoided to avoid overloading and code complexity?
+** Aaron: Fine to add those tools, doesn't add much complexity. Added all three of these to Whonix-Gateway, plus Tor Status Monitor (Nyx) to keep the button panel well-balanced.
+* lock screen: If no password is set, this does not actually lock the screen. Should show an error popup that suggests to set a password and run login security check?
+** Aaron: Good idea. We should also refuse to lock the screen if the password is locked or "restricted" since it will be impossible to unlock in those situations.
+* Aaron: Implemented all requested enhancements:
+** systemcheck needed to be changed since the get-password-status-list script had to move to helper-scripts: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/move-password-list-script
+*** Patrick: Merged.
+** helper-scripts (enhanced the actual lock script, also moved get-password-status-list into this): https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/screen-locking
+*** Patrick: Merged.
+** sysmaint-panel: https://github.com/ArrayBolt3/sysmaint-panel/commit/76366bab51e3614e70739a539da79ba65a13e1b3
+*** Patrick: Merged.
+
+== review /etc/zsh configuration ==
+* https://forums.whonix.org/t/change-default-shell-from-bash-to-zsh-by-default/14792
+* https://github.com/Kicksecure/desktop-config-dist/tree/master/etc/zsh
+* security review
+* please suggest other useful changes, if applicable
+* Aaron: Audited, added suggested security and usability enhancements in https://github.com/ArrayBolt3/desktop-config-dist/tree/arraybolt3/zsh-harden
+** Note, one of the changes is to remove the <code>-N</code> option from the default ls alias - this aids usability in my opinion, but might not be desirable? Would be happy to undo that if this is considered too much of a change.
+*** Patrick: Should be ok.
+** Patrick: Merged.
+
+== systemcheck login security check ==
+* systemcheck run in user session shows password for account "user" as "Absent" and account "sysmaint" as "Locked"
+* however, sysmaint does not really have a password set.
+* Should be "Locked (Absent)" in orange color instead?
+* Aaron: Good idea, implemented.
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/login-locked-absent
+*** Patrick: Merged.
+** systemcheck: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/login-locked-absent
+*** Patrick: Merged.
+
+== add prevent login test to systemcheck ==
+* add a new test to systemcheck?
+
+<pre>
+sudo -u nobody su user
+sudo: unable to execute /usr/bin/su: Permission denied
+</pre>
+
+* Aaron: Implemented using <code>stat</code> rather than a direct execution attempt to make the results independent of the executing user account: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/su-test
+* Patrick: Merged.
+
+== reconsider qubes login security ==
+* reconsider running systemcheck function check_login_security also inside Qubes
+* at time of writing:
+
+<pre>
+[INFO] [systemcheck] Kicksecure Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Locked (Present)       Enabled       |
+| user     | Absent                 Enabled       |
+| sysmaint | Locked                 Enabled       |
++----------+--------------------------------------+
+</pre>
+
+* root account locked: important to check
+* gui autologin: in user session, disable for root, sysmaint?
+* Aaron: Implemented Qubes support: https://github.com/ArrayBolt3/systemcheck/tree/arraybolt3/qubes-login-security
+** For GUI autologin, I chose to mimic the behavior of the tool on non-Qubes platforms as much as possible by making it clear that both the default user *and* the sysmaint account were considered as having "autologin" enabled. This isn't totally identical to display manager autologin, so I didn't implement this in helper-scripts /usr/sbin/autologinchange, but instead implemented it directly in systemcheck since applications should be using separate handlers for Qubes "autologin" and lightdm/sddm autologin.
+** Patrick: Merged.
+
 == Qubes-Whonix qrexec review ==
 * threat model: compromised workstation 
 * please review all qrexec services and see if these could be used to produce an IP leak from Whonix-Workstation
