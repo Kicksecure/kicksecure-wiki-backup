@@ -10,30 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== improve systemd shutdown reliability ==
-* this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
-* add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
-** use: <code>KillMode=none</code>
-** use other settings coming to mind making the systemd unit harder to kill
-** this is for testing purposes only
-** once this ticket is done, we will comment it out by default and keep it as comments-only for reference, future testing
-* check, adjust global values such as:
-** <code>timeout</code> is mentioned in /etc/systemd/system.conf logind.conf user.conf
-
-<pre>
-DefaultTimeoutStopSec=30s
-DefaultTimeoutStartSec=30s
-DefaultTimeoutAbortSec=30s
-</pre>
-
-* investigate if there is any other ways to make the systemd force shutdown
-* investigate if there is any other ways to make the system force shutdown
-* Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
-** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
-* Patrick: Please consider a small custom (C) program to run kernel call reboot or poweroff in case that is more reliable than sysrq.
-** Aaron: Continuing to investigate the cause of shutdown failure - C programs are no more reliable than using SysRq in my testing.
-*** So far I have been able to determine that removing i915 (Intel graphics) firmware from <code>/lib/firmware</code> is enough to resolve the issue. However, this shouldn't be needed because vanilla Debian 12 is able to emergency shut down properly with i915 firmware present. Therefore a Kicksecure configuration change is likely interacting poorly with the firmware or driver.
-
 == timesync developer wiki page improvements ==
 * https://www.whonix.org/wiki/Dev/TimeSync
 * [[anondate]]
@@ -486,12 +462,6 @@ Mozilla has blogged about rollback attacks in the past. [x]
 * Aaron: Filed issue against Tor Browser, pending moderator approval. Also requested a Tor Project Gitlab account, which is also pending approval.
 ** I did not file a report against Mozilla Firefox, because their update mechanism involves automatically generated XML created by a backend server, whereas The Tor Project's update metadata seems to be static and not nearly as complicated.
 
-== emergency shutdown implementation ==
-* when the boot USB drive is removed
-* when panic key is pressed (most obviously probably the power button)
-* https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
-* Moved to "WAITING ON" because despite the feature working well on vanilla Debian 12, I could not get it to work on Kicksecure regardless of what I tried. I tried removing all kernel parameters that weren't vital to system boot, moved sysctl and modprobe files to backup locations, regenerated the initramfs, and even tried a different method of shutting down the system (specifically writing <code>o</code> to <code>/proc/sysrq-trigger</code>), all without success. Will try again once we port to Trixie.
-
 == grml-debootstrap bootloader installation failure in Docker ==
 * https://github.com/grml/grml-debootstrap/issues/348#issuecomment-3017083278
 * please use discretion on how worthwhile it is to spend time on this. as in, if you think it's doable without huge effort and you like docker, please implement. Otherwise, please only provide instructions for reproduction and leave it to upstream or tableseeker to fix.
@@ -793,6 +763,41 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== emergency shutdown implementation ==
+* when the boot USB drive is removed
+* when panic key is pressed (most obviously probably the power button)
+* https://github.com/NobodySpecial256/panic-wipe/blob/main/panic.c
+* Aaron: Implemented
+** security-misc: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/emerg-shutdown
+** helper-scripts: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/emerg-shutdown
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/emerg-shutdown
+
+== improve systemd shutdown reliability ==
+* this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
+* add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
+** use: <code>KillMode=none</code>
+** use other settings coming to mind making the systemd unit harder to kill
+** this is for testing purposes only
+** once this ticket is done, we will comment it out by default and keep it as comments-only for reference, future testing
+* check, adjust global values such as:
+** <code>timeout</code> is mentioned in /etc/systemd/system.conf logind.conf user.conf
+
+<pre>
+DefaultTimeoutStopSec=30s
+DefaultTimeoutStartSec=30s
+DefaultTimeoutAbortSec=30s
+</pre>
+
+* investigate if there is any other ways to make the systemd force shutdown
+* investigate if there is any other ways to make the system force shutdown
+* Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
+** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
+*** Actually, this won't work, systemd will hang waiting for the <code>sleep 15</code> to finish, then the system will forcibly power down.
+* Patrick: Please consider a small custom (C) program to run kernel call reboot or poweroff in case that is more reliable than sysrq.
+** Aaron: Continuing to investigate the cause of shutdown failure - C programs are no more reliable than using SysRq in my testing.
+*** So far I have been able to determine that removing i915 (Intel graphics) firmware from <code>/lib/firmware</code> is enough to resolve the issue. However, this shouldn't be needed because vanilla Debian 12 is able to emergency shut down properly with i915 firmware present. Therefore a Kicksecure configuration change is likely interacting poorly with the firmware or driver.
+* Aaron: I believe this is currently impossible to implement, see https://github.com/systemd/systemd/issues/38261#issuecomment-3130259046. However, I was able to finally implement emergency shutdown.
+
 == review login security ==
 * account user without a password might be an issue? Yes, but we have these under control:
 ** sudo - either unavailable in user session, unavailable for accounts other than account user and/or password protected
