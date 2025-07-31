@@ -10,32 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== improve systemd shutdown reliability ==
-* this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
-* add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
-** use: <code>KillMode=none</code>
-** use other settings coming to mind making the systemd unit harder to kill
-** this is for testing purposes only
-** once this ticket is done, we will comment it out by default and keep it as comments-only for reference, future testing
-* check, adjust global values such as:
-** <code>timeout</code> is mentioned in /etc/systemd/system.conf logind.conf user.conf
-
-<pre>
-DefaultTimeoutStopSec=30s
-DefaultTimeoutStartSec=30s
-DefaultTimeoutAbortSec=30s
-</pre>
-
-* investigate if there is any other ways to make the systemd force shutdown
-* investigate if there is any other ways to make the system force shutdown
-* Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
-** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
-*** Actually, this won't work, systemd will hang waiting for the <code>sleep 15</code> to finish, then the system will forcibly power down.
-* Patrick: Please consider a small custom (C) program to run kernel call reboot or poweroff in case that is more reliable than sysrq.
-** Aaron: Continuing to investigate the cause of shutdown failure - C programs are no more reliable than using SysRq in my testing.
-*** So far I have been able to determine that removing i915 (Intel graphics) firmware from <code>/lib/firmware</code> is enough to resolve the issue. However, this shouldn't be needed because vanilla Debian 12 is able to emergency shut down properly with i915 firmware present. Therefore a Kicksecure configuration change is likely interacting poorly with the firmware or driver.
-* Aaron: I believe this is currently impossible to implement, see https://github.com/systemd/systemd/issues/38261#issuecomment-3130259046. However, I was able to finally implement emergency shutdown.
-
 == begin Trixie port ==
 * immediate goal - rebase Kicksecure as-is ontfo Trixie
 * further enhancements are in other tickets under WAITING ON
@@ -65,6 +39,16 @@ DefaultTimeoutAbortSec=30s
 ** or if easier, saner, port sclockadj from clock_settime to adjtimex?
 ** Aaron: Probably easier to port sclockadj, chrony looks a bit dangerous to me.
 ** please research, consider various options
+
+== kicksecure - update torification improvements ==
+* only shipped-by-default apt repositories go through Tor
+* ideally, newly added apt repositories should go through Tor as well, as should flatpak installation and updates
+
+== flatpak update integration ==
+* users are given the ability to easily install flatpaks via browser-choice, but aren't given any easy way to update them
+* add code to upgrade-nonroot that also updates flatpaks
+* Aaron: Implemented: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/flatpak-update
+* Patrick: should be deferred until update torification has been improved
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -778,6 +762,37 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== permanent shortcut to VM shared folder ==
+* for easy access of shared files via Thunar
+* Implemented: https://github.com/ArrayBolt3/vm-config-dist/tree/arraybolt3/shared-folder-readme
+
+== improve systemd shutdown reliability ==
+* this is required for effective ram-wipe - hung at shutdown would be adverse for security as the system keeps running and ram does not get wiped
+* add a systemd unit to some kicksecure package that will result in breaking the shutdown on purpose (ExitStop taking forever)
+** use: <code>KillMode=none</code>
+** use other settings coming to mind making the systemd unit harder to kill
+** this is for testing purposes only
+** once this ticket is done, we will comment it out by default and keep it as comments-only for reference, future testing
+* check, adjust global values such as:
+** <code>timeout</code> is mentioned in /etc/systemd/system.conf logind.conf user.conf
+
+<pre>
+DefaultTimeoutStopSec=30s
+DefaultTimeoutStartSec=30s
+DefaultTimeoutAbortSec=30s
+</pre>
+
+* investigate if there is any other ways to make the systemd force shutdown
+* investigate if there is any other ways to make the system force shutdown
+* Aaron: systemd doesn't appear to have this feature, filed a request: https://github.com/systemd/systemd/issues/38261
+** In the mean time, a unit with something similar to <code>ExecStop=bash -c -- 'sleep 15; echo "o" > /proc/sysrq-trigger</code> might work.
+*** Actually, this won't work, systemd will hang waiting for the <code>sleep 15</code> to finish, then the system will forcibly power down.
+* Patrick: Please consider a small custom (C) program to run kernel call reboot or poweroff in case that is more reliable than sysrq.
+** Aaron: Continuing to investigate the cause of shutdown failure - C programs are no more reliable than using SysRq in my testing.
+*** So far I have been able to determine that removing i915 (Intel graphics) firmware from <code>/lib/firmware</code> is enough to resolve the issue. However, this shouldn't be needed because vanilla Debian 12 is able to emergency shut down properly with i915 firmware present. Therefore a Kicksecure configuration change is likely interacting poorly with the firmware or driver.
+* Aaron: I believe this is currently impossible to implement, see https://github.com/systemd/systemd/issues/38261#issuecomment-3130259046. However, I was able to finally implement emergency shutdown.
+** Patrick brought up the possibility of using <code>KillMode=none</code> to keep the shutdown "unstick" mechanism from being killed prematurely. I ended up using <code>KillMode=process</code> instead. I was able to implement this after all, however it may require some tuning by the end user and so is disabled by default. Notes documented in code and left in chat.
+
 == emergency shutdown implementation ==
 * when the boot USB drive is removed
 * when panic key is pressed (most obviously probably the power button)
