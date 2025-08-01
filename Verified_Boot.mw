@@ -498,6 +498,78 @@ A feasible workflow might involve Secure Boot launching shim (signed by Microsof
 === Key Management and User Complexity ===
 Ultimately, projects relying on their own key for signing or implementing Secure Boot independently of Microsoft face significant technical and logistical hurdles. While it's possible to use external storage for managing measurements, this increases user complexity and introduces new risks.
 
+== Supply Chain Attacks ==
+New wiki chapter.
+
+Attacks:
+
+* Supply Chain Attack: Compromise happens before the device reaches the end user (primarily perhaps during shipping but also during refurbishing, resale, etc.).
+* Evil Maid Attack (variant): A physical attacker modifies the device while the user is unaware. This is a pre-user evil maid, where the user never owned a clean device to begin with.
+* Rollback Attack (if older signed images used): Uses older, vulnerable but validly signed firmware/OS images to exploit known vulnerabilities.
+* Old stock sale "attack": This can happen when selling older stock with old pre-installed versions that turned out to include vulnerabilities.
+* Forged Verified Boot Attack: Re-locks bootloader using attacker’s key to fake a secure boot state. Device appears secure but isn’t. A variant of phishing where the OS mimics a trusted UI (e.g., "Google Pixel" lookalike with backdoors).
+* Relocking Attack: synonym, same as above
+* Malicious Bootloader Re-lock Attack: synonym, same as above
+* Impersonation via ROM-level Spoofing: synonym, same as above
+* Persistent Firmware/OS Rootkit Injection:	Rootkits installed at the OS or bootloader level that survive reboots and resist detection.
+* [[Verified_Boot#Boot_User_Interface_Spoofing_Attack|Boot User Interface Spoofing Attack]]
+
+Protection:
+
+* Tamper-Evident Verified Boot: Makes any modification to the boot chain detectable to the user. See:
+** https://source.android.com/docs/security/features/verifiedboot/boot-flow
+** https://source.android.com/docs/security/features/verifiedboot/device-state#user-settable-root-of-trust
+** User Notified of Changes: During boot, if the device detects enrollment of a non-stock key, it shows a distinct warning screen and reveals the public key fingerprint. This makes faked stock ROMs with re-locked bootloader keys highly detectable.
+* [[Verified_Boot#Remote_Attestation|Remote Attestation]]: Potentially, in addition, but not as a primary defense.
+
+Questions:
+
+* How can the user know if the user received,
+** A) vendor-locked phone; or
+** B) user unlock supported device?
+
+== Boot User Interface Spoofing Attack ==
+
+'''Objective:'''  
+
+Remain operational during transit/delivery to:
+
+* Exfiltrate data (e.g., nearby Wi-Fi, Bluetooth, IMSI catchers).
+* Record voice/environment via microphone.
+* Remain persistent and hidden.
+* Install or mask malicious firmware.
+
+Attack Flow:
+
+'''Malicious ROM Flashing (Pre-Delivery):'''
+
+* Device bootloader is unlocked.
+* A custom ROM with ultra-low-power malware is flashed.
+* Bootloader is re-locked with attacker’s key or no verification at all.
+* Attacker re-packs and ships the phone.
+
+'''Stealth Power-On:'''
+
+* The malicious ROM enters always-on but ultra-low-power mode.
+* Simulates full power-off, but continues operations in background.
+
+'''Fake First Boot UI:'''
+
+On user’s first power-on:
+
+* The malware shows fake "booting" screens (OEM logos, OS animation, language selector).
+* Possibly displays fake verified boot state or warnings.
+* Device never truly boots clean; it’s already running a compromised environment.
+
+'''Backdoor Installation / Exfiltration:'''
+
+* Can establish persistent rootkits.
+* Can activate radios/sensors to exfiltrate data.
+
+'''Related:'''
+
+* [[Login_spoofing|Login Spoofing]]
+
 = {{project_name_short}} Verified Boot Development Ideas =
 == Verified VM Boot Sequence without Secure Boot ==
 Talking about VMs only in this concept.
