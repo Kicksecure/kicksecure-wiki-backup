@@ -10,11 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== begin Trixie port ==
-* immediate goal - rebase Kicksecure as-is ontfo Trixie
-* further enhancements are in other tickets under WAITING ON
-* Aaron: Current progress can be seen in the <code>arraybolt3/trixie</code> branches of all repos in my account
-
 == emerg-shutdown #3 ==
 * paranoid mode - shut down when any removable device (USB drive, keyboard, mouse, etc.) is removed from the system
 * Integrate into initramfs so the panic key works on the LUKS prompt
@@ -80,6 +75,90 @@ TODO
 * Aaron: Implemented: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/flatpak-update
 * Patrick: should be deferred until update torification has been improved
 
+== trixie port - misc ==
+* might need to split this into multiple tasks
+* waiting for trixie to get frozen and stable enough
+* 1) SSH configurations
+** move configuration snippets from [[SSH]] wiki page to security-misc [not completed at time of writing in end of 2024 but should be early next year]
+** https://github.com/Kicksecure/legacy-dist/blob/master/usr/sbin/release-upgrade
+*** add ominous message to release-upgrade script if SSH client or server is installed
+*** point out in distribution morphing instructions
+* 2) repository codename split project names
+** update repository origin value as per https://www.kicksecure.com/wiki/Dev/APT#changed_its_'Origin'_value_from_'whonix'_to_'kicksecure'
+** (revert the revert of https://github.com/Kicksecure/derivative-maker/commit/25f5c7e11afd23f58f40286be1fd9097c31a705e)
+* 3) move from usability-misc and security-misc to to helper-scripts
+** upgrade-nonroot
+** other APT related scripts
+** this will allow sysmaint-panel to remove dependency on usability-misc and security-misc
+* 4) convert user-sysmaint-split and sysmaint-panel from "loose packages" to dependencies of the respective meta packages
+** add ominous message to release-upgrade script
+* 5) Check if /etc/grub.d/10_linux was updated in Debian. If so, update our fork in dist-base-files.
+* 6) https://www.whonix.org/wiki/Dev/Redistribution#Major_Upgrade
+* 7) port all sources.list files to DEB822-Style Format (can be postponed if needed)
+* 8) ram-wipe: re-add <code>Depends:</code> <code>systemd-cryptsetup</code>
+* 9) review and merge various trixie related improvements to security-misc https://github.com/Kicksecure/security-misc/pulls
+* 10) debug-misc: https://github.com/Kicksecure/debug-misc/pulls
+
+== trixie port - dracut - hostonly yes versus no ==
+* after Dracut fixes... should Kicksecure images (in trixie) use a different hostonly mode?
+* Yes, we should switch to hostonly sloppy mode, which is now being substantially improved to be a lot more generic upstream.
+
+== trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
+* The following is required for initramfs-tools only:
+<pre>
+GRUB_DEVICE="/dev/disk/by-uuid/${GRUB_DEVICE_UUID}"
+unset GRUB_DEVICE_UUID
+</pre>
+
+* grep the source code for this and move it below the following condition because it is not required by dracut:
+
+<pre>
+if pkg_installed initramfs-tools ; then?
+</pre>
+
+* related: [[dracut]]
+
+== trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
+* todo
+* hard depend on dracut?
+* if so, must also hard depend on systemd-cryptsetup
+* do this during release-upgrade
+* related: [[dracut]]
+
+== trixie port - port to Wayland ==
+* LXQt - maybe:
+** https://github.com/Kicksecure/kicksecure-meta-packages/pull/2
+** Avoidable?
+* Xfce:
+** Preferable?
+** https://alexxcons.github.io/blogpost_14.html
+** https://forums.whonix.org/t/whonix-xfce-development/6213/106
+
+== trixie port - polish default browser handling ==
+* open-link-confirmation should be the canonical default browser in all instances
+* merge the functionality of tb-default-browser into open-link-confirmation
+* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
+* Whonix: open-link-confirmation should only consider torbrowser
+* uninstall tb-default-browser inside release-upgrade (if useful)
+
+== trixie port - update derivative signing key derivative.asc ==
+* plan how to use a new signing key
+
+== trixie port - meta packages ==
+* implement [[Dev/Metapackages]] when porting to trixie
+
+== trixie port - USB Guard ==
+* https://github.com/Kicksecure/security-misc/pull/166
+* merge locally
+* apply fixes on top
+
+== trixie port - desktop theme improvements ==
+* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
+* useful to change the desktop theme?
+* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXQt.
+* Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
+* Can be postponed after the first trixie based release.
+
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
 ** From initial research:
@@ -91,9 +170,6 @@ TODO
 * contact people involved previously, if that makes sense
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
-
-== docker inside whonix-workstation versus whonix-workstation-firewall ==
-* please comment: https://forums.whonix.org/t/how-can-you-make-a-docker-container-inside-whonix-workstation-connect-to-the-internet/21772/5
 
 == repository-dist - improvements ==
 * https://github.com/Kicksecure/repository-dist
@@ -590,83 +666,6 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 * Submitted and awaiting review: [https://salsa.debian.org/grub-team/grub/-/merge_requests/76#note_590495 Remove ucf conffile conflict between grub-pc and grub-efi-{amd64,ia32}]
 * Unfortunately this is not going to be able to make it into Trixie, it will have to wait for Forky before it makes it into Debian Stable.
 
-== trixie port - misc ==
-* might need to split this into multiple tasks
-* waiting for trixie to get frozen and stable enough
-* 1) SSH configurations
-** move configuration snippets from [[SSH]] wiki page to security-misc [not completed at time of writing in end of 2024 but should be early next year]
-** https://github.com/Kicksecure/legacy-dist/blob/master/usr/sbin/release-upgrade
-*** add ominous message to release-upgrade script if SSH client or server is installed
-*** point out in distribution morphing instructions
-* 2) repository codename split project names
-** update repository origin value as per https://www.kicksecure.com/wiki/Dev/APT#changed_its_'Origin'_value_from_'whonix'_to_'kicksecure'
-** (revert the revert of https://github.com/Kicksecure/derivative-maker/commit/25f5c7e11afd23f58f40286be1fd9097c31a705e)
-* 3) move from usability-misc and security-misc to to helper-scripts
-** upgrade-nonroot
-** other APT related scripts
-** this will allow sysmaint-panel to remove dependency on usability-misc and security-misc
-* 4) convert user-sysmaint-split and sysmaint-panel from "loose packages" to dependencies of the respective meta packages
-** add ominous message to release-upgrade script
-* 5) Check if /etc/grub.d/10_linux was updated in Debian. If so, update our fork in dist-base-files.
-* 6) https://www.whonix.org/wiki/Dev/Redistribution#Major_Upgrade
-* 7) port all sources.list files to DEB822-Style Format (can be postponed if needed)
-* 8) ram-wipe: re-add <code>Depends:</code> <code>systemd-cryptsetup</code>
-
-== trixie port - dracut - hostonly yes versus no ==
-* after Dracut fixes... should Kicksecure images (in trixie) use a different hostonly mode?
-* Yes, we should switch to hostonly sloppy mode, which is now being substantially improved to be a lot more generic upstream.
-
-== trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
-* The following is required for initramfs-tools only:
-<pre>
-GRUB_DEVICE="/dev/disk/by-uuid/${GRUB_DEVICE_UUID}"
-unset GRUB_DEVICE_UUID
-</pre>
-
-* grep the source code for this and move it below the following condition because it is not required by dracut:
-
-<pre>
-if pkg_installed initramfs-tools ; then?
-</pre>
-
-* related: [[dracut]]
-
-== trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
-* todo
-* hard depend on dracut?
-* if so, must also hard depend on systemd-cryptsetup
-* do this during release-upgrade
-* related: [[dracut]]
-
-== trixie port - port to Wayland ==
-* LXQt - maybe:
-** https://github.com/Kicksecure/kicksecure-meta-packages/pull/2
-** Avoidable?
-* Xfce:
-** Preferable?
-** https://alexxcons.github.io/blogpost_14.html
-** https://forums.whonix.org/t/whonix-xfce-development/6213/106
-
-== trixie port - polish default browser handling ==
-* open-link-confirmation should be the canonical default browser in all instances
-* merge the functionality of tb-default-browser into open-link-confirmation
-* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
-* Whonix: open-link-confirmation should only consider torbrowser
-* uninstall tb-default-browser inside release-upgrade (if useful)
-
-== trixie port - update derivative signing key derivative.asc ==
-* plan how to use a new signing key
-
-== trixie port - meta packages ==
-* implement [[Dev/Metapackages]] when porting to trixie
-
-== trixie port - desktop theme improvements ==
-* suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
-* useful to change the desktop theme?
-* Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXQt.
-* Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
-* Can be postponed after the first trixie based release.
-
 == ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
 * Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
 * Investigate how to fix this, potentially make an upstream feature request or patch if needed
@@ -765,6 +764,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== begin Trixie port ==
+* immediate goal - rebase Kicksecure as-is ontfo Trixie
+* further enhancements are in other tickets under WAITING ON
+* Aaron: Current progress can be seen in the <code>arraybolt3/trixie</code> branches of all repos in my account
+* Ready for review, some issues still remain that will need worked out prior to a beta or stable release:
+** systemd-remount-fs.service and systemd-growfs-root.service are failing when booted in live mode
+** privleap autopkgtest is broken
+
+== trixie port - remaining known alpha issues ==
+* systemd-remount-fs.service and systemd-growfs-root.service are failing when booted in live mode
+** May affect Bookworm also. Fix: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-improvements
+*** Already merged into arraybolt3/trixie as well.
+* privleap autopkgtest is broken
+** Fixed, along with other code quality tests: https://github.com/ArrayBolt3/privleap/commit/6e81f2112b5be0a0f5ad1f78b4732d082ea67f00
+
 == mouse fingerprinting ==
 * todo
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
@@ -809,6 +823,9 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== docker inside whonix-workstation versus whonix-workstation-firewall ==
+* please comment: https://forums.whonix.org/t/how-can-you-make-a-docker-container-inside-whonix-workstation-connect-to-the-internet/21772/5
+
 == emergency shutdown - #2 ==
 * /usr/lib/systemd/system/emerg-shutdown.service and /usr/lib/systemd/system/ensure-shutdown.service
 ** possible to run earlier then multi-user.target?
