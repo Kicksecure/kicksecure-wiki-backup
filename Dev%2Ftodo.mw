@@ -10,42 +10,42 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== timesync developer wiki page improvements ==
-* https://www.whonix.org/wiki/Dev/TimeSync
-* [[anondate]]
-* https://www.kicksecure.com/wiki/Dev/sdwdate
-* please study, improve
-* take note of Tor consensus and replay attacks
-* in preparation for follow-up tasks
+== Kicksecure installer versus live-hardener bug ==
+* Environment:
+** VirtualBox
+** EFI
+** btrfs
 
-== sdwdate refactoring and improvements ==
-* study sdwdate source code
-* lightweight refactoring (such as no longer using classes because these are used inconsistently)
-* separate into sdwdate-daemon and sdwdate-time-fetcher?
-** Aaron: sdwdate-daemon is a very interesting idea, most likely useful for the ClockVM idea, however it is only feasible in situations where one either has multiple networked physical machines or multiple connected virtual machines (i.e. VBox with one Whonix-Gateway and many Whonix-Workstations, or Qubes OS). This is because the daemon has to be able to change the system's time as it sees fit in order to get Tor working (i.e. first get consensus to work by using certificate lifetime if possible, then get circuits to work using consensus, then get real time from three separate servers which are now accessible since circuits work). There is no way to isolate CLOCK_REALTIME changes from the rest of the system, Linux has time namespaces but they don't virtualize CLOCK_REALTIME. Thus sdwdate-daemon would have to be able to modify the system time freely in its mission to find the right time.
-** In theory, this could be avoided if time changes could be communicated to the Tor daemon without modifying the system's wall clock. I do not know if this is possible, I suspect it isn't. Even though it is technically feasible, it would potentially be immensely complicated to implement.
-** Perhaps implement sdwdate-daemon as a process that only returns whatever the next time step is, and also indicate whether there are further steps? Then sdwdate-time-fetcher could either ignore the date if the daemon indicates more steps are still to come, or accept it. The ClockVM itself would unconditionally accept sdwdate-daemon's reported time values in order to assist it in finding the correct time, then client VMs would only update their clock once the "final step" was reached.
-* sdwdate oneshot feature (pick the median time from the 3 pools, output to console, then exit) if considered useful for the next bullet point
-* add support for sdwdate to be used as a [https://forums.whonix.org/t/qubes-whonix-gateway-as-clockvm/19015 Qubes-Whonix-Gateway as ClockVM]
-* note: sdwdate can already fix the clock if it is very slow (with the help of Tor consensus and anondate)
-** Aaron: If the clock is very very slow, this seems to not work. Might be possible to use Tor certificates to get within a year of the correct date, then attempt to brute-force a month that will allow Tor consensus to work. As long as the Tor network itself will not work if the clock is too far off, we don't have to worry too much about replay attacks, untrusted data, etc. - the worst an attacker could do is denial of service, we'll only get working connectivity if we get very close to the correct time (or an adversary controls so many of the servers we're using it can trick us into thinking our time is correct, which is statistically unlikely...? is it actually statistically unlikely?)
-* add feature to sdwdate to allow it fixing the clock if it is very fast too
-** it may not be possible to implement such a feature securely (setting the clock forward has no security risk but setting the clock backwards makes already expired keys valid again). perhaps should just be a manual action? in theory, by setting the clock backwards very far into the past, sdwdate should be able to fix it. Perhaps we could try once to set the clock backwards just a few hours (not years) based on Tor consensus / anondate? Or perhaps this should only be possible by manual user action?
-* use chrony - time setting only - not time fetching - as a replacement for sclockadj as per [[Dev/sdwdate]]
-** or if easier, saner, port sclockadj from clock_settime to adjtimex?
-** Aaron: Probably easier to port sclockadj, chrony looks a bit dangerous to me.
-** please research, consider various options
+<pre>
+    ERROR: Installation failed: "Bootloader installation error" 
+    .. - message: "Bootloader installation error" 
+    .. - details: The bootloader could not be installed. The installation command grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Kicksecure --force returned error code 1.
+</pre>
 
-== kicksecure - update torification improvements ==
-* only shipped-by-default apt repositories go through Tor
-* ideally, newly added apt repositories should go through Tor as well, as should flatpak installation and updates
-** Flatpaks can be made to go through Tor by enabling an HTTPTunnelPort in Tor, then setting http_proxy and https_proxy to http://localhost:9080 (assuming your port number is 9080) when running Flatpak. There doesn't appear to be a way to set a proxy in Flatpak's configuration, thus this would probably require a wrapper.
+Attempting to run this command manually inside the /tmp calamares chroot for purpose of debugging.
 
-== flatpak update integration ==
-* users are given the ability to easily install flatpaks via browser-choice, but aren't given any easy way to update them
-* add code to upgrade-nonroot that also updates flatpaks
-* Aaron: Implemented: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/flatpak-update
-* Patrick: should be deferred until update torification has been improved
+<pre>
+Installing for x86_64-efi platform.
+grub-install: warning: Cannot set EFI variable Boot0003.
+grub-install: warning: efivarfs_set_variable: failed to create /sys/firmware/efi/efivars/Boot0003-8be4df61-93ca-11d2-aa0d-00e098032b8c for writing: Read-only file system.
+grub-install: warning: _efi_set_variable_mode: ops->set_variable() failed: Read-only file system.
+grub-install: error: failed to register the EFI boot entry: Read-only file system.
+zsh: exit 1     grub-install --target=x86_64-efi --efi-directory=/boot/efi  --force
+</pre>
+
+Potentially related:
+
+<pre>
+sudo journalctl -u live-hardener.service
+Aug 09 06:34:08 localhost systemd[1]: Starting live-hardener.service - Remounts auxiliary writable filesystems as read-only and applies a tmpfs overlay on them...
+Aug 09 06:34:09 localhost live-hardener[940]: mount: /sys/firmware/efi/efivars: wrong fs type, bad option, bad superblock on overlay, missing codepage or helper program, or other error.
+Aug 09 06:34:09 localhost live-hardener[940]:        dmesg(1) may have more information after failed mount system call.
+Aug 09 06:34:09 localhost systemd[1]: Finished live-hardener.service - Remounts auxiliary writable filesystems as read-only and applies a tmpfs overlay on them.
+</pre>
+
+* Note: Patrick adding refactoring and debugging to live-hardener since.
+* What might be happening: live-hardener remounts something as read-only which is incompatible with Calamares.
+** Calamares might fail to re-mount as read-write. If so, please create a ticket for later to report this upstream.
 
 == trixie port - misc ==
 * might need to split this into multiple tasks
@@ -141,6 +141,7 @@ if pkg_installed initramfs-tools ; then?
 
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
+* make sure xscreensaver no longer gets installed by default in Qubes VMs
 
 == trixie port - USB Guard ==
 * {{Github_link|repo=security-misc|path=/pull/166}}
@@ -153,6 +154,57 @@ if pkg_installed initramfs-tools ; then?
 * Might be useful to postpone after port to trixie. After the first trixie based release. Because by that time, desktop environment choice (Xfce vs LXqt) and wayland should be settled. No point in improving Xfce based style in case of porting to LXQt.
 * Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
 * Can be postponed after the first trixie based release.
+
+== stardict - investigate ==
+* debian policy appliable?
+* https://www.kicksecure.com/wiki/Dev/Debian#startdict
+
+== emergency-shutdown - bug - breaks Calamares installer ==
+* todo
+
+== emergency-shutdown - debugging improvements ==
+* add more debug output:
+** every relevant code path should be written to journal
+** trigger needs to be recorded
+** action needs to be recorded
+** purpose: in case of bugs (such as above), it should be able to debug this at least with a (virtual) serial console
+
+== timesync developer wiki page improvements ==
+* https://www.whonix.org/wiki/Dev/TimeSync
+* [[anondate]]
+* https://www.kicksecure.com/wiki/Dev/sdwdate
+* please study, improve
+* take note of Tor consensus and replay attacks
+* in preparation for follow-up tasks
+
+== sdwdate refactoring and improvements ==
+* study sdwdate source code
+* lightweight refactoring (such as no longer using classes because these are used inconsistently)
+* separate into sdwdate-daemon and sdwdate-time-fetcher?
+** Aaron: sdwdate-daemon is a very interesting idea, most likely useful for the ClockVM idea, however it is only feasible in situations where one either has multiple networked physical machines or multiple connected virtual machines (i.e. VBox with one Whonix-Gateway and many Whonix-Workstations, or Qubes OS). This is because the daemon has to be able to change the system's time as it sees fit in order to get Tor working (i.e. first get consensus to work by using certificate lifetime if possible, then get circuits to work using consensus, then get real time from three separate servers which are now accessible since circuits work). There is no way to isolate CLOCK_REALTIME changes from the rest of the system, Linux has time namespaces but they don't virtualize CLOCK_REALTIME. Thus sdwdate-daemon would have to be able to modify the system time freely in its mission to find the right time.
+** In theory, this could be avoided if time changes could be communicated to the Tor daemon without modifying the system's wall clock. I do not know if this is possible, I suspect it isn't. Even though it is technically feasible, it would potentially be immensely complicated to implement.
+** Perhaps implement sdwdate-daemon as a process that only returns whatever the next time step is, and also indicate whether there are further steps? Then sdwdate-time-fetcher could either ignore the date if the daemon indicates more steps are still to come, or accept it. The ClockVM itself would unconditionally accept sdwdate-daemon's reported time values in order to assist it in finding the correct time, then client VMs would only update their clock once the "final step" was reached.
+* sdwdate oneshot feature (pick the median time from the 3 pools, output to console, then exit) if considered useful for the next bullet point
+* add support for sdwdate to be used as a [https://forums.whonix.org/t/qubes-whonix-gateway-as-clockvm/19015 Qubes-Whonix-Gateway as ClockVM]
+* note: sdwdate can already fix the clock if it is very slow (with the help of Tor consensus and anondate)
+** Aaron: If the clock is very very slow, this seems to not work. Might be possible to use Tor certificates to get within a year of the correct date, then attempt to brute-force a month that will allow Tor consensus to work. As long as the Tor network itself will not work if the clock is too far off, we don't have to worry too much about replay attacks, untrusted data, etc. - the worst an attacker could do is denial of service, we'll only get working connectivity if we get very close to the correct time (or an adversary controls so many of the servers we're using it can trick us into thinking our time is correct, which is statistically unlikely...? is it actually statistically unlikely?)
+* add feature to sdwdate to allow it fixing the clock if it is very fast too
+** it may not be possible to implement such a feature securely (setting the clock forward has no security risk but setting the clock backwards makes already expired keys valid again). perhaps should just be a manual action? in theory, by setting the clock backwards very far into the past, sdwdate should be able to fix it. Perhaps we could try once to set the clock backwards just a few hours (not years) based on Tor consensus / anondate? Or perhaps this should only be possible by manual user action?
+* use chrony - time setting only - not time fetching - as a replacement for sclockadj as per [[Dev/sdwdate]]
+** or if easier, saner, port sclockadj from clock_settime to adjtimex?
+** Aaron: Probably easier to port sclockadj, chrony looks a bit dangerous to me.
+** please research, consider various options
+
+== kicksecure - update torification improvements ==
+* only shipped-by-default apt repositories go through Tor
+* ideally, newly added apt repositories should go through Tor as well, as should flatpak installation and updates
+** Flatpaks can be made to go through Tor by enabling an HTTPTunnelPort in Tor, then setting http_proxy and https_proxy to http://localhost:9080 (assuming your port number is 9080) when running Flatpak. There doesn't appear to be a way to set a proxy in Flatpak's configuration, thus this would probably require a wrapper.
+
+== flatpak update integration ==
+* users are given the ability to easily install flatpaks via browser-choice, but aren't given any easy way to update them
+* add code to upgrade-nonroot that also updates flatpaks
+* Aaron: Implemented: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/flatpak-update
+* Patrick: should be deferred until update torification has been improved
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed

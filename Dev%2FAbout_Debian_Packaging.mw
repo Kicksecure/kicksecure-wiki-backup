@@ -15,6 +15,9 @@ Packaging serves several crucial purposes in software distribution, ensuring not
 * '''Security hot fixes:''' Distributions can provide timely solutions when the original software creators are slow to respond or unavailable. This is vital since many developers are volunteers who may be preoccupied with other responsibilities.
 * '''License compliance:''' Distribution maintainers (DMs) verify that the software adheres to freedom-respecting licenses, ensuring legal compliance and ethical use. See [[Avoid nonfreedom software]] for more details.
 * '''Enforcement of freedom from proprietary, non-freedom source code and binaries:''' Same as above.
+* '''Trademark compliance:'''
+** Workaround issues such as [https://en.wikipedia.org/wiki/Debian%E2%80%93Mozilla_trademark_dispute Debian–Mozilla trademark dispute].
+** Delete copyrighted logos. ([https://salsa.debian.org/debian/stardict/-/blob/master/debian/patches/del-logo-stardict-dict.patch?ref_type=heads example])
 * '''No binary blobs:''' DMs ensure that the source package doesn't include pre-compiled binary files, promoting transparency and security.
 * '''Source code completeness:''' This involves verifying whether the source code is complete and buildable, ensuring that end users receive a functional product.
 * '''No networking build:''' Ensures that the source code is complete, can be built locally, and does not require a network connection to load extra source code.
@@ -173,7 +176,7 @@ Packages placing files <code>/home</code> folder must use the correct mechanism 
 
 = Modifying Default Configuration of Third Party Packages =
 
-Taking systemd as an example. Suppose <code>/lib/systemd/system/systemd-random-seed.service</code> modifications are desired.
+Taking a systemd unit file as an example: suppose <code>/lib/systemd/system/systemd-random-seed.service</code> modifications are desired.
 
 File <code>/lib/systemd/system/systemd-random-seed.service</code> is owned by a third party package <code>systemd</code>.
 
@@ -186,13 +189,13 @@ systemd: /lib/systemd/system/systemd-random-seed.service
 </pre>
 
 * Editing <code>/lib/systemd/system/systemd-random-seed.service</code>.
-** Is the worst (changes get lost on systemd package gets upgraded) (there is a solution using <code>dpkg-divert</code> encapsulated in a more sane by using <code>config-package-dev</code> <code>displace</code> and we use it in {{project_name_short}} source code where it could not be avoided but if avoidable it is best avoided if possible somehow).
+** Is the worst (changes get lost when the systemd package gets upgraded) (there is a solution using <code>dpkg-divert</code>, encapsulated more sanely by using <code>config-package-dev</code> <code>displace</code>, and we use it in {{project_name_short}} source code where it could not be avoided; but if avoidable, it is best avoided if possible). See also [[Dev/About_Debian_Packaging#config-package-dev|config-package-dev]].
 * Shipping <code>/etc/systemd/system/systemd-random-seed.service</code>
-** would be better but still not great (this is for local administrator, not linux distribution)
+** would be better but still not great (this is for the local administrator, not the Linux distribution)
 * <code>/lib/systemd/system/systemd-random-seed.service.d</code> folder and a file such as <code>/lib/systemd/system/systemd-random-seed.service.d/30_something.conf</code>
-** is an ideal solution for linux distributions such as {{project_name_short}} since it does not takeover files by other packages and does not take away something from the local system administrator or user.
+** is an ideal solution for Linux distributions such as {{project_name_short}} since it does not take over files owned by other packages and does not take anything away from the local system administrator or user.
 
-Editing a file owned by a different packages residing in <code>/etc</code> would be even worse. Suppose for example file <code>/etc/hdparm.conf</code> was modified by a package by a derivative Linux distribution. Next time the base distribution (Debian) updates the file, this would lead to an {{Code2|dpkg interactive conflict resolution dialog}}.
+Editing a file owned by a different package residing in <code>/etc</code> would be even worse. Suppose for example file <code>/etc/hdparm.conf</code> was modified by a package from a derivative Linux distribution. Next time the base distribution (Debian) updates the file, this would lead to an {{Code2|dpkg interactive conflict resolution dialog}}.
 
 <pre>
 Configuration file `/etc/hdparm.conf'
@@ -209,9 +212,9 @@ Configuration file `/etc/hdparm.conf'
 
 This is because the package manager (APT) cannot merge upstream (Debian) file changes with local file changes.
 
-Such prompts confusing for users as users do not know what to answer. These result in support requests. Whatever the user chooses is non-ideal. If the user chooses the package maintainer's (Debian's) version, the user will loose settings modifications by the derivative. If the user keeps the file, the user will miss out on updates by the package maintainer. Merging the file is a skill that only the minority of users possesses.
+Such prompts are confusing for users, as users do not know what to answer. These result in support requests. Whatever the user chooses is non-ideal. If the user chooses the package maintainer's (Debian's) version, the user will lose settings modifications by the derivative. If the user keeps the file, the user will miss out on updates by the package maintainer. Merging the file is a skill that only a minority of users possesses.
 
-This would not be an issue if the derivative distribution would fork, rebuild, upload the package that owns that file. In this example if the derivative distribution would upload package <code>hdparm</code> then there would be no issue updating <code>/etc/hdparm.conf</code> because the derivative would not "compete" with the base distribution. This however is not how it is done for derivatives such as Kicksecure, Whonix or Qubes. If just a small configuration change is required, the huge extra effort of a complete fork of the package is avoided to safe time. Only a drop-in configuration snippet gets shipped instead.
+This would not be an issue if the derivative distribution were to fork, rebuild, and upload the package that owns that file. In this example if the derivative distribution uploaded package <code>hdparm</code> then there would be no issue updating <code>/etc/hdparm.conf</code> because the derivative would not "compete" with the base distribution. This however is not how it is done for derivatives such as Kicksecure, Whonix or Qubes. If just a small configuration change is required, the huge extra effort of a complete fork of the package is avoided to save time. This is for the purpose of [[Dev/maintainability|Maintainability]]. Only a drop-in configuration snippet gets shipped instead.
 
 = use /usr instead of /etc =
 * <code>/usr</code>: Is for distributions, packages.
