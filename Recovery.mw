@@ -41,7 +41,10 @@ For Qubes, see: https://www.qubes-os.org/doc/mount-from-other-os/
 
 = Recovery Mode =
 
-If an error occurs that prevents {{project_name_long}} from booting, it is possible to try and boot {{project_name_long}} into Linux '''recovery mode''' (sometimes called <code>Single User Mode</code>) to fix the problem.
+If an error occurs that prevents {{project_name_long}} from booting, it is possible to try and boot {{project_name_long}} into either:
+
+* A) Linux '''recovery mode''' (sometimes called <code>Single User Mode</code>) to fix the problem.; or
+* B) Use a dracut emergency shell.
 
 This is possible in many cases but not, for example, if [[grub|GRUB]] is broken.
 
@@ -52,39 +55,76 @@ See also [[root]] wiki page, specifically chapters:
 * [[Root#Recovery_Mode|Root Login using Recovery Mode]]
 * [[Root#Passwordless_Recovery_Mode_Security_Discussion|Passwordless Recovery Mode Security Discussion]]
 
+'''Table:''' ''Recovery mode and dracut emergency shell - kernel parameters''
+
+{| class="wikitable"
+! Kernel Parameter
+! {{project_name_short}} Default Setting
+! Useful Action for Kernel Parameter
+! Effect of Action
+|-
+
+| <code>single</code>
+| No
+| Add
+| Boots into Linux recovery mode (single-user mode), useful for maintenance or troubleshooting.
+|-
+
+| <code>loglevel=0</code>
+| Yes
+| Remove
+| Allows kernel to print messages with the default log level, making boot output more verbose.
+|-
+
+| <code>quiet</code>
+| Yes
+| Remove
+| Disables suppression of boot messages; more details are displayed during boot.
+|-
+
+| <code>rd.shell=0</code>
+| Yes
+| Remove
+| Re-enables the emergency shell in case of boot failure.
+|-
+
+| <code>rd.emergency=halt</code>
+| Yes
+| Remove
+| Prevents system from halting on an emergency and instead drops to dracut’s default emergency shell.
+|-
+
+|}
+
 Choose an option.
 
 {{Tab
 |type=controller
 |content=
+
 {{Tab
-|title= ==Kernel Boot Parameter Single==
+|title= == Kernel Boot Parameter Single ==
 |type=section
 |image=
 |addToClass=info-box
 |active=
 |content=
 # [[Grub#Kernel_Boot_Parameter_Change|Kernel Boot Parameter Change]] is required.
-# Add kernel parameter: {{CodeSelect|code=
-single
+# Choose from above table. Any add or remove or any kernel parameter is optional.
+# Removing the kernel parameters <code>loglevel=0</code> <code>quiet</code> <code>rd.shell=0</code> <code>rd.emergency=halt</code> can be very useful for debugging.
+# Adding <code>single</code> activates Linux recovery mode.
 }}
-# Optional: Remove kernel parameters: <code>loglevel=0 quiet rd.shell=0 rd.emergency=halt</code>
-# Notes:
 
-* Adding <code>single</code>: boots into Linux recovery mode (also sometimes called single user mode).
-* Removing <code>loglevel=0 quiet</code>: more verbose messages during boot.
-* Removing <code>rd.shell=0 rd.emergency=halt</code>: re-enabled dracut's default recovery shell.
-}}
 {{Tab
-|title= ==Linux recovery mode boot entry==
+|title= == Linux recovery mode boot entry ==
 |type=section
 |image=
 |addToClass=info-box
 |active=
 |content=
 # [https://forums.kicksecure.com/t/remove-linux-recovery-mode-boot-option-from-default-grub-boot-menu/727 Linux recovery mode boot option has been removed from default GRUB boot menu for security and usability reasons].
-# To restore the Linux recovery mode boot entry, one option would be to delete the [https://github.com/Kicksecure/security-misc/blob/master/etc/default/grub.d/41_recovery_restrict.cfg <code>/etc/default/grub.d/41_recovery_restrict.cfg</code>] configuration file. This is of course only possible if the system is still booting (or more complicated, using a chroot). Delete the file responsible for Linux recovery mode disabling: {{CodeSelect|code=
-sudo safe-rm /etc/default/grub.d/41_recovery_restrict.cfg
+# To restore the Linux recovery mode boot entry and re-enable dracut emergency shell, one option would be to delete the [https://github.com/Kicksecure/security-misc/blob/master/etc/default/grub.d/41_recovery_restrict.cfg <code>/etc/default/grub.d/41_recovery_restrict.cfg</code>] configuration file. This is of course only possible if the system is still booting (or more complicated, using a chroot). Delete the file responsible for Linux recovery mode disabling: {{CodeSelect|code=
+sudo safe-rm -- /etc/default/grub.d/41_recovery_restrict.cfg
 }}
 # Update [[Grub|GRUB]] boot menu: {{CodeSelect|code=
 sudo update-grub
@@ -96,7 +136,9 @@ sudo update-grub
 # Press <code>Enter</code>.
 # Somewhere in the output, a message similar to the following will appear (it might be entangled with other debug output): <blockquote>Give root password for maintenance (Or press control + d to continue):</blockquote>
 # Enter the root password.
-# While typing, no asterisk symbols (<code>*</code>) will appear; the password must be typed "blind". <ref>See also: [[Default_Passwords|Default Passwords]].</ref>
+# While typing, no asterisk symbols (<code>*</code>) will appear; the password must be typed "blind". <ref>
+See also: [[Default_Passwords|Default Passwords]].
+</ref>
 # Press <code>Enter</code>.
 # The default keyboard layout will be <code>en-US</code>. To change this setting, see: [[Keyboard Layout]].
 # Enter <code>exit</code> to continue booting or <code>poweroff</code> or <code>reboot</code>.
@@ -104,6 +146,19 @@ sudo update-grub
 }}
 
 TODO: Explore whether networking is possible and how to transfer files out of the VM.
+
+= Emergency Recovery Console =
+Also initramfs-tools users sometimes call this initramfs shell, initramfs prompt or emergency recovery console.
+
+== Dracut Emergency Shell ==
+
+[[dracut]] [https://forums.kicksecure.com/t/harden-dracut-initramfs-generator-by-disabling-recovery-console/724 emergency shell is disabled by default in {{project_name_short}} for security reasons.] This is implemented in file [https://github.com/{{project_name_short}}/security-misc/blob/master/etc/default/grub.d/41_recovery_restrict.cfg <code>/etc/default/grub.d/41_recovery_restrict.cfg</code>].
+
+To re-enable the dracut emergency shell, which can be useful for debugging, see wiki chapter [[Recovery#Recovery_Mode|Recovery Mode]].
+
+related forum discussion:
+
+* https://forums.kicksecure.com/t/no-rescue-mode/1171
 
 = Virtual Consoles =
 An easier and more lightweight solution as alternative to [[#Recovery Mode|recovery mode]] might be [[Desktop#Virtual_Consoles|virtual consoles]]. If the graphical user interface is no longer starting, login to a virtual console might still be possible.
@@ -587,6 +642,39 @@ This procedure is [[undocumented]] and unspecific to {{project_name_short}}. See
 }} <!-- close tab: Qubes -->
 
 }} <!-- close Controller: All Tabs -->
+
+= Kicksecure specific =
+Enable the [[Recovery#Serial_Console|Serial Console]].
+
+Re-enable dracut recovery console.
+ 
+Write to serial console by writing to the serial console. <ref>
+To find the serial console.
+
+{{CodeSelect|code=
+dmesg | grep serial
+}}
+
+(nothing helpful)
+
+{{CodeSelect|code=
+dmesg | grep tty
+}}
+
+Found <code>/dev/ttyS0</code>.
+
+Test write.
+
+{{CodeSelect|code=
+echo test > /dev/ttyS0
+}}
+</ref>
+
+Write <code>dmesg</code> to serial console.
+
+{{CodeSelect|code=
+dmesg > /dev/ttyS0
+}}
 
 = Qubes specific =
 == Non-Bootable Qubes VM ==
