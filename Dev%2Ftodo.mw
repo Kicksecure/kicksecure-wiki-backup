@@ -40,24 +40,9 @@ TODO
 *** static
 *** TOTP - perhaps at a later time
 
-== trixie port - dracut - hostonly yes versus no ==
-* after Dracut fixes... should Kicksecure images (in trixie) use a different hostonly mode?
-* Yes, we should switch to hostonly sloppy mode, which is now being substantially improved to be a lot more generic upstream.
-
-== trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
-* The following is required for initramfs-tools only:
-<pre>
-GRUB_DEVICE="/dev/disk/by-uuid/${GRUB_DEVICE_UUID}"
-unset GRUB_DEVICE_UUID
-</pre>
-
-* grep the source code for this and move it below the following condition because it is not required by dracut:
-
-<pre>
-if pkg_installed initramfs-tools ; then?
-</pre>
-
-* related: [[dracut]]
+== trixie port - document disabling USBGuard ==
+* USBGuard will likely interfere with users who either use special input devices (touchscreens, possibly some types of mice and keyboard), and may interfere with Framework 16 users' ability to use external keyboards and mice.
+** document how to disable in the wiki once we are sure we are shipping USBGuard in Trixie
 
 == trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
 * todo
@@ -66,13 +51,6 @@ if pkg_installed initramfs-tools ; then?
 * do this during release-upgrade
 * related: [[dracut]]
 
-== trixie port - polish default browser handling ==
-* open-link-confirmation should be the canonical default browser in all instances
-* merge the functionality of tb-default-browser into open-link-confirmation
-* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
-* Whonix: open-link-confirmation should only consider torbrowser
-* uninstall tb-default-browser inside release-upgrade (if useful)
-
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
 
@@ -80,10 +58,11 @@ if pkg_installed initramfs-tools ; then?
 * implement [[Dev/Metapackages]] when porting to trixie
 * make sure xscreensaver no longer gets installed by default in Qubes VMs
 
-== trixie port - USB Guard ==
-* {{Github_link|repo=security-misc|path=/pull/166}}
-* merge locally
-* apply fixes on top
+== trixie port - split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
+* {{Github_link|repo=security-misc|path=/issues/187}}
+* This is in preparation for the next task.
+* Discussion on how best to do this posted at https://forums.kicksecure.com/t/splitting-security-misc-into-shared-desktop-and-server-packages/674
+* keep {{Github_link|repo=security-misc|path=/issues/184}} in mind
 
 == trixie port - desktop theme improvements ==
 * suggestions from https://forums.whonix.org/t/xfce-theming-a-few-suggestions/7205/82 valid?
@@ -375,12 +354,6 @@ The following NEW packages will be installed:
   dmeventd dosfstools firefox-esr kicksecure-cli kicksecure-desktop-applications-recommended kicksecure-qubes-cli kicksecure-qubes-gui libaio1 libdevmapper-event1.02.1 libgarcon-1-0
   libgarcon-common liblvm2cmd2.03 libntfs-3g89 libupower-glib3 libxklavier16 lvm2 ntfs-3g xfce4-helpers xfce4-settings
 </pre>
-
-== trixie port - split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
-* {{Github_link|repo=security-misc|path=/issues/187}}
-* This is in preparation for the next task.
-* Discussion on how best to do this posted at https://forums.kicksecure.com/t/splitting-security-misc-into-shared-desktop-and-server-packages/674
-* keep {{Github_link|repo=security-misc|path=/issues/184}} in mind
 
 == Kicksecure Firewall ==
 https://forums.kicksecure.com/t/kicksecure-firewall/378/10
@@ -781,6 +754,57 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== trixie port - polish default browser handling ==
+* open-link-confirmation should be the canonical default browser in all instances
+* merge the functionality of tb-default-browser into open-link-confirmation
+** Aaron: Done.
+* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
+** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
+** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
+* Whonix: open-link-confirmation should only consider torbrowser
+** Aaron: Done.
+* uninstall tb-default-browser inside release-upgrade (if useful)
+** Aaron: Done.
+* Changes:
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3 and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
+** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
+
+== bookworm - fix live-hardener ==
+* https://forums.kicksecure.com/t/question-about-grub-live-and-writable-file-system/1221/3
+* Aaron: Bugfix created: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-hardener-fix
+** Test thoroughly and release to Bookworm? Necessary for live mode to function fully under Bookworm on EFI hardware.
+
+== trixie port - USB Guard ==
+* {{Github_link|repo=security-misc|path=/pull/166}}
+* merge locally
+* apply fixes on top
+* Aaron: Done: https://github.com/ArrayBolt3/security-misc/commit/cba16879eff9d3d998c127e41c38d2067cdf04cc
+
+== trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
+* The following is required for initramfs-tools only:
+<pre>
+GRUB_DEVICE="/dev/disk/by-uuid/${GRUB_DEVICE_UUID}"
+unset GRUB_DEVICE_UUID
+</pre>
+
+* grep the source code for this and move it below the following condition because it is not required by dracut:
+
+<pre>
+if pkg_installed initramfs-tools ; then?
+</pre>
+
+* related: [[dracut]]
+* Aaron: Done:
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/commit/1b485087f33b9f4131bf89473144e7fbef77dc0a
+** grub-live: https://github.com/ArrayBolt3/grub-live/commit/685d1d676aed78ce4da1aa75c6a6c6da3c2d5c1a
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/a94203791ddab06ed2cf6f2d201029d291687cef
+
+== trixie port - dracut - hostonly yes versus no ==
+* after Dracut fixes... should Kicksecure images (in trixie) use a different hostonly mode?
+* Yes, we should switch to hostonly sloppy mode, which is now being substantially improved to be a lot more generic upstream.
+* Done: https://github.com/ArrayBolt3/dist-base-files/commit/1b485087f33b9f4131bf89473144e7fbef77dc0a
+** Note that the enhanced hostonly sloppy mode changes may not be in Trixie itself yet, we may have to pull Dracut from debian-backports to get the good changes in the future. I think this is still a good change for now though, users who need a portable USB flash drive can turn this off if it causes problems (which it probably won't anyway).
+
 == trixie port - live mode notification ==
 * inform the user what mode they've booted in via an ephemeral desktop notification shown on login
 * reason: https://forums.kicksecure.com/t/live-mode-option-boots-into-persistent-sysmaint/1216
@@ -825,12 +849,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 *** One PR from raja-grewal (https://github.com/Kicksecure/security-misc/pull/313) I requested changes on and am awaiting a reply.
 * 10) debug-misc: {{Github_link|repo=debug-misc|path=/pulls}}
 ** Aaron: Blocked on raja-grewal's response to my review on https://github.com/Kicksecure/security-misc/pull/313.
-
-== bookworm - 17.4.4.6 bug reports ==
-* https://forums.whonix.org/t/shared-folder-blank-running-in-live-mode-after-update/22056
-** Aaron: Intentional but somewhat unexpected behavior. Ideas for improvement shared on forums.
-* https://forums.kicksecure.com/t/live-mode-option-boots-into-persistent-sysmaint/1216
-** Aaron: Likely a user misunderstanding.
 
 == begin Trixie port ==
 * immediate goal - rebase Kicksecure as-is ontfo Trixie
@@ -894,6 +912,12 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== bookworm - 17.4.4.6 bug reports ==
+* https://forums.whonix.org/t/shared-folder-blank-running-in-live-mode-after-update/22056
+** Aaron: Intentional but somewhat unexpected behavior. Ideas for improvement shared on forums.
+* https://forums.kicksecure.com/t/live-mode-option-boots-into-persistent-sysmaint/1216
+** Aaron: Likely a user misunderstanding.
+
 == VirtualBox restart bug ==
 * https://forums.whonix.org/t/whonix-only-starts-after-several-attempt/22032
 * issue:
