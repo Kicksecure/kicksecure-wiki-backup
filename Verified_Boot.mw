@@ -972,7 +972,7 @@ Vanilla OS, an immutable desktop Linux distribution designed for developers and 
 === Older ===
 Older ideas and concepts that are partially or entirely obsolete.
 
-==== Part 1 - Hardware and Firmware ====
+==== Part 1: Hardware and Firmware ====
 
 Secure Boot and measured boot currently work to solve two different problems. Secure Boot is designed to prevent the device from even booting an untrusted OS. Measured boot, on the other hand, traditionally "just loads" the OS but relies on the TPM detecting the tampering of the OS to prevent it from releasing a secret, such as a disk encryption key. This means that the OS boots but is denied access to sensitive data.
 
@@ -1019,13 +1019,13 @@ Aside from the UKI and the user's home directory (or other directories they choo
 
 `dm-verity` images are read-only, but Linux typically requires at least parts of the root filesystem to be writable to boot into a usable state. While the entire filesystem could be made writable using `overlayfs`, that might allow temporary compromises to persist. Instead, the entire filesystem should *default* to read-only, and only specific directories will be overlayed to enable the operating system to function (for instance, /var). A configuration file should be used to define what directories should be writable and whether they should be persistent or overlayed. This configuration file would require root privileges to modify.
 
-When the user first logs into their machine via SSH, they will be inside an initramfs prompt. From here, they will unlock their primary drive. Once the drive is unlocked, they will then choose what mode to boot the system in: Persistent User, Live User, or Persistent Admin.
+When the user first logs into their machine via SSH, they will be inside an initramfs prompt. From here, they will unlock their primary drive. Once the drive is unlocked, they will then choose the boot option: Persistent Mode - User Session, Live Mode - User Session, or Persistent Admin - User Session.
 
-* In **Persistent User** mode, it is impossible to gain root privileges (sudoless), and the user's home directory will be writable.
-* In **Live User** mode, root privileges will be denied, and any changes to the home directory will vanish on reboot.
-* In **Persistent Admin** mode, '''the `dm-verity` volume will be writable''', and root access will be permitted. This allows for OS updates and the like to be installed. The whole system is mutable in this mode, and the user must exercise extreme caution to avoid a compromise while in this vulnerable state. During a Persistent Admin boot, before the system pivots out of the initramfs and into the true root filesystem, the OS will copy the existing UKI and `dm-verity` image to a backup location to prevent bricking the system while in Persistent Admin mode.
+* In **Persistent Mode - User Session**, it is impossible to gain root privileges ("sudoless"), and the user's home directory will be writable.
+* In **Live Mode - User Session**, root privileges will be denied, and any changes to the home directory will vanish on reboot.
+* In **Persistent Mode - Sysmaint Session**, '''the `dm-verity` volume will be writable''', and root access will be permitted. This allows for OS updates and the like to be installed. The whole system is mutable in sysmaint session, and the user must exercise extreme caution to avoid a compromise while in this vulnerable state. During sysmaint session boot, before the system pivots out of the initramfs and into the true root filesystem, the OS will copy the existing UKI and `dm-verity` image to a backup location to prevent bricking the system while in sysmaint session.
 
-During shutdown, the system will return to the initramfs. If the user was booted into Persistent Admin mode, the initramfs will regenerate the UKI and prompt the user to authenticate themselves using their signing key. This will allow the firmware to trust the new operating system. **If the user does not authenticate themselves at this point, the kernel and root image will be unusable.** The user will have to boot into their backup kernel and image and either restore it (deleting the modified image) or sign the newer image from there.
+During shutdown, the system will return to the initramfs. If the user was booted into sysmaint session, the initramfs will regenerate the UKI and prompt the user to authenticate themselves using their signing key. This will allow the firmware to trust the new operating system. **If the user does not authenticate themselves at this point, the kernel and root image will be unusable.** The user will have to boot into their backup kernel and image and either restore it (deleting the modified image) or sign the newer image from there.
 
 ==== Part 3: OS and VMs ====
 
@@ -1312,9 +1312,51 @@ Other concerns to take into account:
 * Additional notes:
 ** To handle the situation where multiple shims are installed, the firmware may need the ability to find multiple candidate bootloaders in the removable media path (or any bootloader path)
 
-https://docs.dasharo.com/projects/sovereign-boot-wizard/
+==== Sovereign Boot ====
+See [[Sovereign Boot]].
 
-https://www.youtube.com/watch?v=sCohCVvcp7E
+= initramfs - initramfs-tools - dracut =
+todo:
+
+* https://insinuator.net/2025/07/insecure-boot-injecting-initramfs-from-a-debug-shell/
+* some ideas here: [[Verified_Boot#Part_2:_Firmware_and_OS|Part 2: Firmware and OS]]
+
+attack known since at least
+https://github.com/AonCyberLabs/EvilAbigail
+
+related:
+
+* [[Recovery#Emergency_Recovery_Console|Emergency Recovery Console]]
+
+= Protecting the Kernel Command Line =
+Features:
+
+* allow customization of kernel command line at boot time
+* protect the kernel command line against evil maid attacks
+
+The kernel command line needs to be protected to avoid an attacker with physical access to the device from using [[Recovery#Recovery_Mode|Linux Recovery Mode]] as well as [[Recovery#Emergency_Recovery_Console|Emergency Recovery Console]] (by an initramfs-generator such as [[dracut]] or initramfs-tools).
+
+As described in blog post [https://insinuator.net/2025/07/insecure-boot-injecting-initramfs-from-a-debug-shell/ Insecure Boot: Injecting initramfs from a debug shell] an attacker with physical access can compromise the initramfs. The same goes for Linux recovery mode.
+
+A potential solution could be using [[Full_Disk_Encryption#encrypted_boot|encrypted_boot|encrypted <code>/boot</code> partition]]:
+
+# [[Sovereign Boot]]: Makes sure that only bootloaders can be started which are signed by keys accepted by the user.
+# [[Dev/boot#GRUB_Full_Disk_Encryption|GRUB <u>F</u>ull <u>D</u>isk <u>E</u>ncryption (FDE)]]: GRUB would show a [[Grub#EFI_-_GRUB_Bootloader_Disk_Decryption_Password_Prompt|EFI - GRUB Bootloader Disk Decryption Password Prompt]].
+# Thanks to GRUB FDE, kernel command line changes are only possible after providing full disk encryption password.
+
+In result, the kernel command line would be protected.
+
+The advantage of this solution would be that it is antagonistic about components such as kernel, initramfs generator, unified kernel image (UKI) and so forth.
+
+For now, [https://forums.kicksecure.com/t/installing-fde-luks-with-detached-luks-header-option/907/2 GRUB FDE has been deemed unsuitable due to issues]: [[Full_Disk_Encryption#encrypted_boot|encrypted_boot|encrypted <code>/boot</code> partition]]
+
+These issues may or may not be unfixable due to [[Dev/boot#GRUB_Slow_Upstream|GRUB Slow Upstream]]. Forking is not an option due to [[Dev/maintainability|maintainability]] concerns.
+
+What happens in case an evil maid removes the hard drive, replaces the bootloader with a malicious GRUB version designed to steal the password or compromise the system? The evil maid will lack access to the vendor or user key used to sign the bootloader. Hence, [[Sovereign Boot]] will refuse to boot it.
+
+If using unencrypted boot, using a signed UKI (a unified kernel image that contains a kernel image combined with an initramfs) - which is the approach by systemd-boot - might also work. But how support the feature of allow kernel parameter edits as well as to protect the kernel command line in this case?
+
+TODO: Any answers here? https://0pointer.net/blog/fitting-everything-together.html
 
 = Keys =
 Debian's shim in [https://packages.debian.org/{{Stable project version based on Debian codename}}/shim-signed <code>shim-signed</code>] at the time of writing is signed by Microsoft's public key only.
@@ -1380,8 +1422,6 @@ Design and technical support: Aaron Rainbolt.
 
 = Footnotes=
 <references/>
-
 {{Footer}}
-
-[[Category: Design]]
-[[Category: Development]]
+[[Category:Design]]
+[[Category:Development]]

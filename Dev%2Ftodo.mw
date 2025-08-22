@@ -10,6 +10,9 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== trixie port - derivative-maker ==
+* branch looks good, but not mergeable due to git submodules
+
 == trixie port - port to Wayland ==
 * LXQt - maybe:
 ** {{Github_link|repo=kicksecure-meta-packages|path=/pull/2}}
@@ -53,6 +56,23 @@ TODO
 
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
+** Aaron: Where all do we use the signing key? It's used to sign:
+*** apt packages
+*** git commits
+*** git tags
+*** OS images
+*** Warrant canaries?
+**** These are signed by OpenBSD's signify tool, not GPG, thus their key migration does not necessarily have to be bound to derivative.gpg's rotation.
+*** anything else?
+** apt package migration:
+*** Due to how apt packages work, it is probably best to do this during release upgrade. Ship a new version of the key in legacy-dist in Bookworm only, install it during the release upgrade procedure and ensure all packages that are ever a part of the trixie repositories are signed with the new key.
+** git commit/tag migration:
+*** The key expires, so there isn't a risk of it being used to sign newer packages after expiration. Just start signing commits with the new key and let expiration handle everything else.
+*** Add the new key to the list of trusted keys in derivative-maker so that people can still build older tags/commits if they need to.
+** OS image migration:
+*** Just start using the new key to sign OS images. Announce the key change publicly (i.e. on the forums) so users expect to need to update their key. Sign the new key with the old key so that users with high security requirements can transition from one key to the next without having to re-establish trust in the key.
+** Canary migration, if needed:
+*** Can we just start signing canaries with the new key? Or do we need to put the canaries in a different location and stop updating the old ones?
 
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
@@ -780,36 +800,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * apply fixes on top
 * Aaron: Done: https://github.com/ArrayBolt3/security-misc/commit/cba16879eff9d3d998c127e41c38d2067cdf04cc
 
-== trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
-* The following is required for initramfs-tools only:
-<pre>
-GRUB_DEVICE="/dev/disk/by-uuid/${GRUB_DEVICE_UUID}"
-unset GRUB_DEVICE_UUID
-</pre>
-
-* grep the source code for this and move it below the following condition because it is not required by dracut:
-
-<pre>
-if pkg_installed initramfs-tools ; then?
-</pre>
-
-* related: [[dracut]]
-* Aaron: Done:
-** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/commit/1b485087f33b9f4131bf89473144e7fbef77dc0a
-** grub-live: https://github.com/ArrayBolt3/grub-live/commit/685d1d676aed78ce4da1aa75c6a6c6da3c2d5c1a
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/a94203791ddab06ed2cf6f2d201029d291687cef
-
-== trixie port - dracut - hostonly yes versus no ==
-* after Dracut fixes... should Kicksecure images (in trixie) use a different hostonly mode?
-* Yes, we should switch to hostonly sloppy mode, which is now being substantially improved to be a lot more generic upstream.
-* Done: https://github.com/ArrayBolt3/dist-base-files/commit/1b485087f33b9f4131bf89473144e7fbef77dc0a
-** Note that the enhanced hostonly sloppy mode changes may not be in Trixie itself yet, we may have to pull Dracut from debian-backports to get the good changes in the future. I think this is still a good change for now though, users who need a portable USB flash drive can turn this off if it causes problems (which it probably won't anyway).
-
-== trixie port - live mode notification ==
-* inform the user what mode they've booted in via an ephemeral desktop notification shown on login
-* reason: https://forums.kicksecure.com/t/live-mode-option-boots-into-persistent-sysmaint/1216
-** Aaron: Implemented: https://github.com/ArrayBolt3/desktop-config-dist/commit/03aa359bc5d54958a1e6f4edd29b2c79610c7668
-
 == trixie port - misc ==
 * might need to split this into multiple tasks
 * waiting for trixie to get frozen and stable enough
@@ -848,25 +838,7 @@ if pkg_installed initramfs-tools ; then?
 *** One PR for Thunderbird prefs should probably be closed without merging. I've deleted Thunderbird prefs from the arraybolt3/trixie branch of security-misc.
 *** One PR from raja-grewal (https://github.com/Kicksecure/security-misc/pull/313) I requested changes on and am awaiting a reply.
 * 10) debug-misc: {{Github_link|repo=debug-misc|path=/pulls}}
-** Aaron: Blocked on raja-grewal's response to my review on https://github.com/Kicksecure/security-misc/pull/313.
-
-== begin Trixie port ==
-* immediate goal - rebase Kicksecure as-is ontfo Trixie
-* further enhancements are in other tickets under WAITING ON
-* Aaron: Current progress can be seen in the <code>arraybolt3/trixie</code> branches of all repos in my account
-* Ready for review, some issues still remain that will need worked out prior to a beta or stable release:
-** systemd-remount-fs.service and systemd-growfs-root.service are failing when booted in live mode
-** privleap autopkgtest is broken
-
-== trixie port - remaining known alpha issues ==
-* systemd-remount-fs.service and systemd-growfs-root.service are failing when booted in live mode
-** May affect Bookworm also. Fix: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-improvements
-*** Already merged into arraybolt3/trixie as well.
-*** Patrick: Merged. (bookwork + trixie)
-* privleap autopkgtest is broken
-** Fixed, along with other code quality tests: https://github.com/ArrayBolt3/privleap/commit/6e81f2112b5be0a0f5ad1f78b4732d082ea67f00
-*** Patrick: Bookworm - not merged (because in trixie branch)
-*** Patrick: trixie merge - todo for Patrick
+** Aaron: Blocked on raja-grewal's response to my review on https://github.com/Kicksecure/debug-misc/pull/4.
 
 == mouse fingerprinting ==
 * todo
@@ -912,6 +884,58 @@ if pkg_installed initramfs-tools ; then?
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
+* The following is required for initramfs-tools only:
+<pre>
+GRUB_DEVICE="/dev/disk/by-uuid/${GRUB_DEVICE_UUID}"
+unset GRUB_DEVICE_UUID
+</pre>
+
+* grep the source code for this and move it below the following condition because it is not required by dracut:
+
+<pre>
+if pkg_installed initramfs-tools ; then?
+</pre>
+
+* related: [[dracut]]
+* Aaron: Done:
+** dist-base-files: https://github.com/ArrayBolt3/dist-base-files/commit/1b485087f33b9f4131bf89473144e7fbef77dc0a
+** grub-live: https://github.com/ArrayBolt3/grub-live/commit/685d1d676aed78ce4da1aa75c6a6c6da3c2d5c1a
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/a94203791ddab06ed2cf6f2d201029d291687cef
+* Patrick: Merged. (As part of the trixie branches)
+
+== trixie port - dracut - hostonly yes versus no ==
+* after Dracut fixes... should Kicksecure images (in trixie) use a different hostonly mode?
+* Yes, we should switch to hostonly sloppy mode, which is now being substantially improved to be a lot more generic upstream.
+* Done: https://github.com/ArrayBolt3/dist-base-files/commit/1b485087f33b9f4131bf89473144e7fbef77dc0a
+** Note that the enhanced hostonly sloppy mode changes may not be in Trixie itself yet, we may have to pull Dracut from debian-backports to get the good changes in the future. I think this is still a good change for now though, users who need a portable USB flash drive can turn this off if it causes problems (which it probably won't anyway).
+* Patrick: Merged.
+
+== trixie port - live mode notification ==
+* inform the user what mode they've booted in via an ephemeral desktop notification shown on login
+* reason: https://forums.kicksecure.com/t/live-mode-option-boots-into-persistent-sysmaint/1216
+** Aaron: Implemented: https://github.com/ArrayBolt3/desktop-config-dist/commit/03aa359bc5d54958a1e6f4edd29b2c79610c7668
+* Patrick: Merged.
+
+== begin Trixie port ==
+* immediate goal - rebase Kicksecure as-is ontfo Trixie
+* further enhancements are in other tickets under WAITING ON
+* Aaron: Current progress can be seen in the <code>arraybolt3/trixie</code> branches of all repos in my account
+* Ready for review, some issues still remain that will need worked out prior to a beta or stable release:
+** systemd-remount-fs.service and systemd-growfs-root.service are failing when booted in live mode
+** privleap autopkgtest is broken
+* Patrick: merged all trixie branches - except derivative-maker (separate ticket)
+
+== trixie port - remaining known alpha issues ==
+* systemd-remount-fs.service and systemd-growfs-root.service are failing when booted in live mode
+** May affect Bookworm also. Fix: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-improvements
+*** Already merged into arraybolt3/trixie as well.
+*** Patrick: Merged. (bookwork + trixie)
+* privleap autopkgtest is broken
+** Fixed, along with other code quality tests: https://github.com/ArrayBolt3/privleap/commit/6e81f2112b5be0a0f5ad1f78b4732d082ea67f00
+*** Patrick: Bookworm - not merged (because in trixie branch)
+*** Patrick: all trixie branches merged
+
 == bookworm - 17.4.4.6 bug reports ==
 * https://forums.whonix.org/t/shared-folder-blank-running-in-live-mode-after-update/22056
 ** Aaron: Intentional but somewhat unexpected behavior. Ideas for improvement shared on forums.
