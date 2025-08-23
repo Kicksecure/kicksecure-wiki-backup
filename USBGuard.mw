@@ -1,0 +1,110 @@
+{{Header}}
+{{title|title=
+USBGuard - protect your computer against rogue USB devices
+}}
+{{#seo:
+|description=Enable and disable USBGuard on Kicksecure.
+|image=Usbguard-banner-400.svg
+}}
+[[File:Usbguard-banner-400.svg|thumb]]
+{{intro|
+Enable and disable USBGuard on Kicksecure.
+}}
+= Introduction =
+{{quotation
+|quote=USBGuard [...] helps to protect your computer against rogue USB devices (a.k.a. BadUSB) by implementing basic whitelisting and blacklisting capabilities based on device attributes.
+|context=[https://usbguard.github.io/ USBGuard Homepage]
+}}
+
+Untrusted USB devices can pose a substantial threat in certain situations. Adversaries can sometimes insert USB devices while a victim is away from their computer, or replace legitimate USB devices with lookalikes. A common attack is to plug a device into a victim's system that injects a pre-programmed keystroke sequence upon insertion. This keystroke sequence runs arbitrary code on the device (for instance, by opening a terminal and then typing shell commands into it), and the attacker leverages this to download and install a more useful payload such as a remote access trojan or info stealer. <ref>
+https://shop.hak5.org/products/usb-rubber-ducky
+</ref> More sophisticated devices may allow an attacker to remotely send keystrokes to the victim's device.
+
+USBGuard attempts to mitigate a limited subset of USB hardware attacks by rejecting most USB devices that are plugged in after bootup. Devices that have a high likelihood of being used maliciously are rejected, while devices that would plausibly be inserted into the system in most normal user workflows are accepted.
+
+= Version Specific Notice =
+USBGuard is installed and enabled by default in Kicksecure 18 and higher.
+
+= Configuration =
+The [https://github.com/Kicksecure/security-misc/blob/master/etc/usbguard/rules.d/30_security-misc.conf default USBGuard policy] is saved under <code>/etc/usbguard/rules.d/30_security-misc.conf</code> and is provided by the [https://github.com/Kicksecure/security-misc security-misc] package. USBGuard requires this file's permissions to be set so that only the root account can access it.
+
+By default, the following policy is enforced by USBGuard. Most of this behavior is configured by the rules file from security-misc.
+
+* <u>Existing devices allowed:</u> All devices present when USBGuard starts are accepted. USBGuard is configured to automatically start at boot time.
+* <u>Boot time devices allowed:</u> Any devices attached before system boot are accepted.
+* <u>Newly attached devices rejected by default:</u> All newly inserted devices are rejected by default, unless they are whitelisted.
+* <u>Invalid interface descriptors rejected:</u> Devices with malformed or invalid interface descriptors are automatically denied.
+* <u>Conditional input device acceptance:</u> New keyboards and mice are allowed if and only if no existing USB keyboard and mouse is attached. (If a USB keyboard is already attached, a second USB keyboard will be rejected, and likewise with USB mice.)
+* <u>Mixed-interface input devices rejected:</u> Any device that provides a keyboard or mouse alongside a non-keyboard or non-mouse interface will be rejected. (A "unified" keyboard/mouse device, such as is common with some wireless input bundles, will be accepted, subject to the above restriction on how many input devices can be connected at once.)
+* <u>Mass storage rule:</u> All mass storage devices are allowed, so long as they provide '''only''' a mass storage interface. Devices that combine mass storage with some other interface are rejected.
+
+If you wish to whitelist additional devices, you can create additional configuration files, for instance <code>/etc/usbguard/rules.d/50_user.conf</code>. See the [https://usbguard.github.io/documentation/rule-language.html USBGuard rule language documentation] for more info.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = USBGuard will fail to start if any configuration file under <code>/etc/usbguard/rules.d</code> is not owned by root or uses permissions other than <code>0600</code> (read and write for root, no access for anyone else). Always ensure that file ownership and permissions are correct when reconfiguring USBGuard, for instance by running <code>chown root:root /etc/usbguard/rules.d/50_user.conf; chmod 0600 /etc/usbguard/rules.d/50_user.conf</code> after creating a new configuration file.
+}}
+
+= Limitations =
+The above policy is expected to help prevent some common USB-based attacks. However, '''USBGuard is not a replacement for only using trusted USB devices, nor can it reliably defend against attackers with physical access.''' There are a number of attacks that {{project_name_short}}'s USBGuard configuration does not defend against, for instance:
+
+* Keystroke injection, if the injecting device only presents itself as a keyboard and you have no USB keyboard already attached to your system. This attack cannot be prevented without rejecting all keyboard devices.
+* Over-voltage attacks intended to cause physical damage to the machine (i.e. "USB killer" attacks <ref>
+https://usbkill.com/
+</ref>). These attacks cannot be prevented by USBGuard at all, as they do not have to interact with the OS in any way to be successful.
+* Exploitation of application or kernel bugs via crafted data on a mass storage device. This attack cannot be prevented without rejecting all USB storage devices.
+
+Users are encouraged to assume determined attackers can bypass USBGuard. It should only be trusted to provide an additional layer of frustration to an attacker.
+
+= Disable USBGuard =
+Optional.
+
+Discouraged. '''This will reduce security, all USB devices will be accepted by default.'''
+
+Disable USBGuard entirely.
+
+'''1.''' {{sysmaint_notice}}
+
+'''2.''' Disable USBGuard.
+
+Run the following command.
+
+{{CodeSelect|code=
+sudo systemctl disable usbguard.service
+}}
+
+'''3.''' Reboot.
+
+'''4.''' Done.
+
+USBGuard will not run on subsequent reboots unless explicitly re-enabled.
+
+= Enable USBGuard =
+To re-enable USBGuard, run.
+
+'''1.''' {{sysmaint_notice}}
+
+'''2.''' Enable USBGuard.
+
+Run the following command.
+
+{{CodeSelect|code=
+sudo systemctl enable usbguard.service
+}}
+
+'''3.''' Reboot.
+
+'''4.''' Done.
+
+USBGuard will run on subsequent reboots.
+
+= Troubleshooting =
+If you use less common USB devices (USB microphones, MIDI devices, touchscreens, etc.), USBGuard will most likely block your ability to use them. To work around this:
+
+* Shut down the system, plug in the device, then turn the system back on. USBGuard will implicitly trust devices that exist in the system during startup.
+* Create a configuration file in <code>/etc/usbguard/rules.d</code> that whitelists your USB device. This will allow you to freely plug in the device without issues, but may potentially lessen security depending on your threat model.
+
+= Footnotes =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

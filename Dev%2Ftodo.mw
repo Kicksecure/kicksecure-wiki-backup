@@ -10,43 +10,6 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
-== trixie port - derivative-maker ==
-* branch looks good, but not mergeable due to git submodules
-
-== trixie port - port to Wayland ==
-* LXQt - maybe:
-** {{Github_link|repo=kicksecure-meta-packages|path=/pull/2}}
-** Avoidable?
-* Xfce:
-** Preferable?
-** https://alexxcons.github.io/blogpost_14.html
-** https://forums.whonix.org/t/whonix-xfce-development/6213/106
-
-== three finger salute ==
-* https://forums.kicksecure.com/t/ctrl-alt-del-three-finger-salute-action/1197
-* the three finger salute should so something useful similar to what it does on Windows
-** lock screen (Qubes does that)
-** start task manager
-** emergency shutdown button
-* Open a sysmaint (or root) shell?
-** This feature can be deferred.
-** SAK alike?
-*** Can a compromised Wayland swallow the three finger salute and mount a login spoofing attack?
-**** Aaron: No, because the salute is read by the handler via evdev, which is provided directly by the kernel. It could receive the keypress despite emerg-shutdown or similar seeing it too, but emerg-shutdown would SIGSTOP the compositor before running the actual Ctrl+Alt+Delete handler.
-*** Perhaps we should use the real SAK, but reconfigure its action, if that is at all possible?
-**** Aaron: Does not appear to be possible, see https://www.kernel.org/doc/html/v6.0/security/sak.html
-** research SIGSTOP
-*** Aaron: Looks like it works reliably, even when a stuck kernel thread is involved
-** research locked up kernel threads and their abuse potential
-*** Aaron: It appears the worst they can do is prevent processes from fully exiting, which isn't a problem for us. They also seem to be very hard to create, unless you have root access. See https://chrisdown.name/2024/02/05/reliably-creating-d-state-processes-on-demand.html
-** anti-phishing code
-*** static
-*** TOTP - perhaps at a later time
-
-== trixie port - document disabling USBGuard ==
-* USBGuard will likely interfere with users who either use special input devices (touchscreens, possibly some types of mice and keyboard), and may interfere with Framework 16 users' ability to use external keyboards and mice.
-** document how to disable in the wiki once we are sure we are shipping USBGuard in Trixie
-
 == trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
 * todo
 * hard depend on dracut?
@@ -94,6 +57,27 @@ TODO
 == stardict - investigate ==
 * debian policy appliable?
 * https://www.kicksecure.com/wiki/Dev/Debian#startdict
+
+== three finger salute ==
+* https://forums.kicksecure.com/t/ctrl-alt-del-three-finger-salute-action/1197
+* the three finger salute should so something useful similar to what it does on Windows
+** lock screen (Qubes does that)
+** start task manager
+** emergency shutdown button
+* Open a sysmaint (or root) shell?
+** This feature can be deferred.
+** SAK alike?
+*** Can a compromised Wayland swallow the three finger salute and mount a login spoofing attack?
+**** Aaron: No, because the salute is read by the handler via evdev, which is provided directly by the kernel. It could receive the keypress despite emerg-shutdown or similar seeing it too, but emerg-shutdown would SIGSTOP the compositor before running the actual Ctrl+Alt+Delete handler.
+*** Perhaps we should use the real SAK, but reconfigure its action, if that is at all possible?
+**** Aaron: Does not appear to be possible, see https://www.kernel.org/doc/html/v6.0/security/sak.html
+** research SIGSTOP
+*** Aaron: Looks like it works reliably, even when a stuck kernel thread is involved
+** research locked up kernel threads and their abuse potential
+*** Aaron: It appears the worst they can do is prevent processes from fully exiting, which isn't a problem for us. They also seem to be very hard to create, unless you have root access. See https://chrisdown.name/2024/02/05/reliably-creating-d-state-processes-on-demand.html
+** anti-phishing code
+*** static
+*** TOTP - perhaps at a later time
 
 == live-hardener vs efi bug ==
 <pre>
@@ -774,6 +758,36 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== investigate Qubes memory issue ==
+* https://forums.whonix.org/t/increased-memory-usage/22092
+* fixed probably for trixie and above only
+* Aaron: Added several new optimizations and researched other possible optimizations:
+** Disabled emerg-shutdown and ensure-shutdown on Qubes OS: https://github.com/ArrayBolt3/security-misc/commit/28f44d2e1d54da990cf203d2965431bc12a5d008
+*** ensure-shutdown has to be disabled as well because it depends on emerg-shutdown. ensure-shutdown will be replaced anyway because systemd has a native implementation of this already.
+** Disabled memlockd by default, and fixed the way emerg-shutdown uses it: https://github.com/ArrayBolt3/security-misc/commit/cd44a7e1369cd798b06595fdb118e0c7bea52194
+** Discovered that <code>sleep</code> consumes a non-negligible amount of non-shared memory (somewhere between 150 KiB and 1.7 MiB depending on what tool you use to measure it), thus attempted to optimize some sleep calls out of our codebase:
+*** Native Bash implementation of <code>sleep</code>: https://github.com/ArrayBolt3/helper-scripts/commit/81d8eb6d502c80f089637a9dfd75f26db004a45e
+*** Added to anon-ws-disable-stacked-tor: https://github.com/ArrayBolt3/anon-ws-disable-stacked-tor/commit/6e55d22731a32e11d65b188ba18fb70f9be92463
+*** Added to canary-daemon in systemcheck: https://github.com/ArrayBolt3/systemcheck/commit/0febf95bc78a6a0097e52f7435152c4dd1783a33
+*** Added to msgdispatcher in msgcollector: https://github.com/ArrayBolt3/msgcollector/commit/e4de3f75aba852440d3e414f626acd12f06249bd
+*** Discovered sdwdate did not need to call out to the <code>sleep</code> binary anymore to withstand time jumps, so switched back to Python time.sleep: https://github.com/ArrayBolt3/sdwdate/commit/963203c7196789c56303cce8a365e0f40b91180b
+** sdwdate-gui-client)is hard to optimize, it needs Qt to be implemented safely and effectively in Python, to my awareness.
+** privleapd is using quite a bit of memory (almost 10 MB), unsure if there's any good way to reduce it
+
+== trixie port - derivative-maker ==
+* branch looks good, but not mergeable due to git submodules
+* Aaron: Should hopefully be fixed now.
+
+== trixie port - port to Wayland ==
+* LXQt - maybe:
+** {{Github_link|repo=kicksecure-meta-packages|path=/pull/2}}
+** Avoidable?
+* Xfce:
+** Preferable?
+** https://alexxcons.github.io/blogpost_14.html
+** https://forums.whonix.org/t/whonix-xfce-development/6213/106
+* Aaron: Investigation with LXQt vs. Xfce complete, we chose to go with LXQt. Initial porting effort complete, there is likely more we can do to polish the experience but basic functionality is now there.
+
 == trixie port - polish default browser handling ==
 * open-link-confirmation should be the canonical default browser in all instances
 * merge the functionality of tb-default-browser into open-link-confirmation
@@ -884,6 +898,11 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== trixie port - document disabling USBGuard ==
+* USBGuard will likely interfere with users who either use special input devices (touchscreens, possibly some types of mice and keyboard), and may interfere with Framework 16 users' ability to use external keyboards and mice.
+** document how to disable in the wiki once we are sure we are shipping USBGuard in Trixie
+* USBGuard documented: https://www.kicksecure.com/wiki/USBGuard
+
 == trixie port - GRUB_DEVICE vs dracut vs initramfs-tools ==
 * The following is required for initramfs-tools only:
 <pre>
