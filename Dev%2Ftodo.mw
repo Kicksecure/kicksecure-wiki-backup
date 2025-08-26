@@ -29,10 +29,18 @@ TODO
 *** Just start using the new key to sign OS images. Announce the key change publicly (i.e. on the forums) so users expect to need to update their key. Sign the new key with the old key so that users with high security requirements can transition from one key to the next without having to re-establish trust in the key.
 ** Canary migration, if needed:
 *** Can we just start signing canaries with the new key? Or do we need to put the canaries in a different location and stop updating the old ones?
+* Patrick:
+** The plan might be good enough.
+** I might just extend the validity of the signing key and postpone this plan.
 
 == trixie port - meta packages ==
 * implement [[Dev/Metapackages]] when porting to trixie
 * make sure xscreensaver no longer gets installed by default in Qubes VMs
+* Do not create complex interdependencies among metapackages. Define a set of "master" metapackages, have them only depend on individual sub-metapackages that provide groups of shared software, use scripting to help autogenerate things as needed
+* Patrick: script auto generation features - proposal:
+** 1 or w scripts doesn't matter
+** create main structure (all the nodes)
+** create "main" meta packages including dependencies
 
 == trixie port - split the security-misc into security-misc-shared, security-misc-desktop and security-misc-server ==
 * {{Github_link|repo=security-misc|path=/issues/187}}
@@ -755,6 +763,14 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie port - misc - #2 ==
+* 1) release-upgrade should honor DEBIAN_FRONTEND="noninteractive"
+** all interactive questions should honor this environment variable (or another suitable)
+** this is about the new interactive SSH question
+* 2) move dpkg-noninteractive from usability-misc to helper-scripts
+* Aaron: Both are now done.
+** Bear in mind that helper-scripts will have to Breaks/Replaces whatever the last version of usability-misc to have dpkg-noninteractive was in order to avoid upgrade failure.
+
 == trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
 * todo
 * hard depend on dracut?
@@ -820,46 +836,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * apply fixes on top
 * Aaron: Done: https://github.com/ArrayBolt3/security-misc/commit/cba16879eff9d3d998c127e41c38d2067cdf04cc
 
-== trixie port - misc ==
-* might need to split this into multiple tasks
-* waiting for trixie to get frozen and stable enough
-* 1) SSH configurations
-** move configuration snippets from [[SSH]] wiki page to security-misc [not completed at time of writing in end of 2024 but should be early next year]
-*** Aaron: Implemented: https://github.com/ArrayBolt3/security-misc/commit/2ada07cf66727ea66283c55c0ba078489b3db94e
-** {{Github_link|repo=legacy-dist|path=/blob/master/usr/sbin/release-upgrade}}
-*** add ominous message to release-upgrade script if SSH client or server is installed
-**** Aaron: Implemented: https://github.com/ArrayBolt3/legacy-dist/commit/fbeee3a3e6d64fa88f94fbcf1d4a37d9648c6248
-*** point out in distribution morphing instructions
-**** Aaron: Added a warnings section for this and similar warnings we may add in the future. Did the edit without being logged in so as to make it a "draft for review".
-* 2) repository codename split project names
-** update repository origin value as per https://www.kicksecure.com/wiki/Dev/APT#changed_its_'Origin'_value_from_'whonix'_to_'kicksecure'
-** (revert the revert of {{Github_link|repo=derivative-maker|path=/commit/25f5c7e11afd23f58f40286be1fd9097c31a705e)}}
-** Aaron: Done, and added (untested) code to legacy-dist for coping with the change.
-* 3) move from usability-misc and security-misc to to helper-scripts
-** upgrade-nonroot
-** other APT related scripts
-** this will allow sysmaint-panel to remove dependency on usability-misc and security-misc
-** Aaron: Done.
-* 4) convert user-sysmaint-split and sysmaint-panel from "loose packages" to dependencies of the respective meta packages
-** add ominous message to release-upgrade script
-** Aaron: Discussed via chat, decided to not do this after all.
-* 5) Check if /etc/grub.d/10_linux was updated in Debian. If so, update our fork in dist-base-files.
-** Aaron: Checked, changes did exist. Synced our fork with upstream.
-* 6) https://www.whonix.org/wiki/Dev/Redistribution#Major_Upgrade
-** Aaron: Updated appropriate values.
-* 7) port all sources.list files to DEB822-Style Format (can be postponed if needed)
-** Aaron: Done, however live-build and grml-debootstrap need not-yet-integrated-upstream changes for this to work.
-*** live-build: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
-*** grml-debootstrap: https://github.com/ArrayBolt3/grml-debootstrap/tree/arraybolt3/deb822
-* 8) ram-wipe: re-add <code>Depends:</code> <code>systemd-cryptsetup</code>
-** Aaron: Done.
-* 9) review and merge various trixie related improvements to security-misc {{Github_link|repo=security-misc|path=/pulls}}
-** Aaron: Done, almost all merged.
-*** One PR for Thunderbird prefs should probably be closed without merging. I've deleted Thunderbird prefs from the arraybolt3/trixie branch of security-misc.
-*** One PR from raja-grewal (https://github.com/Kicksecure/security-misc/pull/313) I requested changes on and am awaiting a reply.
-* 10) debug-misc: {{Github_link|repo=debug-misc|path=/pulls}}
-** Aaron: Blocked on raja-grewal's response to my review on https://github.com/Kicksecure/debug-misc/pull/4.
-
 == mouse fingerprinting ==
 * todo
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
@@ -904,6 +880,46 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== trixie port - misc ==
+* might need to split this into multiple tasks
+* waiting for trixie to get frozen and stable enough
+* 1) SSH configurations
+** move configuration snippets from [[SSH]] wiki page to security-misc [not completed at time of writing in end of 2024 but should be early next year]
+*** Aaron: Implemented: https://github.com/ArrayBolt3/security-misc/commit/2ada07cf66727ea66283c55c0ba078489b3db94e
+** {{Github_link|repo=legacy-dist|path=/blob/master/usr/sbin/release-upgrade}}
+*** add ominous message to release-upgrade script if SSH client or server is installed
+**** Aaron: Implemented: https://github.com/ArrayBolt3/legacy-dist/commit/fbeee3a3e6d64fa88f94fbcf1d4a37d9648c6248
+*** point out in distribution morphing instructions
+**** Aaron: Added a warnings section for this and similar warnings we may add in the future. Did the edit without being logged in so as to make it a "draft for review".
+* 2) repository codename split project names
+** update repository origin value as per https://www.kicksecure.com/wiki/Dev/APT#changed_its_'Origin'_value_from_'whonix'_to_'kicksecure'
+** (revert the revert of {{Github_link|repo=derivative-maker|path=/commit/25f5c7e11afd23f58f40286be1fd9097c31a705e)}}
+** Aaron: Done, and added (untested) code to legacy-dist for coping with the change.
+* 3) move from usability-misc and security-misc to to helper-scripts
+** upgrade-nonroot
+** other APT related scripts
+** this will allow sysmaint-panel to remove dependency on usability-misc and security-misc
+** Aaron: Done.
+* 4) convert user-sysmaint-split and sysmaint-panel from "loose packages" to dependencies of the respective meta packages
+** add ominous message to release-upgrade script
+** Aaron: Discussed via chat, decided to not do this after all.
+* 5) Check if /etc/grub.d/10_linux was updated in Debian. If so, update our fork in dist-base-files.
+** Aaron: Checked, changes did exist. Synced our fork with upstream.
+* 6) https://www.whonix.org/wiki/Dev/Redistribution#Major_Upgrade
+** Aaron: Updated appropriate values.
+* 7) port all sources.list files to DEB822-Style Format (can be postponed if needed)
+** Aaron: Done, however live-build and grml-debootstrap need not-yet-integrated-upstream changes for this to work.
+*** live-build: https://salsa.debian.org/ArrayBolt3/live-build/-/tree/arraybolt3/lb-dracut?ref_type=heads
+*** grml-debootstrap: https://github.com/ArrayBolt3/grml-debootstrap/tree/arraybolt3/deb822
+* 8) ram-wipe: re-add <code>Depends:</code> <code>systemd-cryptsetup</code>
+** Aaron: Done.
+* 9) review and merge various trixie related improvements to security-misc {{Github_link|repo=security-misc|path=/pulls}}
+** Aaron: Done, almost all merged.
+*** One PR for Thunderbird prefs should probably be closed without merging. I've deleted Thunderbird prefs from the arraybolt3/trixie branch of security-misc.
+*** One PR from raja-grewal (https://github.com/Kicksecure/security-misc/pull/313) I requested changes on and am awaiting a reply.
+* 10) debug-misc: {{Github_link|repo=debug-misc|path=/pulls}}
+** Aaron: Blocked on raja-grewal's response to my review on https://github.com/Kicksecure/debug-misc/pull/4.
+
 == trixie port - document disabling USBGuard ==
 * USBGuard will likely interfere with users who either use special input devices (touchscreens, possibly some types of mice and keyboard), and may interfere with Framework 16 users' ability to use external keyboards and mice.
 ** document how to disable in the wiki once we are sure we are shipping USBGuard in Trixie
