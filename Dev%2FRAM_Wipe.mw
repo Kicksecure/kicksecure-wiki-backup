@@ -17,7 +17,7 @@ Implemented by dracut module {{Github_link|repo=ram-wipe|path=/tree/master/usr/l
 
 # <code>/usr/lib/dracut/modules.d/90crypt/cryptroot-ask.sh</code> runs <code>need_shutdown</code>.
 # [https://github.com/dracut-ng/dracut-ng/pull/293 <code>dracut-ng</code> <code>dm-shutdown.sh</code> runs <code>cryptsetup close</code> to release the full disk encryption key during the shutdown process.]
-# A dracut <code>cleanup</code> hook is declared in {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh|text=<code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh</code>}} (by ram-wipe): <code>inst_hook cleanup 80 "$moddir/wipe-ram-needshutdown.sh"</code>. Priority is <code>80</code>.
+# A dracut <code>cleanup</code> hook is declared in {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh|text=<code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh</code>}} (by ram-wipe): <code>inst_hook cleanup 80 "$moddir/wipe-ram-needshutdown.sh"</code>. Priority is <code>80</code>. TODO
 # During boot, that dracut <code>cleanup</code> hook {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh|text=<code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh</code>}} (by ram-wipe) is calling dracut API function <code>need_shutdown</code> which results in file <code>/run/initramfs/.need_shutdown</code> being created.
 # As a result, at shutdown time when <code>/lib/systemd/system/dracut-shutdown.service</code> (by dracut) runs, <code>/usr/lib/dracut/dracut-initramfs-restore</code> (by dracut) will restore the initramfs and pivot into it.
 # During shutdown, dracut will run its usual cleanup tasks such as unmounting the root (main) drive.
@@ -40,14 +40,16 @@ https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-incl
 Quote [https://tails.boum.org/contribute/design/memory_erasure/ Tails' Memory erasure]:
 
 <blockquote>
-First, most memory is erased at the end of a normal shutdown/reboot sequence. This is implemented by the [https://tails.boum.org/contribute/design/kernel_hardening/ Linux kernel's freed memory poisoning feature], more specifically:
-
-* page_poison
-* passing "P" to slub_debug
-* zeroing heap memory at free time (init_on_free=1)
+First, most memory is erased at the end of a normal shutdown/reboot sequence. This is implemented by the [https://tails.boum.org/contribute/design/kernel_hardening/ Linux kernel's freed memory poisoning feature], more specifically <code>init_on_free=1</code>.
 </blockquote>
 
-These kernel parameters are implemented in the [[security-misc]] file {{Github_link|repo=security-misc|path=/blob/master/etc/default/grub.d/40_kernel_hardening.cfg|text=<code>/etc/default/grub.d/40_kernel_hardening.cfg</code>}}.
+Additional kernel parameters shared with the [https://tails.net/contribute/design/kernel_hardening/ Tails kernel hardening setup] are implemented in the [[security-misc]] file {{Github_link|repo=security-misc|path=/blob/master/etc/default/grub.d/40_kernel_hardening.cfg|text=<code>/etc/default/grub.d/40_kernel_hardening.cfg</code>}}:
+
+* disabling merging of slabs with similar size (<code>slab_nomerge</code>)
+* passing <code>FZ</code> to <code>slab_debug</code>
+* enabling the kernel page allocator to randomize free lists (<code>page_alloc.shuffle=1</code>)
+* disabling vsyscalls (superseded by vDSO) (<code>vsyscall=none</code>)
+* causing kernel panic on unhandled exceptions (<code>mce=0</code>)
 
 The kernel parameter <code>wiperam=skip</code> is available to disable RAM wiping at shutdown, which can be useful to speed up shutdown or in case any issues arise.
 
@@ -121,8 +123,7 @@ Once <code>initramfs-tools</code> gains <code>exitrd</code> support, it might th
 
 = Development TODO =
 
-* Security testing: similar to https://gitlab.tails.boum.org/tails/blueprints/-/wikis/more_efficient_memory_wipe/memtest86plus
-* A number of [[Ram-wipe#ram-wipe_Known_Issues|ram-wipe known issues]] require fixing.
+* [[Ram-wipe#ram-wipe_Known_Issues|ram-wipe known issues]] require fixing.
 
 = ram-wipe Testing inside a VM =
 
@@ -156,10 +157,6 @@ Can be set up as per the [[Recovery#Serial_Console|serial console documentation]
 '''5.''' Status.
 
 Now a serial console should clearly show the output during boot and shutdown of ram-wipe.
-
-'''6.''' Bug [https://github.com/dracutdevs/dracut/issues/1888 dracut should unmount the root encrypted disk `cryptsetup luksClose` during shutdown] (fixed in dracut-ng, should be fixed in Debian trixie) will not be reproducible because {{project_name_short}} VM images do not use full disk encryption. (The rationale for not using full disk encryption for VM images is documented on the [[Encrypted_Images|Encrypted VM Images]] wiki page.)
-
-As a workaround, install Debian bookworm using the Debian DVD ([[Debian Tips]]), then install {{project_name_short}} as per the [[Debian|distribution morphing Debian into {{project_name_short}}]] instructions. Then re-apply the instructions listed here.
 
 = ram-wipe Functionality Testing =
 Done.
