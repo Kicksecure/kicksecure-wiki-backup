@@ -42,6 +42,80 @@ TODO
 ** create main structure (all the nodes)
 ** create "main" meta packages including dependencies
 
+== trixie port - misc #3 ==
+* greetd builder: do not run inside Qubes?
+* wayland https://www.kicksecure.com/wiki/Keyboard_Layout documentation
+* sdwdate-gui-qubes do it only in Qubes?
+<pre>
+       deb-systemd-helper enable sdwdate-gui-qubes@.socket
+       deb-systemd-helper enable sdwdate-gui-qubes-proxy-helper.service
+</pre>
+* sdwdate-gui: please also parse /usr/local/etc/sdwdate-gui.d (this is by convention and to better support App Qubes)
+<pre>
+for config_file in /etc/sdwdate-gui.d/*; do
+</pre>
+* sdwdate-gui: please only parse files ending with ".conf". This is to avoid parsing files such as ".dpkg" or ending with "~" (backup files by some editors).
+* sdwdate-gui: the following was good in the past.
+<pre>
+shopt -s nullglob
+for i in \
+   /etc/sdwdate-gui.d/*.conf \
+   /usr/local/etc/sdwdate-gui.d/*.conf \
+   ; do
+      bash -n "$i"
+      source "$i"
+done
+</pre>
+* reasons:
+** This is because nullglob avoid parsing "/etc/sdwdate-gui.d/*.conf" if there are no files.
+** Absence of dotglob avoids parsing files starting with a dot.
+** bash syntax check (bash -n)
+* sdwdate-gui: Supports sigterm? Useful for manual testing on the command line.
+
+== trixie port - polish default browser handling ==
+* open-link-confirmation should be the canonical default browser in all instances
+* merge the functionality of tb-default-browser into open-link-confirmation
+** Aaron: Done.
+* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
+** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
+** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
+* Whonix: open-link-confirmation should only consider torbrowser
+** Aaron: Done.
+* uninstall tb-default-browser inside release-upgrade (if useful)
+** Aaron: Done.
+* Changes:
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3
+*** and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
+** Patrick: Merged.
+** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
+*** Patrick: Merged.
+* Patrick: Please change tb-default-browser into a lintian clean transitional package. And/or make open-link-confirmation use Replaces: tb-default-browser. This is to avoid package conflicts when upgrading and still having the old package around. I could also delete the package from the source tree and then use Replace and Provides tb-default-browser within open-link-confirmation?
+
+== mouse fingerprinting ==
+* todo
+* https://forums.whonix.org/t/better-mouse-obfuscation/21445
+* notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
+* update https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
+* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
+** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
+** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
+** Remaining work:
+*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
+*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
+*** Use normal kloak buffering to obfuscate mouse movements and timings
+*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
+* research reading list:
+** https://www.mimic.sbs/
+** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
+** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
+*** Aaron: These look potentially useful, but I'm not experienced enough with the math being used here to really understand how this works. Given the final equations and a sufficiently powerful math library however, it might be possible to wrap the algorithms into a library which could then be made part of an application, where the user could define where to click, what area to move the mouse in, and the time period during which the mouse should move, then click a "play" button that would move the mouse and execute the clicks using these synthesized movements. It might even be possible to somehow integrate this into kloak, though I'm unsure if that would actually be advantageous or not.
+* test page:
+** http://jcarlosnorte.com/assets/fingerprint/
+*** please document, if useful
+**** Aaron: Does not appear particularly useful, only runs tests on scroll wheel behavior.
+* Aaron: Current alpha-quality implementation: https://github.com/ArrayBolt3/kloak-v2
+* Patrick: Please create a branch for Whonix/kloak
+
 == trixie port - check compiled code ==
 * does our compiled code still compile on trixie?
 * and compile time warnings to fix?
@@ -104,6 +178,10 @@ Aug 10 08:30:55 host live-hardener[767]: mount: /boot/efi: wrong fs type, bad op
 ** switch to a TTY and display a red screen with warning text on it?
 *** may conflict with agetty, investigate how to suppress it (or switch to a TTY that isn't in use and that agetty isn't configured to spawn on)
 * some users may need instant shutdown without warning, allow configuring the shutdown timeout, including making it 0
+
+== emerg-shutdown - versus ram-wipe ==
+* an init (systemd) wrapper?
+* root disk must be unmounted so kernel deletes {{fde}} key from RAM
 
 == emerg-shutdown - bugs ==
 * Qubes:
@@ -775,36 +853,9 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** this is about the new interactive SSH question
 * 2) move dpkg-noninteractive from usability-misc to helper-scripts
 * Aaron: Both are now done.
+*** Patrick: Merged.
 ** Bear in mind that helper-scripts will have to Breaks/Replaces whatever the last version of usability-misc to have dpkg-noninteractive was in order to avoid upgrade failure.
-
-== trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
-* todo
-* hard depend on dracut?
-* if so, must also hard depend on systemd-cryptsetup
-* do this during release-upgrade
-* related: [[dracut]]
-* Aaron: Implemented in my arraybolt3/trixie branches.
-** Special support in the release-upgrade script might not be needed, I believe dracut will replace initramfs-tools cleanly.
-
-== investigate Qubes memory issue ==
-* https://forums.whonix.org/t/increased-memory-usage/22092
-* fixed probably for trixie and above only
-* Aaron: Added several new optimizations and researched other possible optimizations:
-** Disabled emerg-shutdown and ensure-shutdown on Qubes OS: https://github.com/ArrayBolt3/security-misc/commit/28f44d2e1d54da990cf203d2965431bc12a5d008
-*** ensure-shutdown has to be disabled as well because it depends on emerg-shutdown. ensure-shutdown will be replaced anyway because systemd has a native implementation of this already.
-** Disabled memlockd by default, and fixed the way emerg-shutdown uses it: https://github.com/ArrayBolt3/security-misc/commit/cd44a7e1369cd798b06595fdb118e0c7bea52194
-** Discovered that <code>sleep</code> consumes a non-negligible amount of non-shared memory (somewhere between 150 KiB and 1.7 MiB depending on what tool you use to measure it), thus attempted to optimize some sleep calls out of our codebase:
-*** Native Bash implementation of <code>sleep</code>: https://github.com/ArrayBolt3/helper-scripts/commit/81d8eb6d502c80f089637a9dfd75f26db004a45e
-*** Added to anon-ws-disable-stacked-tor: https://github.com/ArrayBolt3/anon-ws-disable-stacked-tor/commit/6e55d22731a32e11d65b188ba18fb70f9be92463
-*** Added to canary-daemon in systemcheck: https://github.com/ArrayBolt3/systemcheck/commit/0febf95bc78a6a0097e52f7435152c4dd1783a33
-*** Added to msgdispatcher in msgcollector: https://github.com/ArrayBolt3/msgcollector/commit/e4de3f75aba852440d3e414f626acd12f06249bd
-*** Discovered sdwdate did not need to call out to the <code>sleep</code> binary anymore to withstand time jumps, so switched back to Python time.sleep: https://github.com/ArrayBolt3/sdwdate/commit/963203c7196789c56303cce8a365e0f40b91180b
-** sdwdate-gui-client)is hard to optimize, it needs Qt to be implemented safely and effectively in Python, to my awareness.
-** privleapd is using quite a bit of memory (almost 10 MB), unsure if there's any good way to reduce it
-
-== trixie port - derivative-maker ==
-* branch looks good, but not mergeable due to git submodules
-* Aaron: Should hopefully be fixed now.
+*** Patrick: todo
 
 == trixie port - port to Wayland ==
 * LXQt - maybe:
@@ -815,50 +866,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** https://alexxcons.github.io/blogpost_14.html
 ** https://forums.whonix.org/t/whonix-xfce-development/6213/106
 * Aaron: Investigation with LXQt vs. Xfce complete, we chose to go with LXQt. Initial porting effort complete, there is likely more we can do to polish the experience but basic functionality is now there.
-
-== trixie port - polish default browser handling ==
-* open-link-confirmation should be the canonical default browser in all instances
-* merge the functionality of tb-default-browser into open-link-confirmation
-** Aaron: Done.
-* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
-** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
-** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
-* Whonix: open-link-confirmation should only consider torbrowser
-** Aaron: Done.
-* uninstall tb-default-browser inside release-upgrade (if useful)
-** Aaron: Done.
-* Changes:
-** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3 and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
-** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
-
-== bookworm - fix live-hardener ==
-* https://forums.kicksecure.com/t/question-about-grub-live-and-writable-file-system/1221/3
-* Aaron: Bugfix created: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-hardener-fix
-** Test thoroughly and release to Bookworm? Necessary for live mode to function fully under Bookworm on EFI hardware.
-
-== mouse fingerprinting ==
-* todo
-* https://forums.whonix.org/t/better-mouse-obfuscation/21445
-* notify https://github.com/QubesOS/qubes-gui-daemon/pull/149#issuecomment-2477848847 if fixed
-* update https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
-* Current implementation: https://github.com/ArrayBolt3/kloak/tree/arraybolt3/anon-mouse
-** Left some notes on the Whonix forums about this implementation's effects and shortcomings.
-** Currently have prototype mouse implementation working and published, and prototype touchpad implementation kind of working, but this is not suitable for final release.
-** Remaining work:
-*** Hook all pointing devices and handle them with libinput (do NOT try to use evdev directly here)
-*** Translate all movements into absolute coordinates that can be reported to the kernel (note: relative coordinates might also be acceptable as long as we can perfectly predict where the pointer is going to end up)
-*** Use normal kloak buffering to obfuscate mouse movements and timings
-*** Display a virtual pointer instead of (or in addition to) the real pointer that shows where the mouse actually is so the user can control it smoothly
-* research reading list:
-** https://www.mimic.sbs/
-** https://github.com/MIMIC-LOGICS/Mouse-Synthesizer/blob/main/MIMIC%20A%20Kinematic%20Theory-Based%20Synthesizer-Alessandro%20Nicola%20Capriati.pdf
-** https://www.mimic.sbs/antibot/On-Anti-Bot-Biometric-Protections.md/
-*** Aaron: These look potentially useful, but I'm not experienced enough with the math being used here to really understand how this works. Given the final equations and a sufficiently powerful math library however, it might be possible to wrap the algorithms into a library which could then be made part of an application, where the user could define where to click, what area to move the mouse in, and the time period during which the mouse should move, then click a "play" button that would move the mouse and execute the clicks using these synthesized movements. It might even be possible to somehow integrate this into kloak, though I'm unsure if that would actually be advantageous or not.
-* test page:
-** http://jcarlosnorte.com/assets/fingerprint/
-*** please document, if useful
-**** Aaron: Does not appear particularly useful, only runs tests on scroll wheel behavior.
-* Aaron: Current alpha-quality implementation: https://github.com/ArrayBolt3/kloak-v2
 
 == review and test IPv6 support pull requests ==
 * https://forums.whonix.org/t/add-ipv6-support/19893
@@ -880,6 +887,44 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
 
 = ARCHIVED =
+== bookworm - fix live-hardener ==
+* https://forums.kicksecure.com/t/question-about-grub-live-and-writable-file-system/1221/3
+* Aaron: Bugfix created: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-hardener-fix
+** Test thoroughly and release to Bookworm? Necessary for live mode to function fully under Bookworm on EFI hardware.
+* Patrick: Not for bookworm.
+* Patrick: Merged.
+
+== trixie port - derivative-maker ==
+* branch looks good, but not mergeable due to git submodules
+* Aaron: Should hopefully be fixed now.
+* Patrick: Merged.
+
+== investigate Qubes memory issue ==
+* https://forums.whonix.org/t/increased-memory-usage/22092
+* fixed probably for trixie and above only
+* Aaron: Added several new optimizations and researched other possible optimizations:
+** Disabled emerg-shutdown and ensure-shutdown on Qubes OS: https://github.com/ArrayBolt3/security-misc/commit/28f44d2e1d54da990cf203d2965431bc12a5d008
+*** ensure-shutdown has to be disabled as well because it depends on emerg-shutdown. ensure-shutdown will be replaced anyway because systemd has a native implementation of this already.
+** Disabled memlockd by default, and fixed the way emerg-shutdown uses it: https://github.com/ArrayBolt3/security-misc/commit/cd44a7e1369cd798b06595fdb118e0c7bea52194
+** Discovered that <code>sleep</code> consumes a non-negligible amount of non-shared memory (somewhere between 150 KiB and 1.7 MiB depending on what tool you use to measure it), thus attempted to optimize some sleep calls out of our codebase:
+*** Native Bash implementation of <code>sleep</code>: https://github.com/ArrayBolt3/helper-scripts/commit/81d8eb6d502c80f089637a9dfd75f26db004a45e
+*** Added to anon-ws-disable-stacked-tor: https://github.com/ArrayBolt3/anon-ws-disable-stacked-tor/commit/6e55d22731a32e11d65b188ba18fb70f9be92463
+*** Added to canary-daemon in systemcheck: https://github.com/ArrayBolt3/systemcheck/commit/0febf95bc78a6a0097e52f7435152c4dd1783a33
+*** Added to msgdispatcher in msgcollector: https://github.com/ArrayBolt3/msgcollector/commit/e4de3f75aba852440d3e414f626acd12f06249bd
+*** Discovered sdwdate did not need to call out to the <code>sleep</code> binary anymore to withstand time jumps, so switched back to Python time.sleep: https://github.com/ArrayBolt3/sdwdate/commit/963203c7196789c56303cce8a365e0f40b91180b
+* Patrick: All merged.
+** sdwdate-gui-client)is hard to optimize, it needs Qt to be implemented safely and effectively in Python, to my awareness.
+** privleapd is using quite a bit of memory (almost 10 MB), unsure if there's any good way to reduce it
+
+== trixie port - deprecate initramfs-tools support - consider making dracut a dependency ==
+* todo
+* hard depend on dracut?
+* if so, must also hard depend on systemd-cryptsetup
+* do this during release-upgrade
+* related: [[dracut]]
+* Aaron: Implemented in my arraybolt3/trixie branches.
+** Special support in the release-upgrade script might not be needed, I believe dracut will replace initramfs-tools cleanly.
+
 == trixie port - USB Guard ==
 * {{Github_link|repo=security-misc|path=/pull/166}}
 * merge locally
