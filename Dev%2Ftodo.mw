@@ -33,65 +33,6 @@ TODO
 ** The plan might be good enough.
 ** I might just extend the validity of the signing key and postpone this plan.
 
-== trixie port - meta packages ==
-* implement [[Dev/Metapackages]] when porting to trixie
-* make sure xscreensaver no longer gets installed by default in Qubes VMs
-* Do not create complex interdependencies among metapackages. Define a set of "master" metapackages, have them only depend on individual sub-metapackages that provide groups of shared software, use scripting to help autogenerate things as needed
-* Patrick: script auto generation features - proposal:
-** 1 or w scripts doesn't matter
-** create main structure (all the nodes)
-** create "main" meta packages including dependencies
-
-== trixie port - misc #3 ==
-* greetd builder: do not run inside Qubes?
-* wayland https://www.kicksecure.com/wiki/Keyboard_Layout documentation
-* sdwdate-gui-qubes do it only in Qubes?
-<pre>
-       deb-systemd-helper enable sdwdate-gui-qubes@.socket
-       deb-systemd-helper enable sdwdate-gui-qubes-proxy-helper.service
-</pre>
-* sdwdate-gui: please also parse /usr/local/etc/sdwdate-gui.d (this is by convention and to better support App Qubes)
-<pre>
-for config_file in /etc/sdwdate-gui.d/*; do
-</pre>
-* sdwdate-gui: please only parse files ending with ".conf". This is to avoid parsing files such as ".dpkg" or ending with "~" (backup files by some editors).
-* sdwdate-gui: the following was good in the past.
-<pre>
-shopt -s nullglob
-for i in \
-   /etc/sdwdate-gui.d/*.conf \
-   /usr/local/etc/sdwdate-gui.d/*.conf \
-   ; do
-      bash -n "$i"
-      source "$i"
-done
-</pre>
-* reasons:
-** This is because nullglob avoid parsing "/etc/sdwdate-gui.d/*.conf" if there are no files.
-** Absence of dotglob avoids parsing files starting with a dot.
-** bash syntax check (bash -n)
-* sdwdate-gui: Supports sigterm? Useful for manual testing on the command line.
-* desktop-config-dist: ensure qterminal uses unlimited scrollback
-
-== trixie port - polish default browser handling ==
-* open-link-confirmation should be the canonical default browser in all instances
-* merge the functionality of tb-default-browser into open-link-confirmation
-** Aaron: Done.
-* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
-** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
-** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
-* Whonix: open-link-confirmation should only consider torbrowser
-** Aaron: Done.
-* uninstall tb-default-browser inside release-upgrade (if useful)
-** Aaron: Done.
-* Changes:
-** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3
-*** and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
-** Patrick: Merged.
-** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
-*** Patrick: Merged.
-* Patrick: Please change tb-default-browser into a lintian clean transitional package. And/or make open-link-confirmation use Replaces: tb-default-browser. This is to avoid package conflicts when upgrading and still having the old package around. I could also delete the package from the source tree and then use Replace and Provides tb-default-browser within open-link-confirmation?
-
 == mouse fingerprinting ==
 * todo
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445
@@ -853,6 +794,70 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie port - polish default browser handling ==
+* open-link-confirmation should be the canonical default browser in all instances
+* merge the functionality of tb-default-browser into open-link-confirmation
+** Aaron: Done.
+* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
+** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
+** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
+* Whonix: open-link-confirmation should only consider torbrowser
+** Aaron: Done.
+* uninstall tb-default-browser inside release-upgrade (if useful)
+** Aaron: Done.
+* Changes:
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3
+*** and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
+** Patrick: Merged.
+** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
+*** Patrick: Merged.
+* Patrick: Please change tb-default-browser into a lintian clean transitional package. And/or make open-link-confirmation use Replaces: tb-default-browser. This is to avoid package conflicts when upgrading and still having the old package around. I could also delete the package from the source tree and then use Replace and Provides tb-default-browser within open-link-confirmation?
+** Aaron: Done in https://github.com/ArrayBolt3/open-link-confirmation/commit/a09dc42708350c3713789c4423a6cfe66dd044a0, note that this adds a tb-default-browser transitional package ''to open-link-confirmation''. This is intentional, following the documentation at https://wiki.debian.org/RenamingPackages.
+** As part of the transition, removing the original tb-default-browser source package from our archives would be a good idea.
+
+== trixie port - misc #3 ==
+* greetd builder: do not run inside Qubes?
+** Aaron: Fixed.
+* wayland https://www.kicksecure.com/wiki/Keyboard_Layout documentation
+* sdwdate-gui-qubes do it only in Qubes?
+** Aaron: Fixed.
+* sdwdate-gui: please also parse /usr/local/etc/sdwdate-gui.d (this is by convention and to better support App Qubes)
+** Aaron: Implemented.
+* sdwdate-gui: please only parse files ending with ".conf". This is to avoid parsing files such as ".dpkg" or ending with "~" (backup files by some editors).
+** Aaron: Implemented.
+* sdwdate-gui: the following was good in the past.
+<pre>
+shopt -s nullglob
+for i in \
+   /etc/sdwdate-gui.d/*.conf \
+   /usr/local/etc/sdwdate-gui.d/*.conf \
+   ; do
+      bash -n "$i"
+      source "$i"
+done
+</pre>
+* reasons:
+** This is because nullglob avoid parsing "/etc/sdwdate-gui.d/*.conf" if there are no files.
+*** Aaron: Added where appropriate.
+** Absence of dotglob avoids parsing files starting with a dot.
+*** Aaron: Added where appropriate.
+** bash syntax check (bash -n)
+*** Aaron: The configuration files are no longer Bash scripts and are parsed by string manipulation. This was necessary to parse the configuration in Python.
+* sdwdate-gui: Supports sigterm? Useful for manual testing on the command line.
+** Aaron: Already supported, signal handlers are set up and the appropriate QTimers are used to allow them to be triggered.
+* desktop-config-dist: ensure qterminal uses unlimited scrollback
+** Aaron: Confirmed that this is enabled by default.
+
+== trixie port - meta packages ==
+* implement [[Dev/Metapackages]] when porting to trixie
+* make sure xscreensaver no longer gets installed by default in Qubes VMs
+* Do not create complex interdependencies among metapackages. Define a set of "master" metapackages, have them only depend on individual sub-metapackages that provide groups of shared software, use scripting to help autogenerate things as needed
+* Patrick: script auto generation features - proposal:
+** 1 or w scripts doesn't matter
+** create main structure (all the nodes)
+** create "main" meta packages including dependencies
+* Aaron: Implemented and pushed. Some minor issues may be present that we can work out as we go along, I audited the metapackages to fix as many of these as I reasonably could.
+
 == trixie port - misc - #2 ==
 * 1) release-upgrade should honor DEBIAN_FRONTEND="noninteractive"
 ** all interactive questions should honor this environment variable (or another suitable)
