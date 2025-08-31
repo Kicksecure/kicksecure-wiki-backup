@@ -10,6 +10,28 @@ ToDo for Developers
 TODO
 }}
 = TODO DEV =
+== Ubuntu KVM versus VirtualBox Bug ==
+* https://forums.whonix.org/t/cannot-start-whonix-imported-vms-verr-hgcm-service-not-found/22102/10
+** KVM is enabled by default on Ubuntu? In that case...
+* manual installation:
+** document this issue on [[VirtualBox]] (to be found here: [[Template:VirtualBox_Host_Software_Installation]])
+* dist-installer-cli:
+** dist-installer-cli: disable KVM - if kernel module is automatically load by default - if installing Kicksecure (or Whonix) with VirtualBox using the installer
+*** Probably unspecific to Ubuntu. Can be a general check in case other host operating systems do similar things.
+*** Probably "notice" level for output.
+*** If disabling by default is not sane, a "warning" (or even "error") level output would be good.
+*** document the feature on [[Template:Linux_installer_features]]
+
+== polish release-upgrade script ==
+* see todo comments
+* /etc/apt/sources.list.d/extrepo_kicksecure.sources can cause issues
+* /etc/apt/sources.list.d/extrepo_whonix.sources can probably also cause issues
+
+== images packages diff ==
+* build trixie based images (maybe non-qubes based only for now until trixie repository is ready)
+* compare list of installed Debian packages with bookworm based images
+* in Qubes Kicksecure, during release-upgrade, packages sysmaint-panel usability-misc are unexpectedly removed
+
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
 ** Aaron: Where all do we use the signing key? It's used to sign:
@@ -77,6 +99,9 @@ TODO
 * Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
 * Can be postponed after the first trixie based release.
 * Aaron: Mostly implemented as part of the port to LXQt, but we should entirely remote MATE's notification daemon in favor of LXQt's (this hasn't been done yet).
+
+== port to sequoia-pgp ==
+* port all code base from gpg to sequoia-pgp as much as sensible
 
 == qubes - qrexec to NetVM ==
 * investigate if it is possible to get the name of a qube's NetVM from within the qube, or otherwise send qrexec requests to the NetVM
@@ -794,26 +819,57 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie port - polish default browser handling ==
-* open-link-confirmation should be the canonical default browser in all instances
-* merge the functionality of tb-default-browser into open-link-confirmation
-** Aaron: Done.
-* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
-** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
-** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
-* Whonix: open-link-confirmation should only consider torbrowser
-** Aaron: Done.
-* uninstall tb-default-browser inside release-upgrade (if useful)
-** Aaron: Done.
-* Changes:
-** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3
-*** and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
-** Patrick: Merged.
-** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
+== trixie port - misc - #2 ==
+* 1) release-upgrade should honor DEBIAN_FRONTEND="noninteractive"
+** all interactive questions should honor this environment variable (or another suitable)
+** this is about the new interactive SSH question
+* 2) move dpkg-noninteractive from usability-misc to helper-scripts
+* Aaron: Both are now done.
 *** Patrick: Merged.
-* Patrick: Please change tb-default-browser into a lintian clean transitional package. And/or make open-link-confirmation use Replaces: tb-default-browser. This is to avoid package conflicts when upgrading and still having the old package around. I could also delete the package from the source tree and then use Replace and Provides tb-default-browser within open-link-confirmation?
-** Aaron: Done in https://github.com/ArrayBolt3/open-link-confirmation/commit/a09dc42708350c3713789c4423a6cfe66dd044a0, note that this adds a tb-default-browser transitional package ''to open-link-confirmation''. This is intentional, following the documentation at https://wiki.debian.org/RenamingPackages.
-** As part of the transition, removing the original tb-default-browser source package from our archives would be a good idea.
+** Bear in mind that helper-scripts will have to Breaks/Replaces whatever the last version of usability-misc to have dpkg-noninteractive was in order to avoid upgrade failure.
+*** Patrick: todo
+
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+
+= ARCHIVED =
+== trixie port - meta packages ==
+* implement [[Dev/Metapackages]] when porting to trixie
+* make sure xscreensaver no longer gets installed by default in Qubes VMs
+* Do not create complex interdependencies among metapackages. Define a set of "master" metapackages, have them only depend on individual sub-metapackages that provide groups of shared software, use scripting to help autogenerate things as needed
+* Patrick: script auto generation features - proposal:
+** 1 or w scripts doesn't matter
+** create main structure (all the nodes)
+** create "main" meta packages including dependencies
+* Aaron: Implemented and pushed. Some minor issues may be present that we can work out as we go along, I audited the metapackages to fix as many of these as I reasonably could.
+* Patrick: Merged.
+
+== trixie port - port to Wayland ==
+* LXQt - maybe:
+** {{Github_link|repo=kicksecure-meta-packages|path=/pull/2}}
+** Avoidable?
+* Xfce:
+** Preferable?
+** https://alexxcons.github.io/blogpost_14.html
+** https://forums.whonix.org/t/whonix-xfce-development/6213/106
+* Aaron: Investigation with LXQt vs. Xfce complete, we chose to go with LXQt. Initial porting effort complete, there is likely more we can do to polish the experience but basic functionality is now there.
+* Patrick: All trixie branches merged.
 
 == trixie port - misc #3 ==
 * greetd builder: do not run inside Qubes?
@@ -847,57 +903,31 @@ done
 ** Aaron: Already supported, signal handlers are set up and the appropriate QTimers are used to allow them to be triggered.
 * desktop-config-dist: ensure qterminal uses unlimited scrollback
 ** Aaron: Confirmed that this is enabled by default.
+* Patrick: All merged.
 
-== trixie port - meta packages ==
-* implement [[Dev/Metapackages]] when porting to trixie
-* make sure xscreensaver no longer gets installed by default in Qubes VMs
-* Do not create complex interdependencies among metapackages. Define a set of "master" metapackages, have them only depend on individual sub-metapackages that provide groups of shared software, use scripting to help autogenerate things as needed
-* Patrick: script auto generation features - proposal:
-** 1 or w scripts doesn't matter
-** create main structure (all the nodes)
-** create "main" meta packages including dependencies
-* Aaron: Implemented and pushed. Some minor issues may be present that we can work out as we go along, I audited the metapackages to fix as many of these as I reasonably could.
-
-== trixie port - misc - #2 ==
-* 1) release-upgrade should honor DEBIAN_FRONTEND="noninteractive"
-** all interactive questions should honor this environment variable (or another suitable)
-** this is about the new interactive SSH question
-* 2) move dpkg-noninteractive from usability-misc to helper-scripts
-* Aaron: Both are now done.
+== trixie port - polish default browser handling ==
+* open-link-confirmation should be the canonical default browser in all instances
+* merge the functionality of tb-default-browser into open-link-confirmation
+** Aaron: Done.
+* (maybe?) configure all browsers offered by Browser Choice to not request to be made the default browser, since the typical default browser controls will override open-link-confirmation and reduce security
+** Aaron: Done for Firefox, unnecessary for Chromium, Tor Browser, and Mullvad Browser.
+** For Brave, could not figure out how to configure it appopriately. Asked upstream for help: https://community.brave.app/t/is-there-a-way-to-disable-set-as-default-browser-prompts-before-launching-brave/640667
+* Whonix: open-link-confirmation should only consider torbrowser
+** Aaron: Done.
+* uninstall tb-default-browser inside release-upgrade (if useful)
+** Aaron: Done.
+* Changes:
+** open-link-confirmation: https://github.com/ArrayBolt3/open-link-confirmation/commit/f1707c4a0bf72b3188a015f41d007a51fbc57ee3
+*** and https://github.com/ArrayBolt3/open-link-confirmation/commit/a23b1f7eb5def6b85e5570dd0a93dc531cb2ac67
+** Patrick: Merged.
+** legacy-dist: https://github.com/ArrayBolt3/legacy-dist/commit/d8943bfe2cd8660c8bd19ebaadfb9ffa801031ae
 *** Patrick: Merged.
-** Bear in mind that helper-scripts will have to Breaks/Replaces whatever the last version of usability-misc to have dpkg-noninteractive was in order to avoid upgrade failure.
-*** Patrick: todo
+* Patrick: Please change tb-default-browser into a lintian clean transitional package. And/or make open-link-confirmation use Replaces: tb-default-browser. This is to avoid package conflicts when upgrading and still having the old package around. I could also delete the package from the source tree and then use Replace and Provides tb-default-browser within open-link-confirmation?
+** Aaron: Done in https://github.com/ArrayBolt3/open-link-confirmation/commit/a09dc42708350c3713789c4423a6cfe66dd044a0, note that this adds a tb-default-browser transitional package ''to open-link-confirmation''. This is intentional, following the documentation at https://wiki.debian.org/RenamingPackages.
+*** Patrick: Merged.
+** As part of the transition, removing the original tb-default-browser source package from our archives would be a good idea.
+*** Patrick: Done. Removed from git submodules. Trixie repository will be re-created without tb-default-browser.
 
-== trixie port - port to Wayland ==
-* LXQt - maybe:
-** {{Github_link|repo=kicksecure-meta-packages|path=/pull/2}}
-** Avoidable?
-* Xfce:
-** Preferable?
-** https://alexxcons.github.io/blogpost_14.html
-** https://forums.whonix.org/t/whonix-xfce-development/6213/106
-* Aaron: Investigation with LXQt vs. Xfce complete, we chose to go with LXQt. Initial porting effort complete, there is likely more we can do to polish the experience but basic functionality is now there.
-
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
-
-= ARCHIVED =
 == bookworm - fix live-hardener ==
 * https://forums.kicksecure.com/t/question-about-grub-live-and-writable-file-system/1221/3
 * Aaron: Bugfix created: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/live-hardener-fix
