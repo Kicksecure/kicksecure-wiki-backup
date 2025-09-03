@@ -552,6 +552,9 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== apt solver bug - pulling in incorrect alternative dependencies ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
+
 == remove unnecessary dependencies from arc-theme ==
 * https://github.com/UbuntuBudgie/arc-theme/pull/2
 * since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
@@ -802,6 +805,34 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - meta packages issues ==
+* (weird terminal symbols because it is sudo xl console)
+
+<pre>
+apt install kicksecure-qubes-gui-lxqt
+Solving dependencies... Error!
+Some packages could not be installed. This may mean that you have
+requested an impossible situation or if you are using the unstable
+distribution that some required packages have not yet been created
+or been moved out of Incoming.
+The following information may help to resolve the situation:
+
+Unsatisfied dependencies:
+ dist-general-gui-lxqt : Depends: lxqt-wayland-session but it is not installable
+.[1;31mError: .[0m.[1mUnable to correct problems, you have held broken packages..[0m
+.[1;31mError: .[0m.[1mThe following information from --solver 3.0 may provide additional context:
+   Unable to satisfy dependencies. Reached two conflicting decisions:
+   1. dist-general-gui-lxqt:amd64 is selected for install because:
+      1. kicksecure-qubes-gui-lxqt:amd64=3:32.6-1 is selected for install
+      2. kicksecure-qubes-gui-lxqt:amd64 Depends dist-general-gui-lxqt
+   2. dist-general-gui-lxqt:amd64 Depends lxqt-wayland-session
+      but none of the choices are installable:
+      [no choices].[0m
+</pre>
+
+* Aaron: lxqt-wayland-session is required by our Wayland session because it is essential to getting labwc and LXQt to work together. I have a Kicksecure-ready package for this at https://github.com/ArrayBolt3/lxqt-wayland-session, the original upstream to compare it to is at https://github.com/lxqt/lxqt-wayland-session. Upstream signs their releases.
+** Proper build artifact cleanup requires a change to genmkfile, see https://github.com/ArrayBolt3/genmkfile/commit/6e223ae9de25ff8fb4e4fb3253921c9ee225f7ff. Needs review due to execution of arbitrary code from working directory, I believe this is safe in this instance.
+
 == polish release-upgrade script ==
 * see todo comments (related to meta packages)
 * /etc/apt/sources.list.d/extrepo_kicksecure.sources can cause issues
