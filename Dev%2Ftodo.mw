@@ -11,10 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - Wayland screenshot tool ==
-* screengrab is incapable of taking screenshots under Wayland, it will be capable in Forky.
-* Find a stop-gap solution for now.
-
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
 ** Aaron: Where all do we use the signing key? It's used to sign:
@@ -37,6 +33,8 @@ TODO
 * Patrick:
 ** The plan might be good enough.
 ** I might just extend the validity of the signing key and postpone this plan.
+* Patrick:
+* Key has been extended.
 
 == mouse fingerprinting ==
 * todo
@@ -92,6 +90,10 @@ TODO
 * Provided suggestions for improving Xfce theming and attempted to port the theming to LXQt. Should defer to Trixie.
 * Can be postponed after the first trixie based release.
 * Aaron: Mostly implemented as part of the port to LXQt, but we should entirely remote MATE's notification daemon in favor of LXQt's (this hasn't been done yet).
+
+== apt solver bug - pulling in incorrect alternative dependencies ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
+* Obtain requested debugging information and attach to ticket
 
 == port to sequoia-pgp ==
 * port all code base from gpg to sequoia-pgp as much as sensible
@@ -567,9 +569,6 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
-== apt solver bug - pulling in incorrect alternative dependencies ==
-* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
-
 == remove unnecessary dependencies from arc-theme ==
 * https://github.com/UbuntuBudgie/arc-theme/pull/2
 * since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
@@ -820,112 +819,39 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie port - fully disable lxqt-policykit ==
-* lxqt-policykit is buggy, we want to use mate-polkit instead
-* Aaron: Done, created a new dummy metapackage for this.
+== trixie port - fix incorrect dependency resolution ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
+* apt solver issues are resulting in Pulseaudio being installed rather than Pipewire in some situations
+* Remove the pipe character from our dependencies wherever possible, we should not have either/or dependencies any longer unless we're ready to take special steps to ensure the right dependencies are resolved
+* Change how our dummy-dependency packages work so they can still replace unwanted packages but don't require an either/or dependency to function properly
+* Aaron: Reworked the metapackages substantially, built a Kicksecure VirtualBox image, and compared its installed packages with the Kickescure Xfce VirtualBox Bookworm iamge. Looks like the changes are working.
 
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+
+= ARCHIVED =
 == trixie port - Qubes meta packages ==
 * Qubes
 * apt install --no-install-recommends kicksecure-qubes-gui-lxqt
 
 <pre>
-The following packages were automatically installed and are no longer required:
-  initramfs-tools-bin  initramfs-tools-core  klibc-utils  libklibc
-Use 'apt autoremove' to remove them.
-
-Installing:
-.[32m  kicksecure-qubes-gui-lxqt
-.[0m
-Installing dependencies:
-.[32m  accountsservice                   libstatgrab10t64
-  arc-theme                         libsysstat-qt6-1
-  ddrescueview                      libumockdev0
-  desktop-config-dist-dependencies  libunity-protocol-private0
-  discover                          libunity-scopes-json-def-desktop
-  discover-data                     libunity9
-  dist-general-cli                  libusbguard1
-  dist-general-gui-all              libx86emu3
-  dist-general-gui-lxqt             libxcb-dpms0
-  dist-qubes-cli                    libxcb-screensaver0
-  dist-qubes-gui-lxqt               lshw
-  dracut                            lximage-qt
-  dracut-core                       lxqt-about
-  dummy-dependency-sway             lxqt-admin
-  featherpad                        lxqt-archiver
-  gddrescue                         lxqt-config
-  greetd                            lxqt-core
-  grub-live                         lxqt-globalkeys
-  grub-live-dracut                  lxqt-menu-data
-  gtk2-engines-murrine              lxqt-openssh-askpass
-  htop                              lxqt-panel
-  hwinfo                            lxqt-policykit
-  kicksecure-general-cli            lxqt-powermanagement
-  kicksecure-general-gui-all        lxqt-qtplugin
-  kicksecure-general-gui-lxqt       lxqt-runner
-  kicksecure-qubes-gui-all          lxqt-session
-  laptop-detect                     lxqt-system-theme
-  libaccountsservice0               lxqt-themes
-  libdbusmenu-lxqt0                 lxqt-wayland-session
-  libdee-1.0-4                      mate-polkit
-  libdiscover2                      mate-polkit-common
-  libfm-extra4t64                   papirus-icon-theme
-  libfm-qt6-15                      pavucontrol-qt
-  libfuse2t64                       pcmanfm-qt
-  libhd21t64                        pipewire-alsa
-  libkf6idletime6                   pipewire-audio
-  libkf6screen8                     psensor
-  libkf6screendpms8                 psensor-common
-  libkscreen-bin                    qps
-  libkscreen-data                   qt6-svg-plugins
-  libldacbt-abr2                    qt6-wayland
-  liblxqt-globalkeys-ui2            qterminal
-  liblxqt-globalkeys2               qtermwidget-data
-  libmenu-cache-bin                 qtxdg-tools
-  libmenu-cache3                    screengrab
-  libmuparser2v5                    smart-notifier
-  libpulse-mainloop-glib0           smartmontools
-  libqb100                          swaybg
-  libqt5pas1                        systemd-cryptsetup
-  libqt6svgwidgets6                 usbguard
-  libqt6waylandcompositor6          vm-config-dist
-  libqt6wlshellintegration6         wdisplays
-  libqtermwidget6-2                 wlgreet
-  libspa-0.2-bluetooth              xdg-desktop-portal-lxqt
-.[0m
-Suggested packages:
-  gnome-control-center  ncompress  adwaita-qt         cdtool
-  dracut-network        rar        faenza-icon-theme  gsmartcontrol
-  murrine-themes        rzip       lxappearance       mailx
-  unity-common          sharutils  obconf-qt          | mailutils
-  arj                   unace      feathernotes
-  lha                   unalz      lxqt
-  lzip                  zoo        preload
-
-Recommended packages:
-  console-setup              | lxqt-branding
-  mdadm                      lxqt-globalkeys-l10n
-  featherpad-l10n            lxqt-openssh-askpass-l10n
-  libfm-qt-l10n              lxqt-panel-l10n
-  pnp.ids                    qlipper
-  fonts-hack                 lxqt-policykit-l10n
-  lximage-qt-l10n            lxqt-powermanagement-l10n
-  qt6-image-formats-plugins  lxqt-runner-l10n
-  lxqt-about-l10n            lxqt-session-l10n
-  lxqt-admin-l10n            pavucontrol-qt-l10n
-  lxqt-archiver-l10n         ffmpegthumbnailer
-  galternatives              gvfs-backends
-  lxqt-config-l10n           gvfs-fuse
-  lxqt-qtplugin6             pcmanfm-qt-l10n
-  lxqt-branding-debian       qterminal-l10n
-
-REMOVING:
-.[31m  initramfs-tools                      kicksecure-dependencies-cli
-  kicksecure-default-applications-cli
-.[0m
-Summary:
-  Upgrading: 0, Installing: 109, Removing: 3, Not Upgrading: 0
-  Download size: 65.6 MB
-  Space needed: 289 MB / 17.1 GB available
+snip
 </pre>
 
 Unwanted in Qubes:
@@ -984,26 +910,15 @@ psensor # Aaron: Potentially useful if someone passes a physical disk through to
 usbguard # Aaron: Discussed with Qubes OS upstream, seems useful to have, current configuration takes into account many of the concerns brought up in the discussion.
 </pre>
 
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+== trixie port - fully disable lxqt-policykit ==
+* lxqt-policykit is buggy, we want to use mate-polkit instead
+* Aaron: Done, created a new dummy metapackage for this.
 
-= ARCHIVED =
+== trixie-port - Wayland screenshot tool ==
+* screengrab is incapable of taking screenshots under Wayland, it will be capable in Forky.
+* Find a stop-gap solution for now.
+* Aaron: Got Flameshot working well. Uploaded needed code changes to the arraybolt3/trixie branches.
+
 == trixie-port - meta packages issues ==
 * (weird terminal symbols because it is sudo xl console)
 
