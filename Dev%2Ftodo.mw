@@ -11,76 +11,12 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== review and test IPv6 support pull requests ==
-* https://forums.whonix.org/t/add-ipv6-support/19893
-* https://www.whonix.org/wiki/Dev/ipv6
-* please review for Non-Qubes-Whonix, Qubes-Whonix
-* goal: merge as much as doable/possible without breaking networking
-* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
-* Waiting for planned fixes to land in PRs.
-* Update 1:
-** Please recheck.
-** Notes:
-*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
-*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
-**** VirtualBox nowadays supports IPv6 NAT. We can easily reconfigure KVM to have IPv6 NAT also. Qubes OS supports it as well, but allows toggling it on or off.
-* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
-* Update 2:
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
-** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
-** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
-* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
-* Patrick: All merged.
-* Patrick: Please go through all pull requests and notes. Add fixes. Comment on closed pull requests for resolved items.
-* Patrick: Coordinate enabling of IPv6 with Qubes for R4.3.
-* Patrick: Ideally, whether IPv6 is enabled or disabled, VM networking shouldn't break.
-* Patrick: Please review my replace-ips changes.
-* Patrick: Please fix replace-ips overzealous IP replacement, if sensible.
-
-shell:
-
-<pre>
-echo 'DNS=10.152.152.100' > /tmp/test.conf
-</pre>
-
-python:
-
-<pre>
-    ips=['10.152.152.10']
-    current_ip='10.0.0.1'
-    files=['/tmp/test.conf']
-    ip_file='/tmp/ip'
-    protocol='IPv4'
-    replace_ip(ips, current_ip, files, ip_file, protocol)
-</pre>
-
-/tmp/test.conf content:
-
-* expected: 10.0.0.1
-* actual: 10.0.0.10
-
-issues:
-
-* Substring hit: <code>10.152.152.10</code> inside <code>10.152.152.100</code> gets changed
-* replaces all whether comments or non-comments
-* Fix Tor startup when IPv6 is disabled, use replace-ips-like code to comment out HTTPTunnelPort lines that listen on IPv6 addresses
-* Attempt to make network-online.target actually useful by waiting for a particular IPv6 address to become available before declaring the network "up", then use that to delay tor startup instead of a hardcoded delay
-* Work on IPv6 DNS support in Qubes OS: https://github.com/QubesOS/qubes-core-agent-linux/pull/592
-
-== kicksecure Qubes Template - sdwdate qrexec Denied message ==
-* [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
-* Rewrote sdwdate-gui to function better under Qubes. '''NOT READY FOR MERGE, REQUIRES CHANGES ON THE QUBES OS SIDE ALSO.'''
-** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/qubes-redesign
-** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sdwdate-gui
-** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/sdwdate-gui
-* Qubes side:
-** https://github.com/QubesOS/qubes-issues/issues/10020
-** https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/21
-* pending questions by Patrick on migration path
-** Aaron: Absent <code>rm_conffile</code> commands were an oversight. Corrected now.
-* Qubes OS side changes merged, waiting to merge sdwdate-gui changes until Trixie port.
-* issue: Kicksecure 18 (trixie based) + Qubes R4.2 - as discussed
-* https://github.com/QubesOS/qubes-issues/issues/10219
+== trixie port - document enabling IPv6 on Whonix 18 ==
+* for Qubes: set <code>ipv6</code> feature to <code>1</code> on sys-net to allow IPv6 connectivity to work at all, then disable IPv6 on individual VMs you want to remain IPv4-only, ensure that sys-whonix and sys-firewall do NOT have IPv6 disabled
+* for KVM: remove <code><dns enable=no/></code> from external network configuration
+* for VirtualBox: no additional steps needed, works out of the box
+** Aaron: Useful to create a new Whonix wiki page specifically for IPv6? We don't have a page intended for end users to read yet.
+** Aaron: Updated https://www.whonix.org/w/index.php?title=Dev/ipv6.
 
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
@@ -219,6 +155,13 @@ The following NEW packages will be installed:
 == apt solver bug - pulling in incorrect alternative dependencies ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
 * Obtain requested debugging information and attach to ticket
+
+== Qubes OS IPv6 DNS ==
+* https://github.com/QubesOS/qubes-core-agent-linux/pull/592
+
+== in-vm kernel boot mode support ==
+* GRUB patch for Xen command line parsing has been merged
+* implement boot mode support for in-vm kernels in qubes-core-admin
 
 == port to sequoia-pgp ==
 * port all code base from gpg to sequoia-pgp as much as sensible
@@ -572,6 +515,15 @@ sudo apt install serial-console-enable
 ** https://www.whonix.org/wiki/KVM#Creating_Multiple_Internal_Networks
 ** https://www.whonix.org/wiki/Multiple_Whonix-Gateway#KVM
 
+=== KVM - IPv6 router advertisement issues ===
+* when <code><dns enable=no/></code> is set in Whonix-external-network.xml, Whonix-Gateway cannot get an Internet-facing IPv6 address
+* router solicitation messages are being sent according to tcpdump but router advertisement messages are not being received in response
+* removing <code><dns enable=no/></code> from both the external and internal network configuration resolves the issue
+* removing <code><dns enable=no/></code> from only the external network configuration resolves the issue if and only if Whonix-Gateway is allowed to fully boot before Whonix-Workstation is started
+* above issues are present with Ubuntu 24.04's libvirt
+* test a newer libvirt version (using Arch Linux?)
+* file bug report if necessary
+
 == machine-id research ==
 * in preparation for the next task
 * please read prior discussions
@@ -880,6 +832,100 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== kicksecure Qubes Template - sdwdate qrexec Denied message ==
+* [https://github.com/QubesOS/qubes-issues/issues/7447 Kicksecure inside Debian Template sdwdate qrexec Denied message]
+* Rewrote sdwdate-gui to function better under Qubes. '''NOT READY FOR MERGE, REQUIRES CHANGES ON THE QUBES OS SIDE ALSO.'''
+** sdwdate-gui: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/qubes-redesign
+** anon-gw-base-files: https://github.com/ArrayBolt3/anon-gw-base-files/tree/arraybolt3/sdwdate-gui
+** kicksecure-base-files: https://github.com/ArrayBolt3/kicksecure-base-files/tree/arraybolt3/sdwdate-gui
+* Qubes side:
+** https://github.com/QubesOS/qubes-issues/issues/10020
+** https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/21
+* pending questions by Patrick on migration path
+** Aaron: Absent <code>rm_conffile</code> commands were an oversight. Corrected now.
+* Qubes OS side changes merged, waiting to merge sdwdate-gui changes until Trixie port.
+* issue: Kicksecure 18 (trixie based) + Qubes R4.2 - as discussed
+* https://github.com/QubesOS/qubes-issues/issues/10219
+* Aaron: Current plan is to maintain Kicksecure/Whonix 17 support for the remainder of Qubes R4.2's lifespan. sdwdate fix will be present in R4.3+ only.
+
+== review and test IPv6 support pull requests ==
+* https://forums.whonix.org/t/add-ipv6-support/19893
+* https://www.whonix.org/wiki/Dev/ipv6
+* please review for Non-Qubes-Whonix, Qubes-Whonix
+* goal: merge as much as doable/possible without breaking networking
+* enabling IPv6 support in Qubes-Whonix might only be possible during release upgrade to trixie based and orchestration with Qubes
+* Waiting for planned fixes to land in PRs.
+* Update 1:
+** Please recheck.
+** Notes:
+*** square brackets aren't supported in systemd: https://github.com/systemd/systemd/issues/35621
+*** quote "The only issue is that VirtualBox only supports IPv6 if we switch to bridged interface, which exposes whonix gateway to the network. libvirt requires adding custom NAT rules for IPv6, which are only automatically managed for IPv4. If we want to add this, we'd need to add a static IP configuration and give the user instructions on how to add NAT rules on the host. So for now only Qubes will have direct support for IPv6 for outgoing transactions, without further instructions a user needs to do on the host."
+**** VirtualBox nowadays supports IPv6 NAT. We can easily reconfigure KVM to have IPv6 NAT also. Qubes OS supports it as well, but allows toggling it on or off.
+* Can't get it working in VBox (even with bridged networking), libvirt (even with a custom network interface), or Qubes (apparent bug in Qubes R4.3 prevents me from making a new network-providing qube). See https://forum.qubes-os.org/t/qubes-4-3-cannot-create-a-new-appvm-that-provides-network-to-other-qubes/30906/2.
+* Update 2:
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385107
+** https://github.com/Whonix/whonix-gw-network-conf/pull/1#discussion_r1903385335
+** please direct questions, issues to Daniel (such as by adding these to https://www.whonix.org/wiki/Dev/ipv6 or commenting on a pull request)
+* Aaron: Left Daniel some feedback on things that didn't work. If not fixed in a week (so around April 4th), our plan is to merge as-is and fix bugs after.
+* Patrick: All merged.
+* Patrick: Please go through all pull requests and notes. Add fixes. Comment on closed pull requests for resolved items.
+* Patrick: Coordinate enabling of IPv6 with Qubes for R4.3.
+** Aaron: Will require global IPv6 support in Qubes OS for this to work, which is too late to land in R4.3: https://github.com/QubesOS/qubes-issues/issues/10232#issuecomment-3301165088 Probably better to document the instructions for enabling it for now.
+* Patrick: Ideally, whether IPv6 is enabled or disabled, VM networking shouldn't break.
+** Aaron: I believe the current code will work whether IPv6 is ''available'' or not. This means that if the network just doesn't support it, or the user has turned off IPv6 support in Qubes OS, networking should still work. However, if IPv6 is turned off on the kernel level, it will break things (in particular listening on the loopback IPv6 address will fail in Tor, and ifupdown will complain about there being IPv6 network configuration present). Is it a feature goal to allow disabling IPv6 on the kernel level? If so, more work will be needed here, some of which may be messy.
+* Patrick: Please review my replace-ips changes.
+** Aaron: Reviewed, did cleanup, hardened using black/mypy/pylint
+* Patrick: Please fix replace-ips overzealous IP replacement, if sensible.
+
+shell:
+
+<pre>
+echo 'DNS=10.152.152.100' > /tmp/test.conf
+</pre>
+
+python:
+
+<pre>
+    ips=['10.152.152.10']
+    current_ip='10.0.0.1'
+    files=['/tmp/test.conf']
+    ip_file='/tmp/ip'
+    protocol='IPv4'
+    replace_ip(ips, current_ip, files, ip_file, protocol)
+</pre>
+
+/tmp/test.conf content:
+
+* expected: 10.0.0.1
+* actual: 10.0.0.10
+
+issues:
+
+* Substring hit: <code>10.152.152.10</code> inside <code>10.152.152.100</code> gets changed
+** Aaron: Fixed.
+* replaces all whether comments or non-comments
+** Aaron: Fixed.
+* Fix Tor startup when IPv6 is disabled, use replace-ips-like code to comment out HTTPTunnelPort lines that listen on IPv6 addresses
+** Aaron: Implemented, though I ended up using a shell script (which mostly was a wrapper around a sed command) for this because it was much easier to do so and didn't require mass refactoring.
+* Attempt to make network-online.target actually useful by waiting for a particular IPv6 address to become available before declaring the network "up", then use that to delay tor startup instead of a hardcoded delay
+** Aaron: After further thought, decided this was a bad idea. Details shared in chat for further discussion.
+* Aaron: It appears IPv6 is generally working well now. Further bugs may need to be worked out, but so far it seems to work relatively well. Moved IPv6 DNS support in Qubes OS to a new task.
+* Patrick:
+** start tor-whonix-gw-setup.service also in sysmaint mode?
+*** Aaron: tor-whonix-gw-setup.service was able to be fully merged into anon-gw-anonymizer-config.service, so the unit no longer exists now. anon-gw-anonymizer-config.service is depended on by sysmaint-boot.target already.
+** /usr/libexec/anon-gw-anonymizer-config/generate-tor-service-defaults-torrc-anondist might get started by /usr/libexec/anon-gw-anonymizer-config/tor-config-sane
+*** Aaron: Done.
+** While we're at it, the following trigger seems no longer required or if required should be done inside whonix-firewall package instead?
+*** Aaron: Looks obsolete indeed, dh_installsystemd should automatically restart whonix-firewall.service when whonix-firewall is upgraded.
+<pre>
+                ## Restart firewall
+                /usr/bin/whonix_firewall | \
+                /usr/bin/whonix-gateway-firewall | \
+                /usr/bin/whonix-workstation-firewall)
+                    /usr/libexec/whonix-firewall/enable-firewall || true
+                    ;;
+</pre>
+
 = ARCHIVED =
 == trixie port - meta packages fixes - #1 ==
 * bug: package kicksecure-desktop-applications-xfce is still installed after release-upgrade
