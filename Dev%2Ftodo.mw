@@ -11,42 +11,58 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie port - update derivative signing key derivative.asc ==
-* plan how to use a new signing key
-** Aaron: Where all do we use the signing key? It's used to sign:
-*** apt packages
-*** git commits
-*** git tags
-*** OS images
-*** Warrant canaries?
-**** These are signed by OpenBSD's signify tool, not GPG, thus their key migration does not necessarily have to be bound to derivative.gpg's rotation.
-*** anything else?
-** apt package migration:
-*** Due to how apt packages work, it is probably best to do this during release upgrade. Ship a new version of the key in legacy-dist in Bookworm only, install it during the release upgrade procedure and ensure all packages that are ever a part of the trixie repositories are signed with the new key.
-** git commit/tag migration:
-*** The key expires, so there isn't a risk of it being used to sign newer packages after expiration. Just start signing commits with the new key and let expiration handle everything else.
-*** Add the new key to the list of trusted keys in derivative-maker so that people can still build older tags/commits if they need to.
-** OS image migration:
-*** Just start using the new key to sign OS images. Announce the key change publicly (i.e. on the forums) so users expect to need to update their key. Sign the new key with the old key so that users with high security requirements can transition from one key to the next without having to re-establish trust in the key.
-** Canary migration, if needed:
-*** Can we just start signing canaries with the new key? Or do we need to put the canaries in a different location and stop updating the old ones?
-* Patrick:
-** The plan might be good enough.
-** I might just extend the validity of the signing key and postpone this plan.
-* Patrick:
-* Key has been extended.
+== trixie port - wl-clipboard ==
+* install by default, if sensible
+* document usage
+* [[KVM#Clipboard_Sharing|KVM, Clipboard Sharing]]
+* [[VirtualBox/Guest_Additions#Shared_Folder|VirtualBox, Shared Folder]] (Mention it does not work.)
 
-== trixie port - Qubes R4.3 Templates ==
-* Kicksecure, Whonix: Please bump Qubes R4.3 upstream to Kicksecure, Whonix 18
-* Aaron: Waiting on input on upgrade plan.
-* https://github.com/QubesOS/qubes-issues/issues/10253
+== trixie port - browser-choice versus user-sysmaint-split ==
+* user-sysmaint-split installed
+* Qubes Template
+* Kicksecure trixie based
+* Qubes R4.2
+** This may not be applicable to Qubes R4.3.
+* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
+* The following error message is not applicable:
 
-== trixie port - display brightness ==
-* https://forums.kicksecure.com/t/display-brightness/1271/2
+<pre>
+You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
+</pre>
 
-== trixie port - KVM shared clipboard ==
-* Requires clipboard sync between X11 and Wayland clipboards
-* Make spice-vdagent start properly and ensure clipboard sync allows two-way clipboard transfer
+* What should the user do?
+** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
+
+== trixie port - misc remaining issues ==
+* Aaron:
+** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
+*** Turns out telling the user that the system is awaiting a password is impossible with Swaylock's current feature set. See https://github.com/swaywm/swaylock/issues/100.
+*** Asked Debian if they would be interested in us providing a patch to them, will likely contact the swaylock maintainer if that is confirmed as the correct next step.
+*** Added background color / image configuration for now.
+** some systemcheck gripes need to be silenced, mostly just journal check stuff, but also the virtualizer check is "failing" on physical hardware because systemd-detect-virt returns non-zero if running on physical hardware. We probably shouldn't interpret that as failure.
+*** Silenced a lot of these, but still have to build new VBox and KVM VMs to ensure all of them are silenced if possible.
+*** Also fixed the virtualizer check.
+** Need to build the Qubes templates and make sure they actually work. I haven't tried to build a Qubes template even once so far. That's probably what I'm going to do now.
+*** Kicksecure template built after some effort.
+**** Need to submit changes to qubes-builderv2 so this works out of the box.
+**** Need to modify qubes-template-kicksecure to point to kicksecure-qubes-gui-lxqt package.
+**** Need to modify qubes-template-kicksecure to point to trixie-developers repository.
+**** Need to update template build documentation.
+*** Whonix templates still need built.
+**** Whonix-Workstation cannot be built due to curl being unable to resolve www.torproject.org. Most likely an issue with our uwt curl wrapper. Created a commit that should fix this: https://github.com/ArrayBolt3/uwt/commit/13984371a370ec330c25b721a48c24f25034ddc2
+** Might be good to launch Flameshot on login, make it not show a "welcome" message when launched, and bind the Print Screen key so that it triggers the screenshot UI when pressed.
+*** We've decided to simply document this for now, since Flameshot consumes 80+ MB memory at idle. TODO: Where should we document this?
+** We should be configuring PCManFM-Qt to not show graphical thumbnails. (PCManFM-Qt is also missing some of our distribution-specific configuration because of some odd behavior with configuration profiles, a symlink should be enough to solve that.)
+*** Done, untested as of yet.
+** In the sysmaint session, the battery status notification takes a long time to notice if AC power is plugged in or unplugged. Should be pretty easy to solve by just shortening the check interval to 5 seconds rather than the default of 60.
+*** Done, untested as of yet.
+** We need to document how to configure the keyboard layout using labwc. At some point we may want to write a tool for this, it's just a matter of modifying a configuration file written in XML, and Python has built-in XML manipulation capabilities. They can't be used on untrusted XML, but the labwc configuration won't be untrusted.
+*** Done.
+** CLI builds don't have enhanced zsh configuration yet. Not sure if we figured out what to do with that, I think we wanted to create a new package for this but haven't actually done so yet.
+*** Fixed by Patrick.
+
+== browser-choice - inside Qubes Template - prohibit starting browsers ==
+* if file /var/run/qubes/this-is-templatevm exists, do not allow to start browsers
 
 == kloak - core versus adapter split ==
 * https://forums.whonix.org/t/better-mouse-obfuscation/21445/18
@@ -61,6 +77,10 @@ TODO
 == apt solver bug - pulling in incorrect alternative dependencies ==
 * https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
 * Obtain requested debugging information and attach to ticket
+
+== virtualbox / kvm - dynamic resolution resizing with labwc ==
+* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
+* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
 
 == Qubes OS IPv6 DNS ==
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/592
@@ -394,7 +414,7 @@ sudo apt install serial-console-enable
 
 * please test: https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
 * please mention your configuration (still using SPICE), quote Patrick and report here: https://forums.whonix.org/t/how-to-enable-3d-acceleration-in-kvm/16501/22
-* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_drm
+* test if DRM (direct rendering manager) is enabled as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Direct_Rendering_Manager
 * test performance as per https://www.whonix.org/wiki/KVM#3D_Graphics_Acceleration_-_Testing_-_Performance
 
 === KVM - 3D Graphics Acceleration - Performance Test - Display SDL ===
@@ -519,11 +539,42 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
-== remove unnecessary dependencies from arc-theme ==
-* https://github.com/UbuntuBudgie/arc-theme/pull/2
-* since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
-* or perhaps a different, better theme? separate ticket: [[#desktop theme improvements]]
-* Aaron: Pinged Ubuntu Budgie upstream via Matrix, got a response, waiting to see how (or if) that develops. Debian is likely not the right place to override this unless we absolutely have to do that. In either event, the dependencies won't be removed until Forky at best.
+== trixie port - update derivative signing key derivative.asc ==
+* plan how to use a new signing key
+** Aaron: Where all do we use the signing key? It's used to sign:
+*** apt packages
+*** git commits
+*** git tags
+*** OS images
+*** Warrant canaries?
+**** These are signed by OpenBSD's signify tool, not GPG, thus their key migration does not necessarily have to be bound to derivative.gpg's rotation.
+*** anything else?
+** apt package migration:
+*** Due to how apt packages work, it is probably best to do this during release upgrade. Ship a new version of the key in legacy-dist in Bookworm only, install it during the release upgrade procedure and ensure all packages that are ever a part of the trixie repositories are signed with the new key.
+** git commit/tag migration:
+*** The key expires, so there isn't a risk of it being used to sign newer packages after expiration. Just start signing commits with the new key and let expiration handle everything else.
+*** Add the new key to the list of trusted keys in derivative-maker so that people can still build older tags/commits if they need to.
+** OS image migration:
+*** Just start using the new key to sign OS images. Announce the key change publicly (i.e. on the forums) so users expect to need to update their key. Sign the new key with the old key so that users with high security requirements can transition from one key to the next without having to re-establish trust in the key.
+** Canary migration, if needed:
+*** Can we just start signing canaries with the new key? Or do we need to put the canaries in a different location and stop updating the old ones?
+* Patrick:
+** The plan might be good enough.
+** I might just extend the validity of the signing key and postpone this plan.
+* Patrick:
+** Key has been extended.
+* Aaron:
+** Moved to WAITING ON for now, we should move this back to TODO once we're ready to do the actual key rotation.
+
+== trixie port - display brightness ==
+* https://forums.kicksecure.com/t/display-brightness/1271/2
+* Aaron: See notes in chat.
+
+== trixie port - Qubes R4.3 Templates ==
+* Kicksecure, Whonix: Please bump Qubes R4.3 upstream to Kicksecure, Whonix 18
+* Aaron: Waiting on input on upgrade plan.
+* https://github.com/QubesOS/qubes-issues/issues/10253
+* Aaron: Marek seems to be doing this so far. Will watch and assist where possible.
 
 == investigate Tor Browser metadata signing and expiration ==
 * in context of: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3028994433
@@ -746,14 +797,45 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** qubes-template-whonix: https://github.com/ArrayBolt3/qubes-template-whonix/commit/db004332a67a82e2b956174fbc76678c9f1ddc98
 *** Patrick: Merged.
 * Aaron: Also make a fix for a Qt theming issue: https://github.com/ArrayBolt3/desktop-config-dist/commit/e37430be671458e7fb6f61eb306e3d5e032eb3aa
+** Patrick: Merged. As a side effect, the default font in KDE <code>konsole</code> now looks weird. There is too much space between letters. But probably not important as there are other terminal emulators to choose from.
 * Aaron: Please move to "WAITING ON" if this looks good. Feedback on qubes-core-agent-pcmanfm-qt would also be appreciated.
+** Patrick: Looks good.
+
+= ARCHIVED =
+== trixie port - usbguard - IPC connection failure ==
+* Happening inside Qubes (R4.2) Template
+
+<pre>
+IPC connection failure!IPC connect: service=usbguard: Operation not permitted
+</pre>
+
+* Aaron: Reproduced on R4.3. Added additional USBGuard configuration to allow members of the <code>qubes</code> group access to USBGuard IPC.
+** security-misc: https://github.com/ArrayBolt3/security-misc/commit/7e016b563239e31c650aece115bb19af0395ec52
+* Patrick: Merged.
+
+== trixie port - KVM shared clipboard ==
+* Requires clipboard sync between X11 and Wayland clipboards
+* Make spice-vdagent start properly and ensure clipboard sync allows two-way clipboard transfer
+* spice-vdagent: Upstream is waiting for Wayland support to be contributed. See https://gitlab.freedesktop.org/spice/linux/vd_agent/-/issues/26.
+** Worth attempting to contribute?
+* Virtual Machine Manager (virt-manager): https://github.com/virt-manager/virt-manager/issues/918
+* Patrick has documented using a shared folder as a workaround for now: [[KVM#Clipboard_Sharing|KVM, Clipboard Sharing]]
+* We might not want clipboard sharing anyway to prevent a compromised VM from sniffing secrets that are present in the host clipboard.
 
 == trixie port - VirtualBox shared clipboard ==
 * Broken with Wayland upstream: https://github.com/VirtualBox/virtualbox/issues/33
 * Oracle apparently intends to fix this: https://github.com/VirtualBox/virtualbox/issues/33#issuecomment-3253257020
 * Aaron: Probably better to leave alone for now, document the issue and let Oracle fix it eventually? If so, this should be moved to "WAITING ON".
+* We might not want clipboard sharing anyway to prevent a compromised VM from sniffing secrets that are present in the host clipboard.
+* Patrick has documented using a shared folder as a workaround for now: [[VirtualBox/Guest_Additions#Clipboard_Sharing|VirtualBox Clipboard Sharing]]
 
-= ARCHIVED =
+== remove unnecessary dependencies from arc-theme ==
+* https://github.com/UbuntuBudgie/arc-theme/pull/2
+* since upstream is unlikely to react, could you please send a patch to Debian instead if that seems possible/useful?
+* or perhaps a different, better theme? separate ticket: [[#desktop theme improvements]]
+* Aaron: Pinged Ubuntu Budgie upstream via Matrix, got a response, waiting to see how (or if) that develops. Debian is likely not the right place to override this unless we absolutely have to do that. In either event, the dependencies won't be removed until Forky at best.
+* Cancelled, we are not using the arc theme any longer.
+
 == qubes boot modes - GRUB in-vm kernel support ==
 * todo
 * Submitted to Qubes: https://github.com/QubesOS/qubes-linux-pvgrub2/pull/16
@@ -785,6 +867,20 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Aaron: Hardened sclockadj, bindp, and emerg-shutdown. kloak was hardened in earlier tasks. Did not harden tirdad yet, unsure if it's possible / safe to do so.
 *** Patrick: Follow-up ticket created.
 * Patrick: All merged.
+* Patrick: Please try hardening-check and address, if applicable.
+
+<pre>
+hardening-check /usr/libexec/sdwdate/sclockadj
+/usr/libexec/sdwdate/sclockadj:
+ Position Independent Executable: yes
+ Stack protected: yes
+ Fortify Source functions: unknown, no protectable libc functions used
+ Read-only relocations: yes
+ Immediate binding: yes
+ Stack clash protection: unknown, no -fstack-clash-protection instructions found
+ Control flow integrity: no, not found!
+ Branch Protection: no, not found!
+</pre>
 
 == trixie port - switch image viewer to loupe ==
 * current default image viewer is Tor Browser, which is non-ideal
