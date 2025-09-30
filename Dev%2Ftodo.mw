@@ -11,34 +11,15 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie port - wl-clipboard ==
-* install by default, if sensible
-* document usage
-* [[KVM#Clipboard_Sharing|KVM, Clipboard Sharing]]
-* [[VirtualBox/Guest_Additions#Shared_Folder|VirtualBox, Shared Folder]] (Mention it does not work.)
-
-== trixie port - browser-choice versus user-sysmaint-split ==
-* user-sysmaint-split installed
-* Qubes Template
-* Kicksecure trixie based
-* Qubes R4.2
-** This may not be applicable to Qubes R4.3.
-* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
-* The following error message is not applicable:
-
-<pre>
-You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
-</pre>
-
-* What should the user do?
-** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
-
 == trixie port - misc remaining issues ==
 * Aaron:
 ** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
 *** Turns out telling the user that the system is awaiting a password is impossible with Swaylock's current feature set. See https://github.com/swaywm/swaylock/issues/100.
 *** Asked Debian if they would be interested in us providing a patch to them, will likely contact the swaylock maintainer if that is confirmed as the correct next step.
 *** Added background color / image configuration for now.
+*** Swaylock has rejected further requests to allow displaying user-defined text on the lock screen, because they consider it an aesthetic feature and do not target a userbase that needs to be told that the lockscreen is waiting for them to type their password.
+*** Debian has rejected an offer of a patch because the maintainer wants to stick with Swaylock upstream.
+*** For now, we will likely just document how to unlock the screen and hope users don't get confused.
 ** some systemcheck gripes need to be silenced, mostly just journal check stuff, but also the virtualizer check is "failing" on physical hardware because systemd-detect-virt returns non-zero if running on physical hardware. We probably shouldn't interpret that as failure.
 *** Silenced a lot of these, but still have to build new VBox and KVM VMs to ensure all of them are silenced if possible.
 *** Also fixed the virtualizer check.
@@ -53,13 +34,17 @@ You are currently running Browser Choice inside a user session. You will be unab
 ** Might be good to launch Flameshot on login, make it not show a "welcome" message when launched, and bind the Print Screen key so that it triggers the screenshot UI when pressed.
 *** We've decided to simply document this for now, since Flameshot consumes 80+ MB memory at idle. TODO: Where should we document this?
 ** We should be configuring PCManFM-Qt to not show graphical thumbnails. (PCManFM-Qt is also missing some of our distribution-specific configuration because of some odd behavior with configuration profiles, a symlink should be enough to solve that.)
-*** Done, untested as of yet.
+*** Done, tested, works on physical hardware. Qubes OS is untested.
 ** In the sysmaint session, the battery status notification takes a long time to notice if AC power is plugged in or unplugged. Should be pretty easy to solve by just shortening the check interval to 5 seconds rather than the default of 60.
-*** Done, untested as of yet.
+*** Done, tested, works on physical hardware.
 ** We need to document how to configure the keyboard layout using labwc. At some point we may want to write a tool for this, it's just a matter of modifying a configuration file written in XML, and Python has built-in XML manipulation capabilities. They can't be used on untrusted XML, but the labwc configuration won't be untrusted.
 *** Done.
 ** CLI builds don't have enhanced zsh configuration yet. Not sure if we figured out what to do with that, I think we wanted to create a new package for this but haven't actually done so yet.
 *** Fixed by Patrick.
+
+== unshare vs. ptrace ==
+* https://github.com/Kicksecure/security-misc/issues/321
+* Can unshare be used to bypass ptrace restrictions? Create sample code and test.
 
 == browser-choice - inside Qubes Template - prohibit starting browsers ==
 * if file /var/run/qubes/this-is-templatevm exists, do not allow to start browsers
@@ -788,6 +773,38 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie port - FDE systemcheck test passing incorrectly ==
+* freshly installed Kicksecure 18 system on physical hardware:
+** <code>INFO: Full Disk Encryption (FDE): Enabled.</code>
+** This is incorrect, the system has other operating systems on it that do use FDE, but the Kicksecure installation is not one of them.
+** Only report FDE enabled if root (/) and home (/home) are both located on encrypted volumes
+** Done: https://github.com/ArrayBolt3/systemcheck/commit/488aabfd69e039eb89a3a7d66e89f5400d2992d2
+
+== trixie port - wl-clipboard ==
+* install by default, if sensible
+** Aaron: Would recommend against it for now, it's not critical and most users should likely not be using clipboard sharing anyway.
+* document usage
+* [[KVM#Clipboard_Sharing|KVM, Clipboard Sharing]]
+* [[VirtualBox/Guest_Additions#Shared_Folder|VirtualBox, Shared Folder]] (Mention it does not work.)
+** Aaron: Documented in both places.
+
+== trixie port - browser-choice versus user-sysmaint-split ==
+* user-sysmaint-split installed
+* Qubes Template
+* Kicksecure trixie based
+* Qubes R4.2
+** This may not be applicable to Qubes R4.3.
+* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
+* The following error message is not applicable:
+
+<pre>
+You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
+</pre>
+
+* What should the user do?
+** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
+** Aaron: Fix created, untested: https://github.com/ArrayBolt3/browser-choice/commit/41ced11b9a77abfb58d2d7f616563625d70d9363
+
 == trixie port - adjust Qubes templates for LXQt ==
 * Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
 * Aaron: Submitted https://github.com/QubesOS/qubes-core-agent-linux/pull/608 upstream, needs input from upstream before it can be merged
