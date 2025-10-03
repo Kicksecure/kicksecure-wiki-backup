@@ -11,6 +11,21 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== trixie port - adjust Qubes templates for LXQt ==
+* Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
+* Aaron: Submitted https://github.com/QubesOS/qubes-core-agent-linux/pull/608 upstream, needs input from upstream before it can be merged
+** Also submitted https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24 and https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36 at Marek's suggestion; need to retest, will mark all PRs as ready for review once testing passes.
+* Aaron: Also attempted to fix https://github.com/QubesOS/qubes-issues/issues/10253#issuecomment-3333503493
+** qubes-template-kicksecure: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/36a2bd4ad9d0648650fdc50df71fc30384dc350e
+*** Patrick: Merged.
+** qubes-template-whonix: https://github.com/ArrayBolt3/qubes-template-whonix/commit/db004332a67a82e2b956174fbc76678c9f1ddc98
+*** Patrick: Merged.
+* Aaron: Also make a fix for a Qt theming issue: https://github.com/ArrayBolt3/desktop-config-dist/commit/e37430be671458e7fb6f61eb306e3d5e032eb3aa
+** Patrick: Merged. As a side effect, the default font in KDE <code>konsole</code> now looks weird. There is too much space between letters. But probably not important as there are other terminal emulators to choose from.
+* Aaron: Please move to "WAITING ON" if this looks good. Feedback on qubes-core-agent-pcmanfm-qt would also be appreciated.
+** Patrick: Looks good.
+* Patrick: Best to split this ticket into general Qubes build issues for trixie and qubes-core-agent-pcmanfm-qt?
+
 == trixie port - misc remaining issues ==
 * Aaron:
 ** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
@@ -41,6 +56,29 @@ TODO
 *** Done.
 ** CLI builds don't have enhanced zsh configuration yet. Not sure if we figured out what to do with that, I think we wanted to create a new package for this but haven't actually done so yet.
 *** Fixed by Patrick.
+
+== trixie port - browser-choice versus user-sysmaint-split ==
+* user-sysmaint-split installed
+* Qubes Template
+* Kicksecure trixie based
+* Qubes R4.2
+** This may not be applicable to Qubes R4.3.
+* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
+* The following error message is not applicable:
+
+<pre>
+You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
+</pre>
+
+* What should the user do?
+** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
+** Aaron: Fix created, untested: https://github.com/ArrayBolt3/browser-choice/commit/41ced11b9a77abfb58d2d7f616563625d70d9363
+* Patrick:
+** Qubes R4.2 + trixie: Opened a root terminal. Bug: No installation (such as chromium from Debian) possible.
+
+<pre>
+You are currently running Browser Choice as a normal user. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, open a terminal in dom0, run qvm-run -u root VMNAME xfce4-terminal, then run browser-choice from that terminal. See Sysmaint for more information.
+</pre>
 
 == kloak - handle dynamic keyboard layout changes ==
 * when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
@@ -766,15 +804,8 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== tirdad - improvements ==
-* review, discuss upstream: https://github.com/assisted-by-ai/tirdad/pulls
-* https://github.com/0xsirus/tirdad/issues/29
-* Aaron: Done, see Github comments on PRs and the compiler hardening flags issue.
 
-== browser-choice - inside Qubes Template - prohibit starting browsers ==
-* if file /var/run/qubes/this-is-templatevm exists, do not allow to start browsers
-** Aaron: Done: https://github.com/ArrayBolt3/browser-choice/commit/845946c344c4917afbb765a7c322e6ac3e955e28
-
+= ARCHIVED =
 == unshare vs. ptrace ==
 * https://github.com/Kicksecure/security-misc/issues/321
 * Can unshare be used to bypass ptrace restrictions? Create sample code and test.
@@ -786,47 +817,31 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** This is incorrect, the system has other operating systems on it that do use FDE, but the Kicksecure installation is not one of them.
 ** Only report FDE enabled if root (/) and home (/home) are both located on encrypted volumes
 ** Done: https://github.com/ArrayBolt3/systemcheck/commit/488aabfd69e039eb89a3a7d66e89f5400d2992d2
+*** Patrick: Merged.
 
 == trixie port - wl-clipboard ==
 * install by default, if sensible
 ** Aaron: Would recommend against it for now, it's not critical and most users should likely not be using clipboard sharing anyway.
 * document usage
-* [[KVM#Clipboard_Sharing|KVM, Clipboard Sharing]]
-* [[VirtualBox/Guest_Additions#Shared_Folder|VirtualBox, Shared Folder]] (Mention it does not work.)
+* {{whonix_wiki
+|wikipage=KVM#Clipboard_Sharing
+|text=KVM, Clipboard Sharing
+}}
+* [[VirtualBox/Guest_Additions#Clipboard_Sharing|Clipboard Sharing]] (Mention it does not work.)
 ** Aaron: Documented in both places.
+* https://forums.whonix.org/t/whonix-18-wayland-based-virtualbox-clipboard-sharing-broken/22213
+* https://forums.whonix.org/t/whonix-18-wayland-based-kvm-clipboard-sharing-broken/22212
 
-== trixie port - browser-choice versus user-sysmaint-split ==
-* user-sysmaint-split installed
-* Qubes Template
-* Kicksecure trixie based
-* Qubes R4.2
-** This may not be applicable to Qubes R4.3.
-* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
-* The following error message is not applicable:
+== browser-choice - inside Qubes Template - prohibit starting browsers ==
+* if file /var/run/qubes/this-is-templatevm exists, do not allow to start browsers
+** Aaron: Done: https://github.com/ArrayBolt3/browser-choice/commit/845946c344c4917afbb765a7c322e6ac3e955e28
+*** Patrick: Merged. Tested.
 
-<pre>
-You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
-</pre>
+== tirdad - improvements ==
+* review, discuss upstream: https://github.com/assisted-by-ai/tirdad/pulls
+* https://github.com/0xsirus/tirdad/issues/29
+* Aaron: Done, see Github comments on PRs and the compiler hardening flags issue.
 
-* What should the user do?
-** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
-** Aaron: Fix created, untested: https://github.com/ArrayBolt3/browser-choice/commit/41ced11b9a77abfb58d2d7f616563625d70d9363
-
-== trixie port - adjust Qubes templates for LXQt ==
-* Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
-* Aaron: Submitted https://github.com/QubesOS/qubes-core-agent-linux/pull/608 upstream, needs input from upstream before it can be merged
-** Also submitted https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24 and https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36 at Marek's suggestion; need to retest, will mark all PRs as ready for review once testing passes.
-* Aaron: Also attempted to fix https://github.com/QubesOS/qubes-issues/issues/10253#issuecomment-3333503493
-** qubes-template-kicksecure: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/36a2bd4ad9d0648650fdc50df71fc30384dc350e
-*** Patrick: Merged.
-** qubes-template-whonix: https://github.com/ArrayBolt3/qubes-template-whonix/commit/db004332a67a82e2b956174fbc76678c9f1ddc98
-*** Patrick: Merged.
-* Aaron: Also make a fix for a Qt theming issue: https://github.com/ArrayBolt3/desktop-config-dist/commit/e37430be671458e7fb6f61eb306e3d5e032eb3aa
-** Patrick: Merged. As a side effect, the default font in KDE <code>konsole</code> now looks weird. There is too much space between letters. But probably not important as there are other terminal emulators to choose from.
-* Aaron: Please move to "WAITING ON" if this looks good. Feedback on qubes-core-agent-pcmanfm-qt would also be appreciated.
-** Patrick: Looks good.
-
-= ARCHIVED =
 == trixie port - usbguard - IPC connection failure ==
 * Happening inside Qubes (R4.2) Template
 
