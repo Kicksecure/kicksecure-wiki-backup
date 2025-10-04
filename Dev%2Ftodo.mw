@@ -11,93 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie port - adjust Qubes templates for LXQt ==
-* Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
-* Aaron: Submitted https://github.com/QubesOS/qubes-core-agent-linux/pull/608 upstream, needs input from upstream before it can be merged
-** Also submitted https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24 and https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36 at Marek's suggestion; need to retest, will mark all PRs as ready for review once testing passes.
-* Aaron: Also attempted to fix https://github.com/QubesOS/qubes-issues/issues/10253#issuecomment-3333503493
-** qubes-template-kicksecure: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/36a2bd4ad9d0648650fdc50df71fc30384dc350e
-*** Patrick: Merged.
-** qubes-template-whonix: https://github.com/ArrayBolt3/qubes-template-whonix/commit/db004332a67a82e2b956174fbc76678c9f1ddc98
-*** Patrick: Merged.
-* Aaron: Also make a fix for a Qt theming issue: https://github.com/ArrayBolt3/desktop-config-dist/commit/e37430be671458e7fb6f61eb306e3d5e032eb3aa
-** Patrick: Merged. As a side effect, the default font in KDE <code>konsole</code> now looks weird. There is too much space between letters. But probably not important as there are other terminal emulators to choose from.
-* Aaron: Please move to "WAITING ON" if this looks good. Feedback on qubes-core-agent-pcmanfm-qt would also be appreciated.
-** Patrick: Looks good.
-* Patrick: Best to split this ticket into general Qubes build issues for trixie and qubes-core-agent-pcmanfm-qt?
-
-== trixie port - misc remaining issues ==
-* Aaron:
-** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
-*** Turns out telling the user that the system is awaiting a password is impossible with Swaylock's current feature set. See https://github.com/swaywm/swaylock/issues/100.
-*** Asked Debian if they would be interested in us providing a patch to them, will likely contact the swaylock maintainer if that is confirmed as the correct next step.
-*** Added background color / image configuration for now.
-*** Swaylock has rejected further requests to allow displaying user-defined text on the lock screen, because they consider it an aesthetic feature and do not target a userbase that needs to be told that the lockscreen is waiting for them to type their password.
-*** Debian has rejected an offer of a patch because the maintainer wants to stick with Swaylock upstream.
-*** For now, we will likely just document how to unlock the screen and hope users don't get confused.
-** some systemcheck gripes need to be silenced, mostly just journal check stuff, but also the virtualizer check is "failing" on physical hardware because systemd-detect-virt returns non-zero if running on physical hardware. We probably shouldn't interpret that as failure.
-*** Silenced a lot of these, but still have to build new VBox and KVM VMs to ensure all of them are silenced if possible.
-*** Also fixed the virtualizer check.
-** Need to build the Qubes templates and make sure they actually work. I haven't tried to build a Qubes template even once so far. That's probably what I'm going to do now.
-*** Kicksecure template built after some effort.
-**** Need to submit changes to qubes-builderv2 so this works out of the box.
-**** Need to modify qubes-template-kicksecure to point to kicksecure-qubes-gui-lxqt package.
-**** Need to modify qubes-template-kicksecure to point to trixie-developers repository.
-**** Need to update template build documentation.
-*** Whonix templates still need built.
-**** Whonix-Workstation cannot be built due to curl being unable to resolve www.torproject.org. Most likely an issue with our uwt curl wrapper. Created a commit that should fix this: https://github.com/ArrayBolt3/uwt/commit/13984371a370ec330c25b721a48c24f25034ddc2
-** Might be good to launch Flameshot on login, make it not show a "welcome" message when launched, and bind the Print Screen key so that it triggers the screenshot UI when pressed.
-*** We've decided to simply document this for now, since Flameshot consumes 80+ MB memory at idle. TODO: Where should we document this?
-** We should be configuring PCManFM-Qt to not show graphical thumbnails. (PCManFM-Qt is also missing some of our distribution-specific configuration because of some odd behavior with configuration profiles, a symlink should be enough to solve that.)
-*** Done, tested, works on physical hardware. Qubes OS is untested.
-** In the sysmaint session, the battery status notification takes a long time to notice if AC power is plugged in or unplugged. Should be pretty easy to solve by just shortening the check interval to 5 seconds rather than the default of 60.
-*** Done, tested, works on physical hardware.
-** We need to document how to configure the keyboard layout using labwc. At some point we may want to write a tool for this, it's just a matter of modifying a configuration file written in XML, and Python has built-in XML manipulation capabilities. They can't be used on untrusted XML, but the labwc configuration won't be untrusted.
-*** Done.
-** CLI builds don't have enhanced zsh configuration yet. Not sure if we figured out what to do with that, I think we wanted to create a new package for this but haven't actually done so yet.
-*** Fixed by Patrick.
-
-== trixie port - browser-choice versus user-sysmaint-split ==
-* user-sysmaint-split installed
-* Qubes Template
-* Kicksecure trixie based
-* Qubes R4.2
-** This may not be applicable to Qubes R4.3.
-* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
-* The following error message is not applicable:
-
-<pre>
-You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
-</pre>
-
-* What should the user do?
-** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
-** Aaron: Fix created, untested: https://github.com/ArrayBolt3/browser-choice/commit/41ced11b9a77abfb58d2d7f616563625d70d9363
-* Patrick:
-** Qubes R4.2 + trixie: Opened a root terminal. Bug: No installation (such as chromium from Debian) possible.
-
-<pre>
-You are currently running Browser Choice as a normal user. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, open a terminal in dom0, run qvm-run -u root VMNAME xfce4-terminal, then run browser-choice from that terminal. See Sysmaint for more information.
-</pre>
-
-== kloak - handle dynamic keyboard layout changes ==
-* when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
-
-== kloak - core versus adapter split ==
-* https://forums.whonix.org/t/better-mouse-obfuscation/21445/18
-
-== kloak - natural scrolling ==
-* https://github.com/Whonix/kloak/issues/8
-* To enable natural scrolling: https://wayland.freedesktop.org/libinput/doc/latest/api/group__config.html#ga958b67193c3948b59add719a68f1b948 This will need to be a configurable option within kloak itself.
-
-== apt solver bug - pulling in incorrect alternative dependencies ==
-* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
-* Obtain requested debugging information and attach to ticket
-
-== virtualbox / kvm - dynamic resolution resizing with labwc ==
-* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
-* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
-
 == Qubes OS IPv6 DNS ==
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/592
 
@@ -110,6 +23,12 @@ You are currently running Browser Choice as a normal user. You will be unable to
 * https://github.com/QubesOS/qubes-issues/issues/9570
 * https://github.com/QubesOS/qubes-issues/issues/8649
 * https://github.com/QubesOS/qubes-issues/issues/9759
+
+== kloak - Qubes OS input anonymization flicker bug ==
+* https://github.com/QubesOS/qubes-issues/issues/10286
+
+== kloak - Qubes OS mouse anonymization improvements ==
+* https://github.com/QubesOS/qubes-issues/issues/10292
 
 == port to sequoia-pgp ==
 * port all code base from gpg to sequoia-pgp as much as sensible
@@ -555,6 +474,21 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== virtualbox / kvm - dynamic resolution resizing with labwc ==
+* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
+* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
+* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
+
+== kloak - handle dynamic keyboard layout changes ==
+* when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
+* Aaron: Discovered this is a bug in labwc, reported: https://github.com/labwc/labwc/issues/3113
+** Waiting on upstream's response. For now, we should document that one must restart kloak with Right Shift + Escape to make a keyboard layout change take effect.
+
+== apt solver bug - pulling in incorrect alternative dependencies ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1113744
+* Obtain requested debugging information and attach to ticket
+* Aaron: Added new information to ticket, waiting on response.
+
 == trixie port - update derivative signing key derivative.asc ==
 * plan how to use a new signing key
 ** Aaron: Where all do we use the signing key? It's used to sign:
@@ -804,8 +738,125 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie port - qubes-core-agent-pcmanfm-qt ==
+* Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
+* PRs:
+** https://github.com/QubesOS/qubes-core-agent-linux/pull/608
+** https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24
+** https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36
+* Filed, passes CI, works on my Qubes machine. Awaiting review from upstream.
+
+== trixie port - misc remaining issues ==
+* Aaron:
+** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
+*** Turns out telling the user that the system is awaiting a password is impossible with Swaylock's current feature set. See https://github.com/swaywm/swaylock/issues/100.
+*** Asked Debian if they would be interested in us providing a patch to them, will likely contact the swaylock maintainer if that is confirmed as the correct next step.
+*** Added background color / image configuration for now.
+*** Swaylock has rejected further requests to allow displaying user-defined text on the lock screen, because they consider it an aesthetic feature and do not target a userbase that needs to be told that the lockscreen is waiting for them to type their password.
+*** Debian has rejected an offer of a patch because the maintainer wants to stick with Swaylock upstream.
+*** For now, we will likely just document how to unlock the screen and hope users don't get confused.
+*** Documented: https://www.kicksecure.com/wiki/Protection_Against_Physical_Attacks#Screen_Lock
+** some systemcheck gripes need to be silenced, mostly just journal check stuff, but also the virtualizer check is "failing" on physical hardware because systemd-detect-virt returns non-zero if running on physical hardware. We probably shouldn't interpret that as failure.
+*** Silenced a lot of these, but still have to build new VBox and KVM VMs to ensure all of them are silenced if possible.
+*** Also fixed the virtualizer check.
+** Need to build the Qubes templates and make sure they actually work. I haven't tried to build a Qubes template even once so far. That's probably what I'm going to do now.
+*** Kicksecure template built after some effort.
+**** Need to submit changes to qubes-builderv2 so this works out of the box.
+***** Somewhat done; Marek has changes in-flight that will do this for us.
+**** Need to modify qubes-template-kicksecure to point to kicksecure-qubes-gui-lxqt package.
+***** Done.
+**** Need to modify qubes-template-kicksecure to point to trixie-developers repository.
+***** Done.
+**** Need to update template build documentation.
+***** Done.
+*** Whonix templates still need built.
+**** Whonix-Workstation cannot be built due to curl being unable to resolve www.torproject.org. Most likely an issue with our uwt curl wrapper. Created a commit that should fix this: https://github.com/ArrayBolt3/uwt/commit/13984371a370ec330c25b721a48c24f25034ddc2
+**** Got Whonix-Workstation to build. Both it and the Whonix-Gateway template seem to work well so far.
+** Might be good to launch Flameshot on login, make it not show a "welcome" message when launched, and bind the Print Screen key so that it triggers the screenshot UI when pressed.
+*** We've decided to simply document this for now, since Flameshot consumes 80+ MB memory at idle. TODO: Where should we document this?
+**** Patrick: [[Software]]?
+**** Aaron: Good, let's just stick with the existing documentation there.
+** We should be configuring PCManFM-Qt to not show graphical thumbnails. (PCManFM-Qt is also missing some of our distribution-specific configuration because of some odd behavior with configuration profiles, a symlink should be enough to solve that.)
+*** Done, tested, works on physical hardware and Qubes OS.
+** In the sysmaint session, the battery status notification takes a long time to notice if AC power is plugged in or unplugged. Should be pretty easy to solve by just shortening the check interval to 5 seconds rather than the default of 60.
+*** Done, tested, works on physical hardware.
+** We need to document how to configure the keyboard layout using labwc. At some point we may want to write a tool for this, it's just a matter of modifying a configuration file written in XML, and Python has built-in XML manipulation capabilities. They can't be used on untrusted XML, but the labwc configuration won't be untrusted.
+*** Done.
+** CLI builds don't have enhanced zsh configuration yet. Not sure if we figured out what to do with that, I think we wanted to create a new package for this but haven't actually done so yet.
+*** Fixed by Patrick.
 
 = ARCHIVED =
+== browser-choice - consider using --no-install-recommends ==
+* bug: Installing chromium from Debian package sources results in installing avahi and cups. Better sudo apt install --no-install-recommends chromium chromium-sandbox?
+* use --no-install-recommends whenever applicable
+* Patrick: Done.
+
+== kloak - core versus adapter split ==
+* https://forums.whonix.org/t/better-mouse-obfuscation/21445/18
+* Aaron: Abandoned for the time being, rationale documented at https://forums.whonix.org/t/better-mouse-obfuscation/21445/19
+
+== screenlocker backdoors ==
+* https://forums.whonix.org/t/screen-locker-in-security-can-we-disable-these-at-least-4-backdoors/8128
+* please check, confirm, reply if this issue is now resolved thanks to Wayland (and our disabling of SysRq by default)
+* Aaron: Replied, there a hardening option we might consider enabling (panic_on_oom).
+
+== trixie port - anon-ws-disable-stacked-tor apparmor issues ==
+* apparmor fails to start if /etc/apparmor.d/abstractions/tor does not exist, but shipping this file in anon-ws-disable-stacked-tor results in upgrade problems because Tor is being installed by default on Whonix-Workstation 17
+** Fix: https://github.com/ArrayBolt3/anon-ws-disable-stacked-tor/commit/a9a0ac9db25fa1f00985a585193e109dc51fb5b4
+* Patrick: Merged.
+* Aaron: Ended up removing this fix and replacing it with an <code>if exists</code> fix instead as discussed. Commits pushed to helper-scripts, systemcheck, and anon-ws-disable-stacked-tor for this.
+* Patrick: Merged.
+
+== privleap comment ==
+* https://forums.whonix.org/t/replace-sudo-with-doas/17482/35
+* Aaron: Replied while waiting for Whonix templates to build.
+
+== kloak - natural scrolling ==
+* https://github.com/Whonix/kloak/issues/8
+* Aaron: To enable natural scrolling: https://wayland.freedesktop.org/libinput/doc/latest/api/group__config.html#ga958b67193c3948b59add719a68f1b948 This will need to be a configurable option within kloak itself.
+* Aaron: Implemented: https://github.com/ArrayBolt3/kloak/commit/c881c666ac8af47fbc334dd41acec12323c1bcfe
+* Patrick: Merged.
+
+== trixie port - browser-choice versus user-sysmaint-split ==
+* user-sysmaint-split installed
+* Qubes Template
+* Kicksecure trixie based
+* Qubes R4.2
+** This may not be applicable to Qubes R4.3.
+* Also reproducible in Qubes R4.2 + bookworm based Kicksecure.
+* The following error message is not applicable:
+
+<pre>
+You are currently running Browser Choice inside a user session. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, reboot, select PERSISTENT Mode| SYSMAINT Session | system maintenance tasks from the boot menu, and click Install a Browser in the System Maintenance Panel. See Sysmaint for more information.
+</pre>
+
+* What should the user do?
+** Aaron: Open a Qubes Root Console, then run browser-choice as root. Ugly, but should work. Will work on messaging for Qubes.
+** Aaron: Fix created, untested: https://github.com/ArrayBolt3/browser-choice/commit/41ced11b9a77abfb58d2d7f616563625d70d9363
+* Patrick:
+** Qubes R4.2 + trixie: Opened a root terminal. Bug: No installation (such as chromium from Debian) possible.
+
+<pre>
+You are currently running Browser Choice as a normal user. You will be unable to install most browsers from here; only browsers that install into the current user account will be installable. To install a browser, open a terminal in dom0, run qvm-run -u root VMNAME xfce4-terminal, then run browser-choice from that terminal. See Sysmaint for more information.
+</pre>
+
+* Aaron: Second attempted fix, untested: https://github.com/ArrayBolt3/browser-choice/commit/f1331432b649fb636f7516617fc3df98692e90af
+* Patrick: Merged.
+
+== trixie port - adjust Qubes templates for LXQt ==
+* Aaron: Attempted to fix https://github.com/QubesOS/qubes-issues/issues/10253#issuecomment-3333503493
+** qubes-template-kicksecure: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/36a2bd4ad9d0648650fdc50df71fc30384dc350e
+*** Patrick: Merged.
+** qubes-template-whonix: https://github.com/ArrayBolt3/qubes-template-whonix/commit/db004332a67a82e2b956174fbc76678c9f1ddc98
+*** Patrick: Merged.
+* Aaron: Also make a fix for a Qt theming issue: https://github.com/ArrayBolt3/desktop-config-dist/commit/e37430be671458e7fb6f61eb306e3d5e032eb3aa
+** Patrick: Merged. As a side effect, the default font in KDE <code>konsole</code> now looks weird. There is too much space between letters. But probably not important as there are other terminal emulators to choose from.
+*** Aaron: The default terminal in LXQt is QTerminal, so this should be fine. Might be worth adding support for components of other desktops as a future task?
+* Aaron: Please move to "WAITING ON" if this looks good. Feedback on qubes-core-agent-pcmanfm-qt would also be appreciated.
+** Patrick: Looks good.
+* Patrick: Best to split this ticket into general Qubes build issues for trixie and qubes-core-agent-pcmanfm-qt?
+** Aaron: Sure.
+
 == unshare vs. ptrace ==
 * https://github.com/Kicksecure/security-misc/issues/321
 * Can unshare be used to bypass ptrace restrictions? Create sample code and test.
