@@ -61,8 +61,7 @@ For all file types built with GCC and Clang on all platforms:
 * <code>-fstack-protector-all</code>: Protects against stack smashing in all functions.
 * <code>-fno-delete-null-pointer-checks</code>: Prevent the compiler from deleting explicit null pointer checks from code. This optimization is potentially very dangerous. Note that disabling this optimization also renders <code>-Wnull-dereference</code> unable to warn about anything, so developers should temporarily remove it before doing test builds, then re-add it later.
 * <code>-fno-strict-aliasing</code>: Disables strict aliasing rules, so that casting between pointer types (e.g. from char buffer to uint64_t) is well-defined.
-* <code>-fsanitize=address,undefined</code>: Catches undefined behavior and invalid memory accesses.
-* <code>-fno-sanitize-recover=all</code>: Ensures sanitizer-detected bugs terminate the program.
+* <code></code>: Ensures sanitizer-detected bugs terminate the program.
 * <code>-fstrict-flex-arrays=3</code>: Only treats a trailing array in a struct as flexible if defined with no specified length.
 * <code>-ftrivial-auto-var-init=pattern</code>: Ensure stack-allocated variables are virtually always initialized, using a special pattern that will probably cause a crash if the variable isn't intentionally initialized. This both mitigates security issues resulting from uninitialized variables, and makes it easier to catch bugs resulting from them.
 * <code>-Wl,-z,nodlopen</code>: Disallows dlopen'ing of the compiled objects.
@@ -89,6 +88,12 @@ For all file types built with GCC only, not supported by Clang:
 * <code>-Wcast-align=strict</code>: Warns about potential alignment issues from casts, even on CPUs where alignment may not matter. This likely helps catch bugs that only will strike some CPUs even if we aren't building for those CPUs.
 * <code>-Wjump-misses-init</code>: Warns if a jump skips over or duplicates a variable initialization.
 * <code>-Wlogical-op</code>: Warns about suspicious logical operator use (e.g. when a bitwise operator was likely intended).
+
+For all file types built with Clang only, not supported by GCC:
+
+* <code>-fsanitize=undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all</code>: Catches some undefined behavior and aborts the program if encountered.
+** WARNING: Do NOT use <code>-fsanitize=address</code> at all, and do NOT use <code>-fsanitize=undefined</code> without <code>-fsanitize-minimal-runtime</code>. Doing either of these things will probably open up security vulnerabilities. <ref>https://www.openwall.com/lists/oss-security/2016/02/17/9</ref>
+** Note: It is unclear if this actually provides any meaningful level of hardening. Omitting these flags may be desirable even with Clang.
 
 For all file types built with GCC and Clang, x86_64 only:
 
@@ -124,12 +129,10 @@ All flags for GCC x86_64 executables:
 -Wstrict-flex-arrays -Walloc-zero -Warray-bounds=2 -Wattribute-alias=2 \
 -Wduplicated-branches -Wduplicated-cond -Wcast-align=strict \
 -Wjump-misses-init -Wlogical-op -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 \
--fstack-clash-protection -fstack-protector-all \
--fno-delete-null-pointer-checks -fno-strict-aliasing \
--fsanitize=address,undefined -fno-sanitize-recover=all -fstrict-flex-arrays=3 \
--ftrivial-auto-var-init=pattern -fcf-protection=full -fPIE -Wl,-z,nodlopen \
--Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed \
--Wl,--no-copy-dt-needed-entries -pie
+-fstack-clash-protection -fstack-protector-all -fno-delete-null-pointer-checks \
+-fno-strict-aliasing -fstrict-flex-arrays=3 -ftrivial-auto-var-init=pattern \
+-fcf-protection=full -fPIE -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro \
+-Wl,-z,now -Wl,--as-needed -Wl,--no-copy-dt-needed-entries -pie
 }}
 
 All flags for Clang x86_64 executables:
@@ -146,9 +149,9 @@ All flags for Clang x86_64 executables:
 -Wvla -Wdisabled-optimization -Wstack-protector -Wdeclaration-after-statement \
 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3 -fstack-clash-protection \
 -fstack-protector-all -fno-delete-null-pointer-checks -fno-strict-aliasing \
--fsanitize=address,undefined -fno-sanitize-recover=all -fstrict-flex-arrays=3 \
--ftrivial-auto-var-init=pattern -fcf-protection=full -fPIE -Wl,-z,nodlopen \
--Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed \
+-fsanitize=address,undefined -fsanitize-minimal-runtime -fno-sanitize-recover=all \
+-fstrict-flex-arrays=3 -ftrivial-auto-var-init=pattern -fcf-protection=full -fPIE \
+-Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed \
 -Wl,--no-copy-dt-needed-entries -pie
 }}
 

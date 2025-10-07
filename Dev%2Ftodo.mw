@@ -11,24 +11,31 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== Qubes OS IPv6 DNS ==
-* https://github.com/QubesOS/qubes-core-agent-linux/pull/592
-
-== Qubes in-vm kernel boot mode support ==
-* GRUB patch for Xen command line parsing has been merged
-* implement boot mode support for in-vm kernels in qubes-core-admin
-* Qubes issue: https://github.com/QubesOS/qubes-issues/issues/9872
-
-== Qubes in-vm kernel support in general ==
-* https://github.com/QubesOS/qubes-issues/issues/9570
-* https://github.com/QubesOS/qubes-issues/issues/8649
-* https://github.com/QubesOS/qubes-issues/issues/9759
-
 == kloak - Qubes OS input anonymization flicker bug ==
 * https://github.com/QubesOS/qubes-issues/issues/10286
 
-== kloak - Qubes OS mouse anonymization improvements ==
-* https://github.com/QubesOS/qubes-issues/issues/10292
+== automate detection of new tor and tor-browser versions ==
+* We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
+* We also hardcode a Tor Browser version number in tb-updater.
+* Create scripts for finding the latest versions of Tor and Tor Browser, and taking the necessary actions to update them
+
+<pre>
+## developer-meta-files
+/usr/bin/dm-virtualbox-update-local-and-wiki-links
+</pre>
+
+<pre>
+## developer-meta-files
+/usr/bin/dm-virtualbox-update-local-and-wiki-links
+</pre>
+
+<pre>
+make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debian-packages --flavor internal --target root --function download_tpo_packages
+</pre>
+
+<pre>
+./build-steps.d/*_create-debian-packages --flavor internal --target virtualbox --function download_packages_from_debian_sid
+</pre>
 
 == port to sequoia-pgp ==
 * port all code base from gpg to sequoia-pgp as much as sensible
@@ -45,6 +52,14 @@ TODO
 == stardict - investigate ==
 * debian policy appliable?
 * https://www.kicksecure.com/wiki/Dev/Debian#startdict
+
+== user-sysmaint-split versus Qubes Video Companion is broken on Whonix-Workstation ==
+* please comment how this could be resolved
+* https://github.com/QubesOS/qubes-issues/issues/10163
+* https://forums.whonix.org/t/qubes-sudo-su-root-hardening-development-discussion/8561/73
+
+== kloak - Qubes OS mouse anonymization improvements ==
+* https://github.com/QubesOS/qubes-issues/issues/10292
 
 == three finger salute ==
 * https://forums.kicksecure.com/t/ctrl-alt-del-three-finger-salute-action/1197
@@ -118,6 +133,19 @@ Aug 11 08:27:57 localhost memlockd[1006]: Error mmaping /etc/resolv.conf: Invali
 
 == chvt hardening ==
 * https://forums.kicksecure.com/t/chvt-change-foreground-virtual-terminal-vt-tty-prevent-malware-from-forced-tty-change/1274
+
+== Qubes OS IPv6 DNS ==
+* https://github.com/QubesOS/qubes-core-agent-linux/pull/592
+
+== Qubes in-vm kernel boot mode support ==
+* GRUB patch for Xen command line parsing has been merged
+* implement boot mode support for in-vm kernels in qubes-core-admin
+* Qubes issue: https://github.com/QubesOS/qubes-issues/issues/9872
+
+== Qubes in-vm kernel support in general ==
+* https://github.com/QubesOS/qubes-issues/issues/9570
+* https://github.com/QubesOS/qubes-issues/issues/8649
+* https://github.com/QubesOS/qubes-issues/issues/9759
 
 == timesync developer wiki page improvements ==
 * https://www.whonix.org/wiki/Dev/TimeSync
@@ -738,6 +766,57 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== ESP - EFI system partition versus dracut generic ==
+* we're now using <code>/etc/dracut.conf.d/30-dist-base-files.conf</code>
+
+<pre>
+compress="xz"
+hostonly="yes"
+hostonly_mode="sloppy"
+</pre>
+
+* Should we therefore increase the size of the ESP?
+* grml
+** https://github.com/grml/grml-debootstrap/issues/221
+* calamares
+* Aaron: No changes needed to EFI partition size, dracut initramfs files are stored in /boot, not /boot/efi.
+** As discussed, boot partition doesn't need to be larger, it's 4 GB with Calamares and is integrated into the root partition on VM images.
+** grml-debootstrap is not interested in increasing the EFI partition size at this time, so I don't believe there's any reason to do this.
+
+== kloak - systemd ordering cycle ==
+* host: trixie (non-Kicksecure)
+<pre>
+ [SKIP} kloak.service to stop ordering cycle loop
+</pre>
+<pre>
+graphical.target: Found ordering cycle on multi-user.target/start
+graphical.target: Found dependency on kloak.service/start
+graphical.target: Found dependency on graphical.target/start
+graphical.target: Job kloak.service/start deleted to break ordering cycle starting with graphical.target/start
+</pre>
+* wild guess: related to removal of symlinks?
+* no more information available. Will hopefully be posted in the forums.
+* Aaron: Cannot reproduce on Debian 13 with GNOME Desktop, using the pre-v2 version of kloak. User may have added a configuration rule that attempted to require kloak to start before multi-user.service. Waiting on more info.
+
+== compiled code - remove unsafe sanitizers ==
+* All sanitizers except minimal UBSan are unsafe to use in production, they may result in security vulnerabilities.
+* LSan is causing sclockadj to go into an infinite loop on exit for Marek.
+* Leave minimal UBSan runtime enabled, remove full UBSan and ASan from all code.
+** As it turns out, only Clang supports the minimal UBSan runtime, but we use GCC, so this is not possible. Just disable all sanitizers.
+* Adjust sanitizer flags in compiler flags wiki page.
+* Done, changed sdwdate, bindp, kloak, and security-misc to remove all sanitizers.
+
+== trixie port - Whonix Qubes template issues ==
+* reported by Marek on Matrix:
+** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
+** "something doesn't work with pcmanfm-qt actions - I see only "QubesOS Edit in DisposableVM" action, not any of copy/move, or view in disposable; on top of that, looks like file names are swapped (action for viewing in dispvm is in file named edit, and action for editing is in file named open); and I have no idea from "QubesOS" prefix comes"
+*** Aaron: Fixed, required changes both on our side and on the Qubes side:
+**** usability-misc: https://github.com/ArrayBolt3/usability-misc/commit/0a8c2d7d97345d78aa7cd58199b5b67925ab93cf
+**** qubes-gui-agent-linux: https://github.com/QubesOS/qubes-gui-agent-linux/pull/246
+*** Aaron: Fixed:
+**** kicksecure-meta-packages https://github.com/ArrayBolt3/kicksecure-meta-packages/commit/ab29e2a064404b7462dca7e3956712e86799e30f
+**** developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/commit/36056e1856cd37b2f57b573a029dfa427f23f41c
+
 == trixie port - qubes-core-agent-pcmanfm-qt ==
 * Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
 * PRs:
@@ -745,7 +824,9 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24
 ** https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36
 * Filed, passes CI, works on my Qubes machine. Awaiting review from upstream.
+** Reviewed, merged upstream.
 
+= ARCHIVED =
 == trixie port - misc remaining issues ==
 * Aaron:
 ** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
@@ -785,7 +866,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** CLI builds don't have enhanced zsh configuration yet. Not sure if we figured out what to do with that, I think we wanted to create a new package for this but haven't actually done so yet.
 *** Fixed by Patrick.
 
-= ARCHIVED =
 == browser-choice - consider using --no-install-recommends ==
 * bug: Installing chromium from Debian package sources results in installing avahi and cups. Better sudo apt install --no-install-recommends chromium chromium-sandbox?
 * use --no-install-recommends whenever applicable
