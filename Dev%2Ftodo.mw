@@ -11,40 +11,14 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== sdwdate-gui - add left click menu ==
-* usability bug: currently left click on sdwdate-gui does nothing
-
-== virtualbox - guest additions auto resize broken ==
+== calamares - keyboard layout setting broken in Wayland ==
 * todo
-* happening in sysmaint session
-* virtualbox guest additions missing on the Kicksecure ISO but even if installed, auto adustment of screen size is broken
-* /etc/X11/Xsession.d/98vboxadd-xclient missing in wayland?
-
-== labwc environment default configuration file ==
-* if file ~/.config/labwc/environment does not exist, pre populate it with <code>XKB_DEFAULT_LAYOUT=</code> (and other useful settings?)
-* might not be needed if the tool below gets implemented
-
-== setxkbmap replacement too for wayland ==
-* "setxkbmap de" used to be handy.
-* implement
-* add to helper-scripts
-
-== change keyboard layout versus ISO ==
-* currently, change keyboard layout required reboot but that is a contradiction on the ISO which cannot be rebooted
-* https://github.com/labwc/labwc/issues/1407
-
-== calamares - language setup ==
 * please set up for
 ** CLI user
 ** CLI sysmaint
 ** GUI user
 ** GUI sysmaint
-
-== calamares - keyboard layout setting broken in Wayland ==
-* todo
-
-== /etc/apt/sources.list.d/debian.soures not readable by user only readable by root ==
-* is this intended?
+* Moving the systemd-localed keyboard layout set disable file out of the way does not result in labwc picking up the keyboard layout settings from Calamares. Will need to create a shellprocess module or similar to hack this into working right,
 
 == volume setting in sysmaint systray ==
 * usability bug: when hovering over volume changes in sysmaint mode, the color gets darker, which implies it being clickable, but actually is not clickable
@@ -54,12 +28,12 @@ TODO
 * login as sysmaint
 * bug: expected: sysmaint session. actual: normal desktop session
 
-== kloak - Qubes OS input anonymization flicker bug ==
-* https://github.com/QubesOS/qubes-issues/issues/10286
-
 == browser-choice - better notification when action such as installation is complete ==
 * todo
 * once there is a exit code of zero or non-zero, show a passive popup? change window color? animation?
+
+== systemcheck - split log parsing code ==
+* https://github.com/Kicksecure/security-misc/issues/253#issuecomment-3379301931
 
 == automate detection of new tor and tor-browser versions ==
 * We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
@@ -100,6 +74,7 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * clang provides a minimal UBSan runtime which may be usable as an additional hardening feature.
 * Investigate if this is worthwhile.
 * gcc supports more warnings, perhaps use gcc and clang together for "diagnostic builds" and static analysis, and clang for release builds?
+** Patrick: Keeping gcc support might be worthwhile as per non-technical reasons: [[Miscellaneous_Threats_to_User_Freedom#GCC_vs_Clang-LLVM|GCC vs Clang-LLVM]]
 
 == stardict - investigate ==
 * debian policy appliable?
@@ -554,6 +529,10 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== kloak - Qubes OS input anonymization flicker bug ==
+* https://github.com/QubesOS/qubes-issues/issues/10286
+* Fix submitted: https://github.com/QubesOS/qubes-gui-daemon/pull/172
+
 == virtualbox / kvm - dynamic resolution resizing with labwc ==
 * Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
 * Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
@@ -818,35 +797,59 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== sysmaint-panel - new shortcuts ==
-* add onscreen keyboard shortcut
-* add open display settings or open lxqt settings shortcut
-* Aaron: Implemented, pushed commits to usability-misc, helper-scripts, sysmaint-panel.
-** LXQt settings button will only appear in non-sysmaint sessions, as it is not useful and possibly misleading in sysmaint sessions.
+== ISO - virtualbox guest additions missing ==
+* virtualbox guest additions missing on the Kicksecure ISO
+** Aaron: Fixed: https://github.com/ArrayBolt3/derivative-maker/commit/c0d7bf7a24483d5984142b8c274f1b66597935c1
 
-== trixie port - Whonix update failure if sys-whonix isn't already running ==
-* https://github.com/QubesOS/qubes-issues/issues/4096 has come back
-* Probably related to delaying Tor's startup to accomodate IPv6 changes
-* Possible ways of fixing the issue listed at https://github.com/QubesOS/qubes-issues/issues/4096#issuecomment-3383779544.
-* Marek suggested a good fix, which works in testing. Implementation: https://github.com/ArrayBolt3/qubes-whonix/commit/34418e335c6ea8d09d018ebda871a2ead4f392c1
+== sysmaint-panel - sysmaint mode - add display settings shortcut ==
+* add open display settings
+* rationale: When booting for the first time and into sysmaint mode inside a VM, the display is too big.
+* Aaron: Implemented in sysmaint-panel. Also pushed commits to developer-meta-files and kicksecure-meta-packages for adding kanshi.
 
-== install an onscreen keyboard by default ==
-* todo
-* purpose: configuration a keyboard layout when not knowing how to enter some special character such as "=" on the keyboard using the local keyboard
-* related: [[Software#On-Screen_Keyboard|On-Screen Keyboard]]
-* Aaron: Done, new commits pushed to developer-meta-files, kicksecure-meta-packages, and usability-misc for this.
+== /etc/apt/sources.list.d/debian.soures not readable by user only readable by root ==
+* is this intended?
+* Aaron: Not intended. I'm unable to reproduce this issue though - neither a fresh ISO installation of Kicksecure nor Whonix-Gateway or Whonix-Workstation VirtualBox VMs have this issue.  Also not seeing this issue in a Whonix-Gateway 18 sys-whonix on Qubes R4.3.
+** I believe I've seen this issue occur in the past, but haven't seen it in a while. I'm happy to build new VM images and check them for this issue if desirable.
 
-== bindp - compilation warning - _GNU_SOURCE redefined ==
+== setxkbmap replacement too for wayland ==
+* "setxkbmap de" used to be handy.
+* implement
+* add to helper-scripts
+* Aaron: Implemented: https://github.com/ArrayBolt3/helper-scripts/commit/41ae1e120672b94351a4c3889181bb9be2991eb0
+
+= ARCHIVED =
+== calamares - language setup ==
+* please set up for
+** CLI user
+** CLI sysmaint
+** GUI user
+** GUI sysmaint
+* Aaron: Setting a non-English language in Calamares already sets the language for all of these scenarios in the installed system. Tested by doing an ISO installation of Kicksecure 18 with the langauge set to Spanish (Mexico). Spanish-translated strings were visible in all four session types. Admittedly, many strings were not translated, but that is likely simply a case of missing translations.
+
+== trixie port - qubes-core-agent-pcmanfm-qt ==
+* Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
+* PRs:
+** https://github.com/QubesOS/qubes-core-agent-linux/pull/608
+** https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24
+** https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36
+* Filed, passes CI, works on my Qubes machine. Awaiting review from upstream.
+** Reviewed, merged upstream.
+
+== kloak - systemd ordering cycle ==
+* host: trixie (non-Kicksecure)
 <pre>
-Setting up bindp (3:4.2-1) ...
-/usr/lib/bindp.c:48:9: warning: "_GNU_SOURCE" redefined
-   48 | #define _GNU_SOURCE
-      |         ^~~~~~~~~~~
+ [SKIP} kloak.service to stop ordering cycle loop
 </pre>
-
-* <command-line>: note: this is the location of the previous definition
-** Aaron: This is because we have the compilation of bindp being done via a direct gcc call in the postinst. This is wrong, we should be using the Makefile in the postinst to build the library at runtime but without having to duplicate code in two locations. Will adjust postinst as appropriate to resolve this.
-** Aaron: Fixed: https://github.com/ArrayBolt3/bindp/commit/c0592d2e284c7a0a6e825279c5ace87bb9a1f566
+<pre>
+graphical.target: Found ordering cycle on multi-user.target/start
+graphical.target: Found dependency on kloak.service/start
+graphical.target: Found dependency on graphical.target/start
+graphical.target: Job kloak.service/start deleted to break ordering cycle starting with graphical.target/start
+</pre>
+* wild guess: related to removal of symlinks?
+* no more information available. Will hopefully be posted in the forums.
+* Aaron: Cannot reproduce on Debian 13 with GNOME Desktop, using the pre-v2 version of kloak. User may have added a configuration rule that attempted to require kloak to start before multi-user.service. Waiting on more info.
+* https://forums.whonix.org/t/kloak-latest-update-is-broken/22244
 
 == ESP - EFI system partition versus dracut generic ==
 * we're now using <code>/etc/dracut.conf.d/30-dist-base-files.conf</code>
@@ -864,27 +867,67 @@ hostonly_mode="sloppy"
 * Aaron: No changes needed to EFI partition size, dracut initramfs files are stored in /boot, not /boot/efi.
 ** As discussed, boot partition doesn't need to be larger, it's 4 GB with Calamares and is integrated into the root partition on VM images.
 ** grml-debootstrap is not interested in increasing the EFI partition size at this time, so I don't believe there's any reason to do this.
+* Patrick: Should have said /boot partition.
+** VMs: We are not using a separate /boot partition.
+** Host: [https://www.phoronix.com/news/Fedora-43-Bigger-Boot-Firmware Fedora increased /boot to 2 GB] We're already using 4 GB for /boot when installing using calamares.
+** This issue does not exist.
 
-VMs are not using a separate /boot partition.
-
-Fedora increased /boot to 2 GB
-
-https://www.phoronix.com/news/Fedora-43-Bigger-Boot-Firmware
-
-== kloak - systemd ordering cycle ==
-* host: trixie (non-Kicksecure)
+== bindp - compilation warning - _GNU_SOURCE redefined ==
 <pre>
- [SKIP} kloak.service to stop ordering cycle loop
+Setting up bindp (3:4.2-1) ...
+/usr/lib/bindp.c:48:9: warning: "_GNU_SOURCE" redefined
+   48 | #define _GNU_SOURCE
+      |         ^~~~~~~~~~~
 </pre>
-<pre>
-graphical.target: Found ordering cycle on multi-user.target/start
-graphical.target: Found dependency on kloak.service/start
-graphical.target: Found dependency on graphical.target/start
-graphical.target: Job kloak.service/start deleted to break ordering cycle starting with graphical.target/start
-</pre>
-* wild guess: related to removal of symlinks?
-* no more information available. Will hopefully be posted in the forums.
-* Aaron: Cannot reproduce on Debian 13 with GNOME Desktop, using the pre-v2 version of kloak. User may have added a configuration rule that attempted to require kloak to start before multi-user.service. Waiting on more info.
+
+* <command-line>: note: this is the location of the previous definition
+** Aaron: This is because we have the compilation of bindp being done via a direct gcc call in the postinst. This is wrong, we should be using the Makefile in the postinst to build the library at runtime but without having to duplicate code in two locations. Will adjust postinst as appropriate to resolve this.
+** Aaron: Fixed: https://github.com/ArrayBolt3/bindp/commit/c0592d2e284c7a0a6e825279c5ace87bb9a1f566
+* Patrick: Merged.
+
+== install an onscreen keyboard by default ==
+* todo
+* purpose: configuration a keyboard layout when not knowing how to enter some special character such as "=" on the keyboard using the local keyboard
+* related: [[Software#On-Screen_Keyboard|On-Screen Keyboard]]
+* Aaron: Done, new commits pushed to developer-meta-files, kicksecure-meta-packages, and usability-misc for this.
+* Patrick: Merged.
+
+== trixie port - Whonix update failure if sys-whonix isn't already running ==
+* https://github.com/QubesOS/qubes-issues/issues/4096 has come back
+* Probably related to delaying Tor's startup to accomodate IPv6 changes
+* Possible ways of fixing the issue listed at https://github.com/QubesOS/qubes-issues/issues/4096#issuecomment-3383779544.
+* Marek suggested a good fix, which works in testing. Implementation: https://github.com/ArrayBolt3/qubes-whonix/commit/34418e335c6ea8d09d018ebda871a2ead4f392c1
+
+== change keyboard layout versus ISO ==
+* currently, change keyboard layout required reboot but that is a contradiction on the ISO which cannot be rebooted
+** Aaron: I don't think keyboard layout changes require a reboot - if kloak isn't running, they take effect immediately after running <code>labwc --reconfigure</code> (which is automatically done by the newly created <code>set-labwc-keymap</code> script). If kloak is running, they take effect after kloak is restarted (which can be done even from a user session with Right Shift + Escape).
+** In the event a full compositor restart was needed to make a settings change take effect, logging out and logging back in would be sufficient to restart the compositor, even on the ISO.
+* https://github.com/labwc/labwc/issues/1407
+** Aaron: This bug appears fixed in Trixie.
+
+== sysmaint-panel - new shortcuts ==
+* add onscreen keyboard shortcut
+* add open display settings or open lxqt settings shortcut
+* Aaron: Implemented, pushed commits to usability-misc, helper-scripts, sysmaint-panel.
+** LXQt settings button will only appear in non-sysmaint sessions, as it is not useful and possibly misleading in sysmaint sessions.
+* Patrick: Merged.
+
+== sdwdate-gui - add left click menu ==
+* usability bug: currently left click on sdwdate-gui does nothing
+** Aaron: Unfixable or at least extremely difficult to fix due to a combination of Wayland and Qt limitations.
+** Qt does not expose any API for popping up the menu the way a right-click pops it up. The only way to pop up a menu on a left-click is by using one of the <code>exec()</code> or <code>popup()</code> functions on the menu itself, which causes them to appear as a window in the middle of the screen under Wayland rather than them appearing as a popup menu.
+** Both Qt5 and Qt6 behave in the same way.
+** ChatGPT recommended using Gtk to create the context menu instead. A quick test revealed that Gtk has similar issues as Qt in this regard. I did not discover how to get a left-click to be registered by Gtk, documentation appears to be sparse and ChatGPT was not able to offer a functional suggestion.
+** I tried to see if it would be possible to use D-Bus to trigger the StatusNotifierItem associated with the QSystemTrayIcon to pop up a menu. The closest I was able to get to making this work simply popped up a window containing the menu in the middle of the screen.
+** The removable media and sound application icons seem to be left-clickable, but these are LXQt Panel plugins, not system tray icons. I suspect that's why they work, in which case that isn't a suitable solution for us.
+** It might be possible in the future to create an LXQt panel plugin for sdwdate_gui_server, but this would most likely require rewriting sdwdate_gui_server in C++, which I do not believe is practical at the moment.
+** For now, probably best to live with the issue, and make the time synchronization monitor popup specify "Right-click for menu" rather than "Click for menu".
+** Commit pushed to sdwdate-gui to change wording as described above.
+
+== labwc environment default configuration file ==
+* if file ~/.config/labwc/environment does not exist, pre populate it with <code>XKB_DEFAULT_LAYOUT=</code> (and other useful settings?)
+* might not be needed if the tool below gets implemented
+* Aaron: Ignoring in favor of setxkbmap replacement tool, as suggested.
 
 == compiled code - remove unsafe sanitizers ==
 * All sanitizers except minimal UBSan are unsafe to use in production, they may result in security vulnerabilities.
@@ -904,17 +947,8 @@ graphical.target: Job kloak.service/start deleted to break ordering cycle starti
 *** Aaron: Fixed:
 **** kicksecure-meta-packages https://github.com/ArrayBolt3/kicksecure-meta-packages/commit/ab29e2a064404b7462dca7e3956712e86799e30f
 **** developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/commit/36056e1856cd37b2f57b573a029dfa427f23f41c
+* Patrick: Merged.
 
-== trixie port - qubes-core-agent-pcmanfm-qt ==
-* Aaron: Qubes templates are still referencing Xfce components, Xfce won't be installed anymore
-* PRs:
-** https://github.com/QubesOS/qubes-core-agent-linux/pull/608
-** https://github.com/QubesOS/qubes-app-linux-img-converter/pull/24
-** https://github.com/QubesOS/qubes-app-linux-pdf-converter/pull/36
-* Filed, passes CI, works on my Qubes machine. Awaiting review from upstream.
-** Reviewed, merged upstream.
-
-= ARCHIVED =
 == trixie port - misc remaining issues ==
 * Aaron:
 ** swaylock is configured to show a solid black screen. We may want to show something else so that the user knows the system isn't broken and is awaiting a password.
