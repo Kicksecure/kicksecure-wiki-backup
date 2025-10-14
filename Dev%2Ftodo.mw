@@ -5,41 +5,36 @@ ToDo for Developers
 {{#seo:
 |description=TODO
 }}
-{{devwiki}}
+{{devwiki}}vir
 {{intro|
 TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== automate detection of new tor and tor-browser versions ==
-* We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
-* We also hardcode a Tor Browser version number in tb-updater.
-* Create scripts for finding the latest versions of Tor and Tor Browser, and taking the necessary actions to update them
+== virtualbox / kvm - dynamic resolution resizing with labwc ==
+* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
+* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
+* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
+* Discussed with Patrick, we should probably solve this ourselves via a daemon that watches udev messages, as not having this feature may result in serious usability issues with VirtualBox.
 
-<pre>
-## developer-meta-files
-/usr/bin/dm-virtualbox-update-local-and-wiki-links
-</pre>
+== approx - work around and report metadata caching problems ==
+* Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
+* Reproduce issue, report upstream, create workaround in derivative-maker
 
-<pre>
-## developer-meta-files
-/usr/bin/dm-virtualbox-update-local-and-wiki-links
-</pre>
+== misc review ==
+* https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
+** Aaron: Reviewed, did some testing and commented.
+* https://github.com/Kicksecure/security-misc/pull/323
+* https://github.com/Kicksecure/security-misc/pull/322
+* https://github.com/KSPP/kspp.github.io/issues/9
+* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
 
-<pre>
-make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debian-packages --flavor internal --target root --function download_tpo_packages
-</pre>
+== security-misc /etc/systemd/system/ review ==
+* Do /etc/systemd/system folder contents still make sense nowadays?
 
-<pre>
-./build-steps.d/*_create-debian-packages --flavor internal --target virtualbox --function download_packages_from_debian_sid
-</pre>
-
-== port to sequoia-pgp ==
-* port all code base from gpg to sequoia-pgp as much as sensible
-* related - not part of this task - only for reference - https://github.com/QubesOS/qubes-issues/issues/8241
-* https://sequoia-pgp.org/blog/2022/12/19/202212-chameleon-0.1/
-* https://packages.debian.org/trixie/sequoia-chameleon-gnupg
-** Can we just symlink /usr/bin/gpg to /usr/bin/gpg-sq?
+== stardict - investigate ==
+* debian policy appliable?
+* https://www.kicksecure.com/wiki/Dev/Debian#startdict
 
 == qubes - qrexec to NetVM ==
 * investigate if it is possible to get the name of a qube's NetVM from within the qube, or otherwise send qrexec requests to the NetVM
@@ -52,9 +47,19 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * gcc supports more warnings, perhaps use gcc and clang together for "diagnostic builds" and static analysis, and clang for release builds?
 ** Patrick: Keeping gcc support might be worthwhile as per non-technical reasons: [[Miscellaneous_Threats_to_User_Freedom#GCC_vs_Clang-LLVM|GCC vs Clang-LLVM]]
 
-== stardict - investigate ==
-* debian policy appliable?
-* https://www.kicksecure.com/wiki/Dev/Debian#startdict
+== port to sequoia-pgp ==
+* port all code base from gpg to sequoia-pgp as much as sensible
+* related - not part of this task - only for reference - https://github.com/QubesOS/qubes-issues/issues/8241
+* https://sequoia-pgp.org/blog/2022/12/19/202212-chameleon-0.1/
+* https://packages.debian.org/trixie/sequoia-chameleon-gnupg
+** Can we just symlink /usr/bin/gpg to /usr/bin/gpg-sq?
+* Aaron: Unsure if replacing gpg with gpg-sq wholesale is a good idea. Quoting the blog post on gpg-sq:
+** "A consequence of not modifying GnuPG’s state but using an overlay is that changes made using the Chameleon will not be picked up by GnuPG. For example, if you import a certificate using the Chameleon, it will only be inserted into the overlay, and GnuPG will not see it."
+** Would prefer porting to sq's native API instead, to avoid consistency issues.
+* Aaron: Delay until after the release of Kicksecure 18 perhaps? That way the work done here doesn't end up causing us major problems before the release is complete.
+** Delaying this may be essential, as Whonix 18 should release before Qubes OS R4.3 does.
+** Please move to WAITING ON if good to delay, move back to TODO if we should pursue this now.
+*** Patrick: Please do in sequoia branch.
 
 == user-sysmaint-split versus Qubes Video Companion is broken on Whonix-Workstation ==
 * please comment how this could be resolved
@@ -505,14 +510,22 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== trixie port - Whonix Qubes template issues ==
+* reported by Marek on Matrix:
+** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
+** "something doesn't work with pcmanfm-qt actions - I see only "QubesOS Edit in DisposableVM" action, not any of copy/move, or view in disposable; on top of that, looks like file names are swapped (action for viewing in dispvm is in file named edit, and action for editing is in file named open); and I have no idea from "QubesOS" prefix comes"
+*** Aaron: Fixed, required changes both on our side and on the Qubes side:
+**** usability-misc: https://github.com/ArrayBolt3/usability-misc/commit/0a8c2d7d97345d78aa7cd58199b5b67925ab93cf
+**** qubes-gui-agent-linux: https://github.com/QubesOS/qubes-gui-agent-linux/pull/246
+*** Aaron: Fixed:
+**** kicksecure-meta-packages https://github.com/ArrayBolt3/kicksecure-meta-packages/commit/ab29e2a064404b7462dca7e3956712e86799e30f
+**** developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/commit/36056e1856cd37b2f57b573a029dfa427f23f41c
+* Patrick: Merged.
+* Aaron: Still working on the Qubes PR.
+
 == kloak - Qubes OS input anonymization flicker bug ==
 * https://github.com/QubesOS/qubes-issues/issues/10286
 * Fix submitted: https://github.com/QubesOS/qubes-gui-daemon/pull/172
-
-== virtualbox / kvm - dynamic resolution resizing with labwc ==
-* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
-* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
-* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
 
 == kloak - handle dynamic keyboard layout changes ==
 * when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
@@ -773,6 +786,33 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== automate detection of new tor and tor-browser versions ==
+* We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
+* We also hardcode a Tor Browser version number in tb-updater.
+* Create scripts for finding the latest versions of Tor and Tor Browser, and taking the necessary actions to update them
+
+<pre>
+## developer-meta-files
+/usr/bin/dm-virtualbox-update-local-and-wiki-links
+</pre>
+
+<pre>
+## developer-meta-files
+/usr/bin/dm-virtualbox-update-local-and-wiki-links
+</pre>
+
+<pre>
+make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debian-packages --flavor internal --target root --function download_tpo_packages
+</pre>
+
+<pre>
+./build-steps.d/*_create-debian-packages --flavor internal --target virtualbox --function download_packages_from_debian_sid
+</pre>
+
+* Aaron: Implemented Tor package update script as dm-tor-update-repository, added wrapper in dm-packaging-helper-script.
+* Aaron: Tor Browser version updater is already implemented as <code>pkg_tor_browser_version_update</code> in dm-packaging-helper-script.
+* Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
+
 == systemcheck - split log parsing code ==
 * https://github.com/Kicksecure/security-misc/issues/253#issuecomment-3379301931
 * Aaron: Implemented: https://github.com/ArrayBolt3/systemcheck/commit/b1ed7254e51423466efcdee07c8fad9839818e73
@@ -817,13 +857,13 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Not intended. I'm unable to reproduce this issue though - neither a fresh ISO installation of Kicksecure nor Whonix-Gateway or Whonix-Workstation VirtualBox VMs have this issue.  Also not seeing this issue in a Whonix-Gateway 18 sys-whonix on Qubes R4.3.
 ** I believe I've seen this issue occur in the past, but haven't seen it in a while. I'm happy to build new VM images and check them for this issue if desirable.
 
+= ARCHIVED =
 == setxkbmap replacement too for wayland ==
 * "setxkbmap de" used to be handy.
 * implement
 * add to helper-scripts
 * Aaron: Implemented: https://github.com/ArrayBolt3/helper-scripts/commit/41ae1e120672b94351a4c3889181bb9be2991eb0
 
-= ARCHIVED =
 == calamares - language setup ==
 * please set up for
 ** CLI user
@@ -942,18 +982,6 @@ Setting up bindp (3:4.2-1) ...
 ** As it turns out, only Clang supports the minimal UBSan runtime, but we use GCC, so this is not possible. Just disable all sanitizers.
 * Adjust sanitizer flags in compiler flags wiki page.
 * Done, changed sdwdate, bindp, kloak, and security-misc to remove all sanitizers.
-
-== trixie port - Whonix Qubes template issues ==
-* reported by Marek on Matrix:
-** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
-** "something doesn't work with pcmanfm-qt actions - I see only "QubesOS Edit in DisposableVM" action, not any of copy/move, or view in disposable; on top of that, looks like file names are swapped (action for viewing in dispvm is in file named edit, and action for editing is in file named open); and I have no idea from "QubesOS" prefix comes"
-*** Aaron: Fixed, required changes both on our side and on the Qubes side:
-**** usability-misc: https://github.com/ArrayBolt3/usability-misc/commit/0a8c2d7d97345d78aa7cd58199b5b67925ab93cf
-**** qubes-gui-agent-linux: https://github.com/QubesOS/qubes-gui-agent-linux/pull/246
-*** Aaron: Fixed:
-**** kicksecure-meta-packages https://github.com/ArrayBolt3/kicksecure-meta-packages/commit/ab29e2a064404b7462dca7e3956712e86799e30f
-**** developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/commit/36056e1856cd37b2f57b573a029dfa427f23f41c
-* Patrick: Merged.
 
 == trixie port - misc remaining issues ==
 * Aaron:
