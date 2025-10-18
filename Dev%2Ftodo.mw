@@ -11,17 +11,8 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== qubes - kernel boot mode for Template shows user session instead of sysmaint session ==
-* todo
-
-== Qubes Kicksecure Template Upgrade in R4.3 ==
-* todo
-
-== Qubes Kicksecure Template - unrestricted session - requires sudo password bug ==
-* Qubes Kicksecure 18 Template
-* unrestricted session
-* bug: asks for sudo password
-* perhaps run: <code>passwordless-root</code>
+== Qubes R4.2 default_dispvm bypass ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
 
 == Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
 * Qubes R4.3
@@ -33,23 +24,54 @@ TODO
 * debugging information:
 ** running "sudo qvm-features-request kicksecure=1" shows nothing in dom0 journal (i would expect that to show something)
 ** running in dom0 "qvm-features kicksecure-17 | grep kicksecure" shows that qvm-feature "kicksecure" is missing
+* Aaron: Reproduced, but the issue can be fixed by doing the following:
+** Ensure <code>qubes-core-admin-addon-kicksecure</code> is installed in dom0, if it isn't, install it (<code>sudo qubes-dom0-update --action=install qubes-core-admin-addon-kicksecure</code>) and then restart qubesd (<code>sudo systemctl restart qubesd</code>)
+*** Patrick: Qubes bug? <code>sudo systemctl restart qubesd</code> should be automated? Perhaps the postinst script can do that?
+** Boot the upgraded Kicksecure 18 qube
+** Run <code>cd /etc/qubes/post-install.d; for i in *.sh; do source $i; done</code>
+** Reboot dom0 or restart qubesd again
+* Aaron: Why are the post-install.d scripts not being properly called after a release upgrade? Shouldn't apt do this for us? We could probably work around this issue by making <code>release-upgrade</code> source all scripts in post-install.d after the upgrade.
+*** Patrick: Please report at Qubes to find a solution for this, if still an issue.
+*** Patrick: Possible to add some echo informational debug output so we can see what is run?
+** Aaron: After another test, I believe these scripts are being run. Most likely the reason I ran into this issue was because I failed to restart qubesd or dom0 before running the release upgrade. After reinstalling Kicksecure 17 again and upgrading it to Kicksecure 18 again, the feature is properly set and a new AppVM based on the template is able to connect to sys-whonix's sdwdate_gui_server.
+**** Patrick: Probably same solution as above: Automate restart of qubesdb?
+* Aaron: What's a good way to inform users that they need to install <code>qubes-core-admin-addon-kicksecure</code> and reboot before installing Kicksecure templates?
+** Patrick: No idea. Could you discuss at Qubes please? I guess also applies to <code>qubes-core-admin-addon-whonix</code> to a lesser degree. Meanwhile, please document.
+* Patrick: Can <code>qubes-core-admin-addon-kicksecure</code> be made functional if installed too late (after Kicksecure Template installation)?
 
-== browser-choice - brave installation broken ==
-* Kicksecure 17 release upgraded to Kicksecure 18
-<pre>
-+ pkexec bash -c -- 'extrepo enable brave_release && apt-get update && apt-get-noninteractive --no-install-recommends --yes install brave-browser'
-500 Can't connect to extrepo-team.pages.debian.net:443 (Temporary failure in name resolution) at /usr/share/perl5/Debian/ExtRepo/Data.pm line 34.
-Could not download index YAML file:
-
-Done, but operation failed!
-</pre>
-
-* to fix, add env var: <code>https_proxy=http://127.0.0.1:8082/</code>
+== qubes - kernel boot mode for Template shows user session instead of sysmaint session ==
+* todo
+* Aaron: Cannot reproduce.
+** Freshly installed Kicksecure 17 template:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** After upgrading from Kicksecure 17 to Kicksecure 18:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** Freshly installed Whonix-Workstation 17 template:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** After upgrading from Whonix-Workstation 17 to Whonix-Workstation 18:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** Freshly installed Whonix-Gateway 17 template:
+*** Boot mode: PERSISTENT Mode - USER Session
+**** Expected, since Whonix-Gateway does not have user-sysmaint-split installed on it.
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** After upgrading from Whonix-Gateway 17 to Whonix-Gateway 18:
+*** Boot mode: PERSISTENT Mode - USER Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** AppVMs for both Kicksecure 18 and Whonix-(Workstation/Gateway) 18 have the correct "PERSISTENT Mode - USER Session" boot mode
+* Patrick: Whonix-Gateway - without user-sysmaint-split - shouldn't show PERSISTENT Mode - USER Session since not applicable?
 
 == repository-dist-wizard gui broken in Qubes R4.3 ==
 * input by keyboard functional
 * input by mouse clicks broken
 * if not easily reproducible then please ignore
+* Aaron: Reproduced, I can select the "No..." radio button with the mouse, but not the "Yes..." radio button.
+** Moving the radio button group box down so that it isn't partially overlapped by the text above resolves the problem.
+** Short-term solution, move the box down.
+** Long-term solution, this should be using layouts so that the window can be resized freely and overlap bugs of this sort don't occur. This will also make the wizard compatible with non-default Qt themes which may have differently sized elements.
 
 == virtualbox / kvm - dynamic resolution resizing with labwc ==
 * Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
@@ -59,6 +81,21 @@ Done, but operation failed!
 * Discovered that a missing binary, VBoxDRMClient, was needed to even try to implement resize support. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=968390#15
 ** Found and tested a fix, sent it to the VirtualBox Debian maintainers. Awaiting a response from them. I can still work on implementing the resizing code in the mean time.
 
+== systemcheck - dependencies version check broken ==
+<pre>
+[INFO] [systemcheck] kicksecure-dependencies-cli: Could not detect derivative kicksecure-dependencies-cli version. (Code: 2) Please report this bug!
+</pre>
+* Fix should be added to usr/libexec/systemcheck/preparation.bsh:
+<pre>
+   if [ -f "/usr/share/anon-gw-base-files/gateway" ]; then
+      derivative_deb_package_name="whonix-gateway-packages-dependencies-cli"
+   elif [ -f "/usr/share/anon-ws-base-files/workstation" ]; then
+      derivative_deb_package_name="whonix-workstation-packages-dependencies-cli"
+   elif [ -f "/usr/share/kicksecure/marker" ]; then
+      derivative_deb_package_name="kicksecure-dependencies-cli"
+   fi
+</pre>
+
 == stardict - investigate ==
 * debian policy appliable?
 * https://www.kicksecure.com/wiki/Dev/Debian#startdict
@@ -66,9 +103,26 @@ Done, but operation failed!
 == install extrepo-offline-data by default ==
 * todo
 
+== install firmware-nonfreedom by default in Qubes ==
+* install firmware-nonfreedom by default in Qubes
+* useful for sys-net (non-free wifi controller)
+* perhaps add a comment since we might be flip-flopping on this?
+* we might want a smaller collection of packages to save disk space since for example microcode is irrelevant? can we rely on a Qubes package for the non-free firmware package selection?
+
 == browser-choice - do not Depends on tb-updater ==
 * should be installed only on demand
 * this is to avoid Kicksecure Qubes Templates downloading Tor Browser
+
+== Qubes R4.3 bypass review ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
+* are there more ways in which that can go wrong?
+* realistic to fundamentally re-design this to avoid such kinds of issues?
+* https://github.com/QubesOS/qubes-issues/issues/6948
+* https://github.com/QubesOS/qubes-issues/issues/3994
+
+== rename sdwdate.ConnectCheck to sdwdate-gui.ConnectCheck etc ==
+* we might have sdwdate.ConnectCheck issues from time to time. this implies broken sdwdate while actually only sdwdate-gui is broken.
+* if still possible and sane, please rename.
 
 == qubes - qrexec to NetVM ==
 * investigate if it is possible to get the name of a qube's NetVM from within the qube, or otherwise send qrexec requests to the NetVM
@@ -820,6 +874,32 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== Qubes Kicksecure Template - unrestricted session - requires sudo password bug ==
+* Qubes Kicksecure 18 Template
+* unrestricted session
+* bug: asks for sudo password
+* perhaps run: <code>passwordless-root</code>
+* Aaron: Reproduced issue. Fix: https://github.com/ArrayBolt3/user-sysmaint-split/commit/acdf596affe8c40232863a83f19f4101607600c9
+** This fix is insufficient on its own because <code>passwordless-root</code> is persistent even in AppVMs. Need to make it ephemeral in AppVMs by default, persistent only if explicitly requested.
+*** Done, commits pushed to helper-scripts and usability-misc. '''NOTE:''' This includes moving passwordless-root from usability-misc to helper-scripts (done to avoid needing to add usability-misc as a dependency of user-sysmaint-split), so this will require the Breaks/Replaces in helper-scripts to be bumped.
+
+== Qubes Kicksecure Template Upgrade in R4.3 ==
+* todo
+* Aaron: Cannot reproduce issues mentioned in chat. Successfully updated Kicksecure, Whonix-Gateway, and Whonix-Workstation 17 to 18 on Qubes R4.3 with no special configuration changes required.
+
+== browser-choice - brave installation broken ==
+* Kicksecure 17 release upgraded to Kicksecure 18
+<pre>
++ pkexec bash -c -- 'extrepo enable brave_release && apt-get update && apt-get-noninteractive --no-install-recommends --yes install brave-browser'
+500 Can't connect to extrepo-team.pages.debian.net:443 (Temporary failure in name resolution) at /usr/share/perl5/Debian/ExtRepo/Data.pm line 34.
+Could not download index YAML file:
+
+Done, but operation failed!
+</pre>
+
+* to fix, add env var: <code>https_proxy=http://127.0.0.1:8082/</code>
+* Aaron: Should be fixed by https://github.com/ArrayBolt3/browser-choice/commit/83e33a2f604ffc8e670914dd8b09e74c55fdff9f
+
 == misc review ==
 * https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
 ** Aaron: Reviewed, did some testing and commented.
