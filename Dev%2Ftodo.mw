@@ -11,6 +11,21 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== misc review ==
+* https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
+** Aaron: Reviewed, did some testing and commented.
+* https://github.com/Kicksecure/security-misc/pull/323
+** Aaron: Reviewed, looks good, merged and fixed.
+* https://github.com/Kicksecure/security-misc/pull/322
+** Aaron: Reviewed, looks good, merged and fixed.
+* https://github.com/KSPP/kspp.github.io/issues/9
+** Aaron: Replied.
+* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
+** Aaron: Reviewed and left change suggestions.
+* https://github.com/QubesOS/qubes-core-agent-linux/pull/613
+** Aaron: Left some notes.
+*** Patrick: Please re-review as changes have been applied.
+
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 
@@ -123,6 +138,25 @@ TODO
 == rename sdwdate.ConnectCheck to sdwdate-gui.ConnectCheck etc ==
 * we might have sdwdate.ConnectCheck issues from time to time. this implies broken sdwdate while actually only sdwdate-gui is broken.
 * if still possible and sane, please rename.
+
+== calamares - keyboard layout setting broken in Wayland ==
+* todo
+* please set up for
+** CLI user
+** CLI sysmaint
+** GUI user
+** GUI sysmaint
+* Aaron: Moving the systemd-localed keyboard layout set disable file out of the way does not result in labwc picking up the keyboard layout settings from Calamares. Will need to create a shellprocess module or similar to hack this into working right.
+* Aaron: Implemented, changes pushed to helper-scripts, user-sysmaint-split, lxqt-wayland-session, and live-config-dist. All four scenarios now work as expected.
+** Patrick: Merged.
+* Patrick: Is this reported upstream, so one day Debian, calamares will be fixed and can be used without XWayland?
+
+== approx - work around and report metadata caching problems ==
+* Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
+* Reproduce issue, report upstream, create workaround in derivative-maker
+* Aaron: Issue reported: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1118031
+* Aaron: Workaround created: https://github.com/ArrayBolt3/derivative-maker/commit/42f6e3ba146e60a89167acba67c041aecb49d505
+** Patrick: Merged.
 
 == qubes - qrexec to NetVM ==
 * investigate if it is possible to get the name of a qube's NetVM from within the qube, or otherwise send qrexec requests to the NetVM
@@ -883,47 +917,10 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** This fix is insufficient on its own because <code>passwordless-root</code> is persistent even in AppVMs. Need to make it ephemeral in AppVMs by default, persistent only if explicitly requested.
 *** Done, commits pushed to helper-scripts and usability-misc. '''NOTE:''' This includes moving passwordless-root from usability-misc to helper-scripts (done to avoid needing to add usability-misc as a dependency of user-sysmaint-split), so this will require the Breaks/Replaces in helper-scripts to be bumped.
 
-== Qubes Kicksecure Template Upgrade in R4.3 ==
-* todo
-* Aaron: Cannot reproduce issues mentioned in chat. Successfully updated Kicksecure, Whonix-Gateway, and Whonix-Workstation 17 to 18 on Qubes R4.3 with no special configuration changes required.
-
-== browser-choice - brave installation broken ==
-* Kicksecure 17 release upgraded to Kicksecure 18
-<pre>
-+ pkexec bash -c -- 'extrepo enable brave_release && apt-get update && apt-get-noninteractive --no-install-recommends --yes install brave-browser'
-500 Can't connect to extrepo-team.pages.debian.net:443 (Temporary failure in name resolution) at /usr/share/perl5/Debian/ExtRepo/Data.pm line 34.
-Could not download index YAML file:
-
-Done, but operation failed!
-</pre>
-
-* to fix, add env var: <code>https_proxy=http://127.0.0.1:8082/</code>
-* Aaron: Should be fixed by https://github.com/ArrayBolt3/browser-choice/commit/83e33a2f604ffc8e670914dd8b09e74c55fdff9f
-
-== misc review ==
-* https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
-** Aaron: Reviewed, did some testing and commented.
-* https://github.com/Kicksecure/security-misc/pull/323
-** Aaron: Reviewed, looks good, merged and fixed.
-* https://github.com/Kicksecure/security-misc/pull/322
-** Aaron: Reviewed, looks good, merged and fixed.
-* https://github.com/KSPP/kspp.github.io/issues/9
-** Aaron: Replied.
-* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
-** Aaron: Reviewed and left change suggestions.
-* https://github.com/QubesOS/qubes-core-agent-linux/pull/613
-** Aaron: Left some notes.
-
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
 * Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
 * Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
-
-== approx - work around and report metadata caching problems ==
-* Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
-* Reproduce issue, report upstream, create workaround in derivative-maker
-* Aaron: Issue reported: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1118031
-* Aaron: Workaround created: https://github.com/ArrayBolt3/derivative-maker/commit/42f6e3ba146e60a89167acba67c041aecb49d505
 
 == security-misc /etc/systemd/system/ review ==
 * Do /etc/systemd/system folder contents still make sense nowadays?
@@ -956,56 +953,72 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * Aaron: Tor Browser version updater is already implemented as <code>pkg_tor_browser_version_update</code> in dm-packaging-helper-script.
 * Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
 
-== systemcheck - split log parsing code ==
-* https://github.com/Kicksecure/security-misc/issues/253#issuecomment-3379301931
-* Aaron: Implemented: https://github.com/ArrayBolt3/systemcheck/commit/b1ed7254e51423466efcdee07c8fad9839818e73
+= ARCHIVED =
+== /etc/apt/sources.list.d/debian.soures not readable by user only readable by root ==
+* is this intended?
+* Aaron: Not intended. I'm unable to reproduce this issue though - neither a fresh ISO installation of Kicksecure nor Whonix-Gateway or Whonix-Workstation VirtualBox VMs have this issue.  Also not seeing this issue in a Whonix-Gateway 18 sys-whonix on Qubes R4.3.
+** I believe I've seen this issue occur in the past, but haven't seen it in a while. I'm happy to build new VM images and check them for this issue if desirable.
+** Patrick: No longer reproducible.
+
+== sysmaint-panel - sysmaint mode - add display settings shortcut ==
+* add open display settings
+* rationale: When booting for the first time and into sysmaint mode inside a VM, the display is too big.
+* Aaron: Implemented in sysmaint-panel. Also pushed commits to developer-meta-files and kicksecure-meta-packages for adding kanshi.
+** Patrick: Merged.
+
+== ISO - virtualbox guest additions missing ==
+* virtualbox guest additions missing on the Kicksecure ISO
+** Aaron: Fixed: https://github.com/ArrayBolt3/derivative-maker/commit/c0d7bf7a24483d5984142b8c274f1b66597935c1
+*** Patrick: Merged.
 
 == browser-choice - better notification when action such as installation is complete ==
 * todo
 * once there is a exit code of zero or non-zero, show a passive popup? change window color? animation?
 * Aaron: Implemented in browser-choice. Also found and fixed an unrelated bug with dist-virtual-keyboard in helper-scripts.
 ** Decided to use a notify-send popup because that will work in both sysmaint and user sessions and has a good chance of getting the user's attention even if the browser-choice window is hiding behind another window or is minimized. Considered using <code>QWindow::alert</code> but this would probably have not worked in a sysmaint session.
+*** Patrick: Merged.
+
+== volume setting in sysmaint systray ==
+* usability bug: when hovering over volume changes in sysmaint mode, the color gets darker, which implies it being clickable, but actually is not clickable
+* Aaron: Fixed with a commit to desktop-config-dist.
+** Patrick: Merged.
 
 == sysmaint - restart of greetd allows login into regular desktop ssession ==
 * sudo systemctl restart greetd
 * login as sysmaint
 * bug: expected: sysmaint session. actual: normal desktop session
 * Aaron: Fixed this and a bunch of related issues that popped up when the sysmaint session had autologin disabled. Changes pushed to helper-scripts, user-sysmaint-split, and desktop-config-dist.
+** Patrick: Merged.
 
-== volume setting in sysmaint systray ==
-* usability bug: when hovering over volume changes in sysmaint mode, the color gets darker, which implies it being clickable, but actually is not clickable
-* Aaron: Fixed with a commit to desktop-config-dist.
+== browser-choice - brave installation broken ==
+* Kicksecure 17 release upgraded to Kicksecure 18
+<pre>
++ pkexec bash -c -- 'extrepo enable brave_release && apt-get update && apt-get-noninteractive --no-install-recommends --yes install brave-browser'
+500 Can't connect to extrepo-team.pages.debian.net:443 (Temporary failure in name resolution) at /usr/share/perl5/Debian/ExtRepo/Data.pm line 34.
+Could not download index YAML file:
 
-== calamares - keyboard layout setting broken in Wayland ==
+Done, but operation failed!
+</pre>
+
+* to fix, add env var: <code>https_proxy=http://127.0.0.1:8082/</code>
+* Aaron: Should be fixed by https://github.com/ArrayBolt3/browser-choice/commit/83e33a2f604ffc8e670914dd8b09e74c55fdff9f
+** Patrick: Merged.
+
+== Qubes Kicksecure Template Upgrade in R4.3 ==
 * todo
-* please set up for
-** CLI user
-** CLI sysmaint
-** GUI user
-** GUI sysmaint
-* Aaron: Moving the systemd-localed keyboard layout set disable file out of the way does not result in labwc picking up the keyboard layout settings from Calamares. Will need to create a shellprocess module or similar to hack this into working right.
-* Aaron: Implemented, changes pushed to helper-scripts, user-sysmaint-split, lxqt-wayland-session, and live-config-dist. All four scenarios now work as expected.
+* Aaron: Cannot reproduce issues mentioned in chat. Successfully updated Kicksecure, Whonix-Gateway, and Whonix-Workstation 17 to 18 on Qubes R4.3 with no special configuration changes required.
 
-== ISO - virtualbox guest additions missing ==
-* virtualbox guest additions missing on the Kicksecure ISO
-** Aaron: Fixed: https://github.com/ArrayBolt3/derivative-maker/commit/c0d7bf7a24483d5984142b8c274f1b66597935c1
+== systemcheck - split log parsing code ==
+* https://github.com/Kicksecure/security-misc/issues/253#issuecomment-3379301931
+* Aaron: Implemented: https://github.com/ArrayBolt3/systemcheck/commit/b1ed7254e51423466efcdee07c8fad9839818e73
+** Patrick: Merged.
 
-== sysmaint-panel - sysmaint mode - add display settings shortcut ==
-* add open display settings
-* rationale: When booting for the first time and into sysmaint mode inside a VM, the display is too big.
-* Aaron: Implemented in sysmaint-panel. Also pushed commits to developer-meta-files and kicksecure-meta-packages for adding kanshi.
-
-== /etc/apt/sources.list.d/debian.soures not readable by user only readable by root ==
-* is this intended?
-* Aaron: Not intended. I'm unable to reproduce this issue though - neither a fresh ISO installation of Kicksecure nor Whonix-Gateway or Whonix-Workstation VirtualBox VMs have this issue.  Also not seeing this issue in a Whonix-Gateway 18 sys-whonix on Qubes R4.3.
-** I believe I've seen this issue occur in the past, but haven't seen it in a while. I'm happy to build new VM images and check them for this issue if desirable.
-
-= ARCHIVED =
 == setxkbmap replacement too for wayland ==
 * "setxkbmap de" used to be handy.
 * implement
 * add to helper-scripts
 * Aaron: Implemented: https://github.com/ArrayBolt3/helper-scripts/commit/41ae1e120672b94351a4c3889181bb9be2991eb0
+** Patrick: Merged.
 
 == calamares - language setup ==
 * please set up for
