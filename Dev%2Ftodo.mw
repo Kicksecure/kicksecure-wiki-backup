@@ -11,12 +11,58 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie port - display brightness ==
-* https://forums.kicksecure.com/t/display-brightness/1271/2
-* Aaron: See notes in chat.
-* Previous plan: wrap pkexec and the backlight helper in lxqt to insert a validating shim, allowing safe(r) access to the backlight subsystem
-** Problem: this will probably interact poorly with user-sysmaint-split unless we place the pkexec wrapper in helper-scripts, and the pkexec wrapper may be too invasive to put in helper-scripts.
-* Current plan: create a dedicated backlight management utility in Python, integrate with LXQt's config system, hide the existing (broken) backlight config, integrate with brightness keyboard shortcuts in labwc
+== trixie-port - desktop environment broken after release upgrade ==
+* Kicksecure Xfce 17.4.4.6 (for VirtualBox)
+* sudo apt update && sudo apt dist-upgrade
+* sudo release upgrade
+* reboot
+* bug: desktop environment no longer starting
+* debugging:
+** in sysmaint mode, CLI:
+
+<pre>
+systemctl is-enabled greetd
+disabled
+</pre>
+
+<pre>
+sudo journalctl --boot -u sysmaint-boot
+...
+INFO: Wayland session: 'no'
+...
+</pre>
+
+* in <code>sysmaint-boot</code> we can probably safely change the default from <code>sysmaint_session_wayland='yes'</code> to <code>sysmaint_session_wayland='yes'</code>. Done.
+* file <code>/etc/greetd/config.toml.d/30_desktop-config-dist.conf</code> looks messed up. Something has apparently removed all newlines. <code>sudo debsums -ce</code> shows that the file has been modified. This is unexpected.
+
+== trixie-port - keyboard layout change usability improvements ==
+* user story: I am a VM using and in user session, CLI. How do I change my keymap? "sudo loadkeys de"? Doesn't work. No sudo.
+* todo:
+** refuse running <code>set-labwc-keymap</code> as root
+** <code>set-console-keymap</code>: CLI tool that can be used to configure the virtual terminal
+** <code>set-multi-keymap</code>: CLI tool that can set the keymap for currently logged-in account (most likely <code>user</code>), <code>sysmaint</code> and <code>root</code>. It should run, is a wrapper around <code>set-console-keymap</code> and <code>set-labwc-keymap</code>. A tool that sets the keymap for all places relevant to the user.
+*** sysmaint GUI: <code>set-labwc-keymap --persist keymap</code>
+*** user GUI: <code>sudo --non-interactive -u user set-labwc-keymap --no-reload --persist keymap</code>
+*** sysmaint CLI: <code>set-console-keymap de</code>
+*** user CLI: <code>sudo --non-interactive -u user set-console-keymap de</code>
+** not sure about <code>--non-interactive</code>
+
+== trixie-port - port Whonix-Gateway to privleap ==
+* currently broken: anon connection wizard, tor control panel
+
+== trixie-port - browser-choice - do not Depends on tb-updater ==
+* should be installed only on demand
+* this is to avoid Kicksecure Qubes Templates downloading Tor Browser
+* Patrick: Implemented. Needs to be tested.
+** Aaron: Notes shared in chat.
+* Patrick: Simple solution. Install tb-updater and tb-starter only. Instruct user to run Tor Browser Downloader in user session.
+
+== ipv6 sleep 10 improvements ==
+* as discussed
+* skip sleep when IPv6 is disabled in kernel
+* event-based if possible
+* re-check every 0.1 - 1 second
+* commentary why this is necessary
 
 == Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
 * Qubes R4.3
@@ -44,17 +90,15 @@ TODO
 * Patrick: Can <code>qubes-core-admin-addon-kicksecure</code> be made functional if installed too late (after Kicksecure Template installation)?
 ** Aaron: Qubes OS R4.3 will have <code>qubes-core-admin-addon-kicksecure</code> preinstalled, so this likely won't happen to anyone using the final release. Sourcing all scripts in /etc/qubes/post-install.d will resolve the issue if it somehow shows up in the wild.
 
-== trixie-port - browser-choice - do not Depends on tb-updater ==
-* should be installed only on demand
-* this is to avoid Kicksecure Qubes Templates downloading Tor Browser
-* Patrick: Implemented. Needs to be tested.
-
 == Qubes R4.3 bypass review ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 * are there more ways in which that can go wrong?
 * realistic to fundamentally re-design this to avoid such kinds of issues?
+** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
 * https://github.com/QubesOS/qubes-issues/issues/6948
 * https://github.com/QubesOS/qubes-issues/issues/3994
+* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
+* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
 
 == install fewer firmware-nonfreedom packages by default in Qubes ==
 * install firmware-nonfreedom by default in Qubes. Done by Patrick.
@@ -842,6 +886,16 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie port - display brightness ==
+* https://forums.kicksecure.com/t/display-brightness/1271/2
+* Aaron: See notes in chat.
+* Previous plan: wrap pkexec and the backlight helper in lxqt to insert a validating shim, allowing safe(r) access to the backlight subsystem
+** Problem: this will probably interact poorly with user-sysmaint-split unless we place the pkexec wrapper in helper-scripts, and the pkexec wrapper may be too invasive to put in helper-scripts.
+* Current plan: create a dedicated backlight management utility in Python, integrate with LXQt's config system, hide the existing (broken) backlight config, integrate with brightness keyboard shortcuts in labwc
+* Aaron: Implemented:
+** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/commit/673dd505ddfc2683c56fabcc9b35801f3a5926c6
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/36aa0d32b93f3332d232fbe898ef11073dd32669
+
 == trixie port - virtualbox / kvm - dynamic resolution resizing with labwc ==
 * Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
 * Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
