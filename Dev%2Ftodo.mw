@@ -11,23 +11,12 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== misc review ==
-* https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
-** Aaron: Reviewed, did some testing and commented.
-* https://github.com/Kicksecure/security-misc/pull/323
-** Aaron: Reviewed, looks good, merged and fixed.
-* https://github.com/Kicksecure/security-misc/pull/322
-** Aaron: Reviewed, looks good, merged and fixed.
-* https://github.com/KSPP/kspp.github.io/issues/9
-** Aaron: Replied.
-* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
-** Aaron: Reviewed and left change suggestions.
-* https://github.com/QubesOS/qubes-core-agent-linux/pull/613
-** Aaron: Left some notes.
-*** Patrick: Please re-review as changes have been applied.
-
-== Qubes R4.2 default_dispvm bypass ==
-* https://github.com/QubesOS/qubes-issues/issues/10328
+== trixie port - display brightness ==
+* https://forums.kicksecure.com/t/display-brightness/1271/2
+* Aaron: See notes in chat.
+* Previous plan: wrap pkexec and the backlight helper in lxqt to insert a validating shim, allowing safe(r) access to the backlight subsystem
+** Problem: this will probably interact poorly with user-sysmaint-split unless we place the pkexec wrapper in helper-scripts, and the pkexec wrapper may be too invasive to put in helper-scripts.
+* Current plan: create a dedicated backlight management utility in Python, integrate with LXQt's config system, hide the existing (broken) backlight config, integrate with brightness keyboard shortcuts in labwc
 
 == Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
 * Qubes R4.3
@@ -53,80 +42,12 @@ TODO
 * Aaron: What's a good way to inform users that they need to install <code>qubes-core-admin-addon-kicksecure</code> and reboot before installing Kicksecure templates?
 ** Patrick: No idea. Could you discuss at Qubes please? I guess also applies to <code>qubes-core-admin-addon-whonix</code> to a lesser degree. Meanwhile, please document.
 * Patrick: Can <code>qubes-core-admin-addon-kicksecure</code> be made functional if installed too late (after Kicksecure Template installation)?
+** Aaron: Qubes OS R4.3 will have <code>qubes-core-admin-addon-kicksecure</code> preinstalled, so this likely won't happen to anyone using the final release. Sourcing all scripts in /etc/qubes/post-install.d will resolve the issue if it somehow shows up in the wild.
 
-== qubes - kernel boot mode for Template shows user session instead of sysmaint session ==
-* todo
-* Aaron: Cannot reproduce.
-** Freshly installed Kicksecure 17 template:
-*** Boot mode: PERSISTENT Mode - SYSMAINT Session
-*** AppVM default boot mode: PERSISTENT Mode - USER Session
-** After upgrading from Kicksecure 17 to Kicksecure 18:
-*** Boot mode: PERSISTENT Mode - SYSMAINT Session
-*** AppVM default boot mode: PERSISTENT Mode - USER Session
-** Freshly installed Whonix-Workstation 17 template:
-*** Boot mode: PERSISTENT Mode - SYSMAINT Session
-*** AppVM default boot mode: PERSISTENT Mode - USER Session
-** After upgrading from Whonix-Workstation 17 to Whonix-Workstation 18:
-*** Boot mode: PERSISTENT Mode - SYSMAINT Session
-*** AppVM default boot mode: PERSISTENT Mode - USER Session
-** Freshly installed Whonix-Gateway 17 template:
-*** Boot mode: PERSISTENT Mode - USER Session
-**** Expected, since Whonix-Gateway does not have user-sysmaint-split installed on it.
-*** AppVM default boot mode: PERSISTENT Mode - USER Session
-** After upgrading from Whonix-Gateway 17 to Whonix-Gateway 18:
-*** Boot mode: PERSISTENT Mode - USER Session
-*** AppVM default boot mode: PERSISTENT Mode - USER Session
-** AppVMs for both Kicksecure 18 and Whonix-(Workstation/Gateway) 18 have the correct "PERSISTENT Mode - USER Session" boot mode
-* Patrick: Whonix-Gateway - without user-sysmaint-split - shouldn't show PERSISTENT Mode - USER Session since not applicable?
-
-== repository-dist-wizard gui broken in Qubes R4.3 ==
-* input by keyboard functional
-* input by mouse clicks broken
-* if not easily reproducible then please ignore
-* Aaron: Reproduced, I can select the "No..." radio button with the mouse, but not the "Yes..." radio button.
-** Moving the radio button group box down so that it isn't partially overlapped by the text above resolves the problem.
-** Short-term solution, move the box down.
-** Long-term solution, this should be using layouts so that the window can be resized freely and overlap bugs of this sort don't occur. This will also make the wizard compatible with non-default Qt themes which may have differently sized elements.
-
-== virtualbox / kvm - dynamic resolution resizing with labwc ==
-* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
-* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
-* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
-* Discussed with Patrick, we should probably solve this ourselves via a daemon that watches udev messages, as not having this feature may result in serious usability issues with VirtualBox.
-* Discovered that a missing binary, VBoxDRMClient, was needed to even try to implement resize support. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=968390#15
-** Found and tested a fix, sent it to the VirtualBox Debian maintainers. Awaiting a response from them. I can still work on implementing the resizing code in the mean time.
-
-== systemcheck - dependencies version check broken ==
-<pre>
-[INFO] [systemcheck] kicksecure-dependencies-cli: Could not detect derivative kicksecure-dependencies-cli version. (Code: 2) Please report this bug!
-</pre>
-* Fix should be added to usr/libexec/systemcheck/preparation.bsh:
-<pre>
-   if [ -f "/usr/share/anon-gw-base-files/gateway" ]; then
-      derivative_deb_package_name="whonix-gateway-packages-dependencies-cli"
-   elif [ -f "/usr/share/anon-ws-base-files/workstation" ]; then
-      derivative_deb_package_name="whonix-workstation-packages-dependencies-cli"
-   elif [ -f "/usr/share/kicksecure/marker" ]; then
-      derivative_deb_package_name="kicksecure-dependencies-cli"
-   fi
-</pre>
-
-== stardict - investigate ==
-* debian policy appliable?
-* https://www.kicksecure.com/wiki/Dev/Debian#startdict
-
-== install extrepo-offline-data by default ==
-* todo
-
-== install firmware-nonfreedom by default in Qubes ==
-* install firmware-nonfreedom by default in Qubes
-* useful for sys-net (non-free wifi controller)
-* perhaps add a comment since we might be flip-flopping on this?
-* we might want a smaller collection of packages to save disk space since for example microcode is irrelevant? can we rely on a Qubes package for the non-free firmware package selection?
-
-== browser-choice - do not Depends on tb-updater ==
+== trixie-port - browser-choice - do not Depends on tb-updater ==
 * should be installed only on demand
 * this is to avoid Kicksecure Qubes Templates downloading Tor Browser
+* Patrick: Implemented. Needs to be tested.
 
 == Qubes R4.3 bypass review ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
@@ -134,6 +55,11 @@ TODO
 * realistic to fundamentally re-design this to avoid such kinds of issues?
 * https://github.com/QubesOS/qubes-issues/issues/6948
 * https://github.com/QubesOS/qubes-issues/issues/3994
+
+== install fewer firmware-nonfreedom packages by default in Qubes ==
+* install firmware-nonfreedom by default in Qubes. Done by Patrick.
+* purpose: useful for sys-net (non-free wifi controller)
+* we might want a smaller collection of packages to save disk space since for example microcode is irrelevant? can we rely on a Qubes package for the non-free firmware package selection?
 
 == rename sdwdate.ConnectCheck to sdwdate-gui.ConnectCheck etc ==
 * we might have sdwdate.ConnectCheck issues from time to time. this implies broken sdwdate while actually only sdwdate-gui is broken.
@@ -326,9 +252,9 @@ Aug 11 08:27:57 localhost memlockd[1006]: Error mmaping /etc/resolv.conf: Invali
 * suggest prospective developers
 * Started to write tooling for this: https://github.com/ArrayBolt3/drk Very incomplete, nowhere near usable. Will keep developing this.
 
-== repository-dist - improvements ==
-* {{Github_link|repo=repository-dist
-* GUI: detect stable, stable-proposed-updates, testers, developers setting in GUI. I.e. if re-running the tool, keep the former setting. Should this depend on previous choice in the GUI (status files, probably easier) or actual status on the disk (might be manually modified by the user)|path=?}}
+== repository-dist-wizard - improvements ==
+* {{Github_link|repo=repository-dist}}
+* GUI: detect stable, stable-proposed-updates, testers, developers setting in GUI. I.e. if re-running the tool, keep the former setting. Should this depend on previous choice in the GUI (status files, probably easier) or actual status on the disk (might be manually modified by the user)
 * add support for switching back and forth between clearnet and onion
 
 == Tool to onionize all APT sources ==
@@ -632,6 +558,20 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== Qubes misc review ==
+* https://github.com/QubesOS/qubes-core-agent-linux/pull/613
+* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
+
+== stardict - investigate ==
+* debian policy appliable?
+* https://www.kicksecure.com/wiki/Dev/Debian#startdict
+* Sent email to Debian.
+* https://lists.debian.org/debian-devel/2025/10/msg00175.html
+
+== Qubes R4.2 default_dispvm bypass ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
+** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
+
 == trixie port - Whonix Qubes template issues ==
 * reported by Marek on Matrix:
 ** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
@@ -689,12 +629,6 @@ sudo apt install serial-console-enable
 == trixie port - display brightness ==
 * https://forums.kicksecure.com/t/display-brightness/1271/2
 * Aaron: See notes in chat.
-
-== trixie port - Qubes R4.3 Templates ==
-* Kicksecure, Whonix: Please bump Qubes R4.3 upstream to Kicksecure, Whonix 18
-* Aaron: Waiting on input on upgrade plan.
-* https://github.com/QubesOS/qubes-issues/issues/10253
-* Aaron: Marek seems to be doing this so far. Will watch and assist where possible.
 
 == investigate Tor Browser metadata signing and expiration ==
 * in context of: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3028994433
@@ -908,19 +842,24 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== Qubes Kicksecure Template - unrestricted session - requires sudo password bug ==
-* Qubes Kicksecure 18 Template
-* unrestricted session
-* bug: asks for sudo password
-* perhaps run: <code>passwordless-root</code>
-* Aaron: Reproduced issue. Fix: https://github.com/ArrayBolt3/user-sysmaint-split/commit/acdf596affe8c40232863a83f19f4101607600c9
-** This fix is insufficient on its own because <code>passwordless-root</code> is persistent even in AppVMs. Need to make it ephemeral in AppVMs by default, persistent only if explicitly requested.
-*** Done, commits pushed to helper-scripts and usability-misc. '''NOTE:''' This includes moving passwordless-root from usability-misc to helper-scripts (done to avoid needing to add usability-misc as a dependency of user-sysmaint-split), so this will require the Breaks/Replaces in helper-scripts to be bumped.
+== trixie port - virtualbox / kvm - dynamic resolution resizing with labwc ==
+* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
+* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
+* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
+* Discussed with Patrick, we should probably solve this ourselves via a daemon that watches udev messages, as not having this feature may result in serious usability issues with VirtualBox.
+* Discovered that a missing binary, VBoxDRMClient, was needed to even try to implement resize support. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=968390#15
+** Found and tested a fix, sent it to the VirtualBox Debian maintainers. Awaiting a response from them. I can still work on implementing the resizing code in the mean time.
+*** This was accepted in Debian.
+* Implemented the helper tools for actually changing the display resolution.
+** vm-config-dist: https://github.com/ArrayBolt3/vm-config-dist/commit/bbc2633fe329229465ac7ab87bc08eef0e01e6a3
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/abc9f58a0d8e800a3a2b3754b3243ce94dad9c0d
 
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
 * Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
 * Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
+** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
+** Patrick: Added <code>modify</code> permissions.
 
 == security-misc /etc/systemd/system/ review ==
 * Do /etc/systemd/system folder contents still make sense nowadays?
@@ -954,6 +893,98 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
 
 = ARCHIVED =
+== misc review ==
+* https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
+** Aaron: Reviewed, did some testing and commented.
+* https://github.com/Kicksecure/security-misc/pull/323
+** Aaron: Reviewed, looks good, merged and fixed.
+* https://github.com/Kicksecure/security-misc/pull/322
+** Aaron: Reviewed, looks good, merged and fixed.
+* https://github.com/KSPP/kspp.github.io/issues/9
+** Aaron: Replied.
+* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
+** Aaron: Reviewed and left change suggestions.
+* https://github.com/QubesOS/qubes-core-agent-linux/pull/613
+** Aaron: Left some notes.
+*** Patrick: Please re-review as changes have been applied.
+* Aaron: Also reviewed, left notes on https://github.com/Kicksecure/security-misc/issues/328
+
+== qubes - kernel boot mode for Template shows user session instead of sysmaint session ==
+* todo
+* Aaron: Cannot reproduce.
+** Freshly installed Kicksecure 17 template:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** After upgrading from Kicksecure 17 to Kicksecure 18:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** Freshly installed Whonix-Workstation 17 template:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** After upgrading from Whonix-Workstation 17 to Whonix-Workstation 18:
+*** Boot mode: PERSISTENT Mode - SYSMAINT Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** Freshly installed Whonix-Gateway 17 template:
+*** Boot mode: PERSISTENT Mode - USER Session
+**** Expected, since Whonix-Gateway does not have user-sysmaint-split installed on it.
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** After upgrading from Whonix-Gateway 17 to Whonix-Gateway 18:
+*** Boot mode: PERSISTENT Mode - USER Session
+*** AppVM default boot mode: PERSISTENT Mode - USER Session
+** AppVMs for both Kicksecure 18 and Whonix-(Workstation/Gateway) 18 have the correct "PERSISTENT Mode - USER Session" boot mode
+* Patrick: Whonix-Gateway - without user-sysmaint-split - shouldn't show PERSISTENT Mode - USER Session since not applicable?
+* Aaron: After threat model discussion, choosing to install user-sysmaint-split in Whonix-Gateway.
+** See chat notes, fixing a UX issue requires some files to move in a way that will either require a painful migration process or require Whonix 18 and Kicksecure 18 systems to be rebuild/reinstalled/repaired by the end user. Would suggest the latter, as Kicksecure/Whonix 18 doesn't have even testing releases out yet.
+*** Patrick: Confusing fixed by installing user-sysmaint-split by default.
+
+== systemcheck - dependencies version check broken ==
+<pre>
+[INFO] [systemcheck] kicksecure-dependencies-cli: Could not detect derivative kicksecure-dependencies-cli version. (Code: 2) Please report this bug!
+</pre>
+* Fix should be added to usr/libexec/systemcheck/preparation.bsh:
+<pre>
+   if [ -f "/usr/share/anon-gw-base-files/gateway" ]; then
+      derivative_deb_package_name="whonix-gateway-packages-dependencies-cli"
+   elif [ -f "/usr/share/anon-ws-base-files/workstation" ]; then
+      derivative_deb_package_name="whonix-workstation-packages-dependencies-cli"
+   elif [ -f "/usr/share/kicksecure/marker" ]; then
+      derivative_deb_package_name="kicksecure-dependencies-cli"
+   fi
+</pre>
+* Patrick: Fixed.
+
+== Qubes Kicksecure Template - unrestricted session - requires sudo password bug ==
+* Qubes Kicksecure 18 Template
+* unrestricted session
+* bug: asks for sudo password
+* perhaps run: <code>passwordless-root</code>
+* Aaron: Reproduced issue. Fix: https://github.com/ArrayBolt3/user-sysmaint-split/commit/acdf596affe8c40232863a83f19f4101607600c9
+** This fix is insufficient on its own because <code>passwordless-root</code> is persistent even in AppVMs. Need to make it ephemeral in AppVMs by default, persistent only if explicitly requested.
+*** Done, commits pushed to helper-scripts and usability-misc. '''NOTE:''' This includes moving passwordless-root from usability-misc to helper-scripts (done to avoid needing to add usability-misc as a dependency of user-sysmaint-split), so this will require the Breaks/Replaces in helper-scripts to be bumped.
+*** Patrick: Merged.
+
+== install extrepo-offline-data by default ==
+* todo
+* Patrick: Done.
+
+== repository-dist-wizard gui broken in Qubes R4.3 ==
+* input by keyboard functional
+* input by mouse clicks broken
+* if not easily reproducible then please ignore
+* Aaron: Reproduced, I can select the "No..." radio button with the mouse, but not the "Yes..." radio button.
+** Moving the radio button group box down so that it isn't partially overlapped by the text above resolves the problem.
+** Short-term solution, move the box down.
+** Long-term solution, this should be using layouts so that the window can be resized freely and overlap bugs of this sort don't occur. This will also make the wizard compatible with non-default Qt themes which may have differently sized elements.
+** Implemented long-term solution: https://github.com/ArrayBolt3/repository-dist/commit/9c9feff070470b4494520c8a5d16699f6185a04c Tested on Whonix-Gateway, works.
+*** Patrick: Merged.
+
+== trixie port - Qubes R4.3 Templates ==
+* Kicksecure, Whonix: Please bump Qubes R4.3 upstream to Kicksecure, Whonix 18
+* Aaron: Waiting on input on upgrade plan.
+* https://github.com/QubesOS/qubes-issues/issues/10253
+* Aaron: Marek seems to be doing this so far. Will watch and assist where possible.
+** This appears to have been completed.
+
 == /etc/apt/sources.list.d/debian.soures not readable by user only readable by root ==
 * is this intended?
 * Aaron: Not intended. I'm unable to reproduce this issue though - neither a fresh ISO installation of Kicksecure nor Whonix-Gateway or Whonix-Workstation VirtualBox VMs have this issue.  Also not seeing this issue in a Whonix-Gateway 18 sys-whonix on Qubes R4.3.
