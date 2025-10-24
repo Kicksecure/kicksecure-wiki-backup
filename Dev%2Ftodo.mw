@@ -11,40 +11,40 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - keyboard layout change usability improvements ==
-* user story: I am a VM using and in user session, CLI. How do I change my keymap? "sudo loadkeys de"? Doesn't work. No sudo.
-* todo:
-** refuse running <code>set-labwc-keymap</code> as root
-** <code>set-console-keymap</code>: CLI tool that can be used to configure the virtual terminal
-** <code>set-multi-keymap</code>: CLI tool that can set the keymap for currently logged-in account (most likely <code>user</code>), <code>sysmaint</code> and <code>root</code>. It should run, is a wrapper around <code>set-console-keymap</code> and <code>set-labwc-keymap</code>. A tool that sets the keymap for all places relevant to the user.
-*** sysmaint GUI: <code>set-labwc-keymap --persist keymap</code>
-*** user GUI: <code>sudo --non-interactive -u user set-labwc-keymap --no-reload --persist keymap</code>
-*** sysmaint CLI: <code>set-console-keymap de</code>
-*** user CLI: <code>sudo --non-interactive -u user set-console-keymap de</code>
-** not sure about <code>--non-interactive</code>
+== trixie port - dom0 updates over Whonix-Gateway ==
+* downloads failing because curl proxy is not set
+* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
+** Merged, test locally.
 
-== trixie port - sysmaint session occasional black screen ==
-* Environment: Kicksecure 17 upgraded to Kicksecure 18
-* After some period of inactivity in the sysmaint session, the screen goes black
-* A mouse click or keypress is enough to make it come back
-* XScreenSaver is the likely culprit, find a way to disable on Wayland sessions
+== trixie-port - system keymap script improvements ==
+* minor changes were added by Patrick
+* 1) inside Qubes - for testing only. Not sure worth fixing or a good idea to fix because we don't want to hide all stderr. Perhaps grep ignore these kinds of lines?
 
-== trixie-port - port Whonix-Gateway to privleap ==
-* currently broken: anon connection wizard, tor control panel
+<pre>
++ dpkg-reconfigure --frontend=noninteractive keyboard-configuration
+cat: '/sys/bus/usb/devices/*:*/bInterfaceClass': No such file or directory
+cat: '/sys/bus/usb/devices/*:*/bInterfaceSubClass': No such file or directory
+cat: '/sys/bus/usb/devices/*:*/bInterfaceProtocol': No such file or directory
+</pre>
 
-== trixie-port - browser-choice - do not Depends on tb-updater ==
-* should be installed only on demand
-* this is to avoid Kicksecure Qubes Templates downloading Tor Browser
-* Patrick: Implemented. Needs to be tested.
-** Aaron: Notes shared in chat.
-* Patrick: Simple solution. Install tb-updater and tb-starter only. Instruct user to run Tor Browser Downloader in user session.
+* 2) always show a success message such as the following even if run manually (currently only in interactive mode)
 
-== ipv6 sleep 10 improvements ==
-* as discussed
-* skip sleep when IPv6 is disabled in kernel
-* event-based if possible
-* re-check every 0.1 - 1 second
-* commentary why this is necessary
+<pre>
+  printf '%s\n' "$0: INFO: Keyboard layout change successful." >&2
+</pre>
+
+* 3) introduce a wrapper that runs both, <code>set-labwc-keymap</code> and <code>set-system-keymap</code> for the current user
+* 4) rename <code>set-system-keymap</code> to <code>set-console-keymap</code>?
+* 5) introduce a wrapper <code>set-all-keymap</code> (or different name) that sets
+** labwc user
+** labwc sysmaint
+** system keymap
+* 6) port live-config-dist to <code>set-all-keymap</code>, if sensible
+* 7) sysmaint-panel: add an option to start <code>set-all-keymap</code>
+
+== systemcheck - garbage configuration should result in non-zero exit code ==
+* bug: systemcheck with garbage configuration file does not error out
+* reported by Marek in qubes-public
 
 == Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
 * Qubes R4.3
@@ -266,6 +266,10 @@ Aug 11 08:27:57 localhost memlockd[1006]: Error mmaping /etc/resolv.conf: Invali
 * add code to upgrade-nonroot that also updates flatpaks
 * Aaron: Implemented: https://github.com/ArrayBolt3/usability-misc/tree/arraybolt3/flatpak-update
 * Patrick: should be deferred until update torification has been improved
+
+== stream isolation socks user name new spec implementation ==
+* https://spec.torproject.org/proposals/351-socks-auth-extensions.html
+* note: curl socks user name in Qubes source code
 
 == investigate Debian Rolling ==
 * investigate why Debian Rolling initiative failed
@@ -586,6 +590,21 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== trixie port - sdwdate permission issues ==
+* qubes-public, Marek:
+
+<pre>
+ok, I have real systemcheck results now, there are a couple issues found in sys-whonix, but overall nothing major IMO: https://openqa.qubes-os.org/tests/156993/file/whonixcheck-whonixcheck-sys-whonix.log
+</pre>
+
+<pre>
+sdwdate[2269]: PermissionError: [Errno 13] Permission denied: '/var/lib/sdwdate/time-replay-protection-utc-unixtime'
+</pre>
+
+* Aaron: Unable to reproduce. The file shown above is owned by <code>sdwdate:sdwdate</code> on my release-upgraded sys-whonix qube, AppArmor permits sdwdate to access it, and the error above does not show in the output of <code>systemcheck --verbose --leak-tests</code>.
+* Aaron: Reproduced in Whonix-Gateway 18 template downloaded from Qubes community template repo. Somehow the entire /var/lib/sdwdate directory is owned by <code>debian-tor:UNKNOWN</code> (uid 108, gid 120).
+** Fix created, pending review and merge: https://github.com/QubesOS/qubes-core-agent-linux/pull/615
+
 == Qubes misc review ==
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/613
 * https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
@@ -599,23 +618,6 @@ sudo apt install serial-console-enable
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 ** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
-
-== trixie port - Whonix Qubes template issues ==
-* reported by Marek on Matrix:
-** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
-** "something doesn't work with pcmanfm-qt actions - I see only "QubesOS Edit in DisposableVM" action, not any of copy/move, or view in disposable; on top of that, looks like file names are swapped (action for viewing in dispvm is in file named edit, and action for editing is in file named open); and I have no idea from "QubesOS" prefix comes"
-*** Aaron: Fixed, required changes both on our side and on the Qubes side:
-**** usability-misc: https://github.com/ArrayBolt3/usability-misc/commit/0a8c2d7d97345d78aa7cd58199b5b67925ab93cf
-**** qubes-gui-agent-linux: https://github.com/QubesOS/qubes-gui-agent-linux/pull/246
-*** Aaron: Fixed:
-**** kicksecure-meta-packages https://github.com/ArrayBolt3/kicksecure-meta-packages/commit/ab29e2a064404b7462dca7e3956712e86799e30f
-**** developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/commit/36056e1856cd37b2f57b573a029dfa427f23f41c
-* Patrick: Merged.
-* Aaron: Still working on the Qubes PR.
-
-== kloak - Qubes OS input anonymization flicker bug ==
-* https://github.com/QubesOS/qubes-issues/issues/10286
-* Fix submitted: https://github.com/QubesOS/qubes-gui-daemon/pull/172
 
 == kloak - handle dynamic keyboard layout changes ==
 * when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
@@ -653,10 +655,6 @@ sudo apt install serial-console-enable
 ** Key has been extended.
 * Aaron:
 ** Moved to WAITING ON for now, we should move this back to TODO once we're ready to do the actual key rotation.
-
-== trixie port - display brightness ==
-* https://forums.kicksecure.com/t/display-brightness/1271/2
-* Aaron: See notes in chat.
 
 == investigate Tor Browser metadata signing and expiration ==
 * in context of: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3028994433
@@ -870,47 +868,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie port - greetd only provides one chance to log in ==
-* Aaron: if wrong username or password is provided, wlgreet exits and does not restart, user is left at a black screen
-** Fixed: https://github.com/ArrayBolt3/desktop-config-dist/commit/490b6833915f95ae66ce72c02aca6df23e9d13f2
-
-== trixie-port - desktop environment broken after release upgrade ==
-* Kicksecure Xfce 17.4.4.6 (for VirtualBox)
-* sudo apt update && sudo apt dist-upgrade
-* sudo release upgrade
-* reboot
-* bug: desktop environment no longer starting
-* debugging:
-** in sysmaint mode, CLI:
-
-<pre>
-systemctl is-enabled greetd
-disabled
-</pre>
-
-<pre>
-sudo journalctl --boot -u sysmaint-boot
-...
-INFO: Wayland session: 'no'
-...
-</pre>
-
-* in <code>sysmaint-boot</code> we can probably safely change the default from <code>sysmaint_session_wayland='no'</code> to <code>sysmaint_session_wayland='yes'</code>. Done.
-** Aaron: Reviewed, looks good.
-* file <code>/etc/greetd/config.toml.d/30_desktop-config-dist.conf</code> looks messed up. Something has apparently removed all newlines. <code>sudo debsums -ce</code> shows that the file has been modified. This is unexpected.
-** Aaron: autologinchange bug, fixed by https://github.com/ArrayBolt3/helper-scripts/commit/1e7fc0e26cb761189f744cd1ca3b2491d46d6135
-* Aaron: greetd being disabled is likely the result of lightdm being enabled at installation time. Should be fixed by https://github.com/ArrayBolt3/legacy-dist/commit/2ced60ca2f41f310a70e0af5b88202c432b78cb3
-
-== trixie port - display brightness ==
-* https://forums.kicksecure.com/t/display-brightness/1271/2
-* Aaron: See notes in chat.
-* Previous plan: wrap pkexec and the backlight helper in lxqt to insert a validating shim, allowing safe(r) access to the backlight subsystem
-** Problem: this will probably interact poorly with user-sysmaint-split unless we place the pkexec wrapper in helper-scripts, and the pkexec wrapper may be too invasive to put in helper-scripts.
-* Current plan: create a dedicated backlight management utility in Python, integrate with LXQt's config system, hide the existing (broken) backlight config, integrate with brightness keyboard shortcuts in labwc
-* Aaron: Implemented:
-** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/commit/673dd505ddfc2683c56fabcc9b35801f3a5926c6
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/36aa0d32b93f3332d232fbe898ef11073dd32669
-
 == trixie port - virtualbox / kvm - dynamic resolution resizing with labwc ==
 * Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
 * Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
@@ -923,7 +880,22 @@ INFO: Wayland session: 'no'
 ** vm-config-dist: https://github.com/ArrayBolt3/vm-config-dist/commit/bbc2633fe329229465ac7ab87bc08eef0e01e6a3
 ** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/abc9f58a0d8e800a3a2b3754b3243ce94dad9c0d
 * Patrick: Merged.
-* todo: Should error out if vbox drm client is missing or fails.
+* Patrick: Tested in VirtualBox. Working great!
+* Patrick: TODO: Please error out if vbox drm client is missing or fails.
+** Aaron: Implemented, along with similar code for KVM: https://github.com/ArrayBolt3/vm-config-dist/commit/166a3e13a2ad1369265aed7f23e3a7ae21cdea89
+
+== trixie port - Kicksecure template build failure due to firmware-nonfreedom ==
+* https://github.com/QubesOS/updates-status/issues/6127
+* Aaron: Fix: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/1008e40ce5f82cab25703ea942603e70e4054bdf
+
+== trixie-port - Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc/qubes.UpdatesProxy ==
+<pre>
+Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc/qubes.UpdatesProxy
+</pre>
+
+* Patrick: Is this a known Qubes bug?
+* Marek in qubes-public: This is related to whonix replacing qubes.UpdatesProxy service. Those options are valid only for socket based service, but whonix replace it with a script. I'd recommend replacing service config too to avoid the warnings
+* Aaron: Should be fixed by https://github.com/ArrayBolt3/qubes-whonix/commit/a8dfbfb3acd5ef5c506ea3b52132fac2be3239ed
 
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
@@ -964,6 +936,120 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
 
 = ARCHIVED =
+== trixie port - Whonix Qubes template issues ==
+* reported by Marek on Matrix:
+** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
+** "something doesn't work with pcmanfm-qt actions - I see only "QubesOS Edit in DisposableVM" action, not any of copy/move, or view in disposable; on top of that, looks like file names are swapped (action for viewing in dispvm is in file named edit, and action for editing is in file named open); and I have no idea from "QubesOS" prefix comes"
+*** Aaron: Fixed, required changes both on our side and on the Qubes side:
+**** usability-misc: https://github.com/ArrayBolt3/usability-misc/commit/0a8c2d7d97345d78aa7cd58199b5b67925ab93cf
+**** qubes-gui-agent-linux: https://github.com/QubesOS/qubes-gui-agent-linux/pull/246
+*** Aaron: Fixed:
+**** kicksecure-meta-packages https://github.com/ArrayBolt3/kicksecure-meta-packages/commit/ab29e2a064404b7462dca7e3956712e86799e30f
+**** developer-meta-files: https://github.com/ArrayBolt3/developer-meta-files/commit/36056e1856cd37b2f57b573a029dfa427f23f41c
+* Patrick: Merged.
+* Aaron: Still working on the Qubes PR.
+** Merged.
+
+== kloak - Qubes OS input anonymization flicker bug ==
+* https://github.com/QubesOS/qubes-issues/issues/10286
+* Fix submitted: https://github.com/QubesOS/qubes-gui-daemon/pull/172
+** Merged.
+
+== trixie-port - browser-choice - do not Depends on tb-updater ==
+* should be installed only on demand
+* this is to avoid Kicksecure Qubes Templates downloading Tor Browser
+* Patrick: Implemented. Needs to be tested.
+** Aaron: Notes shared in chat.
+* Patrick: Simple solution. Install tb-updater and tb-starter only. Instruct user to run Tor Browser Downloader in user session.
+** Aaron: Implemented, commits pushed to browser-choice.
+* Patrick: Merged.
+
+== ipv6 sleep 10 improvements ==
+* as discussed
+* skip sleep when IPv6 is disabled in kernel
+* event-based if possible
+* re-check every 0.1 - 1 second
+* commentary why this is necessary
+* Aaron: Pushed commits to anon-gw-anonymizer-config, reimplementing tor-wait-for-network in Python for speed and ease of working with files, and adding the requested functionality.
+* Patrick: Merged.
+
+== trixie-port - port Whonix-Gateway to privleap ==
+* currently broken: anon connection wizard, tor control panel
+* Aaron: Pushed new commits to anon-connection-wizard and tor-control-panel to fix issues in both. Untested (yet).
+* Patrick: Merged.
+
+== trixie port - sysmaint session occasional black screen ==
+* Environment: Kicksecure 17 upgraded to Kicksecure 18
+* After some period of inactivity in the sysmaint session, the screen goes black
+* A mouse click or keypress is enough to make it come back
+* XScreenSaver is the likely culprit, find a way to disable on Wayland sessions
+** Aaron: Added code to legacy-dist to remove xscreensaver on upgrades. https://github.com/ArrayBolt3/legacy-dist/commit/7f91838b8878ded1f45479d4d9ecc7b01414c454
+* Patrick: Merged.
+
+== trixie-port - keyboard layout change usability improvements ==
+* user story: I am a VM using and in user session, CLI. How do I change my keymap? "sudo loadkeys de"? Doesn't work. No sudo.
+* todo:
+** refuse running <code>set-labwc-keymap</code> as root
+** <code>set-console-keymap</code>: CLI tool that can be used to configure the virtual terminal
+** <code>set-multi-keymap</code>: CLI tool that can set the keymap for currently logged-in account (most likely <code>user</code>), <code>sysmaint</code> and <code>root</code>. It should run, is a wrapper around <code>set-console-keymap</code> and <code>set-labwc-keymap</code>. A tool that sets the keymap for all places relevant to the user.
+*** sysmaint GUI: <code>set-labwc-keymap --persist keymap</code>
+*** user GUI: <code>sudo --non-interactive -u user set-labwc-keymap --no-reload --persist keymap</code>
+*** sysmaint CLI: <code>set-console-keymap de</code>
+*** user CLI: <code>sudo --non-interactive -u user set-console-keymap de</code>
+** not sure about <code>--non-interactive</code>
+* Aaron: Implementation ended up being via two wrapper scripts, <code>set-labwc-keymap</code> and <code>set-system-keymap</code>, the former of which configures labwc for the current user, the latter of which configures labwc and the console for all users (with labwc settings being overridable by user-specific settings). The main reason for this is that there is no user-specific console keyboard layout, only a system-wide one. Both scripts wrap a library, <code>set-keyboard-layout.sh</code>. Changes pushed to helper-scripts.
+** Test plan completed, some fixes made during testing.
+* Patrick: Merged.
+
+== trixie port - greetd only provides one chance to log in ==
+* Aaron: if wrong username or password is provided, wlgreet exits and does not restart, user is left at a black screen
+** Fixed: https://github.com/ArrayBolt3/desktop-config-dist/commit/490b6833915f95ae66ce72c02aca6df23e9d13f2
+* Patrick: Merged.
+
+== trixie-port - desktop environment broken after release upgrade ==
+* Kicksecure Xfce 17.4.4.6 (for VirtualBox)
+* sudo apt update && sudo apt dist-upgrade
+* sudo release upgrade
+* reboot
+* bug: desktop environment no longer starting
+* debugging:
+** in sysmaint mode, CLI:
+
+<pre>
+systemctl is-enabled greetd
+disabled
+</pre>
+
+<pre>
+sudo journalctl --boot -u sysmaint-boot
+...
+INFO: Wayland session: 'no'
+...
+</pre>
+
+* in <code>sysmaint-boot</code> we can probably safely change the default from <code>sysmaint_session_wayland='no'</code> to <code>sysmaint_session_wayland='yes'</code>. Done.
+** Aaron: Reviewed, looks good.
+* file <code>/etc/greetd/config.toml.d/30_desktop-config-dist.conf</code> looks messed up. Something has apparently removed all newlines. <code>sudo debsums -ce</code> shows that the file has been modified. This is unexpected.
+** Aaron: autologinchange bug, fixed by https://github.com/ArrayBolt3/helper-scripts/commit/1e7fc0e26cb761189f744cd1ca3b2491d46d6135
+* Aaron: greetd being disabled is likely the result of lightdm being enabled at installation time. Should be fixed by https://github.com/ArrayBolt3/legacy-dist/commit/2ced60ca2f41f310a70e0af5b88202c432b78cb3
+* Patrick: Merged.
+
+== trixie port - display brightness ==
+* https://forums.kicksecure.com/t/display-brightness/1271/2
+* Aaron: See notes in chat.
+* Previous plan: wrap pkexec and the backlight helper in lxqt to insert a validating shim, allowing safe(r) access to the backlight subsystem
+** Problem: this will probably interact poorly with user-sysmaint-split unless we place the pkexec wrapper in helper-scripts, and the pkexec wrapper may be too invasive to put in helper-scripts.
+* Current plan: create a dedicated backlight management utility in Python, integrate with LXQt's config system, hide the existing (broken) backlight config, integrate with brightness keyboard shortcuts in labwc
+* Aaron: Implemented:
+** desktop-config-dist: https://github.com/ArrayBolt3/desktop-config-dist/commit/673dd505ddfc2683c56fabcc9b35801f3a5926c6
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/36aa0d32b93f3332d232fbe898ef11073dd32669
+* Patrick: Merged.
+
+== curl dns ticket reply ==
+* https://github.com/QubesOS/qubes-core-agent-linux/pull/614
+** I thought my reply was productive. But apparently not. Please discuss, comment.
+*** Aaron: Can't comment, discussion has been locked to limited collaborators there. However I don't see anything non-productive about the comment at https://github.com/curl/curl/discussions/11125#discussioncomment-7498491. If a Tor developer went out of their way to say the library shouldn't block onion resolution, and they do anyway because a Tor spec supposedly says they should, that's a strange decision and one they arguably shouldn't have made. Not sure much else can be done there other than work around the issue as we do now.
+
 == misc review ==
 * https://github.com/Kicksecure/security-misc/issues/199#issuecomment-3345059129 - opinion?
 ** Aaron: Reviewed, did some testing and commented.
