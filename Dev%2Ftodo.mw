@@ -11,98 +11,19 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie port - dom0 updates over Whonix-Gateway ==
-* downloads failing because curl proxy is not set
-* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
-** Merged, test locally.
-
 == trixie-port - system keymap script improvements ==
-* minor changes were added by Patrick
-* 1) inside Qubes - for testing only. Not sure worth fixing or a good idea to fix because we don't want to hide all stderr. Perhaps grep ignore these kinds of lines?
-
-<pre>
-+ dpkg-reconfigure --frontend=noninteractive keyboard-configuration
-cat: '/sys/bus/usb/devices/*:*/bInterfaceClass': No such file or directory
-cat: '/sys/bus/usb/devices/*:*/bInterfaceSubClass': No such file or directory
-cat: '/sys/bus/usb/devices/*:*/bInterfaceProtocol': No such file or directory
-</pre>
-
-* 2) always show a success message such as the following even if run manually (currently only in interactive mode)
+* more changes were added by Patrick
+* 1) always show a success message such as the following even if run manually (currently only in interactive mode)
+** Aaron: Implemented in helper-scripts.
 
 <pre>
   printf '%s\n' "$0: INFO: Keyboard layout change successful." >&2
 </pre>
 
-* 3) introduce a wrapper that runs both, <code>set-labwc-keymap</code> and <code>set-system-keymap</code> for the current user
-* 4) rename <code>set-system-keymap</code> to <code>set-console-keymap</code>?
-* 5) introduce a wrapper <code>set-all-keymap</code> (or different name) that sets
-** labwc user
-** labwc sysmaint
-** system keymap
-* 6) port live-config-dist to <code>set-all-keymap</code>, if sensible
-* 7) sysmaint-panel: add an option to start <code>set-all-keymap</code>
-
-== systemcheck - garbage configuration should result in non-zero exit code ==
-* bug: systemcheck with garbage configuration file does not error out
-* reported by Marek in qubes-public
-
-== Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
-* Qubes R4.3
-* 1) Kicksecure 17 Template installed
-* 2) qubes-core-admin-addon-kicksecure installed
-* 3) release-upgraded to Kicksecure 18
-* 4) created App Qube based on Kicksecure Template
-* bug: sdwdate-gui qrexec denied messages
-* debugging information:
-** running "sudo qvm-features-request kicksecure=1" shows nothing in dom0 journal (i would expect that to show something)
-** running in dom0 "qvm-features kicksecure-17 | grep kicksecure" shows that qvm-feature "kicksecure" is missing
-* Aaron: Reproduced, but the issue can be fixed by doing the following:
-** Ensure <code>qubes-core-admin-addon-kicksecure</code> is installed in dom0, if it isn't, install it (<code>sudo qubes-dom0-update --action=install qubes-core-admin-addon-kicksecure</code>) and then restart qubesd (<code>sudo systemctl restart qubesd</code>)
-*** Patrick: Qubes bug? <code>sudo systemctl restart qubesd</code> should be automated? Perhaps the postinst script can do that?
-** Boot the upgraded Kicksecure 18 qube
-** Run <code>cd /etc/qubes/post-install.d; for i in *.sh; do source $i; done</code>
-** Reboot dom0 or restart qubesd again
-* Aaron: Why are the post-install.d scripts not being properly called after a release upgrade? Shouldn't apt do this for us? We could probably work around this issue by making <code>release-upgrade</code> source all scripts in post-install.d after the upgrade.
-*** Patrick: Please report at Qubes to find a solution for this, if still an issue.
-*** Patrick: Possible to add some echo informational debug output so we can see what is run?
-** Aaron: After another test, I believe these scripts are being run. Most likely the reason I ran into this issue was because I failed to restart qubesd or dom0 before running the release upgrade. After reinstalling Kicksecure 17 again and upgrading it to Kicksecure 18 again, the feature is properly set and a new AppVM based on the template is able to connect to sys-whonix's sdwdate_gui_server.
-**** Patrick: Probably same solution as above: Automate restart of qubesdb?
-* Aaron: What's a good way to inform users that they need to install <code>qubes-core-admin-addon-kicksecure</code> and reboot before installing Kicksecure templates?
-** Patrick: No idea. Could you discuss at Qubes please? I guess also applies to <code>qubes-core-admin-addon-whonix</code> to a lesser degree. Meanwhile, please document.
-* Patrick: Can <code>qubes-core-admin-addon-kicksecure</code> be made functional if installed too late (after Kicksecure Template installation)?
-** Aaron: Qubes OS R4.3 will have <code>qubes-core-admin-addon-kicksecure</code> preinstalled, so this likely won't happen to anyone using the final release. Sourcing all scripts in /etc/qubes/post-install.d will resolve the issue if it somehow shows up in the wild.
-
-== Qubes R4.3 bypass review ==
-* https://github.com/QubesOS/qubes-issues/issues/10328
-* are there more ways in which that can go wrong?
-* realistic to fundamentally re-design this to avoid such kinds of issues?
-** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
-* https://github.com/QubesOS/qubes-issues/issues/6948
-* https://github.com/QubesOS/qubes-issues/issues/3994
-* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
-* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
-* Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
-
-== install fewer firmware-nonfreedom packages by default in Qubes ==
-* install firmware-nonfreedom by default in Qubes. Done by Patrick.
-* purpose: useful for sys-net (non-free wifi controller)
-* we might want a smaller collection of packages to save disk space since for example microcode is irrelevant? can we rely on a Qubes package for the non-free firmware package selection?
-
-== rename sdwdate.ConnectCheck to sdwdate-gui.ConnectCheck etc ==
-* we might have sdwdate.ConnectCheck issues from time to time. this implies broken sdwdate while actually only sdwdate-gui is broken.
-* if still possible and sane, please rename.
-
-== calamares - keyboard layout setting broken in Wayland ==
-* todo
-* please set up for
-** CLI user
-** CLI sysmaint
-** GUI user
-** GUI sysmaint
-* Aaron: Moving the systemd-localed keyboard layout set disable file out of the way does not result in labwc picking up the keyboard layout settings from Calamares. Will need to create a shellprocess module or similar to hack this into working right.
-* Aaron: Implemented, changes pushed to helper-scripts, user-sysmaint-split, lxqt-wayland-session, and live-config-dist. All four scenarios now work as expected.
-** Patrick: Merged.
-* Patrick: Is this reported upstream, so one day Debian, calamares will be fixed and can be used without XWayland?
+* 2) port live-config-dist to <code>set-all-keymap</code>, if sensible
+** Aaron: Implemented in helper-scripts and live-config-dist.
+* 3) sysmaint-panel: add an option to start <code>set-all-keymap</code>
+** Not yet implemented.
 
 == approx - work around and report metadata caching problems ==
 * Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
@@ -590,6 +511,31 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== calamares - keyboard layout setting broken in Wayland ==
+* todo
+* please set up for
+** CLI user
+** CLI sysmaint
+** GUI user
+** GUI sysmaint
+* Aaron: Moving the systemd-localed keyboard layout set disable file out of the way does not result in labwc picking up the keyboard layout settings from Calamares. Will need to create a shellprocess module or similar to hack this into working right.
+* Aaron: Implemented, changes pushed to helper-scripts, user-sysmaint-split, lxqt-wayland-session, and live-config-dist. All four scenarios now work as expected.
+** Patrick: Merged.
+* Patrick: Is this reported upstream, so one day Debian, calamares will be fixed and can be used without XWayland?
+** Aaron: Looked at Debian's systemd bug reports, did not find anything. Filed a report of my own against the <code>systemd</code> package (as that's the package that ships /usr/share/dbus-1/system.d/systemd-localed-read-only.conf). https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1118702
+
+== Qubes R4.3 bypass review ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
+* are there more ways in which that can go wrong?
+* realistic to fundamentally re-design this to avoid such kinds of issues?
+** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
+* https://github.com/QubesOS/qubes-issues/issues/6948
+* https://github.com/QubesOS/qubes-issues/issues/3994
+* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
+* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
+* Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
+** Major feature request, will most likely need to wait until after the release of R4.3.
+
 == trixie port - sdwdate permission issues ==
 * qubes-public, Marek:
 
@@ -868,6 +814,37 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
+* Qubes R4.3
+* 1) Kicksecure 17 Template installed
+* 2) qubes-core-admin-addon-kicksecure installed
+* 3) release-upgraded to Kicksecure 18
+* 4) created App Qube based on Kicksecure Template
+* bug: sdwdate-gui qrexec denied messages
+* debugging information:
+** running "sudo qvm-features-request kicksecure=1" shows nothing in dom0 journal (i would expect that to show something)
+** running in dom0 "qvm-features kicksecure-17 | grep kicksecure" shows that qvm-feature "kicksecure" is missing
+* Aaron: Reproduced, but the issue can be fixed by doing the following:
+** Ensure <code>qubes-core-admin-addon-kicksecure</code> is installed in dom0, if it isn't, install it (<code>sudo qubes-dom0-update --action=install qubes-core-admin-addon-kicksecure</code>) and then restart qubesd (<code>sudo systemctl restart qubesd</code>)
+*** Patrick: Qubes bug? <code>sudo systemctl restart qubesd</code> should be automated? Perhaps the postinst script can do that?
+** Boot the upgraded Kicksecure 18 qube
+** Run <code>cd /etc/qubes/post-install.d; for i in *.sh; do source $i; done</code>
+** Reboot dom0 or restart qubesd again
+* Aaron: Why are the post-install.d scripts not being properly called after a release upgrade? Shouldn't apt do this for us? We could probably work around this issue by making <code>release-upgrade</code> source all scripts in post-install.d after the upgrade.
+*** Patrick: Please report at Qubes to find a solution for this, if still an issue.
+*** Patrick: Possible to add some echo informational debug output so we can see what is run?
+** Aaron: After another test, I believe these scripts are being run. Most likely the reason I ran into this issue was because I failed to restart qubesd or dom0 before running the release upgrade. After reinstalling Kicksecure 17 again and upgrading it to Kicksecure 18 again, the feature is properly set and a new AppVM based on the template is able to connect to sys-whonix's sdwdate_gui_server.
+**** Patrick: Probably same solution as above: Automate restart of qubesdb?
+* Aaron: What's a good way to inform users that they need to install <code>qubes-core-admin-addon-kicksecure</code> and reboot before installing Kicksecure templates?
+** Patrick: No idea. Could you discuss at Qubes please? I guess also applies to <code>qubes-core-admin-addon-whonix</code> to a lesser degree. Meanwhile, please document.
+* Patrick: Can <code>qubes-core-admin-addon-kicksecure</code> be made functional if installed too late (after Kicksecure Template installation)?
+** Aaron: Qubes OS R4.3 will have <code>qubes-core-admin-addon-kicksecure</code> preinstalled, so this likely won't happen to anyone using the final release. Sourcing all scripts in /etc/qubes/post-install.d will resolve the issue if it somehow shows up in the wild.
+* Aaron: Anything left to do here? Our last conversation on Matrix ended with the conclusion that we could not re-evaluate the in-vm post-install.d scripts when dom0's qubes-core-admin-addon-kicksecure was installed or updated, but I'm not sure if we came to a conclusion about what to do with this, if anything. Maybe just document that users can do something like <code>export LC_ALL=C; cd /etc/qubes/post-install.d; for i in *.sh; do source "$i"; done</code> if necessary?
+** Patrick: Please document.
+*** Aaron: Documented at https://www.kicksecure.com/wiki/Qubes#Known_Issues.
+** Patrick: Please discuss upstream if restarting qubesdb is a possibility.
+*** Aaron: Created thread on qubes-devel: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05669.html
+
 == trixie port - virtualbox / kvm - dynamic resolution resizing with labwc ==
 * Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
 * Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
@@ -883,19 +860,39 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Patrick: Tested in VirtualBox. Working great!
 * Patrick: TODO: Please error out if vbox drm client is missing or fails.
 ** Aaron: Implemented, along with similar code for KVM: https://github.com/ArrayBolt3/vm-config-dist/commit/166a3e13a2ad1369265aed7f23e3a7ae21cdea89
+*** Patrick: Merged.
+*** Patrick: Maybe better don't exit non-zero in case and keep running? Because there is no (systemd) supervisor to restart the script.
+*** Patrick: Before: Forgiving in case dependencies are missing but installed later.
+*** Patrick: Now: Non-forgiving, more brittle?
+**** Aaron: Fixed, pushed a new commit to vm-config-dist for this.
+*** TODO: Start wlr-resize-watcher as a systemd user unit, if sensible. Would be useful if the process gets randomly killed (some sort of user space OOM management).
+**** Aaron: Undesirable, as this would prevent wlr-randr from finding the appropriate Wayland compositor. Having the session start the process makes sure the right WAYLAND_DISPLAY variable is set, which means wlr-randr should always access the correct compositor.
 
-== trixie port - Kicksecure template build failure due to firmware-nonfreedom ==
-* https://github.com/QubesOS/updates-status/issues/6127
-* Aaron: Fix: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/1008e40ce5f82cab25703ea942603e70e4054bdf
+== trixie port - dom0 updates over Whonix-Gateway ==
+* downloads failing because curl proxy is not set
+* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
+** Merged, test locally.
+** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
 
-== trixie-port - Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc/qubes.UpdatesProxy ==
+== trixie port - remove volume widget from Whonix-Gateway sysmaint panel ==
+* Waybar is showing an empty volume widget on Whonix-Gateway
+* Move config files to remove this.
+** Likely need to handle migration of the files from desktop-config-dist to the appropriate base-files packages to prevent breaking Qubes OS R4.3 rc3. See qubes-public Matrix room for context.
+** Done, commits pushed to kicksecure-base-files, anon-ws-base-files, anon-gw-base-files, and desktop-config-dist for this.
+*** '''WARNING:''' After desktop-config-dist's version is bumped, all three *-base-files packages MUST have a Breaks/Replaces against <code>desktop-config-dist (<< LATEST_VERSION)</code> added.
+* Patrick: Note to self:
 <pre>
-Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc/qubes.UpdatesProxy
+myfind . | grep base-files | grep --invert-match dist-base-files | grep --invert-match whonix-base-files | grep control
 </pre>
-
-* Patrick: Is this a known Qubes bug?
-* Marek in qubes-public: This is related to whonix replacing qubes.UpdatesProxy service. Those options are valid only for socket based service, but whonix replace it with a script. I'd recommend replacing service config too to avoid the warnings
-* Aaron: Should be fixed by https://github.com/ArrayBolt3/qubes-whonix/commit/a8dfbfb3acd5ef5c506ea3b52132fac2be3239ed
+<pre>
+./whonix/anon-gw-base-files/debian/control
+./whonix/anon-ws-base-files/debian/control
+./kicksecure/kicksecure-base-files/debian/control
+</pre>
+* Patrick: Done.
+* Patrick: Please check if functional on your side. If so, please move to archived.
+** Aaron: Upgrades worked, however due to an oversight the volume widget in Whonix-Gateway wasn't fully removed. Pushed a commit to anon-gw-base-files to fix.
+** Also noticed a preinst script header was missing in usability-misc, and pushed a commit to fix that too.
 
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
@@ -936,6 +933,41 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
 
 = ARCHIVED =
+== systemcheck - garbage configuration should result in non-zero exit code ==
+* bug: systemcheck with garbage configuration file does not error out
+* reported by Marek in qubes-public
+* Aaron: Fixed: https://github.com/ArrayBolt3/systemcheck/commit/91f272912d5e35939298c0d075dd711b9597fd03
+* Patrick: Merged.
+
+== trixie port - Kicksecure template build failure due to firmware-nonfreedom ==
+* https://github.com/QubesOS/updates-status/issues/6127
+* Aaron: Fix: https://github.com/ArrayBolt3/qubes-template-kicksecure/commit/1008e40ce5f82cab25703ea942603e70e4054bdf
+* Patrick: Merged.
+
+== trixie-port - Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc/qubes.UpdatesProxy ==
+<pre>
+Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc/qubes.UpdatesProxy
+</pre>
+* Patrick: Is this a known Qubes bug?
+* Marek in qubes-public: This is related to whonix replacing qubes.UpdatesProxy service. Those options are valid only for socket based service, but whonix replace it with a script. I'd recommend replacing service config too to avoid the warnings
+* Aaron: Should be fixed by https://github.com/ArrayBolt3/qubes-whonix/commit/a8dfbfb3acd5ef5c506ea3b52132fac2be3239ed
+* Patrick: Merged.
+
+== install fewer firmware-nonfreedom packages by default in Qubes ==
+* install firmware-nonfreedom by default in Qubes. Done by Patrick.
+* purpose: useful for sys-net (non-free wifi controller)
+* we might want a smaller collection of packages to save disk space since for example microcode is irrelevant? can we rely on a Qubes package for the non-free firmware package selection?
+* Aaron: Qubes does not appear to have a package we can use for this.
+* Aaron: Split packages containing networking firmware (wireless or wired) from firmware-nonfreedom into firmware-nonfreedom-network, and switched kicksecure-qubes-cli to use firmware-nonfreedom-network. Commits in developer-meta-files, kicksecure-meta-packages.
+* Patrick: Merged.
+
+== rename sdwdate.ConnectCheck to sdwdate-gui.ConnectCheck etc ==
+* we might have sdwdate.ConnectCheck issues from time to time. this implies broken sdwdate while actually only sdwdate-gui is broken.
+* if still possible and sane, please rename.
+** Aaron: Asked for permission to do the rename: https://github.com/QubesOS/qubes-issues/issues/10346#issue-3547291374 Permission was granted.
+*** Qubes-side PR: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/26
+*** sdwdate-gui commit: https://github.com/ArrayBolt3/sdwdate-gui/commit/2dc019a1e6967d55ca8a8cfd8e24a35e269bab10
+* Patrick: Merged.
 == trixie port - Whonix Qubes template issues ==
 * reported by Marek on Matrix:
 ** "in Whonix 18 workstation, opening "file manager" via domains widget opens "Catfish", not "pcmanfm-qt". Looks like some default apps are not set correctly (qubes calls xdg-open $HOME, which should open default app for inode/directory type)."
