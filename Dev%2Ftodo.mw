@@ -11,8 +11,14 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== mediawiki-shell review and merge ==
+* https://github.com/Kicksecure/mediawiki-shell/pull/1
+* please review, merge and commit any fixes on top if any new bugs were introduced or obvious bugs spotted
+* branch: trixie (primarily used internally)
+
 == qubes memory issues ==
 * https://forums.whonix.org/t/increased-memory-usage/22092/12
+* sdwdate_gui_client.py: please port to asyncio - not trixie branch
 
 == approx - work around and report metadata caching problems ==
 * Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
@@ -803,19 +809,137 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie-port - system keymap script improvements ==
-* more changes were added by Patrick
-* 1) always show a success message such as the following even if run manually (currently only in interactive mode)
-** Aaron: Implemented in helper-scripts.
+== trixie-port - default screen resolution ==
+* vm-config-dist: debian/control
 
 <pre>
-  printf '%s\n' "$0: INFO: Keyboard layout change successful." >&2
+ Set screen resolution 1920x1080 by default for VM in VirtualBox and KVM.
+ Workaround for low screen resolution 1024x768 at first boot. When using lower
+ screen resolutions, Xfce will automatically scale down.
+ `/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/displays.xml` TODO: This
+ may no longer be the case with Wayland.
 </pre>
 
-* 2) port live-config-dist to <code>set-all-keymap</code>, if sensible
-** Aaron: Implemented in helper-scripts and live-config-dist.
-* 3) sysmaint-panel: add an option to start <code>set-all-keymap</code>
-** Aaron: Implemented in sysmaint-panel.
+* please re-implement for Wayland, if sane.
+* Aaron: Doing this exactly as described may be hard on Wayland, because there is no location where the display configuration is saved any longer, it is always generated dynamically and must be fixed manually by the user if desired. However, what we can do is set the resolution of all displays to 1920x1080 if the appropriate hypervisor helpers (VBoxDRMClient, spice-vdagentd) are not active when wlr_resize_helper launches.
+** Implemented this in vm-config-dist.
+
+== trixie-port - system keymap script improvements #2 ==
+* separate set-console-keymap
+** Aaron: Implemented in helper-scripts.
+* sysmaint-panel: do not show keymap change in Qubes
+** Aaron: Implemented. Notes about UI design left in chat.
+
+== trixie-port - don't offer on-screen keyboard in sysmaint-panel on Qubes ==
+* The on-screen keyboard button does nothing under Qubes because Wayland is not in use. Even if Wayland was in use, this would be confusing.
+** Hid this and the system keymap button under Qubes OS at the same time.
+
+== trixie port - forcing reinstallation of alternative /usr/libexec/user-sysmaint-split/policy-rc.d because link group policy-rc.d is broken ==
+* bug?
+
+<pre>
+Setting up systemcheck (3:43.6-1) ...
+warn: The user `canary' is already a member of `debian-tor'.
+warn: The user `systemcheck' is already a member of `debian-tor'.
+warn: The user `systemcheck' is already a member of `systemd-journal'.
+Processing triggers for qubes-core-agent (4.3.34-1+deb13u1) ...
+Setting up user-sysmaint-split (3:9.1-1) ...
+update-alternatives: warning: forcing reinstallation of alternative /usr/libexec/user-sysmaint-split/policy-rc.d because link group policy-rc.d is broken
+Synchronizing state of openvpn.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable openvpn
+Generating grub configuration file ...
+Found theme: /boot/grub/themes/kicksecure/theme.txt
+Adding boot menu entry for UEFI Firmware Settings ...
+done
+Setting up security-misc-desktop (3:48.8-1) ...
+</pre>
+
+* Aaron: Qubes OS bug, fix submitted: https://github.com/QubesOS/qubes-builder-debian/pull/95
+
+== trixie port - dom0 updates over Whonix-Gateway ==
+* downloads failing because curl proxy is not set
+* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
+** Merged, test locally.
+** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
+* Patrick: Please document. https://www.whonix.org/wiki/Qubes/UpdatesProxy
+** Aaron: Added documentation, did some more testing of the dom0 update system to ensure it actually was working.
+
+== usbguard - test in Qubes ==
+* Does usbguard and usbguard-notifier work for you in Qubes?
+* Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
+* Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
+** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
+** Patrick: Added <code>modify</code> permissions.
+
+== security-misc /etc/systemd/system/ review ==
+* Do /etc/systemd/system folder contents still make sense nowadays?
+** Aaron: In my opinion, yes. The contents of these files prevent a locked root account from denying access to emergency mode, which IMO is very useful so that someone with physical access to the machine and the disk passphrase (and bootloader password) can fix a broken system even if the root account is locked for security. I also think that these should remain in /etc as they are now, because that allows users who want to disable this behavior to do so easily.
+
+== automate detection of new tor and tor-browser versions ==
+* We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
+* We also hardcode a Tor Browser version number in tb-updater.
+* Create scripts for finding the latest versions of Tor and Tor Browser, and taking the necessary actions to update them
+
+<pre>
+## developer-meta-files
+/usr/bin/dm-virtualbox-update-local-and-wiki-links
+</pre>
+
+<pre>
+make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debian-packages --flavor internal --target root --function download_tpo_packages
+</pre>
+
+<pre>
+./build-steps.d/*_create-debian-packages --flavor internal --target virtualbox --function download_packages_from_debian_sid
+</pre>
+
+* Aaron: Implemented Tor package update script as dm-tor-update-repository, added wrapper in dm-packaging-helper-script.
+* Aaron: Tor Browser version updater is already implemented as <code>pkg_tor_browser_version_update</code> in dm-packaging-helper-script.
+* Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
+
+= ARCHIVED =
+== trixie port - remove volume widget from Whonix-Gateway sysmaint panel ==
+* Waybar is showing an empty volume widget on Whonix-Gateway
+* Move config files to remove this.
+** Likely need to handle migration of the files from desktop-config-dist to the appropriate base-files packages to prevent breaking Qubes OS R4.3 rc3. See qubes-public Matrix room for context.
+** Done, commits pushed to kicksecure-base-files, anon-ws-base-files, anon-gw-base-files, and desktop-config-dist for this.
+*** '''WARNING:''' After desktop-config-dist's version is bumped, all three *-base-files packages MUST have a Breaks/Replaces against <code>desktop-config-dist (<< LATEST_VERSION)</code> added.
+* Patrick: Note to self:
+<pre>
+myfind . | grep base-files | grep --invert-match dist-base-files | grep --invert-match whonix-base-files | grep control
+</pre>
+<pre>
+./whonix/anon-gw-base-files/debian/control
+./whonix/anon-ws-base-files/debian/control
+./kicksecure/kicksecure-base-files/debian/control
+</pre>
+* Patrick: Done.
+* Patrick: Please check if functional on your side. If so, please move to archived.
+** Aaron: Upgrades worked, however due to an oversight the volume widget in Whonix-Gateway wasn't fully removed. Pushed a commit to anon-gw-base-files to fix.
+** Also noticed a preinst script header was missing in usability-misc, and pushed a commit to fix that too.
+* Patrick: Merged.
+== trixie port - virtualbox / kvm - dynamic resolution resizing with labwc ==
+* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
+* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
+* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
+* Discussed with Patrick, we should probably solve this ourselves via a daemon that watches udev messages, as not having this feature may result in serious usability issues with VirtualBox.
+* Discovered that a missing binary, VBoxDRMClient, was needed to even try to implement resize support. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=968390#15
+** Found and tested a fix, sent it to the VirtualBox Debian maintainers. Awaiting a response from them. I can still work on implementing the resizing code in the mean time.
+*** This was accepted in Debian.
+* Implemented the helper tools for actually changing the display resolution.
+** vm-config-dist: https://github.com/ArrayBolt3/vm-config-dist/commit/bbc2633fe329229465ac7ab87bc08eef0e01e6a3
+** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/abc9f58a0d8e800a3a2b3754b3243ce94dad9c0d
+* Patrick: Merged.
+* Patrick: Tested in VirtualBox. Working great!
+* Patrick: TODO: Please error out if vbox drm client is missing or fails.
+** Aaron: Implemented, along with similar code for KVM: https://github.com/ArrayBolt3/vm-config-dist/commit/166a3e13a2ad1369265aed7f23e3a7ae21cdea89
+*** Patrick: Merged.
+*** Patrick: Maybe better don't exit non-zero in case and keep running? Because there is no (systemd) supervisor to restart the script.
+*** Patrick: Before: Forgiving in case dependencies are missing but installed later.
+*** Patrick: Now: Non-forgiving, more brittle?
+**** Aaron: Fixed, pushed a new commit to vm-config-dist for this.
+*** TODO: Start wlr-resize-watcher as a systemd user unit, if sensible. Would be useful if the process gets randomly killed (some sort of user space OOM management).
+**** Aaron: Undesirable, as this would prevent wlr-randr from finding the appropriate Wayland compositor. Having the session start the process makes sure the right WAYLAND_DISPLAY variable is set, which means wlr-randr should always access the correct compositor.
 
 == Qubes Kicksecure - sdwdate-gui qrexec denied messages ==
 * Qubes R4.3
@@ -848,94 +972,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Patrick: Please discuss upstream if restarting qubesdb is a possibility.
 *** Aaron: Created thread on qubes-devel: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05669.html
 
-== trixie port - virtualbox / kvm - dynamic resolution resizing with labwc ==
-* Automatic display resizing is no longer working under VirtualBox with Wayland. It actually does work, but it requires the user to manually set the resolution to the "native" resolution after every window resize.
-* Possible solutions listed for discussion at https://github.com/labwc/labwc/discussions/3109
-* Discussion ongoing, currently waiting on upstream to reply. I might attempt to do further development work on this if we consider it a priority.
-* Discussed with Patrick, we should probably solve this ourselves via a daemon that watches udev messages, as not having this feature may result in serious usability issues with VirtualBox.
-* Discovered that a missing binary, VBoxDRMClient, was needed to even try to implement resize support. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=968390#15
-** Found and tested a fix, sent it to the VirtualBox Debian maintainers. Awaiting a response from them. I can still work on implementing the resizing code in the mean time.
-*** This was accepted in Debian.
-* Implemented the helper tools for actually changing the display resolution.
-** vm-config-dist: https://github.com/ArrayBolt3/vm-config-dist/commit/bbc2633fe329229465ac7ab87bc08eef0e01e6a3
-** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split/commit/abc9f58a0d8e800a3a2b3754b3243ce94dad9c0d
+== trixie-port - system keymap script improvements ==
+* more changes were added by Patrick
+* 1) always show a success message such as the following even if run manually (currently only in interactive mode)
+** Aaron: Implemented in helper-scripts.
+
+<pre>
+  printf '%s\n' "$0: INFO: Keyboard layout change successful." >&2
+</pre>
+
+* 2) port live-config-dist to <code>set-all-keymap</code>, if sensible
+** Aaron: Implemented in helper-scripts and live-config-dist.
+* 3) sysmaint-panel: add an option to start <code>set-all-keymap</code>
+** Aaron: Implemented in sysmaint-panel.
 * Patrick: Merged.
-* Patrick: Tested in VirtualBox. Working great!
-* Patrick: TODO: Please error out if vbox drm client is missing or fails.
-** Aaron: Implemented, along with similar code for KVM: https://github.com/ArrayBolt3/vm-config-dist/commit/166a3e13a2ad1369265aed7f23e3a7ae21cdea89
-*** Patrick: Merged.
-*** Patrick: Maybe better don't exit non-zero in case and keep running? Because there is no (systemd) supervisor to restart the script.
-*** Patrick: Before: Forgiving in case dependencies are missing but installed later.
-*** Patrick: Now: Non-forgiving, more brittle?
-**** Aaron: Fixed, pushed a new commit to vm-config-dist for this.
-*** TODO: Start wlr-resize-watcher as a systemd user unit, if sensible. Would be useful if the process gets randomly killed (some sort of user space OOM management).
-**** Aaron: Undesirable, as this would prevent wlr-randr from finding the appropriate Wayland compositor. Having the session start the process makes sure the right WAYLAND_DISPLAY variable is set, which means wlr-randr should always access the correct compositor.
 
-== trixie port - dom0 updates over Whonix-Gateway ==
-* downloads failing because curl proxy is not set
-* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
-** Merged, test locally.
-** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
-
-== trixie port - remove volume widget from Whonix-Gateway sysmaint panel ==
-* Waybar is showing an empty volume widget on Whonix-Gateway
-* Move config files to remove this.
-** Likely need to handle migration of the files from desktop-config-dist to the appropriate base-files packages to prevent breaking Qubes OS R4.3 rc3. See qubes-public Matrix room for context.
-** Done, commits pushed to kicksecure-base-files, anon-ws-base-files, anon-gw-base-files, and desktop-config-dist for this.
-*** '''WARNING:''' After desktop-config-dist's version is bumped, all three *-base-files packages MUST have a Breaks/Replaces against <code>desktop-config-dist (<< LATEST_VERSION)</code> added.
-* Patrick: Note to self:
-<pre>
-myfind . | grep base-files | grep --invert-match dist-base-files | grep --invert-match whonix-base-files | grep control
-</pre>
-<pre>
-./whonix/anon-gw-base-files/debian/control
-./whonix/anon-ws-base-files/debian/control
-./kicksecure/kicksecure-base-files/debian/control
-</pre>
-* Patrick: Done.
-* Patrick: Please check if functional on your side. If so, please move to archived.
-** Aaron: Upgrades worked, however due to an oversight the volume widget in Whonix-Gateway wasn't fully removed. Pushed a commit to anon-gw-base-files to fix.
-** Also noticed a preinst script header was missing in usability-misc, and pushed a commit to fix that too.
-
-== usbguard - test in Qubes ==
-* Does usbguard and usbguard-notifier work for you in Qubes?
-* Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
-* Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
-** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
-** Patrick: Added <code>modify</code> permissions.
-
-== security-misc /etc/systemd/system/ review ==
-* Do /etc/systemd/system folder contents still make sense nowadays?
-** Aaron: In my opinion, yes. The contents of these files prevent a locked root account from denying access to emergency mode, which IMO is very useful so that someone with physical access to the machine and the disk passphrase (and bootloader password) can fix a broken system even if the root account is locked for security. I also think that these should remain in /etc as they are now, because that allows users who want to disable this behavior to do so easily.
-
-== automate detection of new tor and tor-browser versions ==
-* We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
-* We also hardcode a Tor Browser version number in tb-updater.
-* Create scripts for finding the latest versions of Tor and Tor Browser, and taking the necessary actions to update them
-
-<pre>
-## developer-meta-files
-/usr/bin/dm-virtualbox-update-local-and-wiki-links
-</pre>
-
-<pre>
-## developer-meta-files
-/usr/bin/dm-virtualbox-update-local-and-wiki-links
-</pre>
-
-<pre>
-make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debian-packages --flavor internal --target root --function download_tpo_packages
-</pre>
-
-<pre>
-./build-steps.d/*_create-debian-packages --flavor internal --target virtualbox --function download_packages_from_debian_sid
-</pre>
-
-* Aaron: Implemented Tor package update script as dm-tor-update-repository, added wrapper in dm-packaging-helper-script.
-* Aaron: Tor Browser version updater is already implemented as <code>pkg_tor_browser_version_update</code> in dm-packaging-helper-script.
-* Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
-
-= ARCHIVED =
 == systemcheck - garbage configuration should result in non-zero exit code ==
 * bug: systemcheck with garbage configuration file does not error out
 * reported by Marek in qubes-public
