@@ -11,14 +11,106 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== tor-control-panel - anon-connection-wizard - review contributions ==
+* please discuss, review
+* https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/99
+
+== trixie port - dom0 updates over Whonix-Gateway ==
+* downloads failing because curl proxy is not set
+* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
+** Merged, test locally.
+** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
+* Patrick: Please document. https://www.whonix.org/wiki/Qubes/UpdatesProxy
+** Aaron: Added documentation, did some more testing of the dom0 update system to ensure it actually was working.
+* Patrick: If possible, please revert upstream in Qubes and implement a uwt wrapper for dnf that injects the required option.
+** https://github.com/QubesOS/qubes-core-agent-linux/pull/614#issuecomment-3449884150
+
+== trixie port - sysmaint - sys-whonix - missing systemd units ==
+* Please check if any systemd units are missing in <code>sysmaint.target</code>.
+
+<pre>
+sudo systemctl list-units --all | grep "loaded    inactive dead"
+</pre>
+
+== trixie-port - /etc/profile.d environment variables missing ==
+* Kicksecure 18, ISO with vm-config-dist installed
+* <code>/etc/profile.d/20_software_rendering_in_vms.sh</code> - script executes correctly if executed using <code>sh -x /etc/profile.d/20_software_rendering_in_vms.sh</code>
+* when typing <code>env | grep -i QML</code> the environment variable is missing under Wayland
+
+== trixie-port - lock-screen improvements ==
+* move from /usr/libexec/helper-scripts/lock-screen to /usr/bin/lock-screen since it might be useful to lock the screen using the command line
+* bug: unhandled swaylock issues. If swaylock exits non-zero, there would currently be no error popup. (Theoretical issue only at this time.)
+* disable screen lock by default inside VMs, if sane?
+** Versus security on servers with wayland installed?
+** Versus vm-config-dist? (Which says it disables screen locks for VMs but does not yet for Wayland.)
+* use a different background image that simply states "screen lock" all over the place?
+* use a swaylack theme?
+** https://github.com/dracula/swaylock/blob/main/swaylock/config
+** looks better: https://github.com/dracula/swaylock/blob/main/screenshot.png
+** no need for a different background image, but the style, the clock might help the user to identify that this is a screen locker
+* there is not really a swaylock alternative where the password prompt is more obvious? (was discussed before, i think)
+* automatically lock screen in sysmaint session. Currently does not seem to happen.
+
+== trixie-port - apparmor-info - fix ==
+* bug: apparmor-info is no longer functional on trixie. It fails to show denied (or any) apparmor messages.
+
+== trixie-port - kloak - compilation warning ==
+<pre>
+In file included from src/kloak.c:47:
+src/xdg-output-protocol.h: In function 'zxdg_output_v1_add_listener':
+src/xdg-output-protocol.h:347:38: warning: cast discards 'const' qualifier from pointer target type [-Wcast-qual]
+  347 |                                      (void (**)(void)) listener, data);
+      |                                      ^
+In file included from src/kloak.c:48:
+src/wlr-layer-shell.h: In function 'zwlr_layer_surface_v1_add_listener':
+src/wlr-layer-shell.h:434:38: warning: cast discards 'const' qualifier from pointer target type [-Wcast-qual]
+  434 |                                      (void (**)(void)) listener, data);
+      |                                      ^
+make[1]
+</pre>
+
+== trixie-port - power saving ==
+* todo: discuss
+
+== trixie-port - vm-config-dist - disable power savings by default in wayland ==
+* needed?
+
+== trixie-port - vm-config-dist - install on ISO by default ==
+* vm-config-dist has vbox-guest-installer and wlr-resize-watcher, which both can be/are highly useful inside virtualbox
+* Do you see anything that makes vm-config-dist incompatible with installed on the host operating system or inside Qubes?
+* investigate /etc/dracut.conf.d/30-vm-config-dist.conf and if it seems safe for rm_conffile removal
+* Please modify, if sane, to make it compatible with the host / Qubes. I.e. implement no-ops, if needed.
+* Install by default everywhere non-Qubes, Qubes and host, if sane.
+
+== trixie-port - Qubes journal log messages ==
+* Qubes. Should be fixed but is not fixed. Happening after boot.
+
+<pre>
+Oct 27 13:40:36 host qrexec-agent[12402]: 2025-10-27 13:40:36.085 qrexec-agent[12402]: exec.c:902:find_qrexec_service: Warning: ignoring skip-service-descriptor=true for execute executable service /etc/qubes-rpc/qubes.UpdatesProxy
+</pre>
+
+* Qubes. Happening after boot.
+
+<pre>
+Oct 27 13:50:13 host systemctl[14620]: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=@.host --user to connect to bus of other user)
+</pre>
+
+* Qubes. Happening when using sdwdate-gui log viewer from systray to open a terminal emulator.
+
+<pre>
+host xdg-desktop-por[1655]: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+</pre>
+
+* Same as above.
+
+<pre>
+xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire context
+</pre>
+
 == mediawiki-shell review and merge ==
 * https://github.com/Kicksecure/mediawiki-shell/pull/1
 * please review, merge and commit any fixes on top if any new bugs were introduced or obvious bugs spotted
 * branch: trixie (primarily used internally)
-
-== qubes memory issues ==
-* https://forums.whonix.org/t/increased-memory-usage/22092/12
-* sdwdate_gui_client.py: please port to asyncio - not trixie branch
 
 == approx - work around and report metadata caching problems ==
 * Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
@@ -809,60 +901,22 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie-port - default screen resolution ==
-* vm-config-dist: debian/control
-
-<pre>
- Set screen resolution 1920x1080 by default for VM in VirtualBox and KVM.
- Workaround for low screen resolution 1024x768 at first boot. When using lower
- screen resolutions, Xfce will automatically scale down.
- `/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/displays.xml` TODO: This
- may no longer be the case with Wayland.
-</pre>
-
-* please re-implement for Wayland, if sane.
-* Aaron: Doing this exactly as described may be hard on Wayland, because there is no location where the display configuration is saved any longer, it is always generated dynamically and must be fixed manually by the user if desired. However, what we can do is set the resolution of all displays to 1920x1080 if the appropriate hypervisor helpers (VBoxDRMClient, spice-vdagentd) are not active when wlr_resize_helper launches.
-** Implemented this in vm-config-dist.
+== qubes memory issues ==
+* https://forums.whonix.org/t/increased-memory-usage/22092/12
+* sdwdate_gui_client.py: please port to asyncio - not trixie branch
+** Aaron: Initial porting attempt, needs more testing but seems to work initially: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/sdwdate-gui-client-asyncio
 
 == trixie-port - system keymap script improvements #2 ==
 * separate set-console-keymap
 ** Aaron: Implemented in helper-scripts.
 * sysmaint-panel: do not show keymap change in Qubes
 ** Aaron: Implemented. Notes about UI design left in chat.
+* Patrick: Merged.
 
 == trixie-port - don't offer on-screen keyboard in sysmaint-panel on Qubes ==
 * The on-screen keyboard button does nothing under Qubes because Wayland is not in use. Even if Wayland was in use, this would be confusing.
 ** Hid this and the system keymap button under Qubes OS at the same time.
-
-== trixie port - forcing reinstallation of alternative /usr/libexec/user-sysmaint-split/policy-rc.d because link group policy-rc.d is broken ==
-* bug?
-
-<pre>
-Setting up systemcheck (3:43.6-1) ...
-warn: The user `canary' is already a member of `debian-tor'.
-warn: The user `systemcheck' is already a member of `debian-tor'.
-warn: The user `systemcheck' is already a member of `systemd-journal'.
-Processing triggers for qubes-core-agent (4.3.34-1+deb13u1) ...
-Setting up user-sysmaint-split (3:9.1-1) ...
-update-alternatives: warning: forcing reinstallation of alternative /usr/libexec/user-sysmaint-split/policy-rc.d because link group policy-rc.d is broken
-Synchronizing state of openvpn.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
-Executing: /usr/lib/systemd/systemd-sysv-install enable openvpn
-Generating grub configuration file ...
-Found theme: /boot/grub/themes/kicksecure/theme.txt
-Adding boot menu entry for UEFI Firmware Settings ...
-done
-Setting up security-misc-desktop (3:48.8-1) ...
-</pre>
-
-* Aaron: Qubes OS bug, fix submitted: https://github.com/QubesOS/qubes-builder-debian/pull/95
-
-== trixie port - dom0 updates over Whonix-Gateway ==
-* downloads failing because curl proxy is not set
-* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
-** Merged, test locally.
-** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
-* Patrick: Please document. https://www.whonix.org/wiki/Qubes/UpdatesProxy
-** Aaron: Added documentation, did some more testing of the dom0 update system to ensure it actually was working.
+* Patrick: Merged.
 
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
@@ -898,6 +952,44 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
 
 = ARCHIVED =
+== trixie-port - default screen resolution ==
+* vm-config-dist: debian/control
+
+<pre>
+ Set screen resolution 1920x1080 by default for VM in VirtualBox and KVM.
+ Workaround for low screen resolution 1024x768 at first boot. When using lower
+ screen resolutions, Xfce will automatically scale down.
+ `/etc/skel/.config/xfce4/xfconf/xfce-perchannel-xml/displays.xml` TODO: This
+ may no longer be the case with Wayland.
+</pre>
+
+* please re-implement for Wayland, if sane.
+* Aaron: Doing this exactly as described may be hard on Wayland, because there is no location where the display configuration is saved any longer, it is always generated dynamically and must be fixed manually by the user if desired. However, what we can do is set the resolution of all displays to 1920x1080 if the appropriate hypervisor helpers (VBoxDRMClient, spice-vdagentd) are not active when wlr_resize_helper launches.
+** Implemented this in vm-config-dist.
+* Patrick: Merged.
+
+== trixie port - forcing reinstallation of alternative /usr/libexec/user-sysmaint-split/policy-rc.d because link group policy-rc.d is broken ==
+* bug?
+
+<pre>
+Setting up systemcheck (3:43.6-1) ...
+warn: The user `canary' is already a member of `debian-tor'.
+warn: The user `systemcheck' is already a member of `debian-tor'.
+warn: The user `systemcheck' is already a member of `systemd-journal'.
+Processing triggers for qubes-core-agent (4.3.34-1+deb13u1) ...
+Setting up user-sysmaint-split (3:9.1-1) ...
+update-alternatives: warning: forcing reinstallation of alternative /usr/libexec/user-sysmaint-split/policy-rc.d because link group policy-rc.d is broken
+Synchronizing state of openvpn.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable openvpn
+Generating grub configuration file ...
+Found theme: /boot/grub/themes/kicksecure/theme.txt
+Adding boot menu entry for UEFI Firmware Settings ...
+done
+Setting up security-misc-desktop (3:48.8-1) ...
+</pre>
+
+* Aaron: Qubes OS bug, fix submitted: https://github.com/QubesOS/qubes-builder-debian/pull/95
+
 == trixie port - remove volume widget from Whonix-Gateway sysmaint panel ==
 * Waybar is showing an empty volume widget on Whonix-Gateway
 * Move config files to remove this.
