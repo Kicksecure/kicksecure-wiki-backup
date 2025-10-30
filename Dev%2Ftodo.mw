@@ -11,31 +11,18 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== tor-control-panel - anon-connection-wizard - review contributions ==
-* please discuss, review
-* https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/99
-
-== trixie port - dom0 updates over Whonix-Gateway ==
-* downloads failing because curl proxy is not set
-* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
-** Merged, test locally.
-** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
-* Patrick: Please document. https://www.whonix.org/wiki/Qubes/UpdatesProxy
-** Aaron: Added documentation, did some more testing of the dom0 update system to ensure it actually was working.
-* Patrick: If possible, please revert upstream in Qubes and implement a uwt wrapper for dnf that injects the required option.
-** https://github.com/QubesOS/qubes-core-agent-linux/pull/614#issuecomment-3449884150
-
-== trixie port - sysmaint - sys-whonix - missing systemd units ==
-* Please check if any systemd units are missing in <code>sysmaint.target</code>.
+== trixie-port - qubes-bind-dirs bug ==
+* uses has privately shared a log where /var/lib/sdwdate/time-replay-protection-utc-unixtime was not writeable by sdwdate
+* /usr/lib/tmpfiles.d/sdwdate.conf looks fine
+* therefore this is a qubes-bind-dirs issue?
+* https://github.com/QubesOS/qubes-issues/issues/8466
+** if possible during R4.3 RC. otherwise priority can be lowered.
+** otherwise, non-ideal workaround otherwise for all bind-dirs:
 
 <pre>
-sudo systemctl list-units --all | grep "loaded    inactive dead"
+## https://github.com/QubesOS/qubes-issues/issues/8466
+ExecStartPre=chown --recursive canary:canary /var/lib/canary
 </pre>
-
-== trixie-port - /etc/profile.d environment variables missing ==
-* Kicksecure 18, ISO with vm-config-dist installed
-* <code>/etc/profile.d/20_software_rendering_in_vms.sh</code> - script executes correctly if executed using <code>sh -x /etc/profile.d/20_software_rendering_in_vms.sh</code>
-* when typing <code>env | grep -i QML</code> the environment variable is missing under Wayland
 
 == trixie-port - lock-screen improvements ==
 * move from /usr/libexec/helper-scripts/lock-screen to /usr/bin/lock-screen since it might be useful to lock the screen using the command line
@@ -896,6 +883,40 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie port - sysmaint - sys-whonix - missing systemd units ==
+* Please check if any systemd units are missing in <code>sysmaint.target</code>.
+
+<pre>
+sudo systemctl list-units --all | grep "loaded    inactive dead"
+</pre>
+
+* Aaron: Compared the units running in a user session with the units running in a sysmaint session, rather than using <code>--all</code>; this approach should be more accurate.
+** Added some missing units to user-sysmaint-split (sysmaint-boot.service).
+** Also sent an email to Qubes to see if we should just blanket whitelist all qubes units going forward (this should be done with automation of some sort most likely to avoid units introduced in the future ending up missed). https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05673.html
+
+== trixie port - dom0 updates over Whonix-Gateway ==
+* downloads failing because curl proxy is not set
+* Fix in progress: https://github.com/QubesOS/qubes-core-agent-linux/pull/614
+** Merged, test locally.
+** Seems to work in testing. Will keep sys-whonix as the dom0 update proxy for a few more days to see what happens.
+* Patrick: Please document. https://www.whonix.org/wiki/Qubes/UpdatesProxy
+** Aaron: Added documentation, did some more testing of the dom0 update system to ensure it actually was working.
+* Patrick: If possible, please revert upstream in Qubes and implement a uwt wrapper for dnf that injects the required option.
+** https://github.com/QubesOS/qubes-core-agent-linux/pull/614#issuecomment-3449884150
+*** Aaron: Done, pushed commits to uwt, helper-scripts, and qubes-whonix. The new code works both with and without the Qubes-side proxy argument injection in place, so migration should be smooth.
+
+== trixie-port - /etc/profile.d environment variables missing ==
+* Kicksecure 18, ISO with vm-config-dist installed
+* <code>/etc/profile.d/20_software_rendering_in_vms.sh</code> - script executes correctly if executed using <code>sh -x /etc/profile.d/20_software_rendering_in_vms.sh</code>
+* when typing <code>env | grep -i QML</code> the environment variable is missing under Wayland
+* Aaron: Found bug, glxinfo is not directly compatible with Wayland and can be misleading when using Xwayland.
+** Fix, switch to eglinfo: https://github.com/ArrayBolt3/vm-config-dist/commit/36aa33c0e64a9a73a83db4753ee4005af5007ceb
+
+== tor-control-panel - anon-connection-wizard - review contributions ==
+* please discuss, review
+* https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/99
+** Aaron: Briefly reviewed, commented. This looks like it increases code duplication, which is undesirable.
+
 == mediawiki-shell review and merge ==
 * https://github.com/Kicksecure/mediawiki-shell/pull/1
 * please review, merge and commit any fixes on top if any new bugs were introduced or obvious bugs spotted
@@ -906,13 +927,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://forums.whonix.org/t/increased-memory-usage/22092/12
 * sdwdate_gui_client.py: please port to asyncio - not trixie branch
 ** Aaron: Initial porting attempt, needs more testing but seems to work initially: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/sdwdate-gui-client-asyncio
-
-== trixie-port - system keymap script improvements #2 ==
-* separate set-console-keymap
-** Aaron: Implemented in helper-scripts.
-* sysmaint-panel: do not show keymap change in Qubes
-** Aaron: Implemented. Notes about UI design left in chat.
-* Patrick: Merged.
 
 == trixie-port - don't offer on-screen keyboard in sysmaint-panel on Qubes ==
 * The on-screen keyboard button does nothing under Qubes because Wayland is not in use. Even if Wayland was in use, this would be confusing.
@@ -929,6 +943,15 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == security-misc /etc/systemd/system/ review ==
 * Do /etc/systemd/system folder contents still make sense nowadays?
 ** Aaron: In my opinion, yes. The contents of these files prevent a locked root account from denying access to emergency mode, which IMO is very useful so that someone with physical access to the machine and the disk passphrase (and bootloader password) can fix a broken system even if the root account is locked for security. I also think that these should remain in /etc as they are now, because that allows users who want to disable this behavior to do so easily.
+
+= ARCHIVED =
+
+== trixie-port - system keymap script improvements #2 ==
+* separate set-console-keymap
+** Aaron: Implemented in helper-scripts.
+* sysmaint-panel: do not show keymap change in Qubes
+** Aaron: Implemented. Notes about UI design left in chat.
+* Patrick: Merged.
 
 == automate detection of new tor and tor-browser versions ==
 * We currently ship Tor in the Kicksecure repository, taking packages from deb.torproject.org for this.
@@ -951,8 +974,9 @@ make_cross_build_platform_list="i386 amd64 arm64" ./build-steps.d/*_create-debia
 * Aaron: Implemented Tor package update script as dm-tor-update-repository, added wrapper in dm-packaging-helper-script.
 * Aaron: Tor Browser version updater is already implemented as <code>pkg_tor_browser_version_update</code> in dm-packaging-helper-script.
 * Aaron: Unsure where to add master wrapper to update Tor, Tor Browser, and VirtualBox all at once. Perhaps create a new shell script, <code>dm-update-third-party-software-references</code> or similar?
+* Patrick: Merged.
+* Patrick: <code>dm-maintenance</code> created
 
-= ARCHIVED =
 == trixie-port - default screen resolution ==
 * vm-config-dist: debian/control
 
