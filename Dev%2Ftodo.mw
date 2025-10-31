@@ -11,19 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - qubes-bind-dirs bug ==
-* uses has privately shared a log where /var/lib/sdwdate/time-replay-protection-utc-unixtime was not writeable by sdwdate
-* /usr/lib/tmpfiles.d/sdwdate.conf looks fine
-* therefore this is a qubes-bind-dirs issue?
-* https://github.com/QubesOS/qubes-issues/issues/8466
-** if possible during R4.3 RC. otherwise priority can be lowered.
-** otherwise, non-ideal workaround otherwise for all bind-dirs:
-
-<pre>
-## https://github.com/QubesOS/qubes-issues/issues/8466
-ExecStartPre=chown --recursive canary:canary /var/lib/canary
-</pre>
-
 == trixie-port - lock-screen improvements ==
 * move from /usr/libexec/helper-scripts/lock-screen to /usr/bin/lock-screen since it might be useful to lock the screen using the command line
 * bug: unhandled swaylock issues. If swaylock exits non-zero, there would currently be no error popup. (Theoretical issue only at this time.)
@@ -37,6 +24,372 @@ ExecStartPre=chown --recursive canary:canary /var/lib/canary
 ** no need for a different background image, but the style, the clock might help the user to identify that this is a screen locker
 * there is not really a swaylock alternative where the password prompt is more obvious? (was discussed before, i think)
 * automatically lock screen in sysmaint session. Currently does not seem to happen.
+
+== trixie-port - sysmaint - lock screen - black screen ==
+* probably <u>minor</u> bug: boot into sysmaint session -> lock screen -> black screen
+** note: this bug was only observed prior reboot. after reboot, screen locking was refused with popup. as expected. (because no password set)
+*** after setting a password and locking the screen, everything worked as expected.
+* we might be able to ignore this bug since unreleased
+* xtrace of /usr/libexec/user-sysmaint-split/sysmaint-session-wayland
+** (ticket below for unrelated error messages found)
+
+<pre>
++ source /usr/libexec/user-sysmaint-split/sysmaint-session-shared
++ '[' '' '!=' yes ']'
++ source /etc/profile
++++ id -u
+++ '[' 1001 -eq 0 ']'
+++ PATH=/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
+++ export PATH
+++ '[' '' ']'
+++ '[' -d /etc/profile.d ']'
++++ run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/15_desktop-config-dist.sh ']'
+++ . /etc/profile.d/15_desktop-config-dist.sh
++++ '[' -f /usr/share/qubes/marker-vm ']'
+++++ systemd-detect-virt
++++ '[' oracle '!=' none ']'
++++ export WLR_RENDERER=pixman
++++ WLR_RENDERER=pixman
++++ export GDK_BACKEND=wayland
++++ GDK_BACKEND=wayland
++++ export QT_QPA_PLATFORM=wayland
++++ QT_QPA_PLATFORM=wayland
++++ export PROFILE_SCRIPTS_WERE_SOURCED=yes
++++ PROFILE_SCRIPTS_WERE_SOURCED=yes
++++ '[' -z /usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share ']'
++++ '[' -z /usr/share/usability-misc/xdg-override/:/usr/share/open-link-confirmation/xdg-override/:/usr/local/share/:/usr/share/ ']'
++++ printf '%s\n' /usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share
++++ grep -- /usr/share/desktop-config-dist
++++ export XDG_CONFIG_DIRS=/usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share
++++ XDG_CONFIG_DIRS=/usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/15_open_link_confirmation.sh ']'
+++ . /etc/profile.d/15_open_link_confirmation.sh
++++ '[' -x /usr/libexec/open-link-confirmation/open-link-confirmation.sh ']'
++++ . /usr/libexec/open-link-confirmation/open-link-confirmation.sh
+++++ export BROWSER=/usr/libexec/open-link-confirmation/open-link-confirmation
+++++ BROWSER=/usr/libexec/open-link-confirmation/open-link-confirmation
+++++ '[' -z /usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share ']'
+++++ '[' -z /usr/share/usability-misc/xdg-override/:/usr/share/open-link-confirmation/xdg-override/:/usr/local/share/:/usr/share/ ']'
+++++ printf '%s\n' /usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share
+++++ grep -- /usr/share/open-link-confirmation/
+++++ printf '%s\n' /usr/share/usability-misc/xdg-override/:/usr/share/open-link-confirmation/xdg-override/:/usr/local/share/:/usr/share/
+++++ grep -- /usr/share/open-link-confirmation/xdg-override/
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/20_kicksecure-welcome-page.sh ']'
+++ . /etc/profile.d/20_kicksecure-welcome-page.sh
++++ '[' -x /usr/libexec/kicksecure-welcome-page/env_var.sh ']'
++++ . /usr/libexec/kicksecure-welcome-page/env_var.sh
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/20_kicksecure.sh ']'
+++ . /etc/profile.d/20_kicksecure.sh
++++ '[' -x /usr/libexec/kicksecure/kicksecure.sh ']'
++++ . /usr/libexec/kicksecure/kicksecure.sh
+++++ export KICKSECURE=1
+++++ KICKSECURE=1
+++++ '[' -z /usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share ']'
+++++ printf '%s\n' /usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share
+++++ grep -- /usr/share/kicksecure
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/20_power_savings_disable_in_vms.sh ']'
+++ . /etc/profile.d/20_power_savings_disable_in_vms.sh
++++ true '/usr/libexec/user-sysmaint-split/sysmaint-session-wayland: INFO: Using '\''return'\'' in combination with '\''exit'\'' so this script can be both, being '\''source'\''d as well as executed.'
++++ test -f /usr/share/qubes/marker-vm
++++ command -v systemd-detect-virt
+++++ timeout_wrapper systemd-detect-virt
++++ result='++++ timeout --kill-after=1 1 systemd-detect-virt'
++++ '[' '++++ timeout --kill-after=1 1 systemd-detect-virt' = none ']'
++++ '[' '++++ timeout --kill-after=1 1 systemd-detect-virt' = '' ']'
++++ true '/usr/libexec/user-sysmaint-split/sysmaint-session-wayland: VM ++++ timeout --kill-after=1 1 systemd-detect-virt found. Continue.'
++++ '[' tty = tty ']'
++++ tty
++++ grep -- /dev/tty
++++ command -v setterm
++++ timeout_wrapper setterm -blank 0
++++ timeout --kill-after=1 1 setterm -blank 0
++++ timeout_wrapper setterm -powerdown
++++ timeout --kill-after=1 1 setterm -powerdown
++++ return 0
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/20_software_rendering_in_vms.sh ']'
+++ . /etc/profile.d/20_software_rendering_in_vms.sh
++++ command -v eglinfo
++++ eglinfo
++++ grep -- llvmpipe
++++ grep -- 'OpenGL core profile renderer'
++++ software_rendering_use=true
++++ '[' '!' true = true ']'
++++ '[' '!' softwarecontext = '' ']'
++++ true '/usr/libexec/user-sysmaint-split/sysmaint-session-wayland INFO: QMLSCENE_DEVICE is already set to '\''softwarecontext'\''. Not changing. Stop.'
++++ return 0
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/20_sysmaint_warn.sh ']'
+++ . /etc/profile.d/20_sysmaint_warn.sh
++++ case "$-" in
++++ true 'INFO: Non-interactive shell. Stop.'
++++ return 0
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/30_security-misc.sh ']'
+++ . /etc/profile.d/30_security-misc.sh
++++ '[' -z /usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share ']'
++++ printf '%s\n' /usr/share/desktop-config-dist/:/usr/share/security-misc/:/usr/share/kicksecure/:/usr/share/open-link-confirmation/:/etc:/etc/xdg:/usr/share
++++ grep -- /usr/share/security-misc/
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/30_setup.sh ']'
+++ . /etc/profile.d/30_setup.sh
++++ '[' '!' tty = tty ']'
+++++ tty
++++ '[' '!' /dev/tty3 = /dev/tty1 ']'
++++ true '/usr/libexec/user-sysmaint-split/sysmaint-session-wayland: INFO: Not running in /dev/tty1. Stop.'
++++ return 0
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/40_msgdispatcher.sh ']'
+++ . /etc/profile.d/40_msgdispatcher.sh
++++ '[' '!' tty = tty ']'
+++++ tty
++++ '[' '!' /dev/tty3 = /dev/tty1 ']'
++++ true '/usr/libexec/user-sysmaint-split/sysmaint-session-wayland: INFO: Skip, because not running in /dev/tty1.'
++++ return 0
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/50_default_editor.sh ']'
+++ . /etc/profile.d/50_default_editor.sh
++++ '[' -x /usr/libexec/default-editor/default_editor.sh ']'
++++ . /usr/libexec/default-editor/default_editor.sh
+++++ '[' tty = tty ']'
+++++ true '/usr/libexec/user-sysmaint-split/sysmaint-session-wayland: INFO: Running inside tty. Stop.'
+++++ return 0
++++ '[' -z /usr/share/usability-misc/xdg-override/:/usr/share/open-link-confirmation/xdg-override/:/usr/local/share/:/usr/share/ ']'
++++ printf '%s\n' /usr/share/usability-misc/xdg-override/:/usr/share/open-link-confirmation/xdg-override/:/usr/local/share/:/usr/share/
++++ grep -- /usr/share/usability-misc/xdg-override/
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/70-systemd-shell-extra.sh ']'
+++ . /etc/profile.d/70-systemd-shell-extra.sh
++++ '[' -n '' ']'
++++ '[' -n '' ']'
++++ '[' -n '' ']'
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/bash_completion.sh ']'
+++ . /etc/profile.d/bash_completion.sh
++++ '[' 'x5.2.37(1)-release' '!=' x -a x '!=' x -a x = x ']'
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/flatpak.sh ']'
+++ . /etc/profile.d/flatpak.sh
++++ command -v flatpak
+++++ unset G_MESSAGES_DEBUG
+++++ echo /home/sysmaint/.local/share/flatpak
+++++ GIO_USE_VFS=local
+++++ flatpak --installations
+++++ new_dirs=
+++++ read -r install_path
+++++ share_path=/home/sysmaint/.local/share/flatpak/exports/share
+++++ case ":$XDG_DATA_DIRS:" in
+++++ new_dirs=/home/sysmaint/.local/share/flatpak/exports/share
+++++ read -r install_path
+++++ share_path=/var/lib/flatpak/exports/share
+++++ case ":$XDG_DATA_DIRS:" in
+++++ new_dirs=/home/sysmaint/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share
+++++ read -r install_path
+++++ echo /home/sysmaint/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share
++++ new_dirs=/home/sysmaint/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share
++++ export XDG_DATA_DIRS
++++ XDG_DATA_DIRS=/home/sysmaint/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/share/usability-misc/xdg-override/:/usr/share/open-link-confirmation/xdg-override/:/usr/local/share/:/usr/share/
++++ unset new_dirs
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/gawk.sh ']'
+++ . /etc/profile.d/gawk.sh
+++ for i in $(run-parts --list --regex '^[a-zA-Z0-9_][a-zA-Z0-9._-]*\.sh$' /etc/profile.d)
+++ '[' -r /etc/profile.d/safe-rm.sh ']'
+++ . /etc/profile.d/safe-rm.sh
++++ PATH=/usr/share/safe-rm/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games
++++ export PATH
+++ unset i
++ export XDG_CURRENT_DESKTOP=sysmaint-session-wayland
++ XDG_CURRENT_DESKTOP=sysmaint-session-wayland
++ export QT_QPA_PLATFORMTHEME=lxqt
++ QT_QPA_PLATFORMTHEME=lxqt
++ export XDG_SESSION_TYPE=wayland
++ XDG_SESSION_TYPE=wayland
++ window_manager_list=('/usr/bin/labwc')
++ window_manager_arg_list=('-m')
++ selected_window_manager=
++ for idx in "${!window_manager_list[@]}"
++ '[' -e /usr/bin/labwc ']'
++ selected_window_manager=/usr/bin/labwc
++ selected_window_manager_args=-m
++ break
++ sysmaint_app_list=('/usr/bin/sysmaint-panel' '/usr/bin/x-terminal-emulator')
++ selected_sysmaint_app=
++ for sysmaint_app in "${sysmaint_app_list[@]}"
++ '[' -e /usr/bin/sysmaint-panel ']'
++ selected_sysmaint_app=/usr/bin/sysmaint-panel
++ break
++ system_tray_list=('/usr/bin/waybar')
++ system_tray_arg_list=('')
++ (( idx = 0 ))
++ (( idx < 1 ))
++ '[' -e /usr/bin/waybar ']'
++ selected_system_tray=/usr/bin/waybar
++ selected_system_tray_args=
++ break
++ '[' -z /usr/bin/labwc ']'
++ '[' -z /usr/bin/sysmaint-panel ']'
++ dbus-update-activation-environment --systemd --all
++ write_sysmaint_account_specific_config_once
++ account_specific_config_marker_dir=/home/sysmaint/.sysmaint-boot/account-specific-config-markers
++ mkdir --verbose --parents -- /home/sysmaint/.sysmaint-boot/account-specific-config-markers
++ for config_write_fn in 'terminal_tint_config_xfce' 'terminal_tint_config_lxqt'
++ '[' '!' -e /home/sysmaint/.sysmaint-boot/account-specific-config-markers/terminal_tint_config_xfce ']'
++ for config_write_fn in 'terminal_tint_config_xfce' 'terminal_tint_config_lxqt'
++ '[' '!' -e /home/sysmaint/.sysmaint-boot/account-specific-config-markers/terminal_tint_config_lxqt ']'
++ window_manager_pid=41180
++ sleep 3
++ /usr/bin/labwc -m
+00:00:00.064 [ERROR] [backend/drm/util.c:65] Failed to parse EDID
+Environment variable $XCURSOR_SIZE not set, ignoring.
+Environment variable $XCURSOR_THEME not set, ignoring.
++ export WAYLAND_DISPLAY=wayland-0
++ WAYLAND_DISPLAY=wayland-0
++ '[' /usr/bin/labwc = /usr/bin/labwc ']'
++ export LABWC_PID=41180
++ LABWC_PID=41180
++ '[' -n /usr/bin/waybar ']'
++ /usr/bin/waybar
++ sysmaint_app_pid=41192
++ /usr/bin/sysmaint-panel
++ start_user_background_services
++ user_service_list=('polkit-mate-authentication-agent-1' 'msgdispatcher' 'xscreensaver' 'nm-applet' 'sdwdate-gui-client' 'sdwdate-gui-server' 'updatecheck' 'spice-vdagent' 'livecheck' 'lxqt-notifications' 'wlr-resize-watcher' 'backlight-tool-dist-restore' 'lxqt-powermanagement')
++ (( i = 0 ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/polkit-mate-authentication-agent-1.desktop
++ '[' -f /etc/xdg/autostart/polkit-mate-authentication-agent-1.desktop ']'
++ gio launch /etc/xdg/autostart/polkit-mate-authentication-agent-1.desktop
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/msgdispatcher.desktop
++ '[' -f /etc/xdg/autostart/msgdispatcher.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/xscreensaver.desktop
++ '[' -f /etc/xdg/autostart/xscreensaver.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/nm-applet.desktop
++ '[' -f /etc/xdg/autostart/nm-applet.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/sdwdate-gui-client.desktop
++ '[' -f /etc/xdg/autostart/sdwdate-gui-client.desktop ']'
++ gio launch /etc/xdg/autostart/nm-applet.desktop
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/sdwdate-gui-server.desktop
++ '[' -f /etc/xdg/autostart/sdwdate-gui-server.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/updatecheck.desktop
++ '[' -f /etc/xdg/autostart/updatecheck.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/spice-vdagent.desktop
++ '[' -f /etc/xdg/autostart/spice-vdagent.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/livecheck.desktop
++ '[' -f /etc/xdg/autostart/livecheck.desktop ']'
++ gio launch /etc/xdg/autostart/updatecheck.desktop
++ gio launch /etc/xdg/autostart/msgdispatcher.desktop
++ gio launch /etc/xdg/autostart/sdwdate-gui-client.desktop
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/lxqt-notifications.desktop
++ '[' -f /etc/xdg/autostart/lxqt-notifications.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/wlr-resize-watcher.desktop
++ '[' -f /etc/xdg/autostart/wlr-resize-watcher.desktop ']'
++ gio launch /etc/xdg/autostart/sdwdate-gui-server.desktop
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/backlight-tool-dist-restore.desktop
++ '[' -f /etc/xdg/autostart/backlight-tool-dist-restore.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ service_desktop_file=/etc/xdg/autostart/lxqt-powermanagement.desktop
++ '[' -f /etc/xdg/autostart/lxqt-powermanagement.desktop ']'
++ (( i++  ))
++ (( i < 13 ))
++ command -v pactl
++ pactl set-sink-mute @DEFAULT_SINK@ false
++ gio launch /etc/xdg/autostart/spice-vdagent.desktop
++ gio launch /etc/xdg/autostart/livecheck.desktop
++ gio launch /etc/xdg/autostart/wlr-resize-watcher.desktop
++ gio launch /etc/xdg/autostart/lxqt-notifications.desktop
++ gio launch /etc/xdg/autostart/backlight-tool-dist-restore.desktop
++ gio launch /etc/xdg/autostart/lxqt-powermanagement.desktop
++ leaprun signal-wayland-session-started
++ true '/usr/libexec/msgcollector/msgdispatcher_xdg_autostart: START'
+++ systemctl --user is-enabled msgcollector-gui.service
++ '[' enabled == masked ']'
++ systemctl --user --no-pager --no-block start msgcollector-gui.service
++ true '/usr/libexec/msgcollector/msgdispatcher_xdg_autostart: END'
+
+(polkit-mate-authentication-agent-1:41227): dbind-WARNING **: 02:24:56.156: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+
+(waybar:41191): dbind-WARNING **: 02:24:56.158: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+cat: /home/sysmaint/.config/backlight-tool-dist-last-bright-pct: No such file or directory
++ wait 41192
+/usr/bin/backlight-tool-dist-agent: ERROR: Cannot read target file!
+
+(nm-applet:41243): dbind-WARNING **: 02:24:56.205: AT-SPI: Error retrieving accessibility bus address: org.freedesktop.DBus.Error.ServiceUnknown: The name org.a11y.Bus was not provided by any .service files
+registerService failed: another service with 'org.freedesktop.Notifications' runs already
+[2025-10-30 02:24:56.252] [info] Using configuration file /etc/xdg/waybar/config.jsonc
+__init__: ERROR: sdwdate_gui_server is already running!
+
+(polkit-mate-authentication-agent-1:41227): GLib-CRITICAL **: 02:24:56.262: g_variant_new_string: assertion 'string != NULL' failed
+
+(polkit-mate-authentication-agent-1:41227): polkit-mate-1-WARNING **: 02:24:56.262: Failed to register client: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.gnome.SessionManager was not provided by any .service files
+__handle_disconnect: WARNING: Server disconnected!
+Unable to register 'org.lxqt.lxqt-powermanagement' service - is another instance of lxqt-powermanagement running?
+[2025-10-30 02:24:56.287] [info] Using CSS file /etc/xdg/waybar/style.css
+2025-10-30 02:24:56 - [main.c:282] Found config * for output Virtual-1 ((null) (null))
+[2025-10-30 02:24:56.317] [info] Bar configured (width: 1280, height: 30) for output: Virtual-1
+</pre>
+
+== trixie port - multiple wayland sessions or wayland session restarts ==
+* excerpt from above log file from task trixie-port - sysmaint - lock screen - black screen
+* steps to reproduce:
+** 1) from a virtual console.
+** 2) while a wayland session is already running
+** 3) sudo systemctl restart greetd
+* Multiple sessions? Not important. Most important is to handle or fail better:
+** The usual thing would be to kill the old session and start a new one?
+** If not, can we fail with a better error message?
+
+<pre>
++ /usr/bin/labwc -m
+00:00:00.064 [ERROR] [backend/drm/util.c:65] Failed to parse EDID
+Environment variable $XCURSOR_SIZE not set, ignoring.
+Environment variable $XCURSOR_THEME not set, ignoring.
+</pre>
+
+== trixie port - backlight-tool ==
+* excerpt from above log file from task trixie-port - sysmaint - lock screen - black screen
+** i did not use backlight-tool because testing inside a VM
+** yet, journal will probably pick up an issue such as the following
+
+<pre>
+/usr/bin/backlight-tool-dist-agent: ERROR: Cannot read target file!
+</pre>
+
+* bug: backlight-tool shows errors inside VMs where it is expected that there is no backlight kernel driver
+* question:
+** related to <code>calc_bl_brightness=$(( (bl_max_brightness * bl_pct) / 100 )) || true</code> (split by Patrick into two lines)
+** action: bash -x usr/bin/backlight-tool-dist-agent set 100
+*** result: overwrite /home/user/.config/backlight-tool-dist-last-bright-pct 50
+*** always "50" is written to that file
+* some changes by Patrick. Please review.
 
 == trixie-port - apparmor-info - fix ==
 * bug: apparmor-info is no longer functional on trixie. It fails to show denied (or any) apparmor messages.
@@ -93,6 +446,8 @@ host xdg-desktop-por[1655]: Failed to load RealtimeKit property: GDBus.Error:org
 <pre>
 xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire context
 </pre>
+
+* https://forums.whonix.org/t/systemcheck-messages-in-qubes-whonix-18/22339
 
 == approx - work around and report metadata caching problems ==
 * Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
@@ -883,6 +1238,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - qubes-bind-dirs bug ==
+* uses has privately shared a log where /var/lib/sdwdate/time-replay-protection-utc-unixtime was not writeable by sdwdate
+* /usr/lib/tmpfiles.d/sdwdate.conf looks fine
+* therefore this is a qubes-bind-dirs issue?
+* https://github.com/QubesOS/qubes-issues/issues/8466
+** if possible during R4.3 RC. otherwise priority can be lowered.
+** otherwise, non-ideal workaround otherwise for all bind-dirs:
+
+<pre>
+## https://github.com/QubesOS/qubes-issues/issues/8466
+ExecStartPre=chown --recursive canary:canary /var/lib/canary
+</pre>
+
+* Aaron: Issue already known, fix is at https://github.com/QubesOS/qubes-core-agent-linux/pull/615 but is pending merge by Qubes. Link to PR already in WAITING ON.
+
 == trixie port - sysmaint - sys-whonix - missing systemd units ==
 * Please check if any systemd units are missing in <code>sysmaint.target</code>.
 
