@@ -11,6 +11,25 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== trixie-port - user-sysmaint-split versus flatpak ==
+* <code>flatpak install flathub org.mozilla.firefox</code>
+* functional in user session
+* also functional
+** <code>flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo</code>
+** <code>flatpak --user install flathub org.mozilla.firefox</code>
+* please investigate security impact
+* Aaron: Users were indeed able to install applications system-wide, so that account <code>user</code> could install an app in a location where account <code>sysmaint</code> could run it later.
+** Added a commit to security-misc to lock down Flatpak's polkit controls, requiring authorization for most things. Installing software with <code>flatpak install --user</code> is still functional as account <code>user</code> even with user-sysmaint-split installed.
+* Patrick: Does it belong into security-misc or user-sysmaint-split?
+* Patrick: Please update debian/control and readme.
+
+== trixie-port - usability-misc versus policyrcd-script-zg2 ==
+* usability-misc Depends: on policyrcd-script-zg2
+* todo: think through if this dependency should be removed, moved elsewhere and can interact badly with user-sysmaint-split policyrcd
+
+== trixie-port - text encoding issues ==
+* todo
+
 == trixie-port - vm-config-dist - install on ISO by default ==
 * vm-config-dist has vbox-guest-installer and wlr-resize-watcher, which both can be/are highly useful inside virtualbox
 * Do you see anything that makes vm-config-dist incompatible with installed on the host operating system or inside Qubes?
@@ -21,6 +40,18 @@ TODO
 ** Need to change the `shared` bookmark so it is saved in a system-wide location and only created on VMs.
 ** Keep wlr-resize-watcher from running on physical hardware
 ** OK to comment out power management disabling and VBox guest additions installation in the postinst?
+
+== trixie-port - set-system-keymap ==
+* bug: Whonix-Gateway - no user-sysmaint-split - <code>sudo set-system-keymap de</code>
+* expected: runs <code>labwc --reconfigure</code>
+* actual: does not run <code>labwc --reconfigure</code>
+* todo: look at $SUDO_USER and run <code>sudo --non-interactive -u $SUDO_USER labwc --reconfigure</code>
+* todo: set-system-keymap / set-console-keymap: run <code>loadkeys</code> to apply changes without reboot?
+
+== trixie-port - power saving ==
+* todo: discuss
+* Aaron: Discussion thread created: https://forums.kicksecure.com/t/power-management-for-physical-hardware-in-kicksecure-18/1344
+* Patrick: Please report LXQt issue upstream
 
 == trixie-port - livecheck - avoid multiple popups ==
 * if pressing the livecheck button multiple times, and an active popup window is already open, don't open additional popups
@@ -51,6 +82,42 @@ xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire cont
 </pre>
 
 * https://forums.whonix.org/t/systemcheck-messages-in-qubes-whonix-18/22339
+
+== sdwdate-gui - json decode bug ==
+<pre>
++ /usr/libexec/helper-scripts/terminal-wrapper 'leaprun sdwdate-log-viewer'
+sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/sdwdate_gui/sdwdate_gui_client.py", line 393, in sdwdate_status_changed
+    status_dict: dict[str, str] = json.load(f)
+                                  10:36, 1 November 2025 (UTC)[[Special:Contributions/127.0.0.1|127.0.0.1]] 10:36, 1 November 2025 (UTC)^^^
+  File "/usr/lib/python3.13/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.13/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)[[Special:Contributions/127.0.0.1|127.0.0.1]]^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
+</pre>
+
+== privleap - improve debug output ==
+* "ERROR: You are unauthorized ..."
+** Who is "You"? :)
+** todo: please add who "you" is. This might simplify debugging when using nested privleap.
+
+== sysmaint-panel - add gsmartcontrol and smart-notifier ==
+* non-Qubes only
+* hardware only
+* add gsmartcontrol
+* also add smart-notifier, if sensible to task bar?
 
 == 351-socks-auth-extensions ==
 * please search code base for: random_socks_user_name
@@ -1188,42 +1255,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie-port - power saving ==
-* todo: discuss
-* Aaron: Discussion thread created: https://forums.kicksecure.com/t/power-management-for-physical-hardware-in-kicksecure-18/1344
-
-== trixie-port - user-sysmaint-split versus flatpak ==
-* <code>flatpak install flathub org.mozilla.firefox</code>
-* functional in user session
-* also functional
-** <code>flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo</code>
-** <code>flatpak --user install flathub org.mozilla.firefox</code>
-* please investigate security impact
-* Aaron: Users were indeed able to install applications system-wide, so that account <code>user</code> could install an app in a location where account <code>sysmaint</code> could run it later.
-** Added a commit to security-misc to lock down Flatpak's polkit controls, requiring authorization for most things. Installing software with <code>flatpak install --user</code> is still functional as account <code>user</code> even with user-sysmaint-split installed.
-
-== trixie-port - qubes update ==
-* privleap systemctl workaround
-* no stream isolation warnings injected by uwt
-** Aaron: Both done, new commits in uwt.
-
-== trixie-port - kloak - compilation warning ==
-<pre>
-In file included from src/kloak.c:47:
-src/xdg-output-protocol.h: In function 'zxdg_output_v1_add_listener':
-src/xdg-output-protocol.h:347:38: warning: cast discards 'const' qualifier from pointer target type [-Wcast-qual]
-  347 |                                      (void (**)(void)) listener, data);
-      |                                      ^
-In file included from src/kloak.c:48:
-src/wlr-layer-shell.h: In function 'zwlr_layer_surface_v1_add_listener':
-src/wlr-layer-shell.h:434:38: warning: cast discards 'const' qualifier from pointer target type [-Wcast-qual]
-  434 |                                      (void (**)(void)) listener, data);
-      |                                      ^
-make[1]
-</pre>
-
-* Aaron: Warnings are in headers autogenerated by wayland-scanner. The way in which the code is used that leads to these warnings appears to be correct use of the Wayland protocols and libraries, thus this should be safe to ignore.
-
 == qubes memory issues ==
 * https://forums.whonix.org/t/increased-memory-usage/22092/12
 * sdwdate_gui_client.py: please port to asyncio - not trixie branch
@@ -1241,6 +1272,30 @@ make[1]
 ** Aaron: In my opinion, yes. The contents of these files prevent a locked root account from denying access to emergency mode, which IMO is very useful so that someone with physical access to the machine and the disk passphrase (and bootloader password) can fix a broken system even if the root account is locked for security. I also think that these should remain in /etc as they are now, because that allows users who want to disable this behavior to do so easily.
 
 = ARCHIVED =
+== trixie-port - kloak - compilation warning ==
+<pre>
+In file included from src/kloak.c:47:
+src/xdg-output-protocol.h: In function 'zxdg_output_v1_add_listener':
+src/xdg-output-protocol.h:347:38: warning: cast discards 'const' qualifier from pointer target type [-Wcast-qual]
+  347 |                                      (void (**)(void)) listener, data);
+      |                                      ^
+In file included from src/kloak.c:48:
+src/wlr-layer-shell.h: In function 'zwlr_layer_surface_v1_add_listener':
+src/wlr-layer-shell.h:434:38: warning: cast discards 'const' qualifier from pointer target type [-Wcast-qual]
+  434 |                                      (void (**)(void)) listener, data);
+      |                                      ^
+make[1]
+</pre>
+
+* Aaron: Warnings are in headers autogenerated by wayland-scanner. The way in which the code is used that leads to these warnings appears to be correct use of the Wayland protocols and libraries, thus this should be safe to ignore.
+* Patrick: Merged.
+
+== trixie-port - qubes update ==
+* privleap systemctl workaround
+* no stream isolation warnings injected by uwt
+** Aaron: Both done, new commits in uwt.
+* Patrick: Merged.
+
 == mediawiki-shell review and merge ==
 * https://github.com/Kicksecure/mediawiki-shell/pull/1
 * please review, merge and commit any fixes on top if any new bugs were introduced or obvious bugs spotted
