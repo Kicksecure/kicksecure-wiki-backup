@@ -11,32 +11,39 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - Qubes journal log messages ==
-* Qubes. Should be fixed but is not fixed. Happening after boot.
+== bookworm - disk lost after initial upgrade-nonroot ==
+* occurs for users running Whonix KVM under Fedora, Manjaro
+** Debugged, was only able to reproduce the issue once. Partition table was corrupted after first boot, the partition table field indicating the end of the partition had been changed to a larger value, but integrity checking info was not updated, thus Linux wasn't detecting any partitions on the device. Interestingly, in a later working VM, the same larger value was seen in the partition table, but there were no boot issues.
+** The most likely culprit is systemd-repart.
 
-<pre>
-Oct 27 13:40:36 host qrexec-agent[12402]: 2025-10-27 13:40:36.085 qrexec-agent[12402]: exec.c:902:find_qrexec_service: Warning: ignoring skip-service-descriptor=true for execute executable service /etc/qubes-rpc/qubes.UpdatesProxy
-</pre>
+== trixie-port - live mode - sysmaint session - broken ==
+* to debug, use "<code>leaprun sudo</code>" (as documented on [enable sudo access in USER session](https://www.kicksecure.com/wiki/Sysmaint#enable_sudo_access_in_USER_session))
+* bug: boots into user session, presumbely due to read-only file system
+* bug: <code>sudo touch /etc/testfile</code> show "read-only file system"
+* bug: live-hardener: <code>INFO: Non-zero exit code.</code> - Should be ERROR or at least WARNING?
+* bug: live-hardener detect grub-live-semi-persistent-unsafe but livecheck does not point that out
+* bug: live hardener attempts to remount /boot/efi but fails
+* bug: live-hardener runs a mount code that has a non-zero exit code but yet live-hardener exits zero rather than non-zero
 
-* Qubes. Happening after boot.
+== trixie-port - live mode - user session - broken ==
+* many systemd units failing during boot
+* could be related to above
 
-<pre>
-Oct 27 13:50:13 host systemctl[14620]: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=@.host --user to connect to bus of other user)
-</pre>
+== trixie-port - iso broken in Qubes ==
+* could be related to above issue
+* https://www.kicksecure.com/wiki/Qubes#HVM
 
-* Qubes. Happening when using sdwdate-gui log viewer from systray to open a terminal emulator.
+broken units:
 
-<pre>
-host xdg-desktop-por[1655]: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
-</pre>
-
-* Same as above.
-
-<pre>
-xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire context
-</pre>
-
-* https://forums.whonix.org/t/systemcheck-messages-in-qubes-whonix-18/22339
+* systemd-networkd-persistent-storoge.service
+* greetd-config-build.service
+* live-mode-apparmor.service
+* sdwdate-pre.service
+* cold-boot-attack-defense-status
+* tor@default.service
+* usbguard.service
+* Maybe just insufficient RAM? -> todo: fail more obvious, stop boot?
+* failed units can mess up sysmaint mode?
 
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
@@ -57,21 +64,18 @@ xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire cont
 ** Add an option to the Windows Installer to do this.
 ** If unsolvable, document everything learned or attempted. This might assist others in continuing the work. Collect any helpful links and add quotations from useful information.
 * Essentially, explore and document both approaches: using VirtualBox with Hyper-V and using VirtualBox with its native virtualization while disabling Windows' Hyper-V.
+* Aaron: Current research:
+** Intune is not free and does not work on home editions of Windows, thus not usable.
+** PowerShell scripting would likely make quick work of this, but unfortunately Microsoft prevents one from running PowerShell scripts without taking explicit (and IIRC convoluted) steps to enable them, as a security feature.
+** Probably the easiest solution is to use a batch file and then execute it as administrator (which is tricky but not impossible; requires calling a ShellExecuteExW function in the Windows API with the "runas" verb, see https://learn.microsoft.com/en-us/windows/win32/shell/launch, this should trigger a UAC prompt, then the script should be able to run and do whatever it needs to).
 
-== trixie-port - iso broken in Qubes ==
-* https://www.kicksecure.com/wiki/Qubes#HVM
-
-broken units:
-
-* systemd-networkd-persistent-storoge.service
-* greetd-config-build.service
-* live-mode-apparmor.service
-* sdwdate-pre.service
-* cold-boot-attack-defense-status
-* tor@default.service
-* usbguard.service
-* Maybe just insufficient RAM? -> todo: fail more obvious, stop boot?
-* failed units can mess up sysmaint mode?
+== trixie-port - user-sysmaint-split - improve error handling ==
+* now: when booting into sysmaint mode and user-sysmaint-split fails, one actually boots into a user session
+* expected: better error handling
+* todo: when user-sysmaint-split fails (such as read-only file system, either due to a live-hardner bug or filesystem corruption, disk hardware issues):
+** show an error, wait, reboot or poweroff?
+** offer to open a recovery console? conflicts with no recovery console by default goal. so settings should be honored. a recovery console however or even booting into "user session" may be helpful for debugging.
+** need to have some way to debug the system
 
 == trixie-port - failed to mount /tmp ==
 * seen in persistent mode user, briefly, during shutdown
@@ -647,6 +651,36 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== trixie-port - Qubes journal log messages ==
+* Qubes. Should be fixed but is not fixed. Happening after boot.
+
+<pre>
+Oct 27 13:40:36 host qrexec-agent[12402]: 2025-10-27 13:40:36.085 qrexec-agent[12402]: exec.c:902:find_qrexec_service: Warning: ignoring skip-service-descriptor=true for execute executable service /etc/qubes-rpc/qubes.UpdatesProxy
+</pre>
+
+* Qubes. Happening after boot.
+
+<pre>
+Oct 27 13:50:13 host systemctl[14620]: Failed to connect to user scope bus via local transport: $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined (consider using --machine=@.host --user to connect to bus of other user)
+</pre>
+
+* Qubes. Happening when using sdwdate-gui log viewer from systray to open a terminal emulator.
+
+<pre>
+host xdg-desktop-por[1655]: Failed to load RealtimeKit property: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown: The name org.freedesktop.RealtimeKit1 was not provided by any .service files
+</pre>
+
+* Same as above.
+
+<pre>
+xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire context
+</pre>
+
+* https://forums.whonix.org/t/systemcheck-messages-in-qubes-whonix-18/22339
+* Aaron: Fixed for most in place, still outstanding issues:
+** DBUS_SESSION_BUS_ADDRESS issue is a Qubes bug: https://github.com/QubesOS/qubes-issues/issues/10384
+** Still unsure what's causing the /tmp/user/1000 issue, see https://forums.whonix.org/t/systemcheck-messages-in-qubes-whonix-18/22339/5
+
 == trixie-port - screen briefly unlocked after wake from suspend ==
 * LXQt unfortunately puts the system into suspend before locking the screen. However, this does not occur on Arch Linux. Debug and determine whether Debian needs a patch or our configuration needs to change.
 ** Aaron: Debugged, discovered how to reproduce the bug on Arch, created a bug report with some analysis: https://github.com/lxqt/liblxqt/issues/371
