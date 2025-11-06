@@ -11,39 +11,61 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== bookworm - disk lost after initial upgrade-nonroot ==
-* occurs for users running Whonix KVM under Fedora, Manjaro
-** Debugged, was only able to reproduce the issue once. Partition table was corrupted after first boot, the partition table field indicating the end of the partition had been changed to a larger value, but integrity checking info was not updated, thus Linux wasn't detecting any partitions on the device. Interestingly, in a later working VM, the same larger value was seen in the partition table, but there were no boot issues.
-** The most likely culprit is systemd-repart.
-
 == trixie-port - live mode - sysmaint session - broken ==
-* to debug, use "<code>leaprun sudo</code>" (as documented on [enable sudo access in USER session](https://www.kicksecure.com/wiki/Sysmaint#enable_sudo_access_in_USER_session))
-* bug: boots into user session, presumbely due to read-only file system
+* to debug, use "<code>leaprun sudo</code>" (as documented on https://www.kicksecure.com/wiki/Sysmaint#enable_sudo_access_in_USER_session)
+* bug: boots into user session, presumably due to read-only file system
 * bug: <code>sudo touch /etc/testfile</code> show "read-only file system"
 * bug: live-hardener: <code>INFO: Non-zero exit code.</code> - Should be ERROR or at least WARNING?
+** Patrick: Fixed.
 * bug: live-hardener detect grub-live-semi-persistent-unsafe but livecheck does not point that out
 * bug: live hardener attempts to remount /boot/efi but fails
 * bug: live-hardener runs a mount code that has a non-zero exit code but yet live-hardener exits zero rather than non-zero
+* Aaron: Could not reproduce, tried multiple scenarios after discussion in chat.
+* Patrick: live-hardener log:
 
-== trixie-port - live mode - user session - broken ==
-* many systemd units failing during boot
-* could be related to above
+<pre>
+Nov 05 07:09:58 localhost systemd[1]: Starting live-hardener.service - Remounts auxiliary writable filesystems as read-only and applies a tmpfs overlay on them...
+Nov 05 07:09:58 localhost live-hardener[678]: live_status_detected_live_mode_environment_machine=grub-live-semi-persistent-unsafe
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: safe-rm -r -f -- /run/grub-live/overlay_tmpfs_repo
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mount -o remount,ro -- /boot/efi
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mount -o remount,ro -- /sys/fs/pstore
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo/0
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mount -t tmpfs tmpfs -- /run/grub-live/overlay_tmpfs_repo/0
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo/0/upper
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo/0/work
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mount -t overlay overlay -o lowerdir=/boot/efi -o upperdir=/run/grub-live/overlay_tmpfs_repo/0/upper -o workdir=/run/grub-live/overlay_tmpfs_repo/0/work -- /boot/efi
+Nov 05 07:09:58 localhost live-hardener[932]: mount: /boot/efi: fsconfig() failed: overlay: filesystem on /boot/efi not supported.
+Nov 05 07:09:58 localhost live-hardener[932]:        dmesg(1) may have more information after failed mount system call.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Non-zero exit code.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: umount -- /run/grub-live/overlay_tmpfs_repo/0
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: safe-rm -r -f -- /run/grub-live/overlay_tmpfs_repo/0
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo/1
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mount -t tmpfs tmpfs -- /run/grub-live/overlay_tmpfs_repo/1
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo/1/upper
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mkdir --parents -- /run/grub-live/overlay_tmpfs_repo/1/work
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: executing: mount -t overlay overlay -o lowerdir=/sys/fs/pstore -o upperdir=/run/grub-live/overlay_tmpfs_repo/1/upper -o workdir=/run/grub-live/overlay_tmpfs_repo/1/work -- /sys/fs/pstore
+Nov 05 07:09:58 localhost live-hardener[678]: /usr/libexec/grub-live/live-hardener: INFO: Success.
+Nov 05 07:09:58 localhost systemd[1]: Finished live-hardener.service - Remounts auxiliary writable filesystems as read-only and applies a tmpfs overlay on them.
+</pre>
 
-== trixie-port - iso broken in Qubes ==
-* could be related to above issue
-* https://www.kicksecure.com/wiki/Qubes#HVM
-
-broken units:
-
-* systemd-networkd-persistent-storoge.service
-* greetd-config-build.service
-* live-mode-apparmor.service
-* sdwdate-pre.service
-* cold-boot-attack-defense-status
-* tor@default.service
-* usbguard.service
-* Maybe just insufficient RAM? -> todo: fail more obvious, stop boot?
-* failed units can mess up sysmaint mode?
+* Patrick: Probably not caused by live-hardener. <code>sudo systemctl mask live-hardener.service</code> - did not solve the issue
+* Patrick: Also not a VirtualBox green turtle issue as this was also resolved on my system.
+* lots of overlayfs related issues: https://github.com/dracut-ng/dracut-ng/issues?q=overlayfs
 
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
@@ -68,6 +90,16 @@ broken units:
 ** Intune is not free and does not work on home editions of Windows, thus not usable.
 ** PowerShell scripting would likely make quick work of this, but unfortunately Microsoft prevents one from running PowerShell scripts without taking explicit (and IIRC convoluted) steps to enable them, as a security feature.
 ** Probably the easiest solution is to use a batch file and then execute it as administrator (which is tricky but not impossible; requires calling a ShellExecuteExW function in the Windows API with the "runas" verb, see https://learn.microsoft.com/en-us/windows/win32/shell/launch, this should trigger a UAC prompt, then the script should be able to run and do whatever it needs to).
+** Batch files for disabling Hyper-V and re-enabling virtualization-based security under Windows 11 Home have been created. Still need to wire them into Whonix-Installer itself.
+* todo: add debug output to script in case there are issues, users can post the debug output
+* todo: run <code>hypervisorlaunchtype auto</code> and <code>hypervisorlaunchtype Off</code> to work around windows bug experienced by Patrick
+* todo: run at the end for debugging <code>Get-CimInstance Win32_ComputerSystem | Select-Object HypervisorPresent</code>
+** add link as comment: https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
+* todo: add these commands?
+** https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
+* todo: disable firmware protection
+* todo: explain commands and potential failures as echo comments
+* todo: add separator output between lines
 
 == trixie-port - user-sysmaint-split - improve error handling ==
 * now: when booting into sysmaint mode and user-sysmaint-split fails, one actually boots into a user session
@@ -988,6 +1020,35 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - iso broken in Qubes ==
+* could be related to above issue
+* https://www.kicksecure.com/wiki/Qubes#HVM
+
+broken units:
+
+* systemd-networkd-persistent-storoge.service
+* greetd-config-build.service
+* live-mode-apparmor.service
+* sdwdate-pre.service
+* cold-boot-attack-defense-status
+* tor@default.service
+* usbguard.service
+* Maybe just insufficient RAM? -> todo: fail more obvious, stop boot?
+* failed units can mess up sysmaint mode?
+* Aaron: Reproduced with slightly different symptoms (had a VM crash during bootup once and boot into CLI mode another time), increasing RAM did appear to fix the issue. Could possibly use a oneshot unit very early in startup that would print a message to the TTY if RAM was below a certain "safe" threshold.
+** Pushed a commit to rads that should result in a warning message and fallback to CLI-only mode if RAM is insufficient.
+
+== trixie-port - live mode - user session - broken ==
+* many systemd units failing during boot
+* could be related to above
+* Aaron: Could not reproduce, tried multiple scenarios after discussion in chat.
+
+== bookworm - disk lost after initial upgrade-nonroot ==
+* occurs for users running Whonix KVM under Fedora, Manjaro
+** Debugged, was only able to reproduce the issue once (using Manjaro KDE). Partition table was corrupted after first boot, the partition table field indicating the end of the partition had been changed to a larger value, but integrity checking info was not updated, thus Linux wasn't detecting any partitions on the device. Interestingly, in a later working VM, the same larger value was seen in the partition table, but there were no boot issues.
+** The most likely culprit is systemd-repart.
+** Unable to reproduce with Whonix 18 on Manjaro KDE. Documented possible workaround here: https://www.whonix.org/wiki/KVM#VM_disk_corruption_after_first_boot
+
 == trixie-port - power saving ==
 * todo: discuss
 * Aaron: Discussion thread created: https://forums.kicksecure.com/t/power-management-for-physical-hardware-in-kicksecure-18/1344
