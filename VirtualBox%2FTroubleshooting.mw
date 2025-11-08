@@ -13,6 +13,7 @@
 |icon=fa-solid fa-bolt-lightning cs-yellow
 |text= {{StyledText|fontSize=19px|Quickhelp (Problem &#129034; Solution )}}
 * '''Slow?''' &#129034; Try [[#General VirtualBox Troubleshooting Steps|General VirtualBox Troubleshooting Steps]].
+* '''Green turtle on Windows?''' &#129034; See [[VirtualBox/Green Turtle Issue|VirtualBox Green Turtle Issue]].
 *''' <code>Failed to open a session for the virtual machine</code>''' &#129034; [[#Failed_to_open_a_session_for_the_virtual_machine|See this.]]
 * '''<code>NS_ERROR_FAILURE (0x80004005)</code>''' &#129034; [[#NS_ERROR_FAILURE|See this.]]
 * '''[[#VT-x_is_disabled_in_BIOS|<code>VERR_VMX_MSR_VMXON_DISABLED</code> / <code>VERR_NEM_NOT_AVAILABLE</code>]]''' &#129034; [[#BIOS|Enable <code>VT-x</code> in BIOS settings.]]
@@ -67,7 +68,7 @@ https://forums.whonix.org/t/starting-xcfe-virtualbox-give-guru-meditation/10378/
 # [[#Testing with a Debian VM|Testing with a Debian VM]].
 # [[#VirtualBox Generic Bug Reproduction|VirtualBox Generic Bug Reproduction]]
 # [[File:Logo-windows-500x500.png|15px|link=]] <u>Windows <code>10</code> / <code>11</code> users only:</u> <u>Hash Sum mismatch:</u> [[#Core Isolation|Disable Core Isolation]].
-# [[File:Logo-windows-500x500.png|15px|link=]] <u>Windows <code>10</code> / <code>11</code> users only:</u> [[VirtualBox/Troubleshooting#Windows_only_-_Virtual_Machine_only_starts_after_several_attempts_-_rcpu_preempt_self-detected_stall_on_CPU|Virtual Machine only starts after several attempts - <code>rcpu_preempt self-detected stall on CPU</code>]]
+# [[File:Logo-windows-500x500.png|15px|link=]] <u>Windows <code>10</code> / <code>11</code> users only:</u> [[VirtualBox/Green Turtle Issue|Virtual Machine only starts after several attempts - <code>rcpu_preempt self-detected stall on CPU</code> / Green Turtle]]
 }}
 
 = Linux Host Kernel versus Tor Browser and other Crashes =
@@ -476,181 +477,19 @@ dpkg -l | grep linux-image-amd64
 </pre>
 
 == Windows only - Virtual Machine only starts after several attempts - rcpu_preempt self-detected stall on CPU ==
+<pre>
+rcpu_preempt self-detected stall on CPU
+</pre>
+
 See below.
 
 == Windows only - VirtualBox Green Turtle ==
 '''Symptoms:'''
 
-* green turtle and/or
+* The VirtualBox host software shows a green turtle indicator (always visible); and/or
 * terminal message: <code>rcpu_preempt self-detected stall on CPU</code>
 
-'''Platform specific.'''
-
-Depending on the host {{os}}.
-
-* Linux: Not affected.
-* macOS: Not affected.
-* Windows: This issue is applicable to <u>Windows</u> based host operating systems <u>only</u>.
-
-'''Workaround:'''
-
-To solve the slowdown and CPU lockup issue it is required to disable Windows Hyper-V. As per Windows default, this is exceptionally complicated. A number of Windows security features need to be disabled and Windows registry keys need to be modified.
-
-To simplify the process, a batch script <code>DisableHyperV.bat</code> is being provided.
-
-[https://github.com/Whonix/Whonix-Installer/blob/master/DisableHyperV.bat <code>DisableHyperV.bat</code>]
-
-Check also.
-
-<code>Start Menu</code> -> type <code>Windows Security</code> → <code>Device Security</code> → <code>Core Isolation</code> → <code>Turn off</code>
-
-* <code>Memory integrity</code>
-* <code>Kernel-mode Hardware-enforced Stack Protection</code>
-* <code>Firmware protection</code>
-
-Reboot required.
-
-'''Troubleshooting:'''
-
-Green turtle issue still not resolved? The following commands can be helpful to debug this issue.
-
-'''1.''' Open Windows Power Shell as administrator.
-
-Start Menu -> type <code>Windows Power Shell</code> -> right click -> <code>Run as administrator</code>
-
-'''2.''' Check if Hyper-V has been loaded.
-
-{{CodeSelect|code=
-Get-CimInstance Win32_ComputerSystem | Select-Object HypervisorPresent
-}}
-
-Good result:
-
-<pre>
-HypervisorPresent
------------------
-            False
-</pre>
-
-<code>False</code> means that Hyper-V has not been started. This is good, because Hyper-V competes with VirtualBox and slows down VirtualBox, so if it's not running, that's great.
-
-Bad result:
-
-<pre>
-HypervisorPresent
------------------
-            True
-</pre>
-
-<code>True</code> means that Hyper-V has been started. This is bad, because Hyper-V competes with VirtualBox and slows down VirtualBox.
-
-'''3.''' Run systeminfo to find out what may be starting Hyper-V.
-
-{{CodeSelect|code=
-systeminfo
-}}
-
-Do not post the full output of systeminfo. It is not needed and contains private information such as system model.
-
-Good result:
-
-<pre>
-Virtualization-based security: Status: Not enabled
-                               App Control for Business policy: Enforced
-                               App Control for Business user mode policy: Off
-                               Security Features Enabled:
-Hyper-V Requirements:          VM Monitor Mode Extensions: Yes
-                               Virtualization Enabled In Firmware: Yes
-                               Second Level Address Translation: Yes
-                               Data Execution Prevention Available: Yes
-</pre>
-
-Bad result:
-
-<pre>
-Virtualization-based security: Status: Running
-                               Required Security Properties:
-                               Available Security Properties:
-                                     Base Virtualization Support
-                                     Secure Boot
-                                     DMA Protection
-                                     Secure Memory Overwrite
-                                     UEFI Code Readonly
-                                     SMM Security Mitigations 1.0
-                                     Mode Based Execution Control
-                               Services Configured:
-                                     Secure Launch
-                                     SMM Firmware Measurement
-                               Services Running:
-                                     Secure Launch
-                                     SMM Firmware Measurement
-                               App Control for Business policy: Enforced
-                               App Control for Business user mode policy: Off
-                               Security Features Enabled:
-                               SMM Isolation Level: 30
-Hyper-V Requirements:          A hypervisor has been detected. Features required for Hyper-V will not be displayed.
-</pre>
-
-In above case, <code>Secure Launch</code> and <code>SMM Firmware Measurement</code> were still running, causing Hyper-V to automatically start at boot time. After disabling <code>Firmware protection</code>, this issue has been resolved.
-
-'''Resources:''' <ref>
-* Check if device guard is running: {{CodeSelect|inline=true|code=
-(Get-CimInstance -ClassName Win32_DeviceGuard -Namespace root\Microsoft\Windows\DeviceGuard).SecurityServicesRunning
-}}
-* VirtualBox manual: [https://www.virtualbox.org/manual/ch10.html#gimproviders Paravirtualization Providers]
-* VirtualBox manual: [https://www.virtualbox.org/manual/ch03.html#settings-acceleration Acceleration Tab]
-* https://superuser.com/questions/945910/how-to-select-paravirtualization-interface-in-virtualbox
-* forum discussion: https://forums.whonix.org/t/whonix-only-starts-after-several-attempt-rcpu-preempt-self-detected-stall-on-cpu/22032
-* https://superuser.com/questions/1778061/green-turtle-snail-mode-slow-performance-indicator-on-virtualbox-vm
-* https://forums.virtualbox.org/viewtopic.php?t=99390
-* https://forums.virtualbox.org/viewtopic.php?f=25&t=99390
-* https://forums.virtualbox.org/viewtopic.php?t=98642
-* https://forums.virtualbox.org/viewtopic.php?t=112113
-* https://learn.microsoft.com/en-us/troubleshoot/windows-client/application-management/virtualization-apps-not-work-with-hyper-v
-* https://www.xda-developers.com/disable-hyper-v-windows-11/
-* https://stackoverflow.com/questions/66666130/how-to-fix-virtualbox-disable-hyper-v
-* https://www.tomshardware.com/how-to/disable-vbs-windows-11
-* https://gist.github.com/shortthirdman/bc5d8a9417000268afb7d5bdb6b9080e
-* https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
-* https://community.broadcom.com/vmware-cloud-foundation/discussion/how-to-disable-hyper-v-in-windows-11-24h2
-* https://www.reddit.com/r/vmware/comments/1mwg3bn/windows_11_hyperv_hypervisor_security_layer/
-* Probably unnecessary: <code>Oracle VirtualBox Manager</code> &rarr; <code>right-click the virtual machine</code> &rarr; <code>Settings</code> &rarr; <code>System</code> &rarr; <code>Acceleration</code> &rarr; <code>Paravirtualiuation Interface</code> &rarr; select <code>Hyper-V</code>
-
-VirtualBox log will contain an error message:
-
-<pre>
-NEMR3Init: Snail execution mode is active!
-Note! VirtualBox is not able to run as its full potential in this execution mode.
-      To see VirtualBox run at max speed you need to disable all Windows features
-      making use of Hyper-V. That is a moving target, so google how and carefully
-      consider the consequences of disabling these features.
-</pre>
-
-Quote from VirtualBox source code at the time of writing:
-
-<pre>
-            if (pVM->bMainExecutionEngine == VM_EXEC_ENGINE_NATIVE_API)
-            {
-#ifdef VBOX_WITH_HWVIRT /* Don't complain if there are no other alternatives. */
-# ifdef RT_OS_WINDOWS /* The WHv* API is extremely slow at handling VM exits. The AppleHv and
-                         KVM APIs are much faster, thus the different mode name. :-) */
-                LogRel(("NEM:\n"
-                        "NEM: NEMR3Init: Snail execution mode is active!\n"
-                        "NEM: Note! VirtualBox is not able to run at its full potential in this execution mode.\n"
-                        "NEM:       To see VirtualBox run at max speed you need to disable all Windows features\n"
-                        "NEM:       making use of Hyper-V.  That is a moving target, so google how and carefully\n"
-                        "NEM:       consider the consequences of disabling these features.\n"
-                        "NEM:\n"));
-# else
-                LogRel(("NEM:\n"
-                        "NEM: NEMR3Init: Turtle execution mode is active!\n"
-                        "NEM: Note! VirtualBox is not able to run at its full potential in this execution mode.\n"
-                        "NEM:\n"));
-# endif
-#endif
-            }
-</pre>
-</ref>
+In this case, see [[VirtualBox/Green Turtle Issue|VirtualBox Green Turtle Issue]].
 
 == Assign Less Virtual CPUs ==
 
