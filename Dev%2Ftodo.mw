@@ -11,6 +11,42 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== trixie-port - failed to mount /tmp ==
+* seen in persistent mode user, briefly, during shutdown
+* cosmetic issue only
+* avoidable?
+* Aaron: VBoxDRMClient bug. Report filed: https://github.com/VirtualBox/virtualbox/issues/375
+** Possible security risks in <code>/tmp</code> remaining mounted during shutdown? Perhaps if shutdown hangs while <code>/tmp</code> is mounted, valuable data might be left in-memory that an attacker could access, but we have emerg-shutdown to deal with most situations where this would be a concern.
+** As a stop-gap, we could use a service in usability-misc to kill VBoxDRMClient during shutdown if we want to ensure <code>/tmp</code> is properly unmounted.
+*** Patrick: Please implement in security-misc? Seems security related. As a stop-gap until ensure-shutdown gets default and (more) reliable.
+
+== trixie-port - vm-config-dist - install on ISO by default ==
+* vm-config-dist has vbox-guest-installer and wlr-resize-watcher, which both can be/are highly useful inside virtualbox
+* Do you see anything that makes vm-config-dist incompatible with installed on the host operating system or inside Qubes?
+* investigate /etc/dracut.conf.d/30-vm-config-dist.conf and if it seems safe for rm_conffile removal
+* Please modify, if sane, to make it compatible with the host / Qubes. I.e. implement no-ops, if needed.
+* Install by default everywhere non-Qubes, Qubes and host, if sane.
+* Aaron: Next steps:
+** Need to change the `shared` bookmark so it is saved in a system-wide location and only created on VMs.
+** Keep wlr-resize-watcher from running on physical hardware
+** OK to comment out power management disabling and VBox guest additions installation in the postinst?
+* Aaron: Done, commits pushed to vm-config-dist.
+* Patrick: Ready to installed by default on the ISO? If yes, please add.
+
+== trixie-port - environment variable VISUAL missing ==
+* usability-misc
+
+<pre>
+/etc/profile.d/50_default_editor.sh /etc/zprofile.d/50_default_editor.zsh
+/etc/profile.d/50_default_editor.sh /etc/X11/Xsession.d/50_default_editor
+</pre>
+
+* in non-Qubes, Wayland: <code>env | grep VISUAL</code>
+* also other environment variables set through profile.d/ zprofile.d, Xsession.d mechanism might be missing
+
+== trixie-port - default desktop icons ==
+* Network: Seems useless. Please remove.
+
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
 * Test with Windows Pro.
@@ -52,38 +88,9 @@ TODO
 ** Aaron: Done.
 * todo: allow the script to be executed by the installer
 
-== trixie-port - kloak - disable red crosshair by default ==
-* todo discuss
-
-== trixie-port - user-sysmaint-split - improve error handling ==
-* now: when booting into sysmaint mode and user-sysmaint-split fails, one actually boots into a user session
-* expected: better error handling
-* todo: when user-sysmaint-split fails (such as read-only file system, either due to a live-hardner bug or filesystem corruption, disk hardware issues):
-** show an error, wait, reboot or poweroff?
-** offer to open a recovery console? conflicts with no recovery console by default goal. so settings should be honored. a recovery console however or even booting into "user session" may be helpful for debugging.
-** need to have some way to debug the system
-
-== trixie-port - sgdisk ==
-* VirtualBox 7.24
-* Kicksecure LXQt 18.0.5.8
-* Can these warnings be fixed?
-
-<pre>
-sudo sgdisk -v /dev/sda
-</pre>
-
-<pre>
-Caution: Partition 3 doesn't end on a 2048-sector boundary. This may
-result in problems with some disk encryption tools.
-
-No problems found. 2021 free sectors (1010.5 KiB) available in 2
-segments, the largest of which is 2014 (1007.0 KiB) in size.
-</pre>
-
-== trixie-port - failed to mount /tmp ==
-* seen in persistent mode user, briefly, during shutdown
-* cosmetic issue only
-* avoidable?
+== trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
+* Non-Qubes-Whonix Whonix-Workstation
+* no adverse effects, but looks scary for users
 
 == trixie-port - address systemcheck log warnings ==
 * there are a number of journal messages in systemcheck output in Non-Qubes-Whonix
@@ -164,10 +171,11 @@ sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
 * set <code>SYSTEMD_SULOGIN_FORCE=1</code> by default to allow login into dracut emergency console even if root account password is locked
 
 == set-system-keymap improvements #2 ==
+* bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.
+* bug: set-console/system-keymap is broken inside dracut emergency shell, because x11-keymap command does not function there. use a different command?
 * set keyboard layout inside dracut emergency console
 * set grub stage 2 keyboard layout
 * kernel parameter <code>single</code> keymap
-* bug: set-console/system-keymap is broken inside dracut emergency shell, because x11-keymap command does not function there. use a different command?
 
 == heads - add whole disk boot mode ==
 * Kicksecure's ISO does not boot easily on Heads because booting it requires mounting the full disk device, whereas Heads is only designed to open individual disk partitions.
@@ -185,6 +193,12 @@ Nov 06 16:29:18 localhost mount-shared[1099]: /sbin/mount.vboxsf: mounting faile
 * The readme shows up even after shared folder is perfectly functional.
 * Maybe best to abolish the readme.
 * Readme is copied over and over again?
+
+== apparmor - allow_disconnected concerns ==
+* https://github.com/ArrayBolt3/kloak/commit/691d1512cd870db7297f5d38aeba421f08543311
+* is <code>allow_disconnected.path=/disconnected</code> safe? Any upstream documentation on what exactly leads to a path becoming "disconnected" and why this is necessary?
+* Possible to avoid needing this? Why does Python attempt to access /dev/null through a disconnected path?
+* use include abstractions/python?
 
 == approx - work around and report metadata caching problems ==
 * Sometimes the data in the approx cache goes out of date and approx fails to update it, resulting in failed builds and possibly resulting in builds containing outdated packages
@@ -750,12 +764,6 @@ sdwdate[2269]: PermissionError: [Errno 13] Permission denied: '/var/lib/sdwdate/
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/613
 * https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
 
-== stardict - investigate ==
-* debian policy appliable?
-* https://www.kicksecure.com/wiki/Dev/Debian#startdict
-* Sent email to Debian.
-* https://lists.debian.org/debian-devel/2025/10/msg00175.html
-
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 ** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
@@ -1009,39 +1017,119 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== login security check bug ==
+
+* sys-whonix
+
+<pre>
+INFO: user-sysmaint-split session detection result: SYSMAINT Session.
+INFO: Whonix Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Locked (Present)       Disabled      |
+| user     | Absent                 Disabled      |
+| sysmaint | Absent                 Enabled       |
++----------+--------------------------------------+
+</pre>
+
+* anon-whonix
+
+<pre>
+[INFO] [systemcheck] user-sysmaint-split session detection result: USER Session.
+INFO: Whonix Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Restricted (Absent)    Disabled      |
+| user     | Locked (Absent)        Enabled       | [Locked (Absent) - green color]
+| sysmaint | Locked (Absent)        Enabled       | [Locked (Absent) - orange color]
++----------+--------------------------------------+
+</pre>
+
+* Kicksecure Qubes
+
+<pre>
+[INFO] [systemcheck] user-sysmaint-split session detection result: USER Session.
+[INFO] [systemcheck] Kicksecure Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Restricted (Absent)    Disabled      |
+| user     | Absent                 Enabled       |
+| sysmaint | Locked (Absent)        Enabled       |
++----------+--------------------------------------+
+</pre>
+
+* bug: <code>user | Locked (Absent)</code> versus <code>user | Absent</code>?
+* bug: why do some Locked (Absent) entries get green color and others orange?
+* bug: why are some accounts locked while others are not?
+* new design
+* refuse screen lock because the password is locked
+* refuse logout because the password is locked
+* when booted in user mode:
+** prevent logging into accounts that are passwordless and members of group <code>sudo</code>, <code>root</code>, or <code>sysmaint</code>
+** prevent logging into account <code>sysmaint</code>
+* when booted in sysmaint mode:
+** prevent logging into any accounts other than <code>sysmaint</code>
+* stop locking account <code>sysmaint</code> in user sessions since we now rely on a PAM module
+* remove special handling of account <code>sysmaint</code> in login security table of systemcheck
+* Aaron: Implemented, commits pushed to security-misc, user-sysmaint-split, and systemcheck.
+
+== stardict - investigate ==
+* debian policy appliable?
+* https://www.kicksecure.com/wiki/Dev/Debian#startdict
+* Sent email to Debian.
+* https://lists.debian.org/debian-devel/2025/10/msg00175.html
+** Aaron: Conversation seems to have run its course, package is likely no longer unsafe and can be left. However, if a similar issue reoccurs, this can be referenced.
+
 == qubes memory issues ==
 * https://forums.whonix.org/t/increased-memory-usage/22092/12
 * sdwdate_gui_client.py: please port to asyncio - not trixie branch
 ** Aaron: Initial porting attempt, needs more testing but seems to work initially: https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/sdwdate-gui-client-asyncio
+** Patrick: Merged.
 * Several more possibly memory-related issues reported:
 ** https://github.com/qubesos/qubes-issues/issues/10349
 ** https://github.com/QubesOS/qubes-core-admin/pull/748#issuecomment-3489978459
 ** alimj reported OOM crashes in the qubes-public Matrix room
 * Commits pushed to security-misc, developer-meta-files, and kicksecure-meta-packages to disable USBGuard on Whonix always, and on Kicksecure when there is no USB controller.
-
-== live-hardener - skip overlay of non-overlayable filesystems ==
-* todo
-* Aaron: Added requested feature, also greatly improved regression test coverage, added better comments, and fixed some bugs with finding submounts.
 * Patrick: Merged.
-* Patrick: please review https://github.com/assisted-by-ai/grub-live/pull/1
-** Aaron: Merged.
+* -----
+* Patrick: asyncio also merged.
+* Patrick: Please review, merge (only the bug fix - not the test script) - https://github.com/assisted-by-ai/sdwdate-gui/pull/1
+** Aaron: Merged, did substantial refactoring and fixed an uncaught bug in the process (inconsistent handling of config file parsing)
+* Patrick: Please increase Qubes default memory, if applicable.
+** Aaron: Per Qubes OS's current wishes, attempting to avoid this if possible. If memory is still an issue after merging the new sdwdate-gui code, will request a memory limit bump.
+
+== comment on pdf reader and other packages suggestions ==
+* https://forums.whonix.org/t/choosing-qt-wayland-compatible-software-for-lxqt/22332/9
+* Read through, commented.
+
+
+== trixie-port - sgdisk ==
+* VirtualBox 7.24
+* Kicksecure LXQt 18.0.5.8
+* Can these warnings be fixed?
+
+<pre>
+sudo sgdisk -v /dev/sda
+</pre>
+
+<pre>
+Caution: Partition 3 doesn't end on a 2048-sector boundary. This may
+result in problems with some disk encryption tools.
+
+No problems found. 2021 free sectors (1010.5 KiB) available in 2
+segments, the largest of which is 2014 (1007.0 KiB) in size.
+</pre>
+
+* Aaron: May be difficult to fix. grml-debootstrap uses parted for partition creation, and according to parted, partition 3 is optimally aligned. I find it somewhat unlikely grml-debootstrap would want to port to sgdisk.
+** Sent an email to the GPT fdisk mailing list to see if there's a good way to fix the discrepancy between the behavior of GPT fdisk and Parted. https://sourceforge.net/p/gptfdisk/mailman/message/59257231/
 
 == trixie port - hibernation ==
 * something has to be done about hibernation. even if deciding we're against it. then updating the wiki and removing the hibernation button (or breaking it).
 * Create forum thread to determine demand before investing effort.
 ** Forum post: https://forums.kicksecure.com/t/support-for-hibernation/1349
-
-== trixie-port - vm-config-dist - install on ISO by default ==
-* vm-config-dist has vbox-guest-installer and wlr-resize-watcher, which both can be/are highly useful inside virtualbox
-* Do you see anything that makes vm-config-dist incompatible with installed on the host operating system or inside Qubes?
-* investigate /etc/dracut.conf.d/30-vm-config-dist.conf and if it seems safe for rm_conffile removal
-* Please modify, if sane, to make it compatible with the host / Qubes. I.e. implement no-ops, if needed.
-* Install by default everywhere non-Qubes, Qubes and host, if sane.
-* Aaron: Next steps:
-** Need to change the `shared` bookmark so it is saved in a system-wide location and only created on VMs.
-** Keep wlr-resize-watcher from running on physical hardware
-** OK to comment out power management disabling and VBox guest additions installation in the postinst?
-* Aaron: Done, commits pushed to vm-config-dist.
 
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
@@ -1051,6 +1139,31 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Patrick: Added <code>modify</code> permissions.
 
 = ARCHIVED =
+== trixie-port - user-sysmaint-split - improve error handling ==
+* now: when booting into sysmaint mode and user-sysmaint-split fails, one actually boots into a user session
+* expected: better error handling
+* todo: when user-sysmaint-split fails (such as read-only file system, either due to a live-hardner bug or filesystem corruption, disk hardware issues):
+** show an error, wait, reboot or poweroff?
+** offer to open a recovery console? conflicts with no recovery console by default goal. so settings should be honored. a recovery console however or even booting into "user session" may be helpful for debugging.
+** need to have some way to debug the system
+* Aaron: Suggested action: Make <code>sysmaint-boot.service</code> print stdout and stderr to journal+console (so messages are seen by the user). If an error is encountered and trapped, pause for five seconds so they can see or screenshot the error. Ensure that the user does not get dropped to a sysmaint session with a full LXQt desktop, or a user session, prefer dropping them to a login screen as worst-case scenario.
+** This should allow easy-ish debugging (switch to a TTY and log in as account <code>sysmaint</code>) assuming the <code>sysmaint</code> account was unlocked before <code>sysmaint-boot.service</code> crashed. It also avoids the possible security risks of logging in as a standard user while the sysmaint account is unlocked.
+** Maybe also block logging into a full graphical user session when booted in sysmaint mode, to encourage the use of a TTY instead?
+** Suggestions implemented, commits pushed to user-sysmaint-split and desktop-config-dist.
+* Patrick: Merged.
+
+== trixie-port - kloak - disable red crosshair by default ==
+* todo discuss
+* Aaron: Done, commits pushed to kloak and lxqt-wayland-session.
+* Patrick: Merged.
+
+== live-hardener - skip overlay of non-overlayable filesystems ==
+* todo
+* Aaron: Added requested feature, also greatly improved regression test coverage, added better comments, and fixed some bugs with finding submounts.
+* Patrick: Merged.
+* Patrick: please review https://github.com/assisted-by-ai/grub-live/pull/1
+** Aaron: Merged.
+
 == security-misc /etc/systemd/system/ review ==
 * Do /etc/systemd/system folder contents still make sense nowadays?
 * https://github.com/Kicksecure/security-misc/tree/master/etc/systemd/system
