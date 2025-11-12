@@ -29,70 +29,17 @@ TODO
 * Patrick: Please increase Qubes default memory, if applicable.
 ** Aaron: Per Qubes OS's current wishes, attempting to avoid this if possible. If memory is still an issue after merging the new sdwdate-gui code, will request a memory limit bump.
 * Patrick: bug: chokes on <code>gateway=sys-whonix</code> - without quotes. Some users will use it that way because that is how it was documented in the past. I added code to legacy-dist. Please review.
+** Aaron: Left comments in chat.
+*** Will move migration code to sdwdate-gui postinst script.
 * Patrick: please review https://github.com/assisted-by-ai/sdwdate-gui/pull/2
+** Aaron: Merged.
 
-== login security check bug ==
-
-* sys-whonix
-
-<pre>
-INFO: user-sysmaint-split session detection result: SYSMAINT Session.
-INFO: Whonix Login Security Check:
-+----------+--------------------------------------+
-| Users    | Password               GUI Autologin |
-+----------+--------------------------------------+
-| root     | Locked (Present)       Disabled      |
-| user     | Absent                 Disabled      |
-| sysmaint | Absent                 Enabled       |
-+----------+--------------------------------------+
-</pre>
-
-* anon-whonix
-
-<pre>
-[INFO] [systemcheck] user-sysmaint-split session detection result: USER Session.
-INFO: Whonix Login Security Check:
-+----------+--------------------------------------+
-| Users    | Password               GUI Autologin |
-+----------+--------------------------------------+
-| root     | Restricted (Absent)    Disabled      |
-| user     | Locked (Absent)        Enabled       | [Locked (Absent) - green color]
-| sysmaint | Locked (Absent)        Enabled       | [Locked (Absent) - orange color]
-+----------+--------------------------------------+
-</pre>
-
-* Kicksecure Qubes
-
-<pre>
-[INFO] [systemcheck] user-sysmaint-split session detection result: USER Session.
-[INFO] [systemcheck] Kicksecure Login Security Check:
-+----------+--------------------------------------+
-| Users    | Password               GUI Autologin |
-+----------+--------------------------------------+
-| root     | Restricted (Absent)    Disabled      |
-| user     | Absent                 Enabled       |
-| sysmaint | Locked (Absent)        Enabled       |
-+----------+--------------------------------------+
-</pre>
-
-* bug: <code>user | Locked (Absent)</code> versus <code>user | Absent</code>?
-* bug: why do some Locked (Absent) entries get green color and others orange?
-* bug: why are some accounts locked while others are not?
-* new design
-* refuse screen lock because the password is locked
-* refuse logout because the password is locked
-* when booted in user mode:
-** prevent logging into accounts that are passwordless and members of group <code>sudo</code>, <code>root</code>, or <code>sysmaint</code>
-** prevent logging into account <code>sysmaint</code>
-* when booted in sysmaint mode:
-** prevent logging into any accounts other than <code>sysmaint</code>
-* stop locking account <code>sysmaint</code> in user sessions since we now rely on a PAM module
-* remove special handling of account <code>sysmaint</code> in login security table of systemcheck
-* Aaron: Implemented, commits pushed to security-misc, user-sysmaint-split, and systemcheck.
-* Patrick: bug:
-** Kicksecure, 512 MB RAM, user session:
-*** can no longer login. Account false-positive detected as sensitive passwordless account.
-*** Perhaps because account user is a member of group sudo?
+== trixie-port - misc qubes test failures ==
+* From Marek:
+** https://openqa.qubes-os.org/tests/159131
+** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
+** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
+** https://openqa.qubes-os.org/tests/159089
 
 == trixie-port - login broken in cli ==
 * sysmaint session
@@ -100,10 +47,25 @@ INFO: Whonix Login Security Check:
 * login as sysmaint succcess
 * message "You are using the sysmaint account. This account has sudoers capabilities." visible but then system frozen
 * only reproducible at first login, maybe not reproducible
+* Aaron: RAM issue, encrypted swapfiles as made by swap-file-creator work on Bookworm but are broken on Trixie.
+** unencrypted: works
+** encrypted by virtue of being on a LUKS-encrypted partition: works
+** file on an unencrypted filesystem which is then itself encrypted and device-mapper mounted, then used as a swapfile: broken, machine hangs as if memory is exhausted while gigabytes of swap remain
 
-== trixie-port - fix shutdown slowdown bug ==
-* todo
-* slower since fixing unmount of /tmp?
+== trixie-port - reconsider non-Qubes RAM settings ==
+* rads RAM threeshold?
+* non-Qubes minimum RAM for CLI? 512 insufficient nowadays?
+
+== trixie-port - livecheck-lsblk.service broken in Qubes ==
+* noticed only once in sys-whonix
+<pre>
+Nov 11 03:56:11 host systemd[1]: Starting livecheck-lsblk.service - Obtains lsblk output for use by livecheck...
+Nov 11 03:56:12 host livecheck-lsblk[654]: overwrite: ERROR: Error while writing file '/run/desktop-config-dist/livecheck-lsblk', and >
+Nov 11 03:56:12 host systemd[1]: livecheck-lsblk.service: Main process exited, code=exited, status=1/FAILURE
+Nov 11 03:56:12 host systemd[1]: livecheck-lsblk.service: Failed with result 'exit-code'.
+Nov 11 03:56:12 host systemd[1]: Failed to start livecheck-lsblk.service - Obtains lsblk output for use by livecheck.
+</pre>
+* https://github.com/Kicksecure/desktop-config-dist/blob/master/usr/lib/systemd/system/livecheck-lsblk.service probably needs to wait for systemd-tmpfiles
 
 == trixie-port - set-system-keymap improvements #2 ==
 * 1) <s>bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.</s> (confusion resolved: system vs user configuration)
@@ -113,7 +75,7 @@ INFO: Whonix Login Security Check:
 ** <s>this is because localectl is unavailable. Patrick pushed some changes to ignore this.</s>
 * 3) feature request:  <code>set-system-keymap</code> should configure the system keymap in case of
 ** single user mode (kernel parameter <code>single</code>) - possible by re-generating initrd running "sudo dracut -f" - tested - functional
-** dracut emergency shell
+** dracut emergency shell - same as above.
 * 4) feature request: set grub stage 2 keyboard layout
 * 5) feature request: <code>set-labwc-keymap</code>: <code>--persist</code> should be the default?
 * 6) <s>feature request: apply console layout change by running <code>systemctl --no-block --no-pager restart keyboard setup</code></s>
@@ -317,6 +279,11 @@ Nov 06 16:29:18 localhost mount-shared[1099]: /sbin/mount.vboxsf: mounting faile
 
 == kloak - Qubes OS mouse anonymization improvements ==
 * https://github.com/QubesOS/qubes-issues/issues/10292
+
+== optimize accountctl / get-user-list / get-password-status-list ==
+* current implementation: forks frequently, has to re-open and re-parse <code>/etc/shadow</code> and related files for every query. Results in noticeable performance delays in some scripts, also is non-atomic and vulnerable to race conditions.
+* better implementation: a library that caches <code>/etc/shadow</code> and related files when the library is sourced. Queries rely on in-memory data and avoid forking if possible.
+* refactor existing bash code? rewrite in Python? Python may be simpler and faster, but existing bash implementation seems very stable.
 
 == three finger salute ==
 * https://forums.kicksecure.com/t/ctrl-alt-del-three-finger-salute-action/1197
@@ -1095,6 +1062,70 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== login security check bug ==
+
+* sys-whonix
+
+<pre>
+INFO: user-sysmaint-split session detection result: SYSMAINT Session.
+INFO: Whonix Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Locked (Present)       Disabled      |
+| user     | Absent                 Disabled      |
+| sysmaint | Absent                 Enabled       |
++----------+--------------------------------------+
+</pre>
+
+* anon-whonix
+
+<pre>
+[INFO] [systemcheck] user-sysmaint-split session detection result: USER Session.
+INFO: Whonix Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Restricted (Absent)    Disabled      |
+| user     | Locked (Absent)        Enabled       | [Locked (Absent) - green color]
+| sysmaint | Locked (Absent)        Enabled       | [Locked (Absent) - orange color]
++----------+--------------------------------------+
+</pre>
+
+* Kicksecure Qubes
+
+<pre>
+[INFO] [systemcheck] user-sysmaint-split session detection result: USER Session.
+[INFO] [systemcheck] Kicksecure Login Security Check:
++----------+--------------------------------------+
+| Users    | Password               GUI Autologin |
++----------+--------------------------------------+
+| root     | Restricted (Absent)    Disabled      |
+| user     | Absent                 Enabled       |
+| sysmaint | Locked (Absent)        Enabled       |
++----------+--------------------------------------+
+</pre>
+
+* bug: <code>user | Locked (Absent)</code> versus <code>user | Absent</code>?
+* bug: why do some Locked (Absent) entries get green color and others orange?
+* bug: why are some accounts locked while others are not?
+* new design
+* refuse screen lock because the password is locked
+* refuse logout because the password is locked
+* when booted in user mode:
+** prevent logging into accounts that are passwordless and members of group <code>sudo</code>, <code>root</code>, or <code>sysmaint</code>
+** prevent logging into account <code>sysmaint</code>
+* when booted in sysmaint mode:
+** prevent logging into any accounts other than <code>sysmaint</code>
+* stop locking account <code>sysmaint</code> in user sessions since we now rely on a PAM module
+* remove special handling of account <code>sysmaint</code> in login security table of systemcheck
+* Aaron: Implemented, commits pushed to security-misc, user-sysmaint-split, and systemcheck.
+* Patrick: bug:
+** Kicksecure, 512 MB RAM, user session:
+*** can no longer login. Account false-positive detected as sensitive passwordless account.
+*** Perhaps because account user is a member of group sudo?
+**** Aaron: Fixed, commit pushed to security-misc.
+
 == trixie-port - default desktop icons ==
 * Network: Seems useless. Please remove.
 ** Aaron: Removed, commits pushed to kicksecure-base-files, anon-gw-base-files, and anon-ws-base-files.
@@ -1175,6 +1206,25 @@ segments, the largest of which is 2014 (1007.0 KiB) in size.
 ** Patrick: Added <code>modify</code> permissions.
 
 = ARCHIVED =
+== trixie-port - fix shutdown slowdown bug ==
+* todo
+* slower since fixing unmount of /tmp?
+* Aaron: Unable to reproduce. Timing measurements from screen recordings (all times and timestamps are measured in 1/30 of a second):
+
+<pre>
+                                     start   end    end minus start
+before upgrade - bootup            : 335  -> 736  | 401
+before upgrade - shutdown          : 914  -> 1156 | 242
+after upgrade - bootup             : 323  -> 728  | 405
+after upgrade - shutdown           : 869  -> 1058 | 189
+before upgrade - sysmaint bootup   : 247  -> 746  | 499
+before upgrade - sysmaint shutdown : 1377 -> 1621 | 244
+after upgrade  - sysmaint bootup   : 215  -> 616  | 401
+after upgrade  - sysmaint shutdown : 1195 -> 1410 | 215
+</pre>
+
+* If slow shutdown is noticed again, will re-measure and compare to these values.
+
 == stardict - investigate ==
 * debian policy appliable?
 * https://www.kicksecure.com/wiki/Dev/Debian#startdict
