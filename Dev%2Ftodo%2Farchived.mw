@@ -14,7 +14,7 @@ Archived TODOs
 == user-sysmaint-split - Qubes support ==
 * Ensure template provides sudo access and allows normal system maintenance, while AppVM doesn't.
 * Ensure sysmaint-panel works properly
-* Workarounds may be needed so that the <code>sysmaint</code> account is used by default in sysmaint mode rather than <code>user</code>.
+* Workarounds may be needed so that the <code>sysmaint</code> account is used by default in sysmaint session rather than <code>user</code>.
 * Qubes upstream PR needed for sysmaint-related changes to work: https://github.com/QubesOS/qubes-core-qrexec/pull/194
 ** PR is merged upstream.
 * Changed packages:
@@ -433,7 +433,7 @@ Mar 14 09:25:49 host sudo[24600]: pam_unix(sudo:session): session closed for use
 **** user-sysmaint-split (listed above)
 **** Patrick: Merged.
 * Things that still need fixed:
-** Wording changes necessary? autologinchange talks about 'sysmaint mode' rather than 'PERSISTENT mode SYSMAINT' which may be bad.
+** Wording changes necessary? autologinchange talks about 'sysmaint session' rather than 'PERSISTENT mode SYSMAINT' which may be bad.
 ** Patrick: Should be OK.
 * Review by Patrick #1:
 ** Please reword from "user user" to "account user".
@@ -900,8 +900,8 @@ Feb 20 05:37:04 host privleapd[15069]: parse_config_files: CRITICAL: Error parsi
 * Should be fixed by https://github.com/ArrayBolt3/sdwdate-gui/tree/arraybolt3/run-user-1000
 * Patrick: Merged.
 
-== user-sysmaint-split - consider using policy-rcd-declarative-deny-all or alike in sysmaint mode ==
-* Would using policy-rcd-declarative-deny-all (or similar) be useful in sysmaint mode to avoid unneeded systemd units from starting in sysmaint mode?
+== user-sysmaint-split - consider using policy-rcd-declarative-deny-all or alike in sysmaint session ==
+* Would using policy-rcd-declarative-deny-all (or similar) be useful in sysmaint session to avoid unneeded systemd units from starting in sysmaint session?
 * related: https://github.com/QubesOS/qubes-issues/issues/2238
 * policy-rcd-declarative-deny-all itself did not appear suitable, however a custom policy-rc.d appears to work.
 * Implemented in https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/policy-rcd
@@ -1046,7 +1046,7 @@ W: privleap: maintainer-script-calls-systemctl [postinst:41]
 
 == user-sysmaint-split - quick uninstall boot option ==
 * Users might be confused by user-sysmaint-split and prefer using sudo and pkexec normally.
-* Using <code>sudo dummy-dependency --purge user-sysmaint-split</code> from sysmaint mode is functional but inconvenient.
+* Using <code>sudo dummy-dependency --purge user-sysmaint-split</code> from sysmaint session is functional but inconvenient.
 * Add option to boot menu that offers to remove user-sysmaint-split for the user, to revert back to "classic" privilege escalation.
 * Implemented, required changes to user-sysmaint-split and sysmaint-panel.
 ** https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/uninstaller
@@ -1190,7 +1190,7 @@ packages/kicksecure/repository-dist/usr/lib/python3/dist-packages/repository_dis
 packages/kicksecure/repository-dist/usr/lib/python3/dist-packages/repository_dist_wizard/repository_dist_wizard.py:                command = ['pkexec', 'repository-dist', '--enable'] + repository
 </pre>
 
-Port not needed because runs in sysmaint mode:
+Port not needed because runs in sysmaint session:
 
 <pre>
 packages/kicksecure/calamares-settings-debian/calamares-install-debian:pkexec calamares
@@ -1214,7 +1214,7 @@ packages/kicksecure/anon-connection-wizard/usr/lib/python3/dist-packages/anon_co
 packages/kicksecure/anon-connection-wizard/usr/lib/python3/dist-packages/anon_connection_wizard/anon_connection_wizard.py:                    command = ['pkexec', '/usr/libexec/anon-connection-wizard/acw-write-torrc', Common.torrc_tmp_file_path]
 </pre>
 
-Port not needed (runs in sysmaint mode or not important):
+Port not needed (runs in sysmaint session or not important):
 
 <pre>
 packages/kicksecure/kicksecure-meta-packages/debian/control:         pkexec,
@@ -1458,7 +1458,7 @@ echo 'ERROR: This account lacks administrative ("root") capabilities. See: ${pro
 == user-sysmaint-split - refactor pkexec support ==
 * in https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/polkit <code>/usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1</code> gets hardcoded, started by a script
 ** Is this a good mechanism?
-** What would be the usual mechanism to start it when booting into normal mode? Let's suppose the answer is "a systemd unit". In this case, wouldn't it be less surprising, easier to understand, cleaner to use the name mechanism when booting into sysmaint mode?
+** What would be the usual mechanism to start it when booting into normal mode? Let's suppose the answer is "a systemd unit". In this case, wouldn't it be less surprising, easier to understand, cleaner to use the name mechanism when booting into sysmaint session?
 ** Please either use the same mechanism or add a comment why this specific mechanism has been selected.
 ** Please document.
 *** This does have to use a different mechanism, which is now documented: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/polkit
@@ -1542,7 +1542,7 @@ readarray -t custom_hardening_arr < <(find /usr/lib/permission-hardener.d /etc/p
 
 == user-sysmaint-split - fix pkexec for sysmaint user ==
 * Aaron:
-** Note, gparted and zulucrypt probably *should* work in sysmaint mode. pkexec also doesn't work in sysmaint mode. I believe the reason they don't work is
+** Note, gparted and zulucrypt probably *should* work in sysmaint session. pkexec also doesn't work in sysmaint session. I believe the reason they don't work is
 because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
 * Fixed, turns out it was a missing user-side startup process. https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/polkit
 ** Patrick: Merged.
@@ -1608,7 +1608,7 @@ debconf-set-selections <<< 'grub-efi-arm64 grub2/force_efi_extra_removable
 ** Affected applications I tested were gparted, zulucrypt, and the NetworkManager widget.
 ** NetworkManager "just works" even with this executable's permissions hardened.
 ** gparted and zulucrypt are both broken for both account <code>user</code> and user <code>sysmaint</code> even without this executable's permissions hardened.
-*** Note, gparted and zulucrypt probably *should* work in sysmaint mode. pkexec also doesn't work in sysmaint mode. I believe the reason they don't work is because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
+*** Note, gparted and zulucrypt probably *should* work in sysmaint session. pkexec also doesn't work in sysmaint session. I believe the reason they don't work is because there's likely a polkit-related systemd unit we need to be depending on in sysmaint-boot.target.
 **** Patrick: follow-up ticket created
 * Patrick: disabled
 
@@ -1817,7 +1817,7 @@ zsh: exit 1     sudo apt update
 * sudo -u user
 * keep unrestricted admin mode / "normal" Linux distribution compatibility
 ** PR with the bulk of the changes: {{Github_link|repo=usability-misc|path=/pull/13}}
-** Sudoers exception needed to make the above work in sysmaint mode: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/dist-installer-sysmaint
+** Sudoers exception needed to make the above work in sysmaint session: https://github.com/ArrayBolt3/user-sysmaint-split/tree/arraybolt3/dist-installer-sysmaint
 
 == user-sysmaint-split - Wayland support ==
 * sddm support (because that is LXQt's default login manager)
@@ -1926,7 +1926,7 @@ done
 * content useful for [[Verified Boot]]?
 ** Added.
 
-== user-sysmaint-split - ISO - sysmaint mode - #3 ==
+== user-sysmaint-split - ISO - sysmaint session - #3 ==
 * follow-up
 ** live-config-dist: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
 *** Patrick: Not merged. Needs revision to be compatible with "traditional boot mode" when user-sysmaint-split is not installed -> copied to new ticket
@@ -2052,7 +2052,7 @@ Concept improvements:
 ** grub-live: https://github.com/ArrayBolt3/grub-live/tree/arraybolt3/grub-cfg
 ** user-sysmaint-split: https://github.com/ArrayBolt3/user-sysmaint-split
 
-== iso sysmaint mode - #2 ==
+== iso sysmaint session - #2 ==
 * as discussed
 * Current state (WIP):
 ** live-config-dist changes for unrestricted admin mode, probably shouldn't be merged until Trixie: https://github.com/ArrayBolt3/live-config-dist/tree/arraybolt3/sysmaint
@@ -2113,7 +2113,7 @@ Concept improvements:
 * Patrick: bug found
 ** /usr/libexec/user-sysmaint-split/sysmaint-boot. currently we're checking twice kernel boot parameter. i think the logic can be simplified.
 *** if in non-sysmaint (user) boot mode -> lock sysmaint and safe-rm any autologin config files that might exist
-** bug: and let's say "/usr/sbin/lightdm" does exist. but we're not in sysmaint mode. currently what happens: do not delete the lightdm configuration file.
+** bug: and let's say "/usr/sbin/lightdm" does exist. but we're not in sysmaint session. currently what happens: do not delete the lightdm configuration file.
 ** Both issues fixed: https://github.com/ArrayBolt3/user-sysmaint-split
 
 == live-config-dist- check-unrestricted-admin TMP folder ==
@@ -2305,7 +2305,7 @@ live-build/scripts/build/config:                        NEEDED_PACKAGES="live-co
 
 == user-sysmaint-split ==
 * implement package user-sysmaint-split as per [[Dev/user-sysmaint-split]]
-* Control panel app for sysmaint mode: https://github.com/ArrayBolt3/sysmaint-panel
+* Control panel app for sysmaint session: https://github.com/ArrayBolt3/sysmaint-panel
 * Updated user-sysmaint-split with fixes, integrates with control panel app: https://github.com/ArrayBolt3/user-sysmaint-split
 * sysmaint user account lock detection: https://github.com/ArrayBolt3/security-misc/tree/arraybolt3/sysmaint
 * terminal-wrapper fix for better UX: https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/terminal-wrapper

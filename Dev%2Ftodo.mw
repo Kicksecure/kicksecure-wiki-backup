@@ -17,23 +17,10 @@ TODO
 ** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
 ** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
 ** https://openqa.qubes-os.org/tests/159089
+** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
+** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
 * From Ben:
 ** https://openqa.qubes-os.org/tests/159100#step/TC_00_DispVMPerf_whonix-workstation-18/21
-
-== trixie-port - reconsider non-Qubes RAM settings ==
-* rads RAM threeshold?
-* non-Qubes minimum RAM for CLI? 512 insufficient nowadays?
-
-== trixie-port - livecheck-lsblk.service broken in Qubes ==
-* noticed only once in sys-whonix
-<pre>
-Nov 11 03:56:11 host systemd[1]: Starting livecheck-lsblk.service - Obtains lsblk output for use by livecheck...
-Nov 11 03:56:12 host livecheck-lsblk[654]: overwrite: ERROR: Error while writing file '/run/desktop-config-dist/livecheck-lsblk', and >
-Nov 11 03:56:12 host systemd[1]: livecheck-lsblk.service: Main process exited, code=exited, status=1/FAILURE
-Nov 11 03:56:12 host systemd[1]: livecheck-lsblk.service: Failed with result 'exit-code'.
-Nov 11 03:56:12 host systemd[1]: Failed to start livecheck-lsblk.service - Obtains lsblk output for use by livecheck.
-</pre>
-* https://github.com/Kicksecure/desktop-config-dist/blob/master/usr/lib/systemd/system/livecheck-lsblk.service probably needs to wait for systemd-tmpfiles
 
 == trixie-port - set-system-keymap improvements #2 ==
 * 1) <s>bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.</s> (confusion resolved: system vs user configuration)
@@ -41,14 +28,33 @@ Nov 11 03:56:12 host systemd[1]: Failed to start livecheck-lsblk.service - Obtai
 ** <s>inside dracut emergency shell</s>
 ** <s>single user mode (kernel parameter <code>single</code>)</s>
 ** <s>this is because localectl is unavailable. Patrick pushed some changes to ignore this.</s>
-* 3) feature request:  <code>set-system-keymap</code> should configure the system keymap in case of
-** single user mode (kernel parameter <code>single</code>) - possible by re-generating initrd running "sudo dracut -f" - tested - functional
-** dracut emergency shell - same as above.
+* 3) <s>feature request:  <code>set-system-keymap</code> should configure the system keymap in case of</s>
+** <s>single user mode (kernel parameter <code>single</code>) - possible by re-generating initrd running "sudo dracut -f" - tested - functional</s>
+** <s>dracut emergency shell - same as above.</s>
+** <s>run <code>sudo dracut -f &>/dev/null</code> to hide verbose dracut output and report only success or failure.</s>
+** <s>Patrick implemented this.</s>
 * 4) feature request: set grub stage 2 keyboard layout
-* 5) feature request: <code>set-labwc-keymap</code>: <code>--persist</code> should be the default?
+** 1 or 2 separate grub boot menu entries
+*** additional boot menu entry 1: specific user-chosen keymap only
+**** use case: easier to use GRUB menu entry - no need to scroll through lots of language entries
+*** additional boot menu entry 2: generate all keymaps (within reasonable limits?)
+**** What would be a good time/trigger to generate the keymaps? Useful/avoidable to keep re-generating the keymaps over and over again? A new /etc/grub.d drop-in? Part of which script?
+**** use case: usable on the ISO
+**** use case: users can easily try kernel boot parameters to attempt to fix the boot process in case of hardware issues
+*** boot menu entries should be at the very bottom
+*** enabling verbose ("set -x") equivalent may be useful
+** boot with GRUB standard keyboard. Only if the user selects a custom GRUB keyboard layout change menu try loading a different keyboard driver and layout.
+** Aaron: USB keyboard support does not appear practical, as numerous GRUB issues occur when using <code>nativedisk</code> and <code>insmod usb_keyboard</code>:
+*** GRUB randomly can't find hard drives sometimes
+*** Stack overflows occur
+*** Sometimes "alloc magic" errors appear
+*** Fonts can become very messed up
+*** Boot usually becomes impossible
+* 5) <s>feature request: <code>set-labwc-keymap</code>: <code>--persist</code> should be the default?</s>
 * 6) <s>feature request: apply console layout change by running <code>systemctl --no-block --no-pager restart keyboard setup</code></s>
-* 7) <code>set-console-keymap</code>: allow running as non-root / support file <code>~/.keyboard</code>
-* 8) bug: Should write INFOs to stdout, not stderr? Or is there a reason to write everything to stderr? In such special cases, please document this by adding a script comment on how channels (stdout, stderr) are used.
+* 7) <s><code>set-console-keymap</code>: allow running as non-root / support file <code>~/.keyboard</code></s>
+** <s>Discussed, researched, not possible to set console keymap without root permissions and setting the keymap system-wide.</s>
+* <s>8) bug: Should write INFOs to stdout, not stderr? Or is there a reason to write everything to stderr? In such special cases, please document this by adding a script comment on how channels (stdout, stderr) are used.</s>
 
 == trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
 * Non-Qubes-Whonix Whonix-Workstation
@@ -60,6 +66,11 @@ Nov 11 03:56:12 host systemd[1]: Failed to start livecheck-lsblk.service - Obtai
 ** Could you ask labwc please?
 ** libpam-systemd missing? as per
 *** https://github.com/BlitterStudio/amiberry/issues/453#issuecomment-549150776
+
+== trixie-port - lengthen live-config-dist timeouts ==
+* Physical hardware installations to a USB drive oftentimes are slow due to slow USB key performance
+* Timeouts sometimes occur during the installation process, resulting in failed installations
+* Lengthen timeouts in live-config-dist so that this use case is better supported
 
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
@@ -183,6 +194,20 @@ sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
 == dracut improvements ==
 * install bash module by default? vs qubes initial memory
 * set <code>SYSTEMD_SULOGIN_FORCE=1</code> by default to allow login into dracut emergency console even if root account password is locked
+
+== terminal login messages ==
+* adjust cli (virtual console) login manager messages based on session type (user session versus sysmaint session)
+<pre>
+grep -r -i "default username"
+</pre>
+
+<pre>
+find . | grep --fixed-strings issue.d
+</pre>
+
+<pre>
+find . | grep --fixed-strings motd.d
+</pre>
 
 == heads - add whole disk boot mode ==
 * Kicksecure's ISO does not boot easily on Heads because booting it requires mounting the full disk device, whereas Heads is only designed to open individual disk partitions.
@@ -631,7 +656,7 @@ sudo apt install serial-console-enable
 ** Patrick: Please implement.
 ** Patrick: Note, Whonix VMs are built using grml-debootstrap. While using a package to handle these files might be the wrong way. Whonix VMs still need these.
 
-== Polkit - run only in sysmaint mode ==
+== Polkit - run only in sysmaint session ==
 * [[Polkit]]
 * todo: discuss
 * find solutions on how to have functional shutdown/restart/etc. buttons
@@ -655,7 +680,7 @@ sudo apt install serial-console-enable
 * draft and/or open a discussion on debian-devel
 * use cases:
 ** automatically sandbox applications (such as when typing "browser-name")
-** warn user against starting certain applications inside sysmaint mode such as browsers
+** warn user against starting certain applications inside sysmaint session such as browsers
 ** apply system resources restraint: https://forums.whonix.org/t/constrained-system-resources-program-starter-wrapper/10914
 
 == check out bubblejail ==
@@ -1030,6 +1055,24 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - livecheck-lsblk.service broken in Qubes ==
+* noticed only once in sys-whonix
+<pre>
+Nov 11 03:56:11 host systemd[1]: Starting livecheck-lsblk.service - Obtains lsblk output for use by livecheck...
+Nov 11 03:56:12 host livecheck-lsblk[654]: overwrite: ERROR: Error while writing file '/run/desktop-config-dist/livecheck-lsblk', and >
+Nov 11 03:56:12 host systemd[1]: livecheck-lsblk.service: Main process exited, code=exited, status=1/FAILURE
+Nov 11 03:56:12 host systemd[1]: livecheck-lsblk.service: Failed with result 'exit-code'.
+Nov 11 03:56:12 host systemd[1]: Failed to start livecheck-lsblk.service - Obtains lsblk output for use by livecheck.
+</pre>
+* https://github.com/Kicksecure/desktop-config-dist/blob/master/usr/lib/systemd/system/livecheck-lsblk.service probably needs to wait for systemd-tmpfiles
+** Aaron: Implemented in desktop-config-dist.
+* Patrick: Merged.
+
+== trixie-port - reconsider non-Qubes RAM settings ==
+* rads RAM threeshold?
+* non-Qubes minimum RAM for CLI? 512 insufficient nowadays?
+** Aaron: Should be sufficient now that we have swapfile issues solved.
+
 == trixie-port - login broken in cli ==
 * sysmaint session
 * 512 MB RAM
@@ -1120,7 +1163,7 @@ INFO: Whonix Login Security Check:
 * when booted in user mode:
 ** prevent logging into accounts that are passwordless and members of group <code>sudo</code>, <code>root</code>, or <code>sysmaint</code>
 ** prevent logging into account <code>sysmaint</code>
-* when booted in sysmaint mode:
+* when booted in sysmaint session:
 ** prevent logging into any accounts other than <code>sysmaint</code>
 * stop locking account <code>sysmaint</code> in user sessions since we now rely on a PAM module
 * remove special handling of account <code>sysmaint</code> in login security table of systemcheck
@@ -1238,7 +1281,7 @@ after upgrade  - sysmaint shutdown : 1195 -> 1410 | 215
 ** Aaron: Conversation seems to have run its course, package is likely no longer unsafe and can be left. However, if a similar issue reoccurs, this can be referenced.
 
 == trixie-port - user-sysmaint-split - improve error handling ==
-* now: when booting into sysmaint mode and user-sysmaint-split fails, one actually boots into a user session
+* now: when booting into sysmaint session and user-sysmaint-split fails, one actually boots into a user session
 * expected: better error handling
 * todo: when user-sysmaint-split fails (such as read-only file system, either due to a live-hardner bug or filesystem corruption, disk hardware issues):
 ** show an error, wait, reboot or poweroff?
@@ -1246,7 +1289,7 @@ after upgrade  - sysmaint shutdown : 1195 -> 1410 | 215
 ** need to have some way to debug the system
 * Aaron: Suggested action: Make <code>sysmaint-boot.service</code> print stdout and stderr to journal+console (so messages are seen by the user). If an error is encountered and trapped, pause for five seconds so they can see or screenshot the error. Ensure that the user does not get dropped to a sysmaint session with a full LXQt desktop, or a user session, prefer dropping them to a login screen as worst-case scenario.
 ** This should allow easy-ish debugging (switch to a TTY and log in as account <code>sysmaint</code>) assuming the <code>sysmaint</code> account was unlocked before <code>sysmaint-boot.service</code> crashed. It also avoids the possible security risks of logging in as a standard user while the sysmaint account is unlocked.
-** Maybe also block logging into a full graphical user session when booted in sysmaint mode, to encourage the use of a TTY instead?
+** Maybe also block logging into a full graphical user session when booted in sysmaint session, to encourage the use of a TTY instead?
 ** Suggestions implemented, commits pushed to user-sysmaint-split and desktop-config-dist.
 * Patrick: Merged.
 
@@ -1332,7 +1375,7 @@ after upgrade  - sysmaint shutdown : 1195 -> 1410 | 215
 * Fixed: https://github.com/ArrayBolt3/sdwdate-gui/commit/deffa5039800d1eac28d83ed5cb9dc7dc9cb1f19
 * Patrick: Merged.
 
-== trixie-port - sdwdate-gui-broken when sys-whonix is booted in sysmaint mode ==
+== trixie-port - sdwdate-gui-broken when sys-whonix is booted in sysmaint session ==
 * bug: starts sdwdate-gui instead of sdwdate-gui-qubes?
 * bug: /usr/libexec/sdwdate-gui/sdwdate-gui-qubes-proxy-helper is broken because UID 1000 is hardcoded
 * this results in other App Qubes (such as anon-whonix) frequent sdwdate-gui systemd journal errors
@@ -1353,7 +1396,7 @@ broken units:
 * tor@default.service
 * usbguard.service
 * Maybe just insufficient RAM? -> todo: fail more obvious, stop boot?
-* failed units can mess up sysmaint mode?
+* failed units can mess up sysmaint session?
 * Aaron: Reproduced with slightly different symptoms (had a VM crash during bootup once and boot into CLI mode another time), increasing RAM did appear to fix the issue. Could possibly use a oneshot unit very early in startup that would print a message to the TTY if RAM was below a certain "safe" threshold.
 ** Pushed a commit to rads that should result in a warning message and fallback to CLI-only mode if RAM is insufficient.
 * same issue as trixie-port - live mode - sysmaint session - broken
@@ -1905,7 +1948,7 @@ Warning: ignoring exit-on-service-eof=true for executable service /etc/qubes-rpc
 * reboot
 * bug: desktop environment no longer starting
 * debugging:
-** in sysmaint mode, CLI:
+** in sysmaint session, CLI:
 
 <pre>
 systemctl is-enabled greetd
@@ -2040,9 +2083,9 @@ INFO: Wayland session: 'no'
 ** I believe I've seen this issue occur in the past, but haven't seen it in a while. I'm happy to build new VM images and check them for this issue if desirable.
 ** Patrick: No longer reproducible.
 
-== sysmaint-panel - sysmaint mode - add display settings shortcut ==
+== sysmaint-panel - sysmaint session - add display settings shortcut ==
 * add open display settings
-* rationale: When booting for the first time and into sysmaint mode inside a VM, the display is too big.
+* rationale: When booting for the first time and into sysmaint session inside a VM, the display is too big.
 * Aaron: Implemented in sysmaint-panel. Also pushed commits to developer-meta-files and kicksecure-meta-packages for adding kanshi.
 ** Patrick: Merged.
 
@@ -2059,7 +2102,7 @@ INFO: Wayland session: 'no'
 *** Patrick: Merged.
 
 == volume setting in sysmaint systray ==
-* usability bug: when hovering over volume changes in sysmaint mode, the color gets darker, which implies it being clickable, but actually is not clickable
+* usability bug: when hovering over volume changes in sysmaint session, the color gets darker, which implies it being clickable, but actually is not clickable
 * Aaron: Fixed with a commit to desktop-config-dist.
 ** Patrick: Merged.
 

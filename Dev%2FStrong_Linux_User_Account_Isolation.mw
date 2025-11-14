@@ -495,12 +495,46 @@ zsh: exit 126   sudo nano
 
 <u>user documentation:</u>
 
-* [[Polkit|Polkit (formally PolicyKit)]]
+* [[Polkit|Polkit (formally PolicyKit) / <code>pkexec</code>]]
 
 == run0 ==
 See also above.
 
 A compromised <code>polkitd</code> could result in root compromise using <code>run0</code>.
+
+== SSH ==
+* todo: document
+* [[SSH]]
+* [[SSH#SSH_Login_Comparison_Table|SSH Login Comparison Table]]
+* https://github.com/Kicksecure/security-misc/blob/master/etc/ssh/sshd_config.d/30_security-misc.conf%23security-misc-shared
+* https://github.com/Kicksecure/security-misc/blob/master/etc/ssh/ssh_config.d/30_security-misc.conf%23security-misc-shared
+
+== Block Unsafe Logins ==
+
+'''Threat model:''' If a legitimate privilege escalation executable exists on the system that uses <code>PAM</code>, and we have not yet restricted its access using [[SUID Disabler and Permission Hardener]], then the application could be used to escalate privileges to any passwordless account that is a member of a group classified as "sensitive" during a user session.
+
+For example, if a <code>su</code>-like executable (<code>su-ng</code> / <code>su-nextgen</code>) exited that account <code>nginx</code> can execute, then <code>nginx</code> should not be able to escalate privileges, log into to the <code>user</code> account.
+
+'''Note:''' [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_/etc/shadow_File|Meanings of Special Characters in the Password Field of <code>/etc/shadow</code> File]] (or <code>/etc/passwd</code> file) such as for example <code>!</code> meaning "<code>locked password</code>" are conventions honored by tools such as <code>sudo</code>, <code>su</code>, <code>pkexec</code> which are using PAM. It's module <code>pam_unix</code> parses <code>passwd</code> and <code>shadow</code> file.
+
+'''Out of scope:'''
+
+* Malicious privilege escalation tools. These would require root privileges or <code>SUID</code>, and such tools would likely grant root access without authentication or by authenticating the attacker directly rather than a legitimate user. Malware would very most likely disregard conventions such as calling PAM, parsing <code>/etc/passwd</code> file, etc.
+* Legitimate privilege escalation tools that do not use <code>PAM</code> but instead parse <code>/etc/passwd</code> / <code>/etc/shadow</code> file directly. Mitigating these would require altering password locks in <code>/etc/passwd</code> at boot, which is unsafe and likely not feasible to implement reliably. See also [[#SSH|SSH]].
+* Legitimate login tools that use <code>PAM</code> (e.g. <code>login</code>, <code>greetd</code>, <code>sshd</code>). These tools do not allow one user to escalate to another, and passwordless login is intended to function as expected, even for sensitive accounts.
+
+'''Source code:'''
+
+* [https://github.com/Kicksecure/security-misc/blob/master/usr/share/pam-configs/block-unsafe-logins-security-misc%23security-misc-shared <code>/usr/share/pam-configs/block-unsafe-logins-security-misc</code>]
+* [https://github.com/Kicksecure/security-misc/blob/master/usr/libexec/security-misc/block-unsafe-logins%23security-misc-shared <code>/usr/libexec/security-misc/block-unsafe-logins</code>]
+* Related: [[Dev/Strong_Linux_User_Account_Isolation#Default_Empty_Password_Security_Impact|Default Empty Password Security Impact]]
+
+== Physical Security Check ==
+'''Figure:''' ''systemcheck - Physical Security Check''
+
+[[File:physical-security-check.png|600px]]
+
+See [[systemcheck]] chapter [[Systemcheck#Physical_Security_Check|Physical Security Check]].
 
 = General Issues =
 {{Anchor|Issues}}
@@ -698,20 +732,20 @@ At that time, the inability to escalate to administrative ("root") rights, there
 = Passwords =
 
 == Default Empty Password Security Impact ==
-Does a default password such as <code>changeme</code> provide better security than an empty by default password? No, because malware could easily use [https://forums.whonix.org/t/dsudo-default-password-sudo/8766 <code>dsudo</code>] to enter <code>changeme</code> into the sudo prompt.
+Does a default password such as <code>changeme</code> provide better security than an empty by default password? No, because malware could easily use [https://forums.whonix.org/t/dsudo-default-password-sudo/8766 <code>dsudo</code>] (or similarly trivial tools) to enter <code>changeme</code> into the sudo prompt.
 
 == Rationale for Change from Default Password changeme to Empty Default Password ==
 
 * '''Usability:''' Better usability.
-* '''No impact on security:''' See [[#Default Empty Password Security Impact|Default Empty Password Security Impact]].
+* '''No impact on security:''' See [[Dev/Strong_Linux_User_Account_Isolation#Default_Empty_Password_Security_Impact|Default Empty Password Security Impact]].
 * '''Security theater:''' A default public known account password for account <code>user</code> is security theater. Due to many [[Dev/Strong_Linux_User_Account_Isolation#Issues|issues]], having a user password to password protect running <code>sudo</code> from the user account is also security theater in many contexts. When a user password makes sense is documented in the user documentation.
 * '''User documentation:''' See [[Default Passwords]].
-* '''Real security:''' See the [[root|Safely Use Root Commands]], especially [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]] (SysRq based solution).
+* '''Real security:''' Use [[#user-sysmaint-split]]. See also [[root|Safely Use Root Commands]], especially [[Root#Prevent_Malware_from_Sniffing_the_Root_Password|Prevent Malware from Sniffing the Root Password]].
 * '''Root login:''' [[Dev/Strong_Linux_User_Account_Isolation#Root_Login_Disabled|Root Login Disabled]] remains unchanged.
-* '''No user freedom restriction:''' The users ability to configure a user account password remains unchanged. It is still possible to set a password.
+* '''No user freedom restriction:''' The users ability to configure a user account password remains unchanged. It is still possible to set a password. The <code>pwchange</code> utility is being provided to simplify the process of configuring account passwords. It is accessible though [[System Maintenance Panel]]. See [[Login#Configuring_Passwords|Configuring Passwords]].
 * '''Accidental copy/paste of sudo command not a concern:''' A terminal window is very powerful, dangerous in any case. One needs to know what one is doing. A destructive command such as <code>rm -rf ~/file-name *</code> where the user actually meant to write <code>rm -rf ~/file-name*</code> can delete all user data. Only preventing <code>sudo</code> does not make a sufficient difference.
 * '''Secure Administrative Rights Prompt Infeasibility:''' There are too many [[Dev/Strong_Linux_User_Account_Isolation#Issues|issues]] which prevent the creation of a secure root prompt that cannot be trivially broken by malware. It is technically challenging to fix all of them. These are generic issues applicable to most if not all Freedom Software desktop Linux distributions. In other words, these issues are [[unspecific|unspecific to {{project_name_short}}]].
-** '''Future:''' A "boot into sysmaint mode" feature is planned. This is elaborated in chapter [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sudo password sniffing]].
+* '''user-sysmaint-split:''' In user session, [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|sudo password sniffing]] is being prevented by user-sysmaint-split, because no sudo prompt is available in user session when user-sysmaint-split is installed.
 * '''Comparison:''' How did Google Android and Apple iOS solve this issue? By having developed different graphical interfaces and user freedom restrictions where [[Miscellaneous_Threats_to_User_Freedom#Administrative_Rights|the user is being refused administrative rights]].
 * Forum discussion: [https://forums.whonix.org/t/whonix-default-password-changeme-impact/13115 default password (changeme) impact]
 
