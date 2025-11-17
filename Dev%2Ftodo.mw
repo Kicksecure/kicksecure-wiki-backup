@@ -11,28 +11,48 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - Kicksecure /etc/hostname bug ==
-* todo
-
-== trixie-port - lengthen live-config-dist timeouts ==
-* Physical hardware installations to a USB drive oftentimes are slow due to slow USB key performance
-* Timeouts sometimes occur during the installation process, resulting in failed installations
-* Lengthen timeouts in live-config-dist so that this use case is better supported
-* Aaron: Lengthened timeouts in both live-config-dist and calamares-settings-debian.
-** Patrick: Merged.
-** Worth asking Debian upstream if they'd be interested in lengthening timeouts too, since it's the bootloader-config module in calamares-settings-debian that was timing out according to https://forums.kicksecure.com/t/warning-prob-with-installing-on-verbatim-seaglass-drives-false-alarm/1359/6?
-** Patrick: Yes.
-
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** https://openqa.qubes-os.org/tests/159131
 ** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
 ** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
+*** Add a privleap rule for inserting v4l2loopback kernel module
 ** https://openqa.qubes-os.org/tests/159089
 ** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
+*** /tmp/user/1000 owned by root again, try to make an automated reproducer for this
 ** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
+*** Can't reproduce here, probably already fixed?
 * From Ben:
 ** https://openqa.qubes-os.org/tests/159100#step/TC_00_DispVMPerf_whonix-workstation-18/21
+*** Might have been the msgprogressbar issue, hopefully won't reoccur
+* Results of benchmarking a cloned debian-13-xfce qube while adding bits from Kicksecure into it gradually, giving the qube only 400 MB of RAM with no ability to balloon:
+
+<pre>
+Using packages from trixie Kicksecure repo, not trixie-developers
+Before any morph: (8.388 + 8.015 + 8.112) / 3 = 8.171
+After adding helper-scripts: (8.005 + 8.179 + 7.999) / 3 = 8.061
+After adding security-misc: (8.222 + 8.346 + 8.404) / 3 = 8.324 (with outlier 18.132) (Marked drop in performance here, and the outlier did take an awfully long time, does the first boot after security-misc installation do something weird?)
+After adding usability-misc: (8.381 + 8.395 + 8.326) / 3 = 8.367
+After adding dist-base-files: (8.516 + 8.399 + 8.431) / 3 = 8.448
+After adding kicksecure-base-files: (8.253 + 8.461 + 8.430) / 3 = 8.381
+After adding desktop-config-dist: (8.714 + 8.580 + 8.598) / 3 = 8.630 (Another marked drop in performance here)
+After adding sdwdate: (8.867 + 8.751 + 8.946) / 3 = 8.854 (another marked drop in performance here, not really a surprise since this pulled in Tor)
+After adding sdwdate-gui: (9.167 + 9.075 + 9.165) / 3 = 9.135 (another marked drop in performance)
+After adding systemcheck: (9.057 + 9.125 + 9.103) / 3 = 9.095
+After adding msgcollector-gui: (9.171 + 9.190 + 9.224) / 3 = 9.195 (noticeable performance drop)
+After adding vm-config-dist: (9.245 + 9.378 + 9.112) / 3 = 9.245 (doesn't seem to be a truly reliable drop in performance)
+After adding bootclockrandomization: (9.312 + 9.152 + 9.081) / 3 = 9.181
+After adding dist-general-gui-lxqt: (9.264 + 9.112 + 9.187) / 3 = 9.187
+... should have done more incremental benchmarks here ...
+After installing the rest of everything with kicksecure-qubes-gui-lxqt: (9.974 + 9.976 + 9.921) / 3 = 9.957
+</pre>
+
+* Takeaways from benchamrking:
+** It might be worth trying to avoid forking in our startup scripts; maybe having less forks and less units would allow for faster operation. Unfortunately Python multithreading isn't very fast, and Bash doesn't have multithreading, so we can't get parallelism and absence of forks at the same time.
+** We might see if we can avoid blocking startup on units that aren't startup-critical. sdwdate-gui, for instance, takes some time to come up, but also apparently blocks the UI showing up for a quarter of a second on my test machine, which could possibly be avoided.
+** None of the performance issues here seem particularly egregious to me, certainly not enough to cause slews of timeouts like we're seeing in Whonix's tests on OpenQA.
+** I used a very low-RAM system for this, and it worked quite well; no memory exhaustion issues were encountered.
+** Further research needs to be done on the specific tests that are timing out to determine what they're trying to do that is timing out.
 
 == trixie-port - set-system-keymap improvements #2 ==
 * 1) <s>bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.</s> (confusion resolved: system vs user configuration)
@@ -67,6 +87,7 @@ TODO
 * 7) <s><code>set-console-keymap</code>: allow running as non-root / support file <code>~/.keyboard</code></s>
 ** <s>Discussed, researched, not possible to set console keymap without root permissions and setting the keymap system-wide.</s>
 * <s>8) bug: Should write INFOs to stdout, not stderr? Or is there a reason to write everything to stderr? In such special cases, please document this by adding a script comment on how channels (stdout, stderr) are used.</s>
+* 8) set-system-keymap in sysmaint mode bug: layout change requires reboot
 
 == trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
 * Non-Qubes-Whonix Whonix-Workstation
@@ -120,6 +141,18 @@ TODO
 * todo: add separator output between lines
 ** Aaron: Done.
 * todo: allow the script to be executed by the installer
+
+== trixie-port - sdwdate-gui - broken inside sys-net ==
+* only during boot
+<pre>
+systemctl list-units --failed
+  UNIT                                  LOAD   ACTIVE SUB    DESCRIPTION                                                     >
+● sdwdate-gui-qubes@0-1531-1000.service loaded failed failed sdwdate graphical user interface - Qubes socket proxy (PID 1531/>
+</pre>
+* this is probably because sys-net starts before sys-whonix
+
+== trixie-port - disable lxqt power manager systray icon by default for VM images ==
+* todo
 
 == trixie-port - address systemcheck log warnings ==
 * there are a number of journal messages in systemcheck output in Non-Qubes-Whonix
@@ -1058,6 +1091,10 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - privleap - ai review ==
+* todo
+* Aaron: Reviewed, implemented various fixes and added hardening measures. Commits pushed to privleap.
+
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
 * Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
@@ -1066,6 +1103,22 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Patrick: Added <code>modify</code> permissions.
 
 = ARCHIVED =
+== trixie-port - lengthen live-config-dist timeouts ==
+* Physical hardware installations to a USB drive oftentimes are slow due to slow USB key performance
+* Timeouts sometimes occur during the installation process, resulting in failed installations
+* Lengthen timeouts in live-config-dist so that this use case is better supported
+* Aaron: Lengthened timeouts in both live-config-dist and calamares-settings-debian.
+** Patrick: Merged.
+** Worth asking Debian upstream if they'd be interested in lengthening timeouts too, since it's the bootloader-config module in calamares-settings-debian that was timing out according to https://forums.kicksecure.com/t/warning-prob-with-installing-on-verbatim-seaglass-drives-false-alarm/1359/6?
+** Patrick: Yes.
+*** Aaron: Reported: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1120779
+* Patrick: Merged.
+
+== trixie-port - Kicksecure /etc/hostname bug ==
+* todo
+* Aaron: Fixed, commit pushed to derivative-maker.
+* Patrick: Merged.
+
 == privleap - improve debug output ==
 * "ERROR: You are unauthorized ..."
 ** Who is "You"? :)
