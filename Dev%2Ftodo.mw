@@ -11,17 +11,91 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== trixie-port - black desktop background and sometimes missing task bar ==
+* VirtualBox
+* 18.0.7.0
+* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
+* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
+* non-issue: virtualbox screen resize, still working great
+* lxqt-panel can be manually started: yes, all good.
+** after reboot: lxqt-panel works normally again
+
+== trixie-port - leapctl - could not connect to privleapd ==
+* Tor could not bind. At second boot.
+* VirtualBox
+* 18.0.6.8
+* upgraded
+* see log provided
+* output by leapctl does not allow to nail this down easily at this point. Perhaps if difficult to debug, add additional debug output to leapctl so we can point out which exact leapctl call is causing this?
+* please add more debug output to leapctl calls in any case for the future.
+
+== trixie-port - privleap - check_action_terminate: ERROR: Could not get message from client run by account user ==
+* VirtualBox
+* 18.0.8.0
+* not upgraded
+
+<pre>
+Nov 18 09:01:02 localhost privleapd[1143]: check_action_terminate: ERROR: Could not get message from client run by account 'user'!
+Nov 18 09:01:02 localhost privleapd[1143]: Traceback (most recent call last):
+Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleapd.py", line 517, in check_action_terminate
+Nov 18 09:01:02 localhost privleapd[1143]:     comm_msg: PrivleapMsg = comm_session.get_msg()
+Nov 18 09:01:02 localhost privleapd[1143]:                             ~~~~~~~~~~~~~~~~~~~~^^
+Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 691, in get_msg
+Nov 18 09:01:02 localhost privleapd[1143]:     recv_buf: bytes = self.__recv_msg_cautious()
+Nov 18 09:01:02 localhost privleapd[1143]:                       ~~~~~~~~~~~~~~~~~~~~~~~~^^
+Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 549, in __recv_msg_cautious
+Nov 18 09:01:02 localhost privleapd[1143]:     raise ConnectionAbortedError("Connection unexpectedly closed")
+Nov 18 09:01:02 localhost privleapd[1143]: ConnectionAbortedError: Connection unexpectedly closed
+Nov 18 09:01:02 localhost privleapd[1143]: send_action_results: INFO: Action 'sdwdate-log-viewer' requested by account 'user' completed
+</pre>
+
+* not reproducible after upgrade
+
+== trixie-port - privleap - ai review ==
+* todo
+* https://github.com/assisted-by-ai/privleap/pull/1
+* Aaron: Reviewed, implemented various fixes and added hardening measures. Commits pushed to privleap.
+* Patrick: Merged.
+* https://github.com/assisted-by-ai/privleap/pull/1 - PR updated
+* new PR: https://github.com/assisted-by-ai/privleap/pull/2
+* new minor: bug: after running "leaprun sudo" (non-existing, user error, but causes scary error message)
+<pre>
+Nov 18 10:03:03 host privleapd[1648]: auth_signal_request: WARNING: Action run request: Could not find action 'sudo' requested by account 'user'
+Nov 18 10:03:06 host privleapd[1648]: send_msg_safe: ERROR: Could not send 'UNAUTHORIZED'
+Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
+</pre>
+
+== trixie-port - Kicksecure ISO Installation - using btrfs - broken live mode ==
+* VirtualBox
+* 18.0.7.0
+* ISO
+* btrfs
+* at boot time, an error related to subvolumes is shown
+* bug: read-only volume without read-write overlay
+
+== trixie-port - Qubes - ISO - fails to boot - black screen ==
+* 18.0.7.0
+* Qubes
+* 4 GB = initial RAM = total RAM
+* sysmaint related messages in console visible, after that
+* fails to boot: black screen
+* as per: https://www.kicksecure.com/wiki/Qubes#HVM
+
 == trixie-port - misc qubes test failures ==
 * From Marek:
-** https://openqa.qubes-os.org/tests/159131
-** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
+** General performance issues, may be solved by making things more efficient in general
+*** https://openqa.qubes-os.org/tests/159131
+*** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
 ** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
 *** Add a privleap rule for inserting v4l2loopback kernel module
+**** Done: https://github.com/QubesOS/qubes-video-companion/pull/33
 ** https://openqa.qubes-os.org/tests/159089
+*** Random timesanitycheck failure, likely will not reoccur.
 ** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
 *** /tmp/user/1000 owned by root again, try to make an automated reproducer for this
 ** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
 *** Can't reproduce here, probably already fixed?
+**** Found that the fix was indeed already applied.
 * From Ben:
 ** https://openqa.qubes-os.org/tests/159100#step/TC_00_DispVMPerf_whonix-workstation-18/21
 *** Might have been the msgprogressbar issue, hopefully won't reoccur
@@ -70,41 +144,6 @@ guest-disp7152.log (Whonix-Workstation 18, 7 second kernel load time, 6 seconds 
 guest-disp9514.log (Debian 13, 5 second kernel load time, 6 seconds from "Qubes: done" to disk mount, login prompt (barely), 43 second runtime)
 guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Qubes: done" to disk mount, login prompt, hours long runtime for obvious reasons)
 </pre>
-
-== trixie-port - set-system-keymap improvements #2 ==
-* 1) <s>bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.</s> (confusion resolved: system vs user configuration)
-* 2) <s>bug: <code>set-system-keymap</code> / <code>set-console-keymap</code> is broken in some situations:</s>
-** <s>inside dracut emergency shell</s>
-** <s>single user mode (kernel parameter <code>single</code>)</s>
-** <s>this is because localectl is unavailable. Patrick pushed some changes to ignore this.</s>
-* 3) <s>feature request:  <code>set-system-keymap</code> should configure the system keymap in case of</s>
-** <s>single user mode (kernel parameter <code>single</code>) - possible by re-generating initrd running "sudo dracut -f" - tested - functional</s>
-** <s>dracut emergency shell - same as above.</s>
-** <s>run <code>sudo dracut -f &>/dev/null</code> to hide verbose dracut output and report only success or failure.</s>
-** <s>Patrick implemented this.</s>
-* 4) feature request: set grub stage 2 keyboard layout
-** 1 or 2 separate grub boot menu entries
-*** additional boot menu entry 1: specific user-chosen keymap only
-**** use case: easier to use GRUB menu entry - no need to scroll through lots of language entries
-*** additional boot menu entry 2: generate all keymaps (within reasonable limits?)
-**** What would be a good time/trigger to generate the keymaps? Useful/avoidable to keep re-generating the keymaps over and over again? A new /etc/grub.d drop-in? Part of which script?
-**** use case: usable on the ISO
-**** use case: users can easily try kernel boot parameters to attempt to fix the boot process in case of hardware issues
-*** boot menu entries should be at the very bottom
-*** enabling verbose ("set -x") equivalent may be useful
-** boot with GRUB standard keyboard. Only if the user selects a custom GRUB keyboard layout change menu try loading a different keyboard driver and layout.
-** Aaron: USB keyboard support does not appear practical, as numerous GRUB issues occur when using <code>nativedisk</code> and <code>insmod usb_keyboard</code>:
-*** GRUB randomly can't find hard drives sometimes
-*** Stack overflows occur
-*** Sometimes "alloc magic" errors appear
-*** Fonts can become very messed up
-*** Boot usually becomes impossible
-* 5) <s>feature request: <code>set-labwc-keymap</code>: <code>--persist</code> should be the default?</s>
-* 6) <s>feature request: apply console layout change by running <code>systemctl --no-block --no-pager restart keyboard setup</code></s>
-* 7) <s><code>set-console-keymap</code>: allow running as non-root / support file <code>~/.keyboard</code></s>
-** <s>Discussed, researched, not possible to set console keymap without root permissions and setting the keymap system-wide.</s>
-* <s>8) bug: Should write INFOs to stdout, not stderr? Or is there a reason to write everything to stderr? In such special cases, please document this by adding a script comment on how channels (stdout, stderr) are used.</s>
-* 8) set-system-keymap in sysmaint mode bug: layout change requires reboot
 
 == trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
 * Non-Qubes-Whonix Whonix-Workstation
@@ -158,6 +197,32 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 * todo: add separator output between lines
 ** Aaron: Done.
 * todo: allow the script to be executed by the installer
+** option: enable, disable
+** default: none (require user choice)
+** show link to the related wiki page
+
+<pre>
+Fix VirtualBox green turtle issue which can cause grave VirtualBox stability and performance issues by fully disabling Windows Hyper-V?
+
+Notes:
+
+* Security impact: This unfortunately also disables necessarily various Windows security features.
+* Root issue caused by: VirtualBox, Microsoft Windows
+* Root issue not caused by: VM guest operatin systems such as Whonix.
+
+Alternatives:
+
+* Linux based host operating systems are unaffected. Perhaps try out Kicksecure on USB? (add links)
+* Or Whonix-Host in the future? (add link) (Not yet available at time of writing.)
+
+For more information, see:
+https://www.kicksecure.com/wiki/VirtualBox/Green_Turtle_Issue
+</pre>
+
+== trixie-port - GRUB - boot menu style lost after installation of serial-console-enable result ==
+* Kicksecure
+* VirtualBox
+* after installing serial-console-enable, system has been reset to standard GRUB boot menu
 
 == trixie-port - sdwdate-gui - broken inside sys-net ==
 * only during boot
@@ -317,11 +382,6 @@ Nov 06 16:29:18 localhost mount-shared[1099]: /sbin/mount.vboxsf: mounting faile
 ** Delaying this may be essential, as Whonix 18 should release before Qubes OS R4.3 does.
 ** Please move to WAITING ON if good to delay, move back to TODO if we should pursue this now.
 *** Patrick: Please do in sequoia branch.
-
-== user-sysmaint-split versus Qubes Video Companion is broken on Whonix-Workstation ==
-* please comment how this could be resolved
-* https://github.com/QubesOS/qubes-issues/issues/10163
-* https://forums.whonix.org/t/qubes-sudo-su-root-hardening-development-discussion/8561/73
 
 == kloak - Qubes OS mouse anonymization improvements ==
 * https://github.com/QubesOS/qubes-issues/issues/10292
@@ -777,6 +837,12 @@ sudo apt install serial-console-enable
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== user-sysmaint-split versus Qubes Video Companion is broken on Whonix-Workstation ==
+* please comment how this could be resolved
+* https://github.com/QubesOS/qubes-issues/issues/10163
+* https://forums.whonix.org/t/qubes-sudo-su-root-hardening-development-discussion/8561/73
+* Aaron: Fix: https://github.com/QubesOS/qubes-video-companion/pull/33
+
 == trixie-port - Qubes journal log messages ==
 * Qubes. Should be fixed but is not fixed. Happening after boot.
 
@@ -1108,9 +1174,41 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== trixie-port - privleap - ai review ==
-* todo
-* Aaron: Reviewed, implemented various fixes and added hardening measures. Commits pushed to privleap.
+== trixie-port - set-system-keymap improvements #2 ==
+* 1) <s>bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.</s> (confusion resolved: system vs user configuration)
+* 2) <s>bug: <code>set-system-keymap</code> / <code>set-console-keymap</code> is broken in some situations:</s>
+** <s>inside dracut emergency shell</s>
+** <s>single user mode (kernel parameter <code>single</code>)</s>
+** <s>this is because localectl is unavailable. Patrick pushed some changes to ignore this.</s>
+* 3) <s>feature request:  <code>set-system-keymap</code> should configure the system keymap in case of</s>
+** <s>single user mode (kernel parameter <code>single</code>) - possible by re-generating initrd running "sudo dracut -f" - tested - functional</s>
+** <s>dracut emergency shell - same as above.</s>
+** <s>run <code>sudo dracut -f &>/dev/null</code> to hide verbose dracut output and report only success or failure.</s>
+** <s>Patrick implemented this.</s>
+* 4) feature request: set grub stage 2 keyboard layout
+** 1 or 2 separate grub boot menu entries
+*** additional boot menu entry 1: specific user-chosen keymap only
+**** use case: easier to use GRUB menu entry - no need to scroll through lots of language entries
+*** additional boot menu entry 2: generate all keymaps (within reasonable limits?)
+**** What would be a good time/trigger to generate the keymaps? Useful/avoidable to keep re-generating the keymaps over and over again? A new /etc/grub.d drop-in? Part of which script?
+**** use case: usable on the ISO
+**** use case: users can easily try kernel boot parameters to attempt to fix the boot process in case of hardware issues
+*** boot menu entries should be at the very bottom
+*** enabling verbose ("set -x") equivalent may be useful
+** boot with GRUB standard keyboard. Only if the user selects a custom GRUB keyboard layout change menu try loading a different keyboard driver and layout.
+** Aaron: USB keyboard support does not appear practical, as numerous GRUB issues occur when using <code>nativedisk</code> and <code>insmod usb_keyboard</code>:
+*** GRUB randomly can't find hard drives sometimes
+*** Stack overflows occur
+*** Sometimes "alloc magic" errors appear
+*** Fonts can become very messed up
+*** Boot usually becomes impossible
+** Aaron: Implemented, commits pushed to helper-scripts, kicksecure-base-files, usability-misc, anon-gw-base-files, anon-ws-base-files, and derivative-maker.
+* 5) <s>feature request: <code>set-labwc-keymap</code>: <code>--persist</code> should be the default?</s>
+* 6) <s>feature request: apply console layout change by running <code>systemctl --no-block --no-pager restart keyboard setup</code></s>
+* 7) <s><code>set-console-keymap</code>: allow running as non-root / support file <code>~/.keyboard</code></s>
+** <s>Discussed, researched, not possible to set console keymap without root permissions and setting the keymap system-wide.</s>
+* <s>8) bug: Should write INFOs to stdout, not stderr? Or is there a reason to write everything to stderr? In such special cases, please document this by adding a script comment on how channels (stdout, stderr) are used.</s>
+* 8) set-system-keymap in sysmaint mode bug: layout change requires reboot
 
 == usbguard - test in Qubes ==
 * Does usbguard and usbguard-notifier work for you in Qubes?
@@ -1120,6 +1218,14 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Patrick: Added <code>modify</code> permissions.
 
 = ARCHIVED =
+== trixie-port - Tor could not bind to IPv6 race condition ==
+* Tor could not bind. At second boot.
+* VirtualBox
+* happened at first boot only
+* happened just once. difficult to reproduce.
+* see old log provided (was version 18.0.6.8)
+* Patrick: Fixed.
+
 == trixie-port - lengthen live-config-dist timeouts ==
 * Physical hardware installations to a USB drive oftentimes are slow due to slow USB key performance
 * Timeouts sometimes occur during the installation process, resulting in failed installations
