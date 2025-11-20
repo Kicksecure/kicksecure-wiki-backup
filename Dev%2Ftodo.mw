@@ -19,37 +19,10 @@ TODO
 * non-issue: virtualbox screen resize, still working great
 * lxqt-panel can be manually started: yes, all good.
 ** after reboot: lxqt-panel works normally again
-
-== trixie-port - leapctl - could not connect to privleapd ==
-* Tor could not bind. At second boot.
-* VirtualBox
-* 18.0.6.8
-* upgraded
-* see log provided
-* output by leapctl does not allow to nail this down easily at this point. Perhaps if difficult to debug, add additional debug output to leapctl so we can point out which exact leapctl call is causing this?
-* please add more debug output to leapctl calls in any case for the future.
-
-== trixie-port - privleap - check_action_terminate: ERROR: Could not get message from client run by account user ==
-* VirtualBox
-* 18.0.8.0
-* not upgraded
-
-<pre>
-Nov 18 09:01:02 localhost privleapd[1143]: check_action_terminate: ERROR: Could not get message from client run by account 'user'!
-Nov 18 09:01:02 localhost privleapd[1143]: Traceback (most recent call last):
-Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleapd.py", line 517, in check_action_terminate
-Nov 18 09:01:02 localhost privleapd[1143]:     comm_msg: PrivleapMsg = comm_session.get_msg()
-Nov 18 09:01:02 localhost privleapd[1143]:                             ~~~~~~~~~~~~~~~~~~~~^^
-Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 691, in get_msg
-Nov 18 09:01:02 localhost privleapd[1143]:     recv_buf: bytes = self.__recv_msg_cautious()
-Nov 18 09:01:02 localhost privleapd[1143]:                       ~~~~~~~~~~~~~~~~~~~~~~~~^^
-Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 549, in __recv_msg_cautious
-Nov 18 09:01:02 localhost privleapd[1143]:     raise ConnectionAbortedError("Connection unexpectedly closed")
-Nov 18 09:01:02 localhost privleapd[1143]: ConnectionAbortedError: Connection unexpectedly closed
-Nov 18 09:01:02 localhost privleapd[1143]: send_action_results: INFO: Action 'sdwdate-log-viewer' requested by account 'user' completed
-</pre>
-
-* not reproducible after upgrade
+* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
+** Black screen issue fixed, commit pushed to desktop-config-dist.
+* Patrick: Merged.
+* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
 
 == trixie-port - privleap - ai review ==
 * todo
@@ -57,7 +30,9 @@ Nov 18 09:01:02 localhost privleapd[1143]: send_action_results: INFO: Action 'sd
 * Aaron: Reviewed, implemented various fixes and added hardening measures. Commits pushed to privleap.
 * Patrick: Merged.
 * https://github.com/assisted-by-ai/privleap/pull/1 - PR updated
+** Aaron: Reviewed, added a bugfix.
 * new PR: https://github.com/assisted-by-ai/privleap/pull/2
+** Aaron: Reviewed, manually tested the scenario the bulk of the PR was intended to test, added an extra feature suggested by the AI.
 * new minor: bug: after running "leaprun sudo" (non-existing, user error, but causes scary error message)
 <pre>
 Nov 18 10:03:03 host privleapd[1648]: auth_signal_request: WARNING: Action run request: Could not find action 'sudo' requested by account 'user'
@@ -77,9 +52,14 @@ Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
 * 18.0.7.0
 * Qubes
 * 4 GB = initial RAM = total RAM
+* dynamic memory balloon: disabled
 * sysmaint related messages in console visible, after that
 * fails to boot: black screen
 * as per: https://www.kicksecure.com/wiki/Qubes#HVM
+
+== trixie-port - sdwdate-gui - flashing menu during time sync ==
+* While a time sync is in progress, right-click on the sdwdate-gui icon. The menu will flash rapidly in bursts.
+* This is most likely caused by the sdwdate-gui-client rewrite, which is probably reacting overzealously to status file changes from sdwdate. Adjust the inotify mechanism to not notify quite so frequently.
 
 == trixie-port - misc qubes test failures ==
 * From Marek:
@@ -1174,6 +1154,45 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - broken passwordless sudo in unrestricted admin mode ==
+* https://forums.whonix.org/t/rejecting-passwordless-sensitive-account-user/22440/2
+** Fixed, commit pushed to security-misc.
+* Patrick: Merged.
+
+== trixie-port - privleap - check_action_terminate: ERROR: Could not get message from client run by account user ==
+* VirtualBox
+* 18.0.8.0
+* not upgraded
+
+<pre>
+Nov 18 09:01:02 localhost privleapd[1143]: check_action_terminate: ERROR: Could not get message from client run by account 'user'!
+Nov 18 09:01:02 localhost privleapd[1143]: Traceback (most recent call last):
+Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleapd.py", line 517, in check_action_terminate
+Nov 18 09:01:02 localhost privleapd[1143]:     comm_msg: PrivleapMsg = comm_session.get_msg()
+Nov 18 09:01:02 localhost privleapd[1143]:                             ~~~~~~~~~~~~~~~~~~~~^^
+Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 691, in get_msg
+Nov 18 09:01:02 localhost privleapd[1143]:     recv_buf: bytes = self.__recv_msg_cautious()
+Nov 18 09:01:02 localhost privleapd[1143]:                       ~~~~~~~~~~~~~~~~~~~~~~~~^^
+Nov 18 09:01:02 localhost privleapd[1143]:   File "/usr/lib/python3/dist-packages/privleap/privleap.py", line 549, in __recv_msg_cautious
+Nov 18 09:01:02 localhost privleapd[1143]:     raise ConnectionAbortedError("Connection unexpectedly closed")
+Nov 18 09:01:02 localhost privleapd[1143]: ConnectionAbortedError: Connection unexpectedly closed
+Nov 18 09:01:02 localhost privleapd[1143]: send_action_results: INFO: Action 'sdwdate-log-viewer' requested by account 'user' completed
+</pre>
+
+* not reproducible after upgrade
+** Aaron: Mitigated somewhat with a commit to leaprun, however this was most likely caused by the leaprun process receiving a signal mid-execution. There isn't much that can be reasonably done to prevent a session terminated prematurely at an arbitrary point from resulting in the server griping about it, other than hiding possibly useful debugging output. The commit fixes a likely common case though.
+* Patrick: Merged.
+
+== trixie-port - leapctl - could not connect to privleapd ==
+* Tor could not bind. At second boot.
+* VirtualBox
+* 18.0.6.8
+* upgraded
+* see log provided
+* output by leapctl does not allow to nail this down easily at this point. Perhaps if difficult to debug, add additional debug output to leapctl so we can point out which exact leapctl call is causing this?
+* please add more debug output to leapctl calls in any case for the future.
+** Aaron: Sufficient information to debug the leapctl failure is present in the logs. The issue seems to have been triggered by privleapd dying due to a watchdog timeout. The exact reason is unclear, the VM seems to have locked up for 10 seconds or otherwise experienced a time jump possibly. Details shared in chat.
+
 == trixie-port - set-system-keymap improvements #2 ==
 * 1) <s>bug: in sysmaint session <code>sudo set-system-keymap de</code> fails to reload labwc. reboot required to change keyboard layout.</s> (confusion resolved: system vs user configuration)
 * 2) <s>bug: <code>set-system-keymap</code> / <code>set-console-keymap</code> is broken in some situations:</s>
