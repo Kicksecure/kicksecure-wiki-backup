@@ -11,52 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - black desktop background and sometimes missing task bar ==
-* VirtualBox
-* 18.0.7.0
-* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
-* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
-* non-issue: virtualbox screen resize, still working great
-* lxqt-panel can be manually started: yes, all good.
-** after reboot: lxqt-panel works normally again
-* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
-** Black screen issue fixed, commit pushed to desktop-config-dist.
-* Patrick: Merged.
-* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
-
-== trixie-port - privleap - ai review ==
-* todo
-* https://github.com/assisted-by-ai/privleap/pull/1
-* Aaron: Reviewed, implemented various fixes and added hardening measures. Commits pushed to privleap.
-* Patrick: Merged.
-* https://github.com/assisted-by-ai/privleap/pull/1 - PR updated
-** Aaron: Reviewed, added a bugfix.
-* new PR: https://github.com/assisted-by-ai/privleap/pull/2
-** Aaron: Reviewed, manually tested the scenario the bulk of the PR was intended to test, added an extra feature suggested by the AI.
-* new minor: bug: after running "leaprun sudo" (non-existing, user error, but causes scary error message)
-<pre>
-Nov 18 10:03:03 host privleapd[1648]: auth_signal_request: WARNING: Action run request: Could not find action 'sudo' requested by account 'user'
-Nov 18 10:03:06 host privleapd[1648]: send_msg_safe: ERROR: Could not send 'UNAUTHORIZED'
-Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
-</pre>
-
-== trixie-port - Kicksecure ISO Installation - using btrfs - broken live mode ==
-* VirtualBox
-* 18.0.7.0
-* ISO
-* btrfs
-* at boot time, an error related to subvolumes is shown
-* bug: read-only volume without read-write overlay
-
-== trixie-port - Qubes - ISO - fails to boot - black screen ==
-* 18.0.7.0
-* Qubes
-* 4 GB = initial RAM = total RAM
-* dynamic memory balloon: disabled
-* sysmaint related messages in console visible, after that
-* fails to boot: black screen
-* as per: https://www.kicksecure.com/wiki/Qubes#HVM
-
 == trixie-port - sdwdate-gui - flashing menu during time sync ==
 * While a time sync is in progress, right-click on the sdwdate-gui icon. The menu will flash rapidly in bursts.
 * This is most likely caused by the sdwdate-gui-client rewrite, which is probably reacting overzealously to status file changes from sdwdate. Adjust the inotify mechanism to not notify quite so frequently.
@@ -292,6 +246,8 @@ sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
 == dracut improvements ==
 * install bash module by default? vs qubes initial memory
 * set <code>SYSTEMD_SULOGIN_FORCE=1</code> by default to allow login into dracut emergency console even if root account password is locked
+
+https://github.com/QubesOS/qubes-core-agent-linux/pull/526/files
 
 == terminal login messages ==
 * adjust cli (virtual console) login manager messages based on session type (user session versus sysmaint session)
@@ -1154,6 +1110,58 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - Qubes - ISO - fails to boot - black screen ==
+* 18.0.7.0
+* Qubes
+* 4 GB = initial RAM = total RAM
+* dynamic memory balloon: disabled
+* sysmaint related messages in console visible, after that
+* fails to boot: black screen
+* as per: https://www.kicksecure.com/wiki/Qubes#HVM
+* Aaron: Issue appeared to be related to the display resolution - 1920x1080 seems to be too high for labwc to handle. Resolutions other than 1024x768 may work, but may also behave strangely.
+** Pushed a commit to vm-config-dist to make wlr_resize_watcher set a default resolution of 1024x768 under Xen.
+
+== trixie-port - Kicksecure ISO Installation - using btrfs - broken live mode ==
+* VirtualBox
+* 18.0.7.0
+* ISO
+* btrfs
+* at boot time, an error related to subvolumes is shown
+* bug: read-only volume without read-write overlay
+* Aaron: Dracut bug, already fixed upstream but not fixed in Trixie. Bug report: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1121043
+** Pushed a commit to grub-live to revert back to the Debian-specific overlay-root module and rootovl kernel parameter.
+
+== trixie-port - privleap - ai review ==
+* todo
+* https://github.com/assisted-by-ai/privleap/pull/1
+* Aaron: Reviewed, implemented various fixes and added hardening measures. Commits pushed to privleap.
+* Patrick: Merged.
+* https://github.com/assisted-by-ai/privleap/pull/1 - PR updated
+** Aaron: Reviewed, added a bugfix.
+* new PR: https://github.com/assisted-by-ai/privleap/pull/2
+** Aaron: Reviewed, manually tested the scenario the bulk of the PR was intended to test, added an extra feature suggested by the AI.
+* new minor: bug: after running "leaprun sudo" (non-existing, user error, but causes scary error message)
+<pre>
+Nov 18 10:03:03 host privleapd[1648]: auth_signal_request: WARNING: Action run request: Could not find action 'sudo' requested by account 'user'
+Nov 18 10:03:06 host privleapd[1648]: send_msg_safe: ERROR: Could not send 'UNAUTHORIZED'
+Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
+</pre>
+* Aaron: Most likely caused by pressing Ctrl+C during the delay caused by attempting to run an action without authorization. Fixed by the new signal handling mechanism in leaprun used to fix <code>check_action_terminate: ERROR: Could not get message from client run by account 'user'!</code>.
+
+== trixie-port - black desktop background and sometimes missing task bar ==
+* VirtualBox
+* 18.0.7.0
+* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
+* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
+* non-issue: virtualbox screen resize, still working great
+* lxqt-panel can be manually started: yes, all good.
+** after reboot: lxqt-panel works normally again
+* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
+** Black screen issue fixed, commit pushed to desktop-config-dist.
+* Patrick: Merged.
+* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
+** Aaron: Added a followup fix to desktop-config-dist.
+
 == trixie-port - broken passwordless sudo in unrestricted admin mode ==
 * https://forums.whonix.org/t/rejecting-passwordless-sensitive-account-user/22440/2
 ** Fixed, commit pushed to security-misc.
