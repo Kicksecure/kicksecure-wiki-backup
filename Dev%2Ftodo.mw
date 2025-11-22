@@ -11,15 +11,20 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - sdwdate-gui - flashing menu during time sync ==
-* While a time sync is in progress, right-click on the sdwdate-gui icon. The menu will flash rapidly in bursts.
-* This is most likely caused by the sdwdate-gui-client rewrite, which is probably reacting overzealously to status file changes from sdwdate. Adjust the inotify mechanism to not notify quite so frequently.
+== usbguard - test in Qubes ==
+* Does usbguard and usbguard-notifier work for you in Qubes?
+* Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
+* Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
+** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
+** Patrick: Added <code>modify</code> permissions.
+* TODO: Please test.
 
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
 *** https://openqa.qubes-os.org/tests/159131
 *** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
+**** Applied some optimizations to sdwdate and sdwdate-gui. systemd reports a relatively fast boot time now (around 7 seconds), however the time from a <code>qvm-run</code> call to application startup is still pretty long.
 ** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
 *** Add a privleap rule for inserting v4l2loopback kernel module
 **** Done: https://github.com/QubesOS/qubes-video-companion/pull/33
@@ -27,6 +32,7 @@ TODO
 *** Random timesanitycheck failure, likely will not reoccur.
 ** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
 *** /tmp/user/1000 owned by root again, try to make an automated reproducer for this
+**** Automated reproducer couldn't trigger the issue. Audited all mkdir calls, pushed a commit to helper-scripts with a fix to lockfile.sh. Unlikely to fix the issue, but worthwhile.
 ** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
 *** Can't reproduce here, probably already fixed?
 **** Found that the fix was indeed already applied.
@@ -79,18 +85,6 @@ guest-disp9514.log (Debian 13, 5 second kernel load time, 6 seconds from "Qubes:
 guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Qubes: done" to disk mount, login prompt, hours long runtime for obvious reasons)
 </pre>
 
-== trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
-* Non-Qubes-Whonix Whonix-Workstation
-* no adverse effects, but looks scary for users
-* Aaron: I've seen this before, but could not reproduce it on-demand for testing.
-** Pushed commits to desktop-config-dist and user-sysmaint-split in an attempt to resolve the issue and a related problem with scary logs being shown during shutdown. Unfortunately I ended up reproducing the issue by accident even after these changes were installed.
-* Patrick:
-** What place is supposed to set XDG_RUNTIME_DIR? Can we set it?
-** Could you ask labwc please?
-** libpam-systemd missing? as per
-*** https://github.com/BlitterStudio/amiberry/issues/453#issuecomment-549150776
-** Aaron: Possibly a minor greetd bug: https://lists.sr.ht/~kennylevinsen/greetd-devel/%3C20251113233255.64d6bc0f@kf-m2g5%3E
-
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
 * Test with Windows Pro.
@@ -142,21 +136,31 @@ Notes:
 
 * Security impact: This unfortunately also disables necessarily various Windows security features.
 * Root issue caused by: VirtualBox, Microsoft Windows
-* Root issue not caused by: VM guest operatin systems such as Whonix.
+* Root issue not caused by: VM guest operating systems such as Whonix.
 
 Alternatives:
 
-* Linux based host operating systems are unaffected. Perhaps try out Kicksecure on USB? (add links)
-* Or Whonix-Host in the future? (add link) (Not yet available at time of writing.)
+* Linux based host operating systems are unaffected. See host operating system selection.
+* Perhaps try out Kicksecure (on USB)?
+* Or Whonix-Host in the future? (Not yet available at time of writing.)
 
-For more information, see:
 https://www.kicksecure.com/wiki/VirtualBox/Green_Turtle_Issue
+https://www.kicksecure.com/wiki/Host_Operating_System_Selection
+https://www.kicksecure.com
+https://www.kicksecure.com/wiki/USB_Installation
+https://www.whonix.org/wiki/Whonix-Host
 </pre>
 
 == trixie-port - GRUB - boot menu style lost after installation of serial-console-enable result ==
 * Kicksecure
 * VirtualBox
 * after installing serial-console-enable, system has been reset to standard GRUB boot menu
+* Patrick: This is to be expected. Nothing very bad happening. Caused by:
+
+<pre>
+GRUB_TERMINAL="console serial gfxterm"
+</pre>
+* Patrick: Probably no action required except documentation.
 
 == trixie-port - sdwdate-gui - broken inside sys-net ==
 * only during boot
@@ -167,12 +171,24 @@ systemctl list-units --failed
 </pre>
 * this is probably because sys-net starts before sys-whonix
 
+== trixie-port - lxqt-powermanagement - power management still enabled in VBox ==
+* Battery watcher and idleness watcher are still active
+* lxqt-powermanagement appears to forcibly write configuration in ~/.config/lxqt/lxqt-powermanagement.conf that enables power management regardless of the contents of $XDG_CONFIG_DIRS
+* Aaron asked in #lxqt:matrix.org if there's some way to work around this behavior (other than writing to the user's configuration under /home)
+
 == trixie-port - disable lxqt power manager systray icon by default for VM images ==
 * todo
 
 == trixie-port - address systemcheck log warnings ==
 * there are a number of journal messages in systemcheck output in Non-Qubes-Whonix
 * there might be others for Qubes-Whonix
+* Whonix-Gateway, non-Qubes:
+<pre>
+Nov 21 15:34:16 host pipewire[1803]: mod.rt: RTKit error: org.freedesktop.DBus.Error.ServiceUnknown
+</pre>
+
+== trixie-port - systemcheck test for CPU stall ==
+* assigned to Patrick
 
 == trixie-port - usability-misc versus policyrcd-script-zg2 ==
 * usability-misc Depends: on policyrcd-script-zg2
@@ -243,11 +259,17 @@ sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
 * Whonix is about 1.5 to 3 seconds slower in app startup in many test cases.
 * Investigate, find ways to reduce the performance delta
 
+== genmkfile and or developer-meta-files - scan for empty folders and abort ==
+* cause reproducible issues
+
 == dracut improvements ==
 * install bash module by default? vs qubes initial memory
 * set <code>SYSTEMD_SULOGIN_FORCE=1</code> by default to allow login into dracut emergency console even if root account password is locked
 
 https://github.com/QubesOS/qubes-core-agent-linux/pull/526/files
+
+== vm-config-dist ai review ==
+* https://github.com/assisted-by-ai/vm-config-dist/pull/1
 
 == terminal login messages ==
 * adjust cli (virtual console) login manager messages based on session type (user session versus sysmaint session)
@@ -354,6 +376,7 @@ Nov 06 16:29:18 localhost mount-shared[1099]: /sbin/mount.vboxsf: mounting faile
 <pre>
 Aug 10 08:30:55 host live-hardener[767]: mount: /boot/efi: wrong fs type, bad option, bad superblock on overlay, missing codepage or helper program, or other error.
 </pre>
+* Patrick: Was already fixed
 
 == emergency-shutdown - bug - breaks Calamares installer ==
 * todo
@@ -1110,6 +1133,42 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== sys-whonix - replace-ips - where to bind - Tor restarts at boot versus IPv6 ==
+* todo
+* sys-whonix: for eth1, use static IPv4 and IPv6 address, if sensible
+* make sure replace-ips is correct and makes Tor bind on eth1 (not on eth0)
+* implement Qubes static networking, if still in time for Qubes R4.3 and if sensible
+** https://github.com/QubesOS/qubes-issues/issues/1477
+** https://forums.whonix.org/t/qubes-whonix-eth1-static-networking/18493
+* Aaron: Discussed possible solutions in chat. Pushed commits to qubes-whonix and anon-gw-anonymizer-config that should implement this sufficiently well for Whonix 18.
+
+= ARCHIVED =
+== trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
+* Non-Qubes-Whonix Whonix-Workstation
+* no adverse effects, but looks scary for users
+* Aaron: I've seen this before, but could not reproduce it on-demand for testing.
+** Pushed commits to desktop-config-dist and user-sysmaint-split in an attempt to resolve the issue and a related problem with scary logs being shown during shutdown. Unfortunately I ended up reproducing the issue by accident even after these changes were installed.
+* Patrick:
+** What place is supposed to set XDG_RUNTIME_DIR? Can we set it?
+** Could you ask labwc please?
+** libpam-systemd missing? as per
+*** https://github.com/BlitterStudio/amiberry/issues/453#issuecomment-549150776
+** Aaron: Possibly a minor greetd bug: https://lists.sr.ht/~kennylevinsen/greetd-devel/%3C20251113233255.64d6bc0f@kf-m2g5%3E
+*** Seems benign and most likely race-induced (labwc is failing to start somewhere, but it seems to get retried and successfully starts thereafter?). Silencing for now. Commits pushed to desktop-config-dist and systemcheck.
+* Patrick: Merged.
+
+== trixie-port - sdwdate-gui - flashing menu during time sync ==
+* While a time sync is in progress, right-click on the sdwdate-gui icon. The menu will flash rapidly in bursts.
+* This is most likely caused by the sdwdate-gui-client rewrite, which is probably reacting overzealously to status file changes from sdwdate. Adjust the inotify mechanism to not notify quite so frequently.
+** Fixed, commit pushed to sdwdate-gui.
+* Patrick: Merged.
+
+== trixie-port sdwdate-gui - client busy-waits if sdwdate-gui.ConnectCheck fails ==
+* expected behavior: endless repeated notifications about failed qrexec calls
+* actual behavior: failed qrexec call warnings stop after a bit, sdwdate-gui-client consumes 100% CPU
+** Fixed, commit pushed to sdwdate-gui.
+* Patrick: Merged.
+
 == trixie-port - Qubes - ISO - fails to boot - black screen ==
 * 18.0.7.0
 * Qubes
@@ -1120,6 +1179,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * as per: https://www.kicksecure.com/wiki/Qubes#HVM
 * Aaron: Issue appeared to be related to the display resolution - 1920x1080 seems to be too high for labwc to handle. Resolutions other than 1024x768 may work, but may also behave strangely.
 ** Pushed a commit to vm-config-dist to make wlr_resize_watcher set a default resolution of 1024x768 under Xen.
+* Patrick: Merged.
 
 == trixie-port - Kicksecure ISO Installation - using btrfs - broken live mode ==
 * VirtualBox
@@ -1130,6 +1190,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * bug: read-only volume without read-write overlay
 * Aaron: Dracut bug, already fixed upstream but not fixed in Trixie. Bug report: https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1121043
 ** Pushed a commit to grub-live to revert back to the Debian-specific overlay-root module and rootovl kernel parameter.
+* Patrick: Merged.
 
 == trixie-port - privleap - ai review ==
 * todo
@@ -1147,6 +1208,7 @@ Nov 18 10:03:06 host privleapd[1648]: send_msg_safe: ERROR: Could not send 'UNAU
 Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
 </pre>
 * Aaron: Most likely caused by pressing Ctrl+C during the delay caused by attempting to run an action without authorization. Fixed by the new signal handling mechanism in leaprun used to fix <code>check_action_terminate: ERROR: Could not get message from client run by account 'user'!</code>.
+* Patrick: Merged.
 
 == trixie-port - black desktop background and sometimes missing task bar ==
 * VirtualBox
@@ -1161,6 +1223,7 @@ Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
 * Patrick: Merged.
 * bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
 ** Aaron: Added a followup fix to desktop-config-dist.
+* Patrick: Merged.
 
 == trixie-port - broken passwordless sudo in unrestricted admin mode ==
 * https://forums.whonix.org/t/rejecting-passwordless-sensitive-account-user/22440/2
@@ -1236,15 +1299,8 @@ Nov 18 09:01:02 localhost privleapd[1143]: send_action_results: INFO: Action 'sd
 ** <s>Discussed, researched, not possible to set console keymap without root permissions and setting the keymap system-wide.</s>
 * <s>8) bug: Should write INFOs to stdout, not stderr? Or is there a reason to write everything to stderr? In such special cases, please document this by adding a script comment on how channels (stdout, stderr) are used.</s>
 * 8) set-system-keymap in sysmaint mode bug: layout change requires reboot
+* Patrick: Merged.
 
-== usbguard - test in Qubes ==
-* Does usbguard and usbguard-notifier work for you in Qubes?
-* Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
-* Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
-** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
-** Patrick: Added <code>modify</code> permissions.
-
-= ARCHIVED =
 == trixie-port - Tor could not bind to IPv6 race condition ==
 * Tor could not bind. At second boot.
 * VirtualBox
