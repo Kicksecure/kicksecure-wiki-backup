@@ -11,38 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== sys-whonix - replace-ips - where to bind - Tor restarts at boot versus IPv6 ==
-* todo
-* sys-whonix: for eth1, use static IPv4 and IPv6 address, if sensible
-* make sure replace-ips is correct and makes Tor bind on eth1 (not on eth0)
-* implement Qubes static networking, if still in time for Qubes R4.3 and if sensible
-** https://github.com/QubesOS/qubes-issues/issues/1477
-** https://forums.whonix.org/t/qubes-whonix-eth1-static-networking/18493
-* Aaron: Discussed possible solutions in chat. Pushed commits to qubes-whonix and anon-gw-anonymizer-config that should implement this sufficiently well for Whonix 18.
-* Patrick: Merged.
-* Patrick: Made huge changes to replace-ips. Please review and test.
-
-== trixie-port - Qubes - ISO - fails to boot - black screen ==
-* 18.0.7.0
-* Qubes
-* 4 GB = initial RAM = total RAM
-* dynamic memory balloon: disabled
-* sysmaint related messages in console visible, after that
-* fails to boot: black screen
-* as per: https://www.kicksecure.com/wiki/Qubes#HVM
-* Aaron: Issue appeared to be related to the display resolution - 1920x1080 seems to be too high for labwc to handle. Resolutions other than 1024x768 may work, but may also behave strangely.
-** Pushed a commit to vm-config-dist to make wlr_resize_watcher set a default resolution of 1024x768 under Xen.
-* Patrick: Merged.
-* Patrick: Please report issues to Qubes, and wherever else useful.
-
-== usbguard - test in Qubes ==
-* Does usbguard and usbguard-notifier work for you in Qubes?
-* Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
-* Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
-** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
-** Patrick: Added <code>modify</code> permissions.
-* TODO: Please test.
-
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
@@ -57,6 +25,7 @@ TODO
 ** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
 *** /tmp/user/1000 owned by root again, try to make an automated reproducer for this
 **** Automated reproducer couldn't trigger the issue. Audited all mkdir calls, pushed a commit to helper-scripts with a fix to lockfile.sh. Unlikely to fix the issue, but worthwhile.
+***** Patrick: Merged. Yes, worthwhile to fix. Also yes, unlikely to fix the issue since the issue started before lockfile.sh got introduced.
 ** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
 *** Can't reproduce here, probably already fixed?
 **** Found that the fix was indeed already applied.
@@ -173,42 +142,6 @@ https://www.kicksecure.com/wiki/Host_Operating_System_Selection
 https://www.kicksecure.com
 https://www.kicksecure.com/wiki/USB_Installation
 https://www.whonix.org/wiki/Whonix-Host
-</pre>
-
-== trixie-port - GRUB - boot menu style lost after installation of serial-console-enable result ==
-* Kicksecure
-* VirtualBox
-* after installing serial-console-enable, system has been reset to standard GRUB boot menu
-* Patrick: This is to be expected. Nothing very bad happening. Caused by:
-
-<pre>
-GRUB_TERMINAL="console serial gfxterm"
-</pre>
-* Patrick: Probably no action required except documentation.
-
-== trixie-port - sdwdate-gui - broken inside sys-net ==
-* only during boot
-<pre>
-systemctl list-units --failed
-  UNIT                                  LOAD   ACTIVE SUB    DESCRIPTION                                                     >
-● sdwdate-gui-qubes@0-1531-1000.service loaded failed failed sdwdate graphical user interface - Qubes socket proxy (PID 1531/>
-</pre>
-* this is probably because sys-net starts before sys-whonix
-
-== trixie-port - lxqt-powermanagement - power management still enabled in VBox ==
-* Battery watcher and idleness watcher are still active
-* lxqt-powermanagement appears to forcibly write configuration in ~/.config/lxqt/lxqt-powermanagement.conf that enables power management regardless of the contents of $XDG_CONFIG_DIRS
-* Aaron asked in #lxqt:matrix.org if there's some way to work around this behavior (other than writing to the user's configuration under /home)
-
-== trixie-port - disable lxqt power manager systray icon by default for VM images ==
-* todo
-
-== trixie-port - address systemcheck log warnings ==
-* there are a number of journal messages in systemcheck output in Non-Qubes-Whonix
-* there might be others for Qubes-Whonix
-* Whonix-Gateway, non-Qubes:
-<pre>
-Nov 21 15:34:16 host pipewire[1803]: mod.rt: RTKit error: org.freedesktop.DBus.Error.ServiceUnknown
 </pre>
 
 == trixie-port - systemcheck test for CPU stall ==
@@ -1160,6 +1093,197 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== permission-hardener bug - pkexec restore issue ==
+* anon-whonix in unrestricted admin mode
+
+<pre>
+[ERROR] [systemcheck] Check 'pkexec /usr/libexec/systemcheck/pkexec-test' result: System misconfiguration detected. No need to panic. This is not a severe issue. However, other tests may be affected due to this.
+
+The following command:
+pkexec /usr/libexec/systemcheck/pkexec-test ; echo $?
+did not produce an empty output with an exit code of zero, indicating an unexpected result.
+
+exit_code: 127
+
+privilege_escalation_tool_output:
+pkexec must be setuid root
+</pre>
+
+<pre>
+chmod-calc /usr/bin/pkexec
+Permissions for: '/usr/bin/pkexec'
+Type: Regular File
+Owner: root
+Group: root
+Octal Permissions: 755
+File Size: 30952 bytes
+Link Count: 1
+Hidden File: No
+ACLs: none
+Extended Attributes: none
+Capabilities: None
+Immutable (chattr +i): No
+
+Symlink: No
+
+Parent Folder Symlink: No
+
+Category   Read   Write  Execute
+Owner      Yes    Yes    Yes
+Group      Yes    No     Yes
+Public     Yes    No     Yes
+
+Special Attributes:
+SUID: Not Set
+SGID: Not Set
+Sticky Bit: Not Set
+</pre>
+
+* Aaron: pkexec doesn't actually have its SUID bit set until its postinst script runs. If security-misc, pkexec, and user-sysmaint-split are all installed in the same apt invocation, and security-misc gets configured first, it will see pkexec as having permissions 755 and will save that in the existing_mode database before changing its permissions to match user-sysmaint-split's policy. Then when permission-hardener protections are removed, permission-hardener applies those incorrect permissions to the file.
+** No good way to solve this using Debian packaging known, there isn't a way to enforce postinst script order of execution without using Pre-Depends, and a package does not seem to be able to trigger itself.
+** Resolved for new builds by saving a pre-populated existing_mode database when security-misc is installed. This handles many common executables, we can expand the database if needed later.
+** Commits pushed to security-misc.
+
+== Qubes performance - qubes-whonix systemd units ==
+* maybe /usr/lib/systemd/system/qubes-whonix-sysinit.service can be abolished, if sensible. This might speed up the boot process a bit.
+* scan code base for:
+** /run/qubes-service/whonix-gateway
+** /run/qubes-service/whonix-workstation
+* for example
+** /usr/lib/systemd/system/qubes-whonix-remote-support.service
+
+<pre>
+## Copyright (C) 2020 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+[Unit]
+Description=Qubes-Whonix Remote Support
+Documentation=https://github.com/Whonix/qubes-whonix
+ConditionPathExists=|/run/qubes-service/whonix-gateway
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/qvm-connect-tcp 22:dom0:22
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+</pre>
+
+Could maybe be replaced by:
+
+<pre>
+## Copyright (C) 2020 - 2025 ENCRYPTED SUPPORT LLC <adrelanos@whonix.org>
+## See the file COPYING for copying conditions.
+
+[Unit]
+Description=Qubes-Whonix Remote Support
+Documentation=https://github.com/Whonix/qubes-whonix
+
+## Not inside TemplateVM.
+ConditionPathExists=!/run/qubes/this-is-templatevm
+## Whonix-Gateway
+ConditionPathExists=/usr/share/anon-gw-base-files/gateway
+## And ( NetVM OR ProxyVM )
+ConditionPathExists=|/run/qubes/this-is-netvm
+ConditionPathExists=|/run/qubes/this-is-proxyvm
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/qvm-connect-tcp 22:dom0:22
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+</pre>
+
+* Aaron: This did indeed look possible. Implemented throughout the codebase.
+
+== sdwdate-gui-qubes systemd unit stuck in state starting ==
+* see chat
+* Aaron: Switched to using a notify service here, also fixed up the systemd-notify wrapper. Commits pushed to helper-scripts, msgcollector, systemcheck, and sdwdate-gui.
+
+== trixie-port - address systemcheck log warnings ==
+* there are a number of journal messages in systemcheck output in Non-Qubes-Whonix
+* there might be others for Qubes-Whonix
+* Whonix-Gateway, non-Qubes:
+<pre>
+Nov 21 15:34:16 host pipewire[1803]: mod.rt: RTKit error: org.freedesktop.DBus.Error.ServiceUnknown
+</pre>
+* Aaron: Added more lines to /etc/systemcheck.d/30_default.conf, commit pushed to systemcheck.
+* Patrick: Merged.
+
+== trixie-port - disable lxqt power manager systray icon by default for VM images ==
+* todo
+* Aaron: Automatically done as part of disabling LXQt power management. See completed task below.
+
+== trixie-port - lxqt-powermanagement - power management still enabled in VBox ==
+* Battery watcher and idleness watcher are still active
+* lxqt-powermanagement appears to forcibly write configuration in ~/.config/lxqt/lxqt-powermanagement.conf that enables power management regardless of the contents of $XDG_CONFIG_DIRS
+* Aaron asked in #lxqt:matrix.org if there's some way to work around this behavior (other than writing to the user's configuration under /home)
+* Aaron: Culprit found, <code>runCheckLevel=1</code> needed to be set in desktop-config-dist's lxqt-powermanagement.conf. Added the setting, new installations should now obey system-wide power management settings. Existing installations that already have an autogenerated user-specific lxqt-powermanagement.conf will not have this, fixing things for those users may be hard since there is no way to distinguish intentional configuration from auto configuration for existing Kicksecure/Whonix 18 users.
+** Maybe we can detect if <code>runCheckLevel</code> is explicitly set in a user-specific lxqt-powermanagement.conf file and wipe the file if so? That would override settings for existing users, but wouldn't cause further problems after that.
+* Patrick: Merged.
+
+== trixie-port - sdwdate-gui - broken inside sys-net ==
+* only during boot
+<pre>
+systemctl list-units --failed
+  UNIT                                  LOAD   ACTIVE SUB    DESCRIPTION                                                     >
+● sdwdate-gui-qubes@0-1531-1000.service loaded failed failed sdwdate graphical user interface - Qubes socket proxy (PID 1531/>
+</pre>
+* this is probably because sys-net starts before sys-whonix
+* Aaron: Fixed (and fixed a bug I noticed while working on this), commits pushed to sdwdate-gui.
+
+== trixie-port - GRUB - boot menu style lost after installation of serial-console-enable result ==
+* Kicksecure
+* VirtualBox
+* after installing serial-console-enable, system has been reset to standard GRUB boot menu
+* Patrick: This is to be expected. Nothing very bad happening. Caused by:
+
+<pre>
+GRUB_TERMINAL="console serial gfxterm"
+</pre>
+* Patrick: Probably no action required except documentation.
+** Aaron: Documented at https://www.kicksecure.com/wiki/Recovery#Serial_Console
+
+== usbguard - test in Qubes ==
+* Does usbguard and usbguard-notifier work for you in Qubes?
+* Aaron: Mostly; notifications were not working because <code>qubes-notification-agent</code> and listing USB devices using the usbguard CLI was not working because <code>list</code> permissions were not present. Fixed both with pushes to developer-meta-files, kicksecure-meta-packages, and security-misc.
+* Aaron: usbguard-notifier allows users to ad-hoc allow and deny USB devices when they are attached. Should we allow the <code>qubes</code> and <code>sudo</code> groups to have <code>modify</code> permissions in usbguard as well to allow this to work?
+** https://forums.kicksecure.com/t/usbguard-what-should-we-allow-or-disallow-by-default/1248/49
+** Patrick: Added <code>modify</code> permissions.
+* TODO: Please test.
+** Aaron: Tested, works.
+
+== trixie-port - Qubes - ISO - fails to boot - black screen ==
+* 18.0.7.0
+* Qubes
+* 4 GB = initial RAM = total RAM
+* dynamic memory balloon: disabled
+* sysmaint related messages in console visible, after that
+* fails to boot: black screen
+* as per: https://www.kicksecure.com/wiki/Qubes#HVM
+* Aaron: Issue appeared to be related to the display resolution - 1920x1080 seems to be too high for labwc to handle. Resolutions other than 1024x768 may work, but may also behave strangely.
+** Pushed a commit to vm-config-dist to make wlr_resize_watcher set a default resolution of 1024x768 under Xen.
+* Patrick: Merged.
+* Patrick: Please report issues to Qubes, and wherever else useful.
+* Aaron: Filed reports:
+** https://github.com/QubesOS/qubes-issues/issues/10425
+** https://github.com/QubesOS/qubes-issues/issues/10424
+* https://github.com/QubesOS/qubes-issues/issues/10426
+
+== sys-whonix - replace-ips - where to bind - Tor restarts at boot versus IPv6 ==
+* todo
+* sys-whonix: for eth1, use static IPv4 and IPv6 address, if sensible
+* make sure replace-ips is correct and makes Tor bind on eth1 (not on eth0)
+* implement Qubes static networking, if still in time for Qubes R4.3 and if sensible
+** https://github.com/QubesOS/qubes-issues/issues/1477
+** https://forums.whonix.org/t/qubes-whonix-eth1-static-networking/18493
+* Aaron: Discussed possible solutions in chat. Pushed commits to qubes-whonix and anon-gw-anonymizer-config that should implement this sufficiently well for Whonix 18.
+* Patrick: Merged.
+* Patrick: Made huge changes to replace-ips. Please review and test.
+** Aaron: Reviewed, made mostly minor changes (some more involved ones to the var_name function). Tested, seems to work right.
 
 = ARCHIVED =
 == trixie-port - red XDG_RUNTIME_DIR unset warning during shutdown ==
