@@ -11,6 +11,113 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== 18.0.7.5-developers-only - ISO boot broken ==
+* todo
+
+== kloak - Tor Browser scrolling issue ==
+* https://github.com/Whonix/kloak/issues/10
+
+== privleapd restart bug ==
+* hit this in Kicksecure for Qubes by changing privleapd configuration and restarting it a lot
+<pre>
+sudo genmkfile install && sudo systemctl restart privleapd && systemcheck --verbose --function check_kernel_messages
+/usr/share/genmkfile/make-helper-one.bsh: INFO: install
+/usr/libexec/systemcheck/systemcheck: WARNING: Cannot communicate with privleapd. File '/run/privleapd/comm/user' does not exist. Cannot use privleap.
+
+You might be able to create a privleap socket by executing: sudo leapctl --create 'user'
+</pre>
+* privleapd and leaprun is still functional but shows this error
+* when running "leaprun log-checker-kernel" after this, no error shown
+* therefore could be a race condition, i.e. using leaprun too early after restarting privleapd?
+* when injecting a "sleep 1", i.e. "sudo genmkfile install && sudo systemctl restart privleapd && sleep 1 && systemcheck --verbose --function check_kernel_messages" there is no such issue
+
+== helper-scripts - sanitize-string  and strip-html improvements ==
+* sanitize-string
+** please add pipe support
+** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
+*** would be better to have string length as mandatory first argument? Please update code base.
+* strip-html
+** please add pipe support
+* integrate minimally into tests
+
+== set-system-keymap should run set-grub-keymap ==
+* please implement, if sane
+
+== misc journal errors ==
+* VirtualBox: probably unfixable? add to journal ignore on virtualbox?
+
+<pre>
+Speculative Return Stack Overflow: WARNING: See https://kernel.org/doc/html/latest/admin-guide/hw-vuln/srso.html for mitigation options.
+</pre>
+
+* the following might be hardware issues and nothing an be fixed in the code unless you notice something
+
+<pre>
+Nov 24 10:13:50 host systemd[1641]: Starting updatecheck.service - System update checker (user service)...
+Nov 24 10:13:50 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: start.
+Nov 24 10:13:50 host systemd[1641]: Started updatecheck.service - System update checker (user service).
+Nov 24 10:13:50 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: First start. Therefore waiting for 2 minutes for first updatecheck.
+Nov 24 10:16:33 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: loop start.
+Nov 24 10:16:39 host updatecheck-daemon[8321]: /usr/bin/updatecheck: INFO: No updates available.
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Watchdog timeout (limit 7h)!
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Killing process 1910 (updatecheck-dae) with signal SIGABRT.
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Main process exited, code=dumped, status=6/ABRT
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Failed with result 'watchdog'.
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Scheduled restart job, restart counter is at 1.
+Nov 25 05:26:31 host systemd[1641]: Starting updatecheck.service - System update checker (user service)...
+Nov 25 05:26:31 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: start.
+Nov 25 05:26:31 host systemd[1641]: Started updatecheck.service - System update checker (user service).
+Nov 25 05:26:31 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: First start. Therefore waiting for 2 minutes for first updatecheck.
+Nov 25 07:59:13 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: loop start.
+Nov 25 07:59:13 host updatecheck-daemon[17163]: /usr/bin/updatecheck: updatecheck: Software updates check failure: 'leaprun system-ready-check' failed.
+Nov 25 07:59:13 host updatecheck-daemon[17163]:   Debugging information:
+Nov 25 07:59:13 host updatecheck-daemon[17163]:   - system_ready_check_output: 'ERROR: Could not connect to privleapd!'
+Nov 25 07:59:13 host updatecheck-daemon[17163]: To view log, run:
+Nov 25 07:59:13 host updatecheck-daemon[17163]: journalctl --boot --user -u updatecheck.service
+Nov 25 07:59:13 host updatecheck-daemon[17163]: Please run systemcheck.
+
+Whonix-Workstation
+VirtualBox
+Windows host
+no green turtle
+
+Nov 24 10:14:51 host sdwdate[1567]: 2025-11-24 10:14:51 - sdwdate - INFO - Sleeping for 131 minutes, ok.
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Watchdog timeout (limit 3h 20min)!
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Killing process 1567 (sdwdate) with signal SIGABRT.
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Main process exited, code=dumped, status=6/ABRT
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Failed with result 'watchdog'.
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Consumed 2.063s CPU time, 102.3M memory peak.
+Nov 24 13:35:01 host systemd[1]: sdwdate.service: Scheduled restart job, restart counter is at 1.
+Nov 24 13:35:01 host systemd[1]: Starting sdwdate.service - Secure Distributed Web Date...
+Nov 24 13:35:02 host systemd[1]: Started sdwdate.service - Secure Distributed Web Date.
+Nov 24 13:35:02 host sdwdate[15405]: 2025-11-24 13:35:02 - sdwdate - INFO - sdwdate (Secure Distributed Web Date) started. PID: 15405
+
+sudo journalctl | grep stuck
+Nov 19 11:07:44 host kernel: watchdog: BUG: soft lockup - CPU#2 stuck for 2381s! [swapper/2:0]
+Nov 19 22:28:10 host kernel: watchdog: BUG: soft lockup - CPU#2 stuck for 38019s! [swapper/2:0]
+Nov 22 11:35:36 host kernel: watchdog: BUG: soft lockup - CPU#1 stuck for 47763s! [swapper/1:0]
+Nov 22 11:46:12 host kernel: watchdog: BUG: soft lockup - CPU#1 stuck for 449s! [swapper/1:0]
+Nov 24 07:50:14 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 59412s! [swapper/0:0]
+Nov 24 08:51:46 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 3437s! [swapper/0:0]
+Nov 24 10:01:18 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 3496s! [swapper/0:0]
+Nov 24 10:12:05 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 526s! [swapper/0:0]
+Nov 25 05:26:29 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 46634s! [swapper/0:0]
+
+Nov 24 13:55:19 host privleapd[1293]: send_action_results: INFO: Action 'sdwdate-sync-hwclock' requested by account 'sdwdate' completed
+Nov 25 07:59:13 host systemd[1]: privleapd.service: Watchdog timeout (limit 10s)!
+Nov 25 07:59:13 host systemd[1]: privleapd.service: Killing process 1293 (privleapd) with signal SIGABRT.
+Nov 25 07:59:13 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Nov 25 07:59:13 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Nov 25 07:59:14 host privleapd[17276]: handle_control_create_msg: INFO: Handled CREATE message for account 'user', socket created
+</pre>
+
+== misc AI review #2 ==
+* https://github.com/assisted-by-ai/qubes-whonix/pull/1
+* https://github.com/assisted-by-ai/helper-scripts/pull/2
+* https://github.com/assisted-by-ai/helper-scripts/pull/3
+* https://github.com/assisted-by-ai/Whonix-Installer/pull/2 - refactoring might not br worthwhile
+* https://github.com/assisted-by-ai/qubes-whonix/pull/2
+
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
@@ -78,9 +185,6 @@ guest-disp9514.log (Debian 13, 5 second kernel load time, 6 seconds from "Qubes:
 guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Qubes: done" to disk mount, login prompt, hours long runtime for obvious reasons)
 </pre>
 
-== ai review misc ==
-* https://github.com/assisted-by-ai/whonix-firewall/pull/1
-
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
 * Test with Windows Pro.
@@ -146,9 +250,6 @@ https://www.kicksecure.com
 https://www.kicksecure.com/wiki/USB_Installation
 https://www.whonix.org/wiki/Whonix-Host
 </pre>
-
-== trixie-port - systemcheck test for CPU stall ==
-* assigned to Patrick
 
 == trixie-port - usability-misc versus policyrcd-script-zg2 ==
 * usability-misc Depends: on policyrcd-script-zg2
@@ -628,6 +729,10 @@ sudo apt install serial-console-enable
 * fixable? upstream bug report?
 * would installation by default be sane or a security issue?
 
+<pre>
+Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: Input/output error
+</pre>
+
 == KVM related ==
 === KVM - 3D Graphics Acceleration - SPICE - Testing - drm ===
 
@@ -1096,8 +1201,14 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== ai review misc ==
+* https://github.com/assisted-by-ai/whonix-firewall/pull/1
+** Aaron: Done, commit pushed to whonix-firewall.
 
 = ARCHIVED =
+== trixie-port - systemcheck test for CPU stall ==
+* assigned to Patrick
+
 == permission-hardener bug - pkexec restore issue ==
 * anon-whonix in unrestricted admin mode
 
