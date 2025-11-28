@@ -11,37 +11,42 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== 18.0.7.5-developers-only - ISO boot broken ==
-* todo
+== trixie-port - ISO - static network configuration broken in user session ==
+* in Qubes, but might be a general bug related to static network configuration
+* no network card seen in user session
+* Aaron: Cannot reproduce, details shared in chat.
+* Patrick: See two videos provided by user.
 
-== kloak - update wiki and forums ==
-* please post an update in the forums what was done and what might be missing (useful for release announcement)
-** https://forums.whonix.org/t/better-mouse-obfuscation/21445
-* please also update the wiki in case anything is no longer up-to-date
-** https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
 
-== kloak - Tor Browser scrolling issue ==
-* https://github.com/Whonix/kloak/issues/10
+== trixie-port - black desktop background and sometimes missing task bar ==
+* VirtualBox
+* 18.0.7.0
+* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
+* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
+* non-issue: virtualbox screen resize, still working great
+* lxqt-panel can be manually started: yes, all good.
+** after reboot: lxqt-panel works normally again
+* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
+** Black screen issue fixed, commit pushed to desktop-config-dist.
+* Patrick: Merged.
+* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
+** Aaron: Added a followup fix to desktop-config-dist.
+* Patrick: Merged.
+* Patrick: 18.0.7.0, VirtualBox, LXQt bug: black screen is back.
+* (The task bar is apparently being restored, because the task bar is overlapping the "Computer" desktop icon.)
 
-== privleapd restart bug ==
-* hit this in Kicksecure for Qubes by changing privleapd configuration and restarting it a lot
-<pre>
-sudo genmkfile install && sudo systemctl restart privleapd && systemcheck --verbose --function check_kernel_messages
-/usr/share/genmkfile/make-helper-one.bsh: INFO: install
-/usr/libexec/systemcheck/systemcheck: WARNING: Cannot communicate with privleapd. File '/run/privleapd/comm/user' does not exist. Cannot use privleap.
-
-You might be able to create a privleap socket by executing: sudo leapctl --create 'user'
-</pre>
-* privleapd and leaprun is still functional but shows this error
-* when running "leaprun log-checker-kernel" after this, no error shown
-* therefore could be a race condition, i.e. using leaprun too early after restarting privleapd?
-* when injecting a "sleep 1", i.e. "sudo genmkfile install && sudo systemctl restart privleapd && sleep 1 && systemcheck --verbose --function check_kernel_messages" there is no such issue
+== security-misc - review pull requests ==
+* https://github.com/Kicksecure/security-misc/pulls
 
 == helper-scripts - sanitize-string  and strip-html improvements ==
 * sanitize-string
 ** please add pipe support
 ** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
-*** would be better to have string length as mandatory first argument? Please update code base.
+*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
 * strip-html
 ** please add pipe support
 * integrate minimally into tests
@@ -1207,11 +1212,42 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== privleapd restart bug ==
+* hit this in Kicksecure for Qubes by changing privleapd configuration and restarting it a lot
+<pre>
+sudo genmkfile install && sudo systemctl restart privleapd && systemcheck --verbose --function check_kernel_messages
+/usr/share/genmkfile/make-helper-one.bsh: INFO: install
+/usr/libexec/systemcheck/systemcheck: WARNING: Cannot communicate with privleapd. File '/run/privleapd/comm/user' does not exist. Cannot use privleap.
+
+You might be able to create a privleap socket by executing: sudo leapctl --create 'user'
+</pre>
+* privleapd and leaprun is still functional but shows this error
+* when running "leaprun log-checker-kernel" after this, no error shown
+* therefore could be a race condition, i.e. using leaprun too early after restarting privleapd?
+* when injecting a "sleep 1", i.e. "sudo genmkfile install && sudo systemctl restart privleapd && sleep 1 && systemcheck --verbose --function check_kernel_messages" there is no such issue
+* Aaron: Fixed, commit pushed to privleap.
+
+== kloak - Tor Browser scrolling issue ==
+* https://github.com/Whonix/kloak/issues/10
+** Aaron: Fixed, commits pushed to kloak.
+
 == ai review misc ==
 * https://github.com/assisted-by-ai/whonix-firewall/pull/1
 ** Aaron: Done, commit pushed to whonix-firewall.
 
 = ARCHIVED =
+== kloak - update wiki and forums ==
+* please post an update in the forums what was done and what might be missing (useful for release announcement)
+** https://forums.whonix.org/t/better-mouse-obfuscation/21445
+*** Aaron: Update posted.
+* please also update the wiki in case anything is no longer up-to-date
+** https://www.whonix.org/wiki/Keystroke_and_Mouse_Deanonymization
+*** Aaron: Documentation updated.
+
+== 18.0.7.5-developers-only - ISO boot broken ==
+* todo
+* Fixed.
+
 == trixie-port - systemcheck test for CPU stall ==
 * assigned to Patrick
 
@@ -1461,21 +1497,6 @@ Nov 18 10:03:06 host privleapd[1648]: send_msg_safe: ERROR: Could not send 'UNAU
 Nov 18 10:03:06 host privleapd[1648]: BrokenPipeError: [Errno 32] Broken pipe
 </pre>
 * Aaron: Most likely caused by pressing Ctrl+C during the delay caused by attempting to run an action without authorization. Fixed by the new signal handling mechanism in leaprun used to fix <code>check_action_terminate: ERROR: Could not get message from client run by account 'user'!</code>.
-* Patrick: Merged.
-
-== trixie-port - black desktop background and sometimes missing task bar ==
-* VirtualBox
-* 18.0.7.0
-* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
-* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
-* non-issue: virtualbox screen resize, still working great
-* lxqt-panel can be manually started: yes, all good.
-** after reboot: lxqt-panel works normally again
-* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
-** Black screen issue fixed, commit pushed to desktop-config-dist.
-* Patrick: Merged.
-* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
-** Aaron: Added a followup fix to desktop-config-dist.
 * Patrick: Merged.
 
 == trixie-port - broken passwordless sudo in unrestricted admin mode ==
