@@ -11,48 +11,18 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - black desktop background and sometimes missing task bar ==
-* VirtualBox
-* 18.0.7.0
-* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
-* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
-* non-issue: virtualbox screen resize, still working great
-* lxqt-panel can be manually started: yes, all good.
-** after reboot: lxqt-panel works normally again
-* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
-** Black screen issue fixed, commit pushed to desktop-config-dist.
-* Patrick: Merged.
-* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
-** Aaron: Added a followup fix to desktop-config-dist.
-* Patrick: Merged.
-* Patrick: 18.0.7.0, VirtualBox, LXQt bug: black screen is back.
-* (The task bar is apparently being restored, because the task bar is overlapping the "Computer" desktop icon.)
-* Aaron: Cannot reproduce even after several reboots using the <code>reboot</code> command in a terminal in user mode. The taskbar overlapping the "Computer" desktop icon is expected when PCManFM-Qt settings are damaged though, so it does sound like this is the same bug as previously.
-** Was the system fully up-to-date when it broke? Was it already previously broken and just isn't managing to automatically fix itself after updates despite the heuristics we added?
-* Patrick: Correction. Version was 18.0.7.6. Wasn't previously broken since 18.0.7.6. Fails to automatically fix itself.
-* Patrick: Made some changes to start-lxqt-session.
-* Patrick: Provided debug information in chat.
+== trixie-port - Qubes - salt - template-whonix-workstation-18 ==
+* https://github.com/QubesOS/qubes-mgmt-salt-dom0-virtual-machines/blob/main/qvm/anon-whonix.sls
+* "template-" observation turned out to be a red herring. Still debugging the actual problem, but not sure what it is yet.
 
-== tb-updater - auto detect version always ==
-* issue currently: lots of build issues, especially on Qubes infrastructure
-* treat hardcoded tbb version number as a minimum version number. as a minimum version number sanity check.
-* even in --postinst mode, try auto detect version from remote. as long as higher than hardcoded version, that shall be acceptable.
-* The already implemented last seen version numbers shall also be kept in use as a sanity test.
-
-== security-misc - review pull requests ==
-* https://github.com/Kicksecure/security-misc/pulls
-
-== Qubes - sys-whonix - broken dom0 qvm-template ==
-* https://github.com/QubesOS/qubes-issues/issues/8303#issuecomment-3591073202
-* sys-whonix booted into sysmaint session
-* <code>qubes.TemplateSearch qrexec action is prohibited in PERSISTENT Mode - SYSMAINT Session.</code>
-* todo: convert the following to a (partial) standalone script and show an error popup and enter into journal?
-
-<pre>
-      rpc_block_template="#!/bin/bash
-
-printf '%s\n' '${rpc_config_file} qrexec action is prohibited in PERSISTENT Mode - SYSMAINT Session.'"
-</pre>
+== Qubes - user-sysmaint-split - kernel modes - Standalone VM bug ==
+* QVMM shows user session boot option only for Standalone VM
+* bug: Standalone doesn't inherit boot options from Template
+* user might report bug at Qubes
+* Aaron: Could not reproduce bug by making a new standalone from a Whonix-Workstation 18 template.
+** Found Qubes bug report, asked for clarification on the issue.
+** [https://github.com/QubesOS/qubes-issues/issues/10438 Upgrading Kicksecure StandaloneVM will result in sysmaint-persistent (root) boot is missing #10438]
+** Reply received, do further investigation.
 
 == helper-scripts - sanitize-string  and strip-html improvements ==
 * sanitize-string
@@ -903,13 +873,9 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
-== Qubes - user-sysmaint-split - kernel modes - Standalone VM bug ==
-* QVMM shows user session boot option only for Standalone VM
-* bug: Standalone doesn't inherit boot options from Template
-* user might report bug at Qubes
-* Aaron: Could not reproduce bug by making a new standalone from a Whonix-Workstation 18 template.
-** Found Qubes bug report, asked for clarification on the issue.
-** [https://github.com/QubesOS/qubes-issues/issues/10438 Upgrading Kicksecure StandaloneVM will result in sysmaint-persistent (root) boot is missing #10438]
+== security-misc - review pull requests ==
+* https://github.com/Kicksecure/security-misc/pulls
+** Aaron: All PRs reviewed and commented on except for the <code>mitigations=auto,nosmt</code> one, which is still being discussed. Many PRs merged, some need further discussion.
 
 == trixie-port - Qubes journal log messages ==
 * Qubes. Should be fixed but is not fixed. Happening after boot.
@@ -970,24 +936,17 @@ xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire cont
 * Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
 ** Major feature request, will most likely need to wait until after the release of R4.3.
 
-== trixie port - sdwdate permission issues ==
-* qubes-public, Marek:
-
-<pre>
-ok, I have real systemcheck results now, there are a couple issues found in sys-whonix, but overall nothing major IMO: https://openqa.qubes-os.org/tests/156993/file/whonixcheck-whonixcheck-sys-whonix.log
-</pre>
-
-<pre>
-sdwdate[2269]: PermissionError: [Errno 13] Permission denied: '/var/lib/sdwdate/time-replay-protection-utc-unixtime'
-</pre>
-
-* Aaron: Unable to reproduce. The file shown above is owned by <code>sdwdate:sdwdate</code> on my release-upgraded sys-whonix qube, AppArmor permits sdwdate to access it, and the error above does not show in the output of <code>systemcheck --verbose --leak-tests</code>.
-* Aaron: Reproduced in Whonix-Gateway 18 template downloaded from Qubes community template repo. Somehow the entire /var/lib/sdwdate directory is owned by <code>debian-tor:UNKNOWN</code> (uid 108, gid 120).
-** Fix created, pending review and merge: https://github.com/QubesOS/qubes-core-agent-linux/pull/615
-
 == Qubes misc review ==
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/613
 * https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
+** The code on this one is mostly good but has one major flaw; any time a DispVM or NetVM somehow ends up set to None, the code is designed to always honor that and never change it away from None, as a security feature. This seems good on the surface, but there are way too many instances where the code winds up with a default DispVM of None, which ends up causing somewhat broken behavior:
+*** Templates are created before whonix-workstation-18-dvm, and so both Whonix-Gateway and Whonix-Workstation templates end up with a default DispVM of None even though they're supposed to be able to have a default DispVM of whonix-workstation-18-dvm.
+*** StandaloneVMs created by cloning a template end up with a default DispVM of None because their parent template had a default DispVM of None as well.
+*** I'm pretty sure cloned templates will have the same problem.
+** Two ideas come to mind:
+*** Maybe we just live with this? It's better than the wrong default DispVM being set at least.
+*** Maybe we don't honor the default DispVM being set to None, and force it back to an appropriate value if possible? If a user really wants to disallow the use of DispVMs in a particular qube, they can use qrexec policy.
+** What would really be nice is if there was two different kinds of "None" in Qubes, one for "the user explicitly set this to None" and one for "the OS set this to None because there was no better option at the time". But unfortunately we don't have that.
 
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
@@ -1242,6 +1201,50 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== Qubes - sys-whonix - broken dom0 qvm-template ==
+* https://github.com/QubesOS/qubes-issues/issues/8303#issuecomment-3591073202
+* sys-whonix booted into sysmaint session
+* <code>qubes.TemplateSearch qrexec action is prohibited in PERSISTENT Mode - SYSMAINT Session.</code>
+* todo: convert the following to a (partial) standalone script and show an error popup and enter into journal?
+
+<pre>
+      rpc_block_template="#!/bin/bash
+
+printf '%s\n' '${rpc_config_file} qrexec action is prohibited in PERSISTENT Mode - SYSMAINT Session.'"
+</pre>
+
+* Aaron: Implemented, commit pushed to user-sysmaint-split.
+
+== tb-updater - auto detect version always ==
+* issue currently: lots of build issues, especially on Qubes infrastructure
+* treat hardcoded tbb version number as a minimum version number. as a minimum version number sanity check.
+* even in --postinst mode, try auto detect version from remote. as long as higher than hardcoded version, that shall be acceptable.
+* The already implemented last seen version numbers shall also be kept in use as a sanity test.
+* Aaron: Implemented, commit pushed to tb-updater. Tested by installing Tor Browser on an existing VM both with up-to-date and outdated hardcoded version numbers, works. Also tested by rebuilding Whonix VMs for VirtualBox with an unchanged hardcoded version, works correctly there also.
+
+== trixie-port - black desktop background and sometimes missing task bar ==
+* VirtualBox
+* 18.0.7.0
+* after a few reboots into user session/sysmaint session, Whonix-Gateway desktop background turns black - task bar still functional
+* after a few reboots into user session/sysmaint session, Whonix-Workstation desktop background turns black - task bar broken
+* non-issue: virtualbox screen resize, still working great
+* lxqt-panel can be manually started: yes, all good.
+** after reboot: lxqt-panel works normally again
+* Aaron: Cannot reproduce problem with lxqt-panel. Issue with pcmanfm-qt desktop turning black is known and happens when the first shutdown in user mode is done from the CLI with <code>reboot</code> or <code>shutdown now</code>, will debug and create a solution now.
+** Black screen issue fixed, commit pushed to desktop-config-dist.
+* Patrick: Merged.
+* bug: Black desktop background remains. Worth fixing? (The lock file nowadays removed does not exist on my system (anymore?).)
+** Aaron: Added a followup fix to desktop-config-dist.
+* Patrick: Merged.
+* Patrick: 18.0.7.0, VirtualBox, LXQt bug: black screen is back.
+* (The task bar is apparently being restored, because the task bar is overlapping the "Computer" desktop icon.)
+* Aaron: Cannot reproduce even after several reboots using the <code>reboot</code> command in a terminal in user mode. The taskbar overlapping the "Computer" desktop icon is expected when PCManFM-Qt settings are damaged though, so it does sound like this is the same bug as previously.
+** Was the system fully up-to-date when it broke? Was it already previously broken and just isn't managing to automatically fix itself after updates despite the heuristics we added?
+* Patrick: Correction. Version was 18.0.7.6. Wasn't previously broken since 18.0.7.6. Fails to automatically fix itself.
+* Patrick: Made some changes to start-lxqt-session.
+* Patrick: Provided debug information in chat.
+* Aaron: Reproduced issue with further information. Fix pushed to desktop-config-dist.
+
 == trixie-port - suspend bug ==
 * user reported
 * Bug: suspend results in black screen with no recovery (unless hard reboot)
@@ -1279,6 +1282,22 @@ You might be able to create a privleap socket by executing: sudo leapctl --creat
 ** Aaron: Done, commit pushed to whonix-firewall.
 
 = ARCHIVED =
+== trixie port - sdwdate permission issues ==
+* qubes-public, Marek:
+
+<pre>
+ok, I have real systemcheck results now, there are a couple issues found in sys-whonix, but overall nothing major IMO: https://openqa.qubes-os.org/tests/156993/file/whonixcheck-whonixcheck-sys-whonix.log
+</pre>
+
+<pre>
+sdwdate[2269]: PermissionError: [Errno 13] Permission denied: '/var/lib/sdwdate/time-replay-protection-utc-unixtime'
+</pre>
+
+* Aaron: Unable to reproduce. The file shown above is owned by <code>sdwdate:sdwdate</code> on my release-upgraded sys-whonix qube, AppArmor permits sdwdate to access it, and the error above does not show in the output of <code>systemcheck --verbose --leak-tests</code>.
+* Aaron: Reproduced in Whonix-Gateway 18 template downloaded from Qubes community template repo. Somehow the entire /var/lib/sdwdate directory is owned by <code>debian-tor:UNKNOWN</code> (uid 108, gid 120).
+** Fix created, pending review and merge: https://github.com/QubesOS/qubes-core-agent-linux/pull/615
+*** Merged.
+
 == user-sysmaint-split versus Qubes Video Companion is broken on Whonix-Workstation ==
 * please comment how this could be resolved
 * https://github.com/QubesOS/qubes-issues/issues/10163

@@ -12,18 +12,18 @@ Warm Boot Attack Defense - RAM Wipe Design Documentation
 [[ram-wipe]] wipes the RAM during poweroff/reboot, utilizing the kernel's <code>init_on_free</code> mechanism.
 }}
 = Design =
-== cold-boot-attack-defense ==
-Implemented by dracut module {{Github_link|repo=ram-wipe|path=/tree/master/usr/lib/dracut/modules.d/|text=<code>cold-boot-attack-defense</code>}} (by [[ram-wipe]]).
+== ram-wipe ==
+Implemented by dracut module {{Github_link|repo=ram-wipe|path=/tree/master/usr/lib/dracut/modules.d/|text=<code>ram-wipe</code>}} (by [[ram-wipe]]).
 
 # <code>/usr/lib/dracut/modules.d/90crypt/cryptroot-ask.sh</code> runs <code>need_shutdown</code>.
 # [https://github.com/dracut-ng/dracut-ng/pull/293 <code>dracut-ng</code> <code>dm-shutdown.sh</code> runs <code>cryptsetup close</code> to release the full disk encryption key during the shutdown process.]
-# A dracut <code>cleanup</code> hook is declared in {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh|text=<code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/module-setup.sh</code>}} (by ram-wipe): <code>inst_hook cleanup 80 "$moddir/wipe-ram-needshutdown.sh"</code>. Priority is <code>80</code>. TODO
-# During boot, that dracut <code>cleanup</code> hook {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh|text=<code>/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram-needshutdown.sh</code>}} (by ram-wipe) is calling dracut API function <code>need_shutdown</code> which results in file <code>/run/initramfs/.need_shutdown</code> being created.
+# A dracut <code>cleanup</code> hook is declared in {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40ram-wipe/module-setup.sh|text=<code>/usr/lib/dracut/modules.d/40ram-wipe/module-setup.sh</code>}} (by ram-wipe): <code>inst_hook cleanup 80 "$moddir/wipe-ram-needshutdown.sh"</code>. Priority is <code>80</code>.
+# During boot, that dracut <code>cleanup</code> hook {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40ram-wipe/wipe-ram-needshutdown.sh|text=<code>/usr/lib/dracut/modules.d/40ram-wipe/wipe-ram-needshutdown.sh</code>}} (by ram-wipe) is calling dracut API function <code>need_shutdown</code> which results in file <code>/run/initramfs/.need_shutdown</code> being created.
 # As a result, at shutdown time when <code>/lib/systemd/system/dracut-shutdown.service</code> (by dracut) runs, <code>/usr/lib/dracut/dracut-initramfs-restore</code> (by dracut) will restore the initramfs and pivot into it.
 # During shutdown, dracut will run its usual cleanup tasks such as unmounting the root (main) drive.
 # The <code>shutdown</code> module (by dracut) will <code>source</code> and execute other shutdown hooks set up by other dracut modules.
 # At the time of writing, there were no other dracut modules using the dracut shutdown hook known to the author of this website.
-# {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40cold-boot-attack-defense/wipe-ram.sh|text=<code>wipe-ram.sh</code>}} (by ram-wipe) is the dracut shutdown hook.
+# {{Github_link|repo=ram-wipe|path=/blob/master/usr/lib/dracut/modules.d/40ram-wipe/wipe-ram.sh|text=<code>wipe-ram.sh</code>}} (by ram-wipe) is the dracut shutdown hook.
 # An alternative description of the mechanism of dropping back to the initramfs during shutdown can be found under [https://systemd.io/INITRD_INTERFACE/ The initrd Interface of systemd].
 # At a very late stage during the shutdown process, when all disks have already been unmounted by dracut, the <code>wipe-ram.sh</code> dracut shutdown hook is executed.
 # The shutdown hook runs:
@@ -58,8 +58,8 @@ For potential limitations, the same limitations described under the "Limitations
 == ram-wipe-exit ==
 dracut module <code>ram-wipe-exit</code>:
 
-* The other dracut module <code>cold-boot-attack-defense</code> is independent.
-** The <code>cold-boot-attack-defense</code> module, in its main source code file <code>wipe-ram.sh</code>, relies on dropping the remaining disk caches, ensuring that encrypted disks have been unmounted and using the kernel's <code>init_on_free</code> mechanism.
+* The other dracut module <code>ram-wipe</code> is independent.
+** The <code>ram-wipe</code> module, in its main source code file <code>wipe-ram.sh</code>, relies on dropping the remaining disk caches, ensuring that encrypted disks have been unmounted and using the kernel's <code>init_on_free</code> mechanism.
 
 {{Anchor|Differences of security-misc Wipe RAM versus Tails Memory Erasure}}
 
