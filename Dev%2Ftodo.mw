@@ -11,18 +11,8 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - Qubes - salt - template-whonix-workstation-18 ==
-* https://github.com/QubesOS/qubes-mgmt-salt-dom0-virtual-machines/blob/main/qvm/anon-whonix.sls
-* "template-" observation turned out to be a red herring. Still debugging the actual problem, but not sure what it is yet.
-
-== Qubes - user-sysmaint-split - kernel modes - Standalone VM bug ==
-* QVMM shows user session boot option only for Standalone VM
-* bug: Standalone doesn't inherit boot options from Template
-* user might report bug at Qubes
-* Aaron: Could not reproduce bug by making a new standalone from a Whonix-Workstation 18 template.
-** Found Qubes bug report, asked for clarification on the issue.
-** [https://github.com/QubesOS/qubes-issues/issues/10438 Upgrading Kicksecure StandaloneVM will result in sysmaint-persistent (root) boot is missing #10438]
-** Reply received, do further investigation.
+== trixie - screen unlock broken ==
+* https://forums.kicksecure.com/t/unable-to-unlock-screen-locker-after-setting-a-user-password/1379/4
 
 == helper-scripts - sanitize-string  and strip-html improvements ==
 * sanitize-string
@@ -32,97 +22,37 @@ TODO
 * strip-html
 ** please add pipe support
 * integrate minimally into tests
-* Aaron: '''Work in progress, NOT READY FOR MERGE:''' https://github.com/ArrayBolt3/helper-scripts/tree/arraybolt3/sanitize-tests
-** Tests pass, but the new API needs worked into the rest of the codebase.
-
-== tor-ctrl - minor bugs ==
-* end-of-options broken. not functional as documented in its man page.
-
-<pre>
-tor-ctrl -- GETINFO version
-</pre>
-* please install tor-ctrl in Kicksecure by default
-
-== set-system-keymap should run set-grub-keymap ==
-* please implement, if sane
-
-== misc journal errors ==
-* VirtualBox: probably unfixable? add to journal ignore on virtualbox?
+* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
+* Patrick: Merged.
+* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
+* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
+* AI:
 
 <pre>
-Speculative Return Stack Overflow: WARNING: See https://kernel.org/doc/html/latest/admin-guide/hw-vuln/srso.html for mitigation options.
+Additional security concerns in strip-markup
+
+    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
+
+Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
 </pre>
-
-* the following might be hardware issues and nothing an be fixed in the code unless you notice something
-
-<pre>
-Nov 24 10:13:50 host systemd[1641]: Starting updatecheck.service - System update checker (user service)...
-Nov 24 10:13:50 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: start.
-Nov 24 10:13:50 host systemd[1641]: Started updatecheck.service - System update checker (user service).
-Nov 24 10:13:50 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: First start. Therefore waiting for 2 minutes for first updatecheck.
-Nov 24 10:16:33 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: loop start.
-Nov 24 10:16:39 host updatecheck-daemon[8321]: /usr/bin/updatecheck: INFO: No updates available.
-Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Watchdog timeout (limit 7h)!
-Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Killing process 1910 (updatecheck-dae) with signal SIGABRT.
-Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Main process exited, code=dumped, status=6/ABRT
-Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Failed with result 'watchdog'.
-Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Scheduled restart job, restart counter is at 1.
-Nov 25 05:26:31 host systemd[1641]: Starting updatecheck.service - System update checker (user service)...
-Nov 25 05:26:31 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: start.
-Nov 25 05:26:31 host systemd[1641]: Started updatecheck.service - System update checker (user service).
-Nov 25 05:26:31 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: First start. Therefore waiting for 2 minutes for first updatecheck.
-Nov 25 07:59:13 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: loop start.
-Nov 25 07:59:13 host updatecheck-daemon[17163]: /usr/bin/updatecheck: updatecheck: Software updates check failure: 'leaprun system-ready-check' failed.
-Nov 25 07:59:13 host updatecheck-daemon[17163]:   Debugging information:
-Nov 25 07:59:13 host updatecheck-daemon[17163]:   - system_ready_check_output: 'ERROR: Could not connect to privleapd!'
-Nov 25 07:59:13 host updatecheck-daemon[17163]: To view log, run:
-Nov 25 07:59:13 host updatecheck-daemon[17163]: journalctl --boot --user -u updatecheck.service
-Nov 25 07:59:13 host updatecheck-daemon[17163]: Please run systemcheck.
-
-Whonix-Workstation
-VirtualBox
-Windows host
-no green turtle
-
-Nov 24 10:14:51 host sdwdate[1567]: 2025-11-24 10:14:51 - sdwdate - INFO - Sleeping for 131 minutes, ok.
-Nov 24 13:34:51 host systemd[1]: sdwdate.service: Watchdog timeout (limit 3h 20min)!
-Nov 24 13:34:51 host systemd[1]: sdwdate.service: Killing process 1567 (sdwdate) with signal SIGABRT.
-Nov 24 13:34:51 host systemd[1]: sdwdate.service: Main process exited, code=dumped, status=6/ABRT
-Nov 24 13:34:51 host systemd[1]: sdwdate.service: Failed with result 'watchdog'.
-Nov 24 13:34:51 host systemd[1]: sdwdate.service: Consumed 2.063s CPU time, 102.3M memory peak.
-Nov 24 13:35:01 host systemd[1]: sdwdate.service: Scheduled restart job, restart counter is at 1.
-Nov 24 13:35:01 host systemd[1]: Starting sdwdate.service - Secure Distributed Web Date...
-Nov 24 13:35:02 host systemd[1]: Started sdwdate.service - Secure Distributed Web Date.
-Nov 24 13:35:02 host sdwdate[15405]: 2025-11-24 13:35:02 - sdwdate - INFO - sdwdate (Secure Distributed Web Date) started. PID: 15405
-
-sudo journalctl | grep stuck
-Nov 19 11:07:44 host kernel: watchdog: BUG: soft lockup - CPU#2 stuck for 2381s! [swapper/2:0]
-Nov 19 22:28:10 host kernel: watchdog: BUG: soft lockup - CPU#2 stuck for 38019s! [swapper/2:0]
-Nov 22 11:35:36 host kernel: watchdog: BUG: soft lockup - CPU#1 stuck for 47763s! [swapper/1:0]
-Nov 22 11:46:12 host kernel: watchdog: BUG: soft lockup - CPU#1 stuck for 449s! [swapper/1:0]
-Nov 24 07:50:14 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 59412s! [swapper/0:0]
-Nov 24 08:51:46 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 3437s! [swapper/0:0]
-Nov 24 10:01:18 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 3496s! [swapper/0:0]
-Nov 24 10:12:05 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 526s! [swapper/0:0]
-Nov 25 05:26:29 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 46634s! [swapper/0:0]
-
-Nov 24 13:55:19 host privleapd[1293]: send_action_results: INFO: Action 'sdwdate-sync-hwclock' requested by account 'sdwdate' completed
-Nov 25 07:59:13 host systemd[1]: privleapd.service: Watchdog timeout (limit 10s)!
-Nov 25 07:59:13 host systemd[1]: privleapd.service: Killing process 1293 (privleapd) with signal SIGABRT.
-Nov 25 07:59:13 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
-Nov 25 07:59:13 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
-Nov 25 07:59:14 host privleapd[17276]: handle_control_create_msg: INFO: Handled CREATE message for account 'user', socket created
-</pre>
-
-== Qubes - sdwdate-gui - needed tags for qrexec aren't set on Whonix standalone ==
-* https://github.com/QubesOS/qubes-issues/issues/9508
 
 == misc AI review #2 ==
 * https://github.com/assisted-by-ai/qubes-whonix/pull/1
+** Aaron: Integrated useful change from this, commit pushed to qubes-whonix.
 * https://github.com/assisted-by-ai/helper-scripts/pull/2
 * https://github.com/assisted-by-ai/helper-scripts/pull/3
-* https://github.com/assisted-by-ai/Whonix-Installer/pull/2 - refactoring might not br worthwhile
+* https://github.com/assisted-by-ai/Whonix-Installer/pull/2 - refactoring might not be worthwhile
+** Aaron: Should likely be rejected, see comments for rationale.
 * https://github.com/assisted-by-ai/qubes-whonix/pull/2
+* Patrick: new ones since last commenting here...
+* https://github.com/assisted-by-ai/helper-scripts/pull/4
+* https://github.com/assisted-by-ai/helper-scripts/pull/5 (probably not worthwhile)
+* https://github.com/assisted-by-ai/helper-scripts/pull/6
+* https://github.com/assisted-by-ai/helper-scripts/pull/7
+* https://github.com/assisted-by-ai/helper-scripts/pull/8
+* https://github.com/assisted-by-ai/helper-scripts/pull/9
+* https://github.com/assisted-by-ai/helper-scripts/pull/10
+* https://github.com/assisted-by-ai/security-misc/pull/1
 
 == trixie-port - misc qubes test failures ==
 * From Marek:
@@ -875,6 +805,15 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== Qubes - sdwdate-gui - needed tags for qrexec aren't set on Whonix standalone ==
+* https://github.com/QubesOS/qubes-issues/issues/9508
+** Will be fixed by https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25.
+
+== trixie-port - Qubes - salt - template-whonix-workstation-18 ==
+* https://github.com/QubesOS/qubes-mgmt-salt-dom0-virtual-machines/blob/main/qvm/anon-whonix.sls
+* "template-" observation turned out to be a red herring. Still debugging the actual problem, but not sure what it is yet.
+* Aaron: This is probably a Qubes bug, filed a report: https://github.com/QubesOS/qubes-issues/issues/10445
+
 == security-misc - review pull requests ==
 * https://github.com/Kicksecure/security-misc/pulls
 ** Aaron: All PRs reviewed and commented on except for the <code>mitigations=auto,nosmt</code> one, which is still being discussed. Many PRs merged, some need further discussion.
@@ -949,6 +888,7 @@ xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire cont
 *** Maybe we just live with this? It's better than the wrong default DispVM being set at least.
 *** Maybe we don't honor the default DispVM being set to None, and force it back to an appropriate value if possible? If a user really wants to disallow the use of DispVMs in a particular qube, they can use qrexec policy.
 ** What would really be nice is if there was two different kinds of "None" in Qubes, one for "the user explicitly set this to None" and one for "the OS set this to None because there was no better option at the time". But unfortunately we don't have that.
+** Tested, awaiting merge.
 
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
@@ -1203,6 +1143,94 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== misc journal errors ==
+* VirtualBox: probably unfixable? add to journal ignore on virtualbox?
+** Aaron: Likely unfixable on most affected desktop hardware unless the BIOS is updated. Microcode can't be applied within virtual machines, thus this is likely not able to be fixed in VirtualBox.
+** Hiding it only when running in a virtual machine seems like it would make sense. We should show this when running on bare metal though.
+** Implemented, commit pushed to systemcheck.
+
+<pre>
+Speculative Return Stack Overflow: WARNING: See https://kernel.org/doc/html/latest/admin-guide/hw-vuln/srso.html for mitigation options.
+</pre>
+
+* the following might be hardware issues and nothing an be fixed in the code unless you notice something
+
+<pre>
+Nov 24 10:13:50 host systemd[1641]: Starting updatecheck.service - System update checker (user service)...
+Nov 24 10:13:50 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: start.
+Nov 24 10:13:50 host systemd[1641]: Started updatecheck.service - System update checker (user service).
+Nov 24 10:13:50 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: First start. Therefore waiting for 2 minutes for first updatecheck.
+Nov 24 10:16:33 host updatecheck-daemon[1910]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: loop start.
+Nov 24 10:16:39 host updatecheck-daemon[8321]: /usr/bin/updatecheck: INFO: No updates available.
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Watchdog timeout (limit 7h)!
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Killing process 1910 (updatecheck-dae) with signal SIGABRT.
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Main process exited, code=dumped, status=6/ABRT
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Failed with result 'watchdog'.
+Nov 25 05:26:31 host systemd[1641]: updatecheck.service: Scheduled restart job, restart counter is at 1.
+Nov 25 05:26:31 host systemd[1641]: Starting updatecheck.service - System update checker (user service)...
+Nov 25 05:26:31 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: start.
+Nov 25 05:26:31 host systemd[1641]: Started updatecheck.service - System update checker (user service).
+Nov 25 05:26:31 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: First start. Therefore waiting for 2 minutes for first updatecheck.
+Nov 25 07:59:13 host updatecheck-daemon[17124]: /usr/libexec/systemcheck/updatecheck-daemon: INFO: loop start.
+Nov 25 07:59:13 host updatecheck-daemon[17163]: /usr/bin/updatecheck: updatecheck: Software updates check failure: 'leaprun system-ready-check' failed.
+Nov 25 07:59:13 host updatecheck-daemon[17163]:   Debugging information:
+Nov 25 07:59:13 host updatecheck-daemon[17163]:   - system_ready_check_output: 'ERROR: Could not connect to privleapd!'
+Nov 25 07:59:13 host updatecheck-daemon[17163]: To view log, run:
+Nov 25 07:59:13 host updatecheck-daemon[17163]: journalctl --boot --user -u updatecheck.service
+Nov 25 07:59:13 host updatecheck-daemon[17163]: Please run systemcheck.
+
+Whonix-Workstation
+VirtualBox
+Windows host
+no green turtle
+
+Nov 24 10:14:51 host sdwdate[1567]: 2025-11-24 10:14:51 - sdwdate - INFO - Sleeping for 131 minutes, ok.
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Watchdog timeout (limit 3h 20min)!
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Killing process 1567 (sdwdate) with signal SIGABRT.
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Main process exited, code=dumped, status=6/ABRT
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Failed with result 'watchdog'.
+Nov 24 13:34:51 host systemd[1]: sdwdate.service: Consumed 2.063s CPU time, 102.3M memory peak.
+Nov 24 13:35:01 host systemd[1]: sdwdate.service: Scheduled restart job, restart counter is at 1.
+Nov 24 13:35:01 host systemd[1]: Starting sdwdate.service - Secure Distributed Web Date...
+Nov 24 13:35:02 host systemd[1]: Started sdwdate.service - Secure Distributed Web Date.
+Nov 24 13:35:02 host sdwdate[15405]: 2025-11-24 13:35:02 - sdwdate - INFO - sdwdate (Secure Distributed Web Date) started. PID: 15405
+
+sudo journalctl | grep stuck
+Nov 19 11:07:44 host kernel: watchdog: BUG: soft lockup - CPU#2 stuck for 2381s! [swapper/2:0]
+Nov 19 22:28:10 host kernel: watchdog: BUG: soft lockup - CPU#2 stuck for 38019s! [swapper/2:0]
+Nov 22 11:35:36 host kernel: watchdog: BUG: soft lockup - CPU#1 stuck for 47763s! [swapper/1:0]
+Nov 22 11:46:12 host kernel: watchdog: BUG: soft lockup - CPU#1 stuck for 449s! [swapper/1:0]
+Nov 24 07:50:14 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 59412s! [swapper/0:0]
+Nov 24 08:51:46 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 3437s! [swapper/0:0]
+Nov 24 10:01:18 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 3496s! [swapper/0:0]
+Nov 24 10:12:05 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 526s! [swapper/0:0]
+Nov 25 05:26:29 host kernel: watchdog: BUG: soft lockup - CPU#0 stuck for 46634s! [swapper/0:0]
+
+Nov 24 13:55:19 host privleapd[1293]: send_action_results: INFO: Action 'sdwdate-sync-hwclock' requested by account 'sdwdate' completed
+Nov 25 07:59:13 host systemd[1]: privleapd.service: Watchdog timeout (limit 10s)!
+Nov 25 07:59:13 host systemd[1]: privleapd.service: Killing process 1293 (privleapd) with signal SIGABRT.
+Nov 25 07:59:13 host systemd[1]: Starting privleapd.service - privleap - Limited Privilege Escalation Framework...
+Nov 25 07:59:13 host systemd[1]: Started privleapd.service - privleap - Limited Privilege Escalation Framework.
+Nov 25 07:59:14 host privleapd[17276]: handle_control_create_msg: INFO: Handled CREATE message for account 'user', socket created
+</pre>
+
+* Aaron: The above looks like either a slow RTC, or memory thrashing left for a very long time that eventually (partially?) resolved itself, or both. (Some of those soft lockups in a swapper kernel thread last for over half a day.)
+** My main Kicksecure development virtual machine has one watchdog timeout for sdwdate, but with no time jump immediately before it.Likely hardware-related or specific to this setup. All of the timeouts above have a time jump before them.
+** Likely hardware-related, the result of too little or improperly set up swap space, and/or sdwdate may be occasionally having very bad luck when syncing time from Tor. (The last possibility would not explain the swapper lockups, but might explain the time jumps. In combination with the lockups though, and given the pool mechanism we use, I don't expect this to be the case.)
+
+== set-system-keymap should run set-grub-keymap ==
+* please implement, if sane
+* Aaron: Implemented, commit pushed to helper-scripts.
+
+== tor-ctrl - minor bugs ==
+* end-of-options broken. not functional as documented in its man page.
+
+<pre>
+tor-ctrl -- GETINFO version
+</pre>
+* please install tor-ctrl in Kicksecure by default
+* Aaron: Fixed bug, moved tor-ctrl's to a different metapackage. Commits pushed to tor-ctrl, developer-meta-files, kicksecure-meta-packages, and anon-meta-packages.
+
 == Qubes - sys-whonix - broken dom0 qvm-template ==
 * https://github.com/QubesOS/qubes-issues/issues/8303#issuecomment-3591073202
 * sys-whonix booted into sysmaint session
@@ -1284,6 +1312,16 @@ You might be able to create a privleap socket by executing: sudo leapctl --creat
 ** Aaron: Done, commit pushed to whonix-firewall.
 
 = ARCHIVED =
+== Qubes - user-sysmaint-split - kernel modes - Standalone VM bug ==
+* QVMM shows user session boot option only for Standalone VM
+* bug: Standalone doesn't inherit boot options from Template
+* user might report bug at Qubes
+* Aaron: Could not reproduce bug by making a new standalone from a Whonix-Workstation 18 template.
+** Found Qubes bug report, asked for clarification on the issue.
+** [https://github.com/QubesOS/qubes-issues/issues/10438 Upgrading Kicksecure StandaloneVM will result in sysmaint-persistent (root) boot is missing #10438]
+** Reply received, do further investigation.
+* Closed, and follow-up bug closed as user error. Archiving.
+
 == trixie port - sdwdate permission issues ==
 * qubes-public, Marek:
 
