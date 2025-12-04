@@ -11,39 +11,20 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie - screen unlock broken ==
-* https://forums.kicksecure.com/t/unable-to-unlock-screen-locker-after-setting-a-user-password/1379/4
-
-== helper-scripts - sanitize-string  and strip-html improvements ==
-* sanitize-string
-** please add pipe support
-** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
-*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
-* strip-html
-** please add pipe support
-* integrate minimally into tests
-* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
-* Patrick: Merged.
-* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
-* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
-* AI:
-
-<pre>
-Additional security concerns in strip-markup
-
-    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
-
-Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
-</pre>
+== simplify whonix-firewall restarter ==
+* as discussed
 
 == misc AI review #2 ==
 * https://github.com/assisted-by-ai/qubes-whonix/pull/1
 ** Aaron: Integrated useful change from this, commit pushed to qubes-whonix.
 * https://github.com/assisted-by-ai/helper-scripts/pull/2
+** Aaron: Integrated useful changes from this, commit pushed to helper-scripts.
 * https://github.com/assisted-by-ai/helper-scripts/pull/3
+** Aaron: Implemented roughly the same idea differently than ChatGPT did, commit pushed to helper-scripts.
 * https://github.com/assisted-by-ai/Whonix-Installer/pull/2 - refactoring might not be worthwhile
 ** Aaron: Should likely be rejected, see comments for rationale.
 * https://github.com/assisted-by-ai/qubes-whonix/pull/2
+** Aaron: Partially merged in, but part of it needs more discussion.
 * Patrick: new ones since last commenting here...
 * https://github.com/assisted-by-ai/helper-scripts/pull/4
 * https://github.com/assisted-by-ai/helper-scripts/pull/5 (probably not worthwhile)
@@ -122,6 +103,11 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 </pre>
 
 * https://github.com/QubesOS/qubes-issues/issues/10420#issuecomment-3576719255
+
+== user session shutdown issue ==
+* https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
+* increase systemd verbosity, if possible, and/or
+* add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
 
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
@@ -1143,6 +1129,40 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== helper-scripts - sanitize-string  and strip-html improvements ==
+* sanitize-string
+** please add pipe support
+** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
+*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
+* strip-html
+** please add pipe support
+* integrate minimally into tests
+* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
+* Patrick: Merged.
+* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
+** Aaron: Fixed.
+* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
+** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
+* AI:
+
+<pre>
+Additional security concerns in strip-markup
+
+    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
+
+Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
+</pre>
+
+* Aaron:
+** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
+** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
+* Patrick: Merged.
+
+== trixie - screen unlock broken ==
+* https://forums.kicksecure.com/t/unable-to-unlock-screen-locker-after-setting-a-user-password/1379/4
+** Aaron: Fix: https://github.com/ArrayBolt3/security-misc/commit/0534a34ed7246793db384518cfbecb3adfcb7f3e
+* Patrick: Merged.
+
 == misc journal errors ==
 * VirtualBox: probably unfixable? add to journal ignore on virtualbox?
 ** Aaron: Likely unfixable on most affected desktop hardware unless the BIOS is updated. Microcode can't be applied within virtual machines, thus this is likely not able to be fixed in VirtualBox.
@@ -1217,10 +1237,12 @@ Nov 25 07:59:14 host privleapd[17276]: handle_control_create_msg: INFO: Handled 
 * Aaron: The above looks like either a slow RTC, or memory thrashing left for a very long time that eventually (partially?) resolved itself, or both. (Some of those soft lockups in a swapper kernel thread last for over half a day.)
 ** My main Kicksecure development virtual machine has one watchdog timeout for sdwdate, but with no time jump immediately before it.Likely hardware-related or specific to this setup. All of the timeouts above have a time jump before them.
 ** Likely hardware-related, the result of too little or improperly set up swap space, and/or sdwdate may be occasionally having very bad luck when syncing time from Tor. (The last possibility would not explain the swapper lockups, but might explain the time jumps. In combination with the lockups though, and given the pool mechanism we use, I don't expect this to be the case.)
+* Patrick: Merged.
 
 == set-system-keymap should run set-grub-keymap ==
 * please implement, if sane
 * Aaron: Implemented, commit pushed to helper-scripts.
+* Patrick: Merged.
 
 == tor-ctrl - minor bugs ==
 * end-of-options broken. not functional as documented in its man page.
@@ -1230,6 +1252,7 @@ tor-ctrl -- GETINFO version
 </pre>
 * please install tor-ctrl in Kicksecure by default
 * Aaron: Fixed bug, moved tor-ctrl's to a different metapackage. Commits pushed to tor-ctrl, developer-meta-files, kicksecure-meta-packages, and anon-meta-packages.
+* Patrick: Merged.
 
 == Qubes - sys-whonix - broken dom0 qvm-template ==
 * https://github.com/QubesOS/qubes-issues/issues/8303#issuecomment-3591073202
@@ -1244,6 +1267,7 @@ printf '%s\n' '${rpc_config_file} qrexec action is prohibited in PERSISTENT Mode
 </pre>
 
 * Aaron: Implemented, commit pushed to user-sysmaint-split.
+* Patrick: Merged.
 
 == tb-updater - auto detect version always ==
 * issue currently: lots of build issues, especially on Qubes infrastructure
@@ -1251,6 +1275,7 @@ printf '%s\n' '${rpc_config_file} qrexec action is prohibited in PERSISTENT Mode
 * even in --postinst mode, try auto detect version from remote. as long as higher than hardcoded version, that shall be acceptable.
 * The already implemented last seen version numbers shall also be kept in use as a sanity test.
 * Aaron: Implemented, commit pushed to tb-updater. Tested by installing Tor Browser on an existing VM both with up-to-date and outdated hardcoded version numbers, works. Also tested by rebuilding Whonix VMs for VirtualBox with an unchanged hardcoded version, works correctly there also.
+* Patrick: Merged.
 
 == trixie-port - black desktop background and sometimes missing task bar ==
 * VirtualBox
@@ -1274,6 +1299,7 @@ printf '%s\n' '${rpc_config_file} qrexec action is prohibited in PERSISTENT Mode
 * Patrick: Made some changes to start-lxqt-session.
 * Patrick: Provided debug information in chat.
 * Aaron: Reproduced issue with further information. Fix pushed to desktop-config-dist.
+* Patrick: Merged.
 
 == trixie-port - suspend bug ==
 * user reported
@@ -1302,14 +1328,17 @@ You might be able to create a privleap socket by executing: sudo leapctl --creat
 * therefore could be a race condition, i.e. using leaprun too early after restarting privleapd?
 * when injecting a "sleep 1", i.e. "sudo genmkfile install && sudo systemctl restart privleapd && sleep 1 && systemcheck --verbose --function check_kernel_messages" there is no such issue
 * Aaron: Fixed, commit pushed to privleap.
+* Patrick: Merged.
 
 == kloak - Tor Browser scrolling issue ==
 * https://github.com/Whonix/kloak/issues/10
 ** Aaron: Fixed, commits pushed to kloak.
+* Patrick: Merged.
 
 == ai review misc ==
 * https://github.com/assisted-by-ai/whonix-firewall/pull/1
 ** Aaron: Done, commit pushed to whonix-firewall.
+* Patrick: Merged.
 
 = ARCHIVED =
 == Qubes - user-sysmaint-split - kernel modes - Standalone VM bug ==
