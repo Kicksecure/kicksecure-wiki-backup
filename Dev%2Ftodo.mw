@@ -11,8 +11,91 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== simplify whonix-firewall restarter ==
-* as discussed
+== trixie-port - Qubes - sys-net - sdwdate-gui-qubes@.service - systemd protocol error ==
+<pre>
+sudo journalctl --boot -u sdwdate-gui-qubes@0-1443-1000.service | cat
+Dec 04 08:59:46 sys-net systemd[1]: Starting sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000)...
+Dec 04 08:59:57 sys-net systemd[1]: sdwdate-gui-qubes@0-1443-1000.service: Failed with result 'protocol'.
+Dec 04 08:59:57 sys-net systemd[1]: Failed to start sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000).
+</pre>
+* Patrick: Fixed. But still more issues.
+<pre>
+[WARNING] [systemcheck] systemd units check result: 1 systemd units failed to load. These might be stuck in state failed, activating or deactivating. Output of leaprun read-systemctl-logs-failed-units-pretty:
+
+########################################
+  UNIT                                  LOAD   ACTIVE     SUB   JOB   DESCRIPTION
+● sdwdate-gui-qubes@1-1483-1000.service loaded activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+        JOB    → Pending job for the unit.
+
+1 loaded units listed.
+########################################
+</pre>
+
+<pre>
+[root ~]# systemctl status sdwdate-gui-qubes@1-1483-1000.service
+○ sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy
+     Loaded: loaded (/usr/lib/systemd/system/sdwdate-gui-qubes@.service; static)
+     Active: inactive (dead)
+
+Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
+Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
+Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
+zsh: exit 3     systemctl status sdwdate-gui-qubes@1-1483-1000.service
+</pre>
+
+<pre>
+[root ~]# journalctl --boot -u sdwdate-gui-qubes@1-1483-1000.service | cat
+Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
+Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
+Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
+[root ~]#
+</pre>
+
+* systemd probably does not like that a Type=notify unit can exit
+
+<pre>
+systemctl --no-legend --no-pager --no-block --state=failed,activating,deactivating list-units ● sdwdate-gui-qubes@49-1483-1000.service loaded
+</pre>
+<pre>
+activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000) can we avoid getting stuck in that state?
+</pre>
+
+== helper-scripts - sanitize-string  and strip-html improvements ==
+* sanitize-string
+** please add pipe support
+** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
+*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
+* strip-html
+** please add pipe support
+* integrate minimally into tests
+* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
+* Patrick: Merged.
+* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
+** Aaron: Fixed.
+* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
+** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
+* AI:
+
+<pre>
+Additional security concerns in strip-markup
+
+    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
+
+Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
+</pre>
+
+* Aaron:
+** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
+** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
+* Patrick: Merged.
+* Patrick:
+** ./usr/lib/python3/dist-packages/stdisplay/stsponge.py - temporary file should be deleted?
+** temp_file.close() is redundant due to "with"?
+* bug: running "strip-markup" as is without any input will hang forever
 
 == misc AI review #2 ==
 * https://github.com/assisted-by-ai/qubes-whonix/pull/1
@@ -27,9 +110,13 @@ TODO
 ** Aaron: Partially merged in, but part of it needs more discussion.
 * Patrick: new ones since last commenting here...
 * https://github.com/assisted-by-ai/helper-scripts/pull/4
+** Aaron: Integrated useful changes from this, commit pushed to helper-scripts.
 * https://github.com/assisted-by-ai/helper-scripts/pull/5 (probably not worthwhile)
+** Aaron: Rejected, appears unnecessary after looking at Tor's source code.
 * https://github.com/assisted-by-ai/helper-scripts/pull/6
+** Aaron: Rejected, see comments for rationale.
 * https://github.com/assisted-by-ai/helper-scripts/pull/7
+** Aaron: Implemented one useful thing from this, commit pushed to helper-scripts.
 * https://github.com/assisted-by-ai/helper-scripts/pull/8
 * https://github.com/assisted-by-ai/helper-scripts/pull/9
 * https://github.com/assisted-by-ai/helper-scripts/pull/10
@@ -215,6 +302,7 @@ Traceback (most recent call last):
 json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
 sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
 </pre>
+* Patrick: Not seen in a while. Might already be fixed. If the code does not have any obvious issues, this is probably alright.
 
 == systemcheck - document ignored systemcheck warning messages ==
 * /etc/systemcheck.d/30_default.conf contains a lot of ignored warnings/errors
@@ -1129,33 +1217,50 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
-== helper-scripts - sanitize-string  and strip-html improvements ==
-* sanitize-string
-** please add pipe support
-** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
-*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
-* strip-html
-** please add pipe support
-* integrate minimally into tests
-* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
-* Patrick: Merged.
-* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
-** Aaron: Fixed.
-* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
-** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
-* AI:
 
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
+* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+
+= ARCHIVED =
+== trixie-port - ISO - static network configuration broken in user session ==
+* in Qubes, but might be a general bug related to static network configuration
+* no network card seen in user session
+* Aaron: Cannot reproduce, details shared in chat.
+* Patrick: See two videos provided by user.
+* Aaron: Reproduced issue, discovered root cause ("All users may connect to this network" was disabled). Documented that one should not disable this setting with user-sysmaint-split installed, and documented how to fix the system after this happens.
+
+== privleapd restart bug ==
+* hit this in Kicksecure for Qubes by changing privleapd configuration and restarting it a lot
 <pre>
-Additional security concerns in strip-markup
+sudo genmkfile install && sudo systemctl restart privleapd && systemcheck --verbose --function check_kernel_messages
+/usr/share/genmkfile/make-helper-one.bsh: INFO: install
+/usr/libexec/systemcheck/systemcheck: WARNING: Cannot communicate with privleapd. File '/run/privleapd/comm/user' does not exist. Cannot use privleap.
 
-    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
-
-Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
+You might be able to create a privleap socket by executing: sudo leapctl --create 'user'
 </pre>
+* privleapd and leaprun is still functional but shows this error
+* when running "leaprun log-checker-kernel" after this, no error shown
+* therefore could be a race condition, i.e. using leaprun too early after restarting privleapd?
+* when injecting a "sleep 1", i.e. "sudo genmkfile install && sudo systemctl restart privleapd && sleep 1 && systemcheck --verbose --function check_kernel_messages" there is no such issue
+* Aaron: Fixed, commit pushed to privleap.
+* Patrick: Merged.
 
-* Aaron:
-** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
-** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
+== kloak - Tor Browser scrolling issue ==
+* https://github.com/Whonix/kloak/issues/10
+** Aaron: Fixed, commits pushed to kloak.
+* Patrick: Merged.
+
+== ai review misc ==
+* https://github.com/assisted-by-ai/whonix-firewall/pull/1
+** Aaron: Done, commit pushed to whonix-firewall.
+* Patrick: Merged.
+
+== simplify whonix-firewall restarter ==
+* as discussed
+** Aaron: Implemented, commit pushed to whonix-firewall.
 * Patrick: Merged.
 
 == trixie - screen unlock broken ==
@@ -1301,46 +1406,6 @@ printf '%s\n' '${rpc_config_file} qrexec action is prohibited in PERSISTENT Mode
 * Aaron: Reproduced issue with further information. Fix pushed to desktop-config-dist.
 * Patrick: Merged.
 
-== trixie-port - suspend bug ==
-* user reported
-* Bug: suspend results in black screen with no recovery (unless hard reboot)
-* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
-* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
-
-== trixie-port - ISO - static network configuration broken in user session ==
-* in Qubes, but might be a general bug related to static network configuration
-* no network card seen in user session
-* Aaron: Cannot reproduce, details shared in chat.
-* Patrick: See two videos provided by user.
-* Aaron: Reproduced issue, discovered root cause ("All users may connect to this network" was disabled). Documented that one should not disable this setting with user-sysmaint-split installed, and documented how to fix the system after this happens.
-
-== privleapd restart bug ==
-* hit this in Kicksecure for Qubes by changing privleapd configuration and restarting it a lot
-<pre>
-sudo genmkfile install && sudo systemctl restart privleapd && systemcheck --verbose --function check_kernel_messages
-/usr/share/genmkfile/make-helper-one.bsh: INFO: install
-/usr/libexec/systemcheck/systemcheck: WARNING: Cannot communicate with privleapd. File '/run/privleapd/comm/user' does not exist. Cannot use privleap.
-
-You might be able to create a privleap socket by executing: sudo leapctl --create 'user'
-</pre>
-* privleapd and leaprun is still functional but shows this error
-* when running "leaprun log-checker-kernel" after this, no error shown
-* therefore could be a race condition, i.e. using leaprun too early after restarting privleapd?
-* when injecting a "sleep 1", i.e. "sudo genmkfile install && sudo systemctl restart privleapd && sleep 1 && systemcheck --verbose --function check_kernel_messages" there is no such issue
-* Aaron: Fixed, commit pushed to privleap.
-* Patrick: Merged.
-
-== kloak - Tor Browser scrolling issue ==
-* https://github.com/Whonix/kloak/issues/10
-** Aaron: Fixed, commits pushed to kloak.
-* Patrick: Merged.
-
-== ai review misc ==
-* https://github.com/assisted-by-ai/whonix-firewall/pull/1
-** Aaron: Done, commit pushed to whonix-firewall.
-* Patrick: Merged.
-
-= ARCHIVED =
 == Qubes - user-sysmaint-split - kernel modes - Standalone VM bug ==
 * QVMM shows user session boot option only for Standalone VM
 * bug: Standalone doesn't inherit boot options from Template
