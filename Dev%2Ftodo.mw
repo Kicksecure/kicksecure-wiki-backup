@@ -11,91 +11,11 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== trixie-port - Qubes - sys-net - sdwdate-gui-qubes@.service - systemd protocol error ==
-<pre>
-sudo journalctl --boot -u sdwdate-gui-qubes@0-1443-1000.service | cat
-Dec 04 08:59:46 sys-net systemd[1]: Starting sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000)...
-Dec 04 08:59:57 sys-net systemd[1]: sdwdate-gui-qubes@0-1443-1000.service: Failed with result 'protocol'.
-Dec 04 08:59:57 sys-net systemd[1]: Failed to start sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000).
-</pre>
-* Patrick: Fixed. But still more issues.
-<pre>
-[WARNING] [systemcheck] systemd units check result: 1 systemd units failed to load. These might be stuck in state failed, activating or deactivating. Output of leaprun read-systemctl-logs-failed-units-pretty:
-
-########################################
-  UNIT                                  LOAD   ACTIVE     SUB   JOB   DESCRIPTION
-● sdwdate-gui-qubes@1-1483-1000.service loaded activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)
-
-Legend: LOAD   → Reflects whether the unit definition was properly loaded.
-        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
-        SUB    → The low-level unit activation state, values depend on unit type.
-        JOB    → Pending job for the unit.
-
-1 loaded units listed.
-########################################
-</pre>
-
-<pre>
-[root ~]# systemctl status sdwdate-gui-qubes@1-1483-1000.service
-○ sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy
-     Loaded: loaded (/usr/lib/systemd/system/sdwdate-gui-qubes@.service; static)
-     Active: inactive (dead)
-
-Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
-Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
-Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
-zsh: exit 3     systemctl status sdwdate-gui-qubes@1-1483-1000.service
-</pre>
-
-<pre>
-[root ~]# journalctl --boot -u sdwdate-gui-qubes@1-1483-1000.service | cat
-Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
-Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
-Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
-[root ~]#
-</pre>
-
-* systemd probably does not like that a Type=notify unit can exit
-
-<pre>
-systemctl --no-legend --no-pager --no-block --state=failed,activating,deactivating list-units ● sdwdate-gui-qubes@49-1483-1000.service loaded
-</pre>
-<pre>
-activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000) can we avoid getting stuck in that state?
-</pre>
-
-== helper-scripts - sanitize-string  and strip-html improvements ==
-* sanitize-string
-** please add pipe support
-** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
-*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
-* strip-html
-** please add pipe support
-* integrate minimally into tests
-* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
-* Patrick: Merged.
-* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
-** Aaron: Fixed.
-* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
-** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
-* AI:
-
-<pre>
-Additional security concerns in strip-markup
-
-    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
-
-Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
-</pre>
-
-* Aaron:
-** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
-** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
-* Patrick: Merged.
-* Patrick:
-** ./usr/lib/python3/dist-packages/stdisplay/stsponge.py - temporary file should be deleted?
-** temp_file.close() is redundant due to "with"?
-* bug: running "strip-markup" as is without any input will hang forever
+== unicode - carriage returns related improvements ==
+* https://github.com/Kicksecure/helper-scripts/issues/28
+* 1) stdisplay
+* 2) grep-find-unicode-wrapper - Patrick already added <code>\r</code>. Please review.
+* 3) Consider that file names themselves might also contain unicode. Therefore when outputting the names of files, unicode should be stripped.
 
 == misc AI review #2 ==
 * https://github.com/assisted-by-ai/qubes-whonix/pull/1
@@ -118,9 +38,12 @@ Not safe for contextual HTML output. The “sanitization” only removes tags an
 * https://github.com/assisted-by-ai/helper-scripts/pull/7
 ** Aaron: Implemented one useful thing from this, commit pushed to helper-scripts.
 * https://github.com/assisted-by-ai/helper-scripts/pull/8
+** Aaron: Added all test cases. Commit pushed to helper-scripts.
 * https://github.com/assisted-by-ai/helper-scripts/pull/9
 * https://github.com/assisted-by-ai/helper-scripts/pull/10
+** Aaron: Rejected, see comments for rationale.
 * https://github.com/assisted-by-ai/security-misc/pull/1
+** Aaron: Integrated useful changes from this, commit pushed to security-misc.
 
 == trixie-port - misc qubes test failures ==
 * From Marek:
@@ -190,11 +113,36 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 </pre>
 
 * https://github.com/QubesOS/qubes-issues/issues/10420#issuecomment-3576719255
+* Ben mentioned in the Qubes OS Matrix room that Whonix's performance seemed substantially improved, possibly because of our optimizations but also possibly because of optimizations in Qubes OS itself.
+* Workstation disposable template hanging on shutdown: https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
 
 == user session shutdown issue ==
 * https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
 * increase systemd verbosity, if possible, and/or
 * add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
+
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
 
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
@@ -264,6 +212,16 @@ https://www.whonix.org/wiki/Whonix-Host
 
 == review tor-control-panel anon-connection-wizard merge ==
 * https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/112
+
+== possibly outdated bridges in anon-connection-wizard ==
+* Aaron: User reported the following warning in Tor's log when trying to connect to Tor via a bridge:
+
+<pre>
+[WARN] Proxy Client: unable to connect OR connection (handshaking (proxy)) with 192.95.37.142:443 ID=
+│ RSA_ID=CDF2E852BF539B..................("general SOCKS server failure") [1 duplicate hidden]
+</pre>
+
+* Aaron: Can reproduce. However, using bridges obtained from The Tor Project instead of hardcoded bridges works and does not display the warning. Bridges may be outdated?
 
 == trixie-port - usability-misc versus policyrcd-script-zg2 ==
 * usability-misc Depends: on policyrcd-script-zg2
@@ -1217,6 +1175,95 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== trixie-port - Qubes - sys-net - sdwdate-gui-qubes@.service - systemd protocol error ==
+<pre>
+sudo journalctl --boot -u sdwdate-gui-qubes@0-1443-1000.service | cat
+Dec 04 08:59:46 sys-net systemd[1]: Starting sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000)...
+Dec 04 08:59:57 sys-net systemd[1]: sdwdate-gui-qubes@0-1443-1000.service: Failed with result 'protocol'.
+Dec 04 08:59:57 sys-net systemd[1]: Failed to start sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000).
+</pre>
+* Patrick: Fixed. But still more issues.
+<pre>
+[WARNING] [systemcheck] systemd units check result: 1 systemd units failed to load. These might be stuck in state failed, activating or deactivating. Output of leaprun read-systemctl-logs-failed-units-pretty:
+
+########################################
+  UNIT                                  LOAD   ACTIVE     SUB   JOB   DESCRIPTION
+● sdwdate-gui-qubes@1-1483-1000.service loaded activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+        JOB    → Pending job for the unit.
+
+1 loaded units listed.
+########################################
+</pre>
+
+<pre>
+[root ~]# systemctl status sdwdate-gui-qubes@1-1483-1000.service
+○ sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy
+     Loaded: loaded (/usr/lib/systemd/system/sdwdate-gui-qubes@.service; static)
+     Active: inactive (dead)
+
+Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
+Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
+Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
+zsh: exit 3     systemctl status sdwdate-gui-qubes@1-1483-1000.service
+</pre>
+
+<pre>
+[root ~]# journalctl --boot -u sdwdate-gui-qubes@1-1483-1000.service | cat
+Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
+Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
+Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
+[root ~]#
+</pre>
+
+* systemd probably does not like that a Type=notify unit can exit
+
+<pre>
+systemctl --no-legend --no-pager --no-block --state=failed,activating,deactivating list-units ● sdwdate-gui-qubes@49-1483-1000.service loaded
+</pre>
+<pre>
+activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000) can we avoid getting stuck in that state?
+</pre>
+
+* Aaron: Fixed as discussed, commit pushed to sdwdate-gui.
+
+== helper-scripts - sanitize-string  and strip-html improvements ==
+* sanitize-string
+** please add pipe support
+** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
+*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
+* strip-html
+** please add pipe support
+* integrate minimally into tests
+* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
+* Patrick: Merged.
+* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
+** Aaron: Fixed.
+* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
+** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
+* AI:
+
+<pre>
+Additional security concerns in strip-markup
+
+    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
+
+Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
+</pre>
+
+* Aaron:
+** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
+** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
+* Patrick: Merged.
+* Patrick:
+** ./usr/lib/python3/dist-packages/stdisplay/stsponge.py - temporary file should be deleted?
+** temp_file.close() is redundant due to "with"?
+*** Aaron: Outdated, stsponge.py no longer uses temp files.
+* bug: running "strip-markup" as is without any input will hang forever
+** Aaron: Discussed in chat, we've decided to consider this intended behavior.
 
 == trixie-port - suspend bug ==
 * user reported
