@@ -3,7 +3,7 @@
 ToDo for Developers
 }}
 {{#seo:
-|description=TODO
+|description=g
 }}
 {{devwiki}}
 {{intro|
@@ -11,17 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== unicode - carriage returns related improvements ==
-* https://github.com/Kicksecure/helper-scripts/issues/28
-* 1) stdisplay
-* 2) grep-find-unicode-wrapper - Patrick already added <code>\r</code>. Please review.
-* 3) Consider that file names themselves might also contain unicode. Therefore when outputting the names of files, unicode should be stripped.
-
-== immutability wiki review ==
-* please review, improve
-* https://www.kicksecure.com/wiki/Dev/immutable
-* https://www.kicksecure.com/wiki/immutable
-
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
@@ -92,34 +81,6 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 * https://github.com/QubesOS/qubes-issues/issues/10420#issuecomment-3576719255
 * Ben mentioned in the Qubes OS Matrix room that Whonix's performance seemed substantially improved, possibly because of our optimizations but also possibly because of optimizations in Qubes OS itself.
 * Workstation disposable template hanging on shutdown: https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
-
-== user session shutdown issue ==
-* https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
-* increase systemd verbosity, if possible, and/or
-* add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
-
-== grub dpkg-new ==
-* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
-
-<pre>
-dpkg -S /etc/grub.d/*
-grub-common: /etc/grub.d/00_header
-grub-common: /etc/grub.d/05_debian_theme
-dist-base-files: /etc/grub.d/10_00_linux_dist
-dist-base-files: /etc/grub.d/10_05_linux_main
-dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
-dist-base-files: /etc/grub.d/10_55_linux_main_advanced
-dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
-grub-common: /etc/grub.d/20_linux_xen
-grub-common: /etc/grub.d/25_bli
-grub-common: /etc/grub.d/30_os-prober
-grub-common: /etc/grub.d/30_uefi-firmware
-grub-common: /etc/grub.d/40_custom
-grub-common: /etc/grub.d/41_custom
-usability-misc: /etc/grub.d/44_kb_layout
-grub-common: /etc/grub.d/README
-zsh: exit 1     dpkg -S /etc/grub.d/*
-</pre>
 
 == fix VirtualBox green turtle ==
 * Test with Windows Home, if possible.
@@ -1153,6 +1114,55 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
+
+* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
+** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+
+== user session shutdown issue ==
+* https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
+* increase systemd verbosity, if possible, and/or
+* add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
+* Aaron: Implemented, commit pushed to usability-misc. Will require that it is explicitly enabled on testing systems.
+
+== immutability wiki review ==
+* please review, improve
+* https://www.kicksecure.com/wiki/Dev/immutable
+* https://www.kicksecure.com/wiki/immutable
+* Aaron: Read through, made changes to both pages, using 3mdeb's documentation as a reference.
+
+== Qubes Tor Browser automatic updates ticket comment ==
+* please comment: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3619503494
+** Aaron: Replied, also asked TPO about more frequent polling for new versions.
+
+== unicode - carriage returns related improvements ==
+* https://github.com/Kicksecure/helper-scripts/issues/28
+* 1) stdisplay
+* 2) grep-find-unicode-wrapper - Patrick already added <code>\r</code>. Please review.
+* 3) Consider that file names themselves might also contain unicode. Therefore when outputting the names of files, unicode should be stripped.
+* Aaron: Done, commits pushed to helper-scripts.
+
 == misc AI review #2 ==
 * https://github.com/assisted-by-ai/qubes-whonix/pull/1
 ** Aaron: Integrated useful change from this, commit pushed to qubes-whonix.

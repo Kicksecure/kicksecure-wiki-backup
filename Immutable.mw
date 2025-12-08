@@ -1,24 +1,49 @@
 {{Header}}
 {{title|title=
-immutable
+Immutability and Statelessness
 }}
 {{#seo:
-|description=Explains what "immutable" means in {{project_name_short}}, including how different boot modes affect system and file access.
+|description=Explains what "immutable" and "stateless" means in {{project_name_short}}, including how different boot modes affect system and file access.
 }}
 {{live}}
 {{intro|
-An "immutable" system is one where core parts of the system cannot be changed while it is running. In {{project_name_short}}, this means important folders like <code>/usr</code> and <code>/etc</code> are read-only to protect the system from unwanted changes. Depending on the selected boot mode, personal files in <code>/home</code> may or may not be saved after shutdown. This page explains what immutability means in practice and how you can choose the right mode for your needs.
+An "immutable" system is one where core parts of the system cannot be changed while it is running. A "stateless" system is one where the system forgets everything done on it after a reboot. {{project_name_short}} provides features similar to immutable and stateless systems, via <code>grub-live</code>. This page explains what immutability and statelessness means in practice and how you can choose the right mode for your needs.
 }}
 = Introduction =
-The term "immutable" generally means that the running system cannot be altered. In technical terms, this is often achieved by using a [[read-only]] root file system. For further explanation and comparisons with other Linux distributions, see [[Dev/immutable]].
+The term "immutable" generally means that the running system fundamentally cannot be altered. Immutability does not simply mean that file permissions prevent modification of certain files. An immutable system's filesystem is fundamentally unable to be modified by traditional means (creation, deletion, and modification of files, symlinks, etc.), even by the root account. In technical terms, this is generally achieved by using a [[read-only]] root file system. Directories that store mutable state (such as <code>/home</code>, but also <code>/root</code>, <code>/var</code>, and possibly other paths) are stored.
 
-When booting into {{project_name_short}} [[Live_Mode|live mode]], the user session runs in a fully immutable (read-only) environment. System folders such as <code>/usr</code>, <code>/etc</code>, <code>/var</code>, <code>/boot</code>, and <code>/root</code> cannot be modified by the <code>user</code> account. While the <code>/home</code> folder is writable, all changes are stored temporarily in RAM and discarded after shutdown. In user session, the <code>user</code> account cannot escalate to [[root|administrative ("<code>root</code>") rights]] either.
+The term "stateless" generally means that the system forgets all changes made to it when a reboot occurs. Statelessness and immutability have some overlap, since stateless systems are usually implemented by mounting an ephemeral overlay over the top of an immutable filesystem. Unlike merely immutable systems, stateless systems forget changes made to mutable state directories such as <code>/home</code>.
 
-In [[Persistent_Mode|persistent mode]], user session the system folders remain read-only for the <code>user</code> account, but changes made in the <code>/home</code> folder are saved and persist after reboot.
+For further explanation and comparisons with other Linux distributions, see [[Dev/immutable]] and [[Dev/Stateless]].
 
-The [[Grub|GRUB]] boot menu allows you to choose the level of immutability. Want everything read-only? Select live mode. Need a persistent <code>/home</code> folder? Use persistent mode.
+== Immutability in {{project_name_short}} ==
+{{project_name_short}} is not an immutable distribution, and does not yet provide an immutable boot mode. It does, however, provide a stateless boot mode via <code>grub-live</code>. See below for more info.
 
-To make permanent changes to system folders like <code>/usr</code>, <code>/etc</code>, <code>/var</code>, <code>/boot</code>, or <code>/root</code>, boot into persistent mode, sysmaint session. For more details, see [[sysmaint|user-sysmaint-split]].
+In the future, {{project_name_short}} may provide an immutable boot mode as part of implementing [[Verified Boot]].
+
+== Statelessness in {{project_name_short}} ==
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = Statelessness in {{project_name_short}} is limited to filesystems only. Other forms of state, such as UEFI variables, firmware updates, etc. may be preserved even if the system is otherwise stateless.
+}}
+
+{{project_name_short}} currently provides two primary boot modes, [[Live Mode|live mode]] and [[Persistent Mode|persistent mode]].
+
+In live mode, all filesystems that are part of the OS installation (including <code>/home</code>, <code>/var</code> if they are on separate partitions) are mounted read-only. Writable tmpfs overlays are then applied to these filesystems using OverlayFS, to allow the directories to be written to even though the filesystems themselves cannot be changed. Applications can freely read from and write to files on the OS, even on the root filesystem, but these changes are immediately wiped upon shutdown.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = Live mode should not be trusted to prevent privileged malware from making persistent modifications to the system. The root filesystem, mounted read-only at <code>/live/image</code>, can be trivially remounted read-write by software that runs as root.
+}}
+
+In persistent mode, filesystems are mounted read/write and can be modified normally.
+
+In both boot modes, system folders such as <code>/usr</code>, <code>/etc</code>, <code>/var</code>, <code>/boot</code>, and <code>/root</code> cannot be modified by the <code>user</code> account because of file permissions. This is not a consequence of live mode or immutability. Note that in persistent mode, services that run as root may (and in practice will) make changes to the root filesystem; <code>updatecheck</code> will update apt software lists, <code>systemd-journald</code> will save system logs, etc.
+
+The [[Grub|GRUB]] boot menu allows you to choose whether to enable stateless operation or not. Want everything read-only? Select live mode. Need saved data to persist? Use persistent mode.
+
+If <code>user-sysmaint-split</code> is installed, file permissions and restrictions on the <code>sudo</code> and <code>pkexec</code> utilities will prevent the <code>user</code> account from making modifications to most files outside of <code>/home</code>. To make permanent changes to system folders like <code>/usr</code>, <code>/etc</code>, <code>/var</code>, <code>/boot</code>, or <code>/root</code>, boot into persistent mode, sysmaint session. For more details, see [[Sysmaint]].
 
 If the user-sysmaint split does not suit your needs, consider using [[Unrestricted Admin Mode]].
 
@@ -40,9 +65,9 @@ If the user-sysmaint split does not suit your needs, consider using [[Unrestrict
 |-
 
 ! Can change system files (like <code>/usr</code>, <code>/etc</code>)
-| {{No}}, read-only
-| {{No}}, read-only
-| {{No}}, read-only (temporary)
+| {{No}}, prohibited by file permissions
+| {{No}}, prohibited by file permissions and modifications by system services will be lost on reboot
+| {{No}}, modifications will be lost on reboot
 | {{Yes}}, read-write
 |-
 
