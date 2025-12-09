@@ -11,6 +11,32 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== Qubes /usr/libexec/security-misc/block-unsafe-logins failed ==
+* https://forums.whonix.org/t/rejecting-passwordless-sensitive-account-user/22440/7
+
+== immutability wiki review ==
+* please review, improve
+* https://www.kicksecure.com/wiki/Dev/immutable
+* https://www.kicksecure.com/wiki/immutable
+* Aaron: Read through, made changes to both pages, using 3mdeb's documentation as a reference.
+* Patrick:
+* Please either reply inline here or by editing the wiki pages.
+* Can we call it stateless? Because stateless might mean something else:
+** https://www.kicksecure.com/wiki/Dev/Stateless
+** https://blog.verbum.org/2020/08/22/immutable-%E2%86%92-reprovisionable-anti-hysteresis/
+* "No, prohibited by file permissions"
+** If file permissions were messed up, then writes would be possible. So it's not as good as if mounted as read-only. Perhaps we should mount root folders as read-only as an additional protection? (Plus use ephemeral overlay.)
+* "An immutable system's filesystem is fundamentally unable to be modified by traditional means (creation, deletion, and modification of files, symlinks, etc.), even by the root account."
+** Why would root be unable to modify the fileystem? Root can always re-mount as read-write and modify?
+* What is the difference between "immutable" and "image based"? It's currently not clear to me if these are used as synonyms.
+* Which modifications are required for Kicksecure user session, live mode to be considered immutable?
+* Which modifications are required for Kicksecure user session, persistent mode to be considered immutable?
+* Which modifications are required for Kicksecure be considered an immutable Linux distribution ?
+* "Live mode should not be trusted to prevent privileged malware from making persistent modifications to the system. The root filesystem, mounted read-only at <code>/live/image</code>, can be trivially remounted read-write by software that runs as root."
+** Correct. This is applicable to all immutable Linux distributions? If yes, needs to be pointed out to avoid the impression of a operating system specific issue.
+* Could there be an image based operating system that is not considered immutable?
+* Could there be an immutable operating system that is not image based?
+
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
@@ -82,71 +108,13 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 * Ben mentioned in the Qubes OS Matrix room that Whonix's performance seemed substantially improved, possibly because of our optimizations but also possibly because of optimizations in Qubes OS itself.
 * Workstation disposable template hanging on shutdown: https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
 
-== fix VirtualBox green turtle ==
-* Test with Windows Home, if possible.
-* Test with Windows Pro.
-* Document how to use VirtualBox with Hyper-V.
-** https://www.virtualbox.org/manual/topics/AdvancedTopics.html#hyperv-support
-** This is important because it is the future.
-** It is also important because it requires fewer changes to Windows. It does not require disabling Windows security features.
-** Using VirtualBox with Hyper-V might not be possible on Windows Home.
-*** There are mixed reports about whether Windows Home supports "full" Hyper-V. The Home edition might use Hyper-V internally, which causes issues for VirtualBox. ("green turtle")
-* Document how to use VirtualBox with VirtualBox's native virtualization ("blue chip" symbol instead of "green turtle").
-** This might be useful for users on Windows Home edition.
-** Add the required commands to fix the VirtualBox "green turtle" in the wiki: [[VirtualBox/Green_Turtle_Issue]]
-** Documentation on how to manually change the settings is useful for understanding but should not be the ultimate goal.
-** All steps should be executable using command-line commands only, as there are too many steps to perform manually.
-** Consider accomplishing this using Windows Intune.
-** Write a batch script (if not using Windows Intune).
-** Add an option to the Windows Installer to do this.
-** If unsolvable, document everything learned or attempted. This might assist others in continuing the work. Collect any helpful links and add quotations from useful information.
-* Essentially, explore and document both approaches: using VirtualBox with Hyper-V and using VirtualBox with its native virtualization while disabling Windows' Hyper-V.
-* Aaron: Current research:
-** Intune is not free and does not work on home editions of Windows, thus not usable.
-** PowerShell scripting would likely make quick work of this, but unfortunately Microsoft prevents one from running PowerShell scripts without taking explicit (and IIRC convoluted) steps to enable them, as a security feature.
-** Probably the easiest solution is to use a batch file and then execute it as administrator (which is tricky but not impossible; requires calling a ShellExecuteExW function in the Windows API with the "runas" verb, see https://learn.microsoft.com/en-us/windows/win32/shell/launch, this should trigger a UAC prompt, then the script should be able to run and do whatever it needs to).
-** Batch files for disabling Hyper-V and re-enabling virtualization-based security under Windows 11 Home have been created. Still need to wire them into Whonix-Installer itself.
-* todo: add debug output to script in case there are issues, users can post the debug output
-** Aaron: Done.
-* todo: run <code>hypervisorlaunchtype auto</code> and <code>hypervisorlaunchtype Off</code> to work around windows bug experienced by Patrick
-** Aaron: Done.
-* todo: run at the end for debugging <code>Get-CimInstance Win32_ComputerSystem | Select-Object HypervisorPresent</code>
-** add link as comment: https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
-* todo: add these commands?
-** https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
-*** Aaron: Likely unnecessary, but should be kept in the task list for reference.
-* todo: disable firmware protection
-** Aaron: Done.
-* todo: explain commands and potential failures as echo comments
-** Aaron: Done.
-* todo: add separator output between lines
-** Aaron: Done.
-* todo: allow the script to be executed by the installer
-** option: enable, disable
-** default: none (require user choice)
-** show link to the related wiki page
-
-<pre>
-Fix VirtualBox green turtle issue which can cause grave VirtualBox stability and performance issues by fully disabling Windows Hyper-V?
-
-Notes:
-
-* Security impact: This unfortunately also disables necessarily various Windows security features.
-* Root issue caused by: VirtualBox, Microsoft Windows
-* Root issue not caused by: VM guest operating systems such as Whonix.
-
-Alternatives:
-
-* Linux based host operating systems are unaffected. See host operating system selection.
-* Perhaps try out Kicksecure (on USB)?
-* Or Whonix-Host in the future? (Not yet available at time of writing.)
-
-https://www.kicksecure.com/wiki/VirtualBox/Green_Turtle_Issue
-https://www.kicksecure.com/wiki/Host_Operating_System_Selection
-https://www.kicksecure.com
-https://www.kicksecure.com/wiki/USB_Installation
-https://www.whonix.org/wiki/Whonix-Host
-</pre>
+== ks/whonix 18 user bug reports ==
+* https://forums.kicksecure.com/t/systemcheck-incorrectly-warns-that-full-disk-encryption-fde-is-absent/1381
+** Aaron: Fixed, commit pushed to systemcheck.
+*** Patrick: Merged.
+* https://forums.whonix.org/t/whonix-18-0-7-5-major-release-upgrade-testers-wanted/22469/7
+** Aaron: Posted some suggestions for improving the UX of the "Manage Software" feature of sysmaint-panel. Good to implement?
+*** Patrick: Sounds great! Please implement.
 
 == review tor-control-panel anon-connection-wizard merge ==
 * https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/112
@@ -174,32 +142,6 @@ https://www.whonix.org/wiki/Whonix-Host
 ** todo: move dependency of policyrcd-script-zg2 from usability-misc to helper-scripts?
 ** todo: review policyrcd-script-zg2. seems to be a stable, not changing much, simple package with only 1 essential file: /usr/sbin/zg-policy-rc.d
 ** todo: please port user-sysmaint-split to policyrcd-script-zg2, if sensible
-
-== sdwdate-gui - json decode bug ==
-<pre>
-+ /usr/libexec/helper-scripts/terminal-wrapper 'leaprun sdwdate-log-viewer'
-sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
-Traceback (most recent call last):
-  File "/usr/lib/python3/dist-packages/sdwdate_gui/sdwdate_gui_client.py", line 393, in sdwdate_status_changed
-    status_dict: dict[str, str] = json.load(f)
-                                  10:36, 1 November 2025 (UTC)[[Special:Contributions/127.0.0.1|127.0.0.1]] 10:36, 1 November 2025 (UTC)^^^
-  File "/usr/lib/python3.13/json/__init__.py", line 293, in load
-    return loads(fp.read(),
-        cls=cls, object_hook=object_hook,
-        parse_float=parse_float, parse_int=parse_int,
-        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
-  File "/usr/lib/python3.13/json/__init__.py", line 346, in loads
-    return _default_decoder.decode(s)
-           10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)[[Special:Contributions/127.0.0.1|127.0.0.1]]^^^
-  File "/usr/lib/python3.13/json/decoder.py", line 345, in decode
-    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
-               10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/lib/python3.13/json/decoder.py", line 363, in raw_decode
-    raise JSONDecodeError("Expecting value", s, err.value) from None
-json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
-</pre>
-* Patrick: Not seen in a while. Might already be fixed. If the code does not have any obvious issues, this is probably alright.
 
 == systemcheck - document ignored systemcheck warning messages ==
 * /etc/systemcheck.d/30_default.conf contains a lot of ignored warnings/errors
@@ -776,10 +718,6 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
-== Qubes - sdwdate-gui - needed tags for qrexec aren't set on Whonix standalone ==
-* https://github.com/QubesOS/qubes-issues/issues/9508
-** Will be fixed by https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25.
-
 == trixie-port - Qubes - salt - template-whonix-workstation-18 ==
 * https://github.com/QubesOS/qubes-mgmt-salt-dom0-virtual-machines/blob/main/qvm/anon-whonix.sls
 * "template-" observation turned out to be a red herring. Still debugging the actual problem, but not sure what it is yet.
@@ -848,22 +786,14 @@ xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire cont
 * Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
 ** Major feature request, will most likely need to wait until after the release of R4.3.
 
-== Qubes misc review ==
+== Qubes misc review #2 ==
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/613
-* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
-** The code on this one is mostly good but has one major flaw; any time a DispVM or NetVM somehow ends up set to None, the code is designed to always honor that and never change it away from None, as a security feature. This seems good on the surface, but there are way too many instances where the code winds up with a default DispVM of None, which ends up causing somewhat broken behavior:
-*** Templates are created before whonix-workstation-18-dvm, and so both Whonix-Gateway and Whonix-Workstation templates end up with a default DispVM of None even though they're supposed to be able to have a default DispVM of whonix-workstation-18-dvm.
-*** StandaloneVMs created by cloning a template end up with a default DispVM of None because their parent template had a default DispVM of None as well.
-*** I'm pretty sure cloned templates will have the same problem.
-** Two ideas come to mind:
-*** Maybe we just live with this? It's better than the wrong default DispVM being set at least.
-*** Maybe we don't honor the default DispVM being set to None, and force it back to an appropriate value if possible? If a user really wants to disallow the use of DispVMs in a particular qube, they can use qrexec policy.
-** What would really be nice is if there was two different kinds of "None" in Qubes, one for "the user explicitly set this to None" and one for "the OS set this to None because there was no better option at the time". But unfortunately we don't have that.
-** Tested, awaiting merge.
+** Awaiting further feedback from HW42.
 
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 ** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
+** Fix merged, unsure when this will be backported to R4.2 or if any additional effort is needed to do this. Asked Marek in the Qubes Matrix room about next steps for this.
 
 == kloak - handle dynamic keyboard layout changes ==
 * when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
@@ -1114,6 +1044,74 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== fix VirtualBox green turtle ==
+* Test with Windows Home, if possible.
+* Test with Windows Pro.
+* Document how to use VirtualBox with Hyper-V.
+** https://www.virtualbox.org/manual/topics/AdvancedTopics.html#hyperv-support
+** This is important because it is the future.
+** It is also important because it requires fewer changes to Windows. It does not require disabling Windows security features.
+** Using VirtualBox with Hyper-V might not be possible on Windows Home.
+*** There are mixed reports about whether Windows Home supports "full" Hyper-V. The Home edition might use Hyper-V internally, which causes issues for VirtualBox. ("green turtle")
+* Document how to use VirtualBox with VirtualBox's native virtualization ("blue chip" symbol instead of "green turtle").
+** This might be useful for users on Windows Home edition.
+** Add the required commands to fix the VirtualBox "green turtle" in the wiki: [[VirtualBox/Green_Turtle_Issue]]
+** Documentation on how to manually change the settings is useful for understanding but should not be the ultimate goal.
+** All steps should be executable using command-line commands only, as there are too many steps to perform manually.
+** Consider accomplishing this using Windows Intune.
+** Write a batch script (if not using Windows Intune).
+** Add an option to the Windows Installer to do this.
+** If unsolvable, document everything learned or attempted. This might assist others in continuing the work. Collect any helpful links and add quotations from useful information.
+* Essentially, explore and document both approaches: using VirtualBox with Hyper-V and using VirtualBox with its native virtualization while disabling Windows' Hyper-V.
+* Aaron: Current research:
+** Intune is not free and does not work on home editions of Windows, thus not usable.
+** PowerShell scripting would likely make quick work of this, but unfortunately Microsoft prevents one from running PowerShell scripts without taking explicit (and IIRC convoluted) steps to enable them, as a security feature.
+** Probably the easiest solution is to use a batch file and then execute it as administrator (which is tricky but not impossible; requires calling a ShellExecuteExW function in the Windows API with the "runas" verb, see https://learn.microsoft.com/en-us/windows/win32/shell/launch, this should trigger a UAC prompt, then the script should be able to run and do whatever it needs to).
+** Batch files for disabling Hyper-V and re-enabling virtualization-based security under Windows 11 Home have been created. Still need to wire them into Whonix-Installer itself.
+* todo: add debug output to script in case there are issues, users can post the debug output
+** Aaron: Done.
+* todo: run <code>hypervisorlaunchtype auto</code> and <code>hypervisorlaunchtype Off</code> to work around windows bug experienced by Patrick
+** Aaron: Done.
+* todo: run at the end for debugging <code>Get-CimInstance Win32_ComputerSystem | Select-Object HypervisorPresent</code>
+** add link as comment: https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
+* todo: add these commands?
+** https://forums.ea.com/discussions/battlefield-6-technical-issues-en/unable-to-run-in-a-virtual-machine-please-exit-the-vm-and-try-again-121/12789008
+*** Aaron: Likely unnecessary, but should be kept in the task list for reference.
+* todo: disable firmware protection
+** Aaron: Done.
+* todo: explain commands and potential failures as echo comments
+** Aaron: Done.
+* todo: add separator output between lines
+** Aaron: Done.
+* todo: allow the script to be executed by the installer
+** option: enable, disable
+** default: none (require user choice)
+** show link to the related wiki page
+
+<pre>
+Fix VirtualBox green turtle issue which can cause grave VirtualBox stability and performance issues by fully disabling Windows Hyper-V?
+
+Notes:
+
+* Security impact: This unfortunately also disables necessarily various Windows security features.
+* Root issue caused by: VirtualBox, Microsoft Windows
+* Root issue not caused by: VM guest operating systems such as Whonix.
+
+Alternatives:
+
+* Linux based host operating systems are unaffected. See host operating system selection.
+* Perhaps try out Kicksecure (on USB)?
+* Or Whonix-Host in the future? (Not yet available at time of writing.)
+
+https://www.kicksecure.com/wiki/VirtualBox/Green_Turtle_Issue
+https://www.kicksecure.com/wiki/Host_Operating_System_Selection
+https://www.kicksecure.com
+https://www.kicksecure.com/wiki/USB_Installation
+https://www.whonix.org/wiki/Whonix-Host
+</pre>
+
+* Aaron: Implemented, commit pushed to Whonix-Installer.
+
 == grub dpkg-new ==
 * Could /etc/grub.d/10_linux.dpkg-new cause an issue?
 
@@ -1145,12 +1143,6 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * increase systemd verbosity, if possible, and/or
 * add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
 * Aaron: Implemented, commit pushed to usability-misc. Will require that it is explicitly enabled on testing systems.
-
-== immutability wiki review ==
-* please review, improve
-* https://www.kicksecure.com/wiki/Dev/immutable
-* https://www.kicksecure.com/wiki/immutable
-* Aaron: Read through, made changes to both pages, using 3mdeb's documentation as a reference.
 
 == Qubes Tor Browser automatic updates ticket comment ==
 * please comment: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3619503494
@@ -1289,6 +1281,52 @@ Not safe for contextual HTML output. The “sanitization” only removes tags an
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== sdwdate-gui - json decode bug ==
+<pre>
++ /usr/libexec/helper-scripts/terminal-wrapper 'leaprun sdwdate-log-viewer'
+sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/sdwdate_gui/sdwdate_gui_client.py", line 393, in sdwdate_status_changed
+    status_dict: dict[str, str] = json.load(f)
+                                  10:36, 1 November 2025 (UTC)[[Special:Contributions/127.0.0.1|127.0.0.1]] 10:36, 1 November 2025 (UTC)^^^
+  File "/usr/lib/python3.13/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+        cls=cls, object_hook=object_hook,
+        parse_float=parse_float, parse_int=parse_int,
+        parse_constant=parse_constant, object_pairs_hook=object_pairs_hook, **kw)
+  File "/usr/lib/python3.13/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)[[Special:Contributions/127.0.0.1|127.0.0.1]]^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 345, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)10:36, 1 November 2025 (UTC)^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/json/decoder.py", line 363, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+sdwdate_status_changed: WARNING: Could not parse JSON from sdwdate
+</pre>
+* Patrick: Not seen in a while. Might already be fixed. If the code does not have any obvious issues, this is probably alright.
+* Aaron: May have been fixed by accident when porting sdwdate_gui_client to asyncio/pyinotify. Code doesn't appear to have obvious issues in this area.
+** Are there any "Unexpected error" messages in the journal from sdwdate-gui? If not, this is probably no longer an issue. I'm not finding errors like this in a Kicksecure 18 VM on my end.
+
+== Qubes misc review ==
+* https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25
+** The code on this one is mostly good but has one major flaw; any time a DispVM or NetVM somehow ends up set to None, the code is designed to always honor that and never change it away from None, as a security feature. This seems good on the surface, but there are way too many instances where the code winds up with a default DispVM of None, which ends up causing somewhat broken behavior:
+*** Templates are created before whonix-workstation-18-dvm, and so both Whonix-Gateway and Whonix-Workstation templates end up with a default DispVM of None even though they're supposed to be able to have a default DispVM of whonix-workstation-18-dvm.
+*** StandaloneVMs created by cloning a template end up with a default DispVM of None because their parent template had a default DispVM of None as well.
+*** I'm pretty sure cloned templates will have the same problem.
+** Two ideas come to mind:
+*** Maybe we just live with this? It's better than the wrong default DispVM being set at least.
+*** Maybe we don't honor the default DispVM being set to None, and force it back to an appropriate value if possible? If a user really wants to disallow the use of DispVMs in a particular qube, they can use qrexec policy.
+** What would really be nice is if there was two different kinds of "None" in Qubes, one for "the user explicitly set this to None" and one for "the OS set this to None because there was no better option at the time". But unfortunately we don't have that.
+** Tested, awaiting merge.
+* Merged, archiving.
+
+== Qubes - sdwdate-gui - needed tags for qrexec aren't set on Whonix standalone ==
+* https://github.com/QubesOS/qubes-issues/issues/9508
+** Will be fixed by https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25.
+*** Merged, archiving.
+
 == trixie-port - ISO - static network configuration broken in user session ==
 * in Qubes, but might be a general bug related to static network configuration
 * no network card seen in user session
