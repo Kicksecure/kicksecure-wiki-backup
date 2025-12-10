@@ -13,29 +13,84 @@ TODO
 = TODO DEV =
 == Qubes /usr/libexec/security-misc/block-unsafe-logins failed ==
 * https://forums.whonix.org/t/rejecting-passwordless-sensitive-account-user/22440/7
+** Aaron: Unable to reproduce, waiting for user feedback.
+** Aaron: Issue identified, Qubes OS limitation that is scheduled to be worked on in the future. Secondary issue, user-sysmaint-split getting uninstalled if the template is booted in "unrestricted mode".
+*** Should we hide this option in the template boot menu? Should we rename it to discourage users from booting templates using it?
 
 == immutability wiki review ==
 * please review, improve
 * https://www.kicksecure.com/wiki/Dev/immutable
 * https://www.kicksecure.com/wiki/immutable
 * Aaron: Read through, made changes to both pages, using 3mdeb's documentation as a reference.
-* Patrick:
-* Please either reply inline here or by editing the wiki pages.
-* Can we call it stateless? Because stateless might mean something else:
+* Patrick: Please either reply inline here or by editing the wiki pages.
+
+----
+
+* Patrick: Can we call it stateless? Because stateless might mean something else:
 ** https://www.kicksecure.com/wiki/Dev/Stateless
 ** https://blog.verbum.org/2020/08/22/immutable-%E2%86%92-reprovisionable-anti-hysteresis/
-* "No, prohibited by file permissions"
-** If file permissions were messed up, then writes would be possible. So it's not as good as if mounted as read-only. Perhaps we should mount root folders as read-only as an additional protection? (Plus use ephemeral overlay.)
-* "An immutable system's filesystem is fundamentally unable to be modified by traditional means (creation, deletion, and modification of files, symlinks, etc.), even by the root account."
+** Aaron: This is effectively stateless; changes to /etc and /var will be thrown away. It's technically a special case of statelessness in which /home is thrown away too, but given that some distributions put /home in /var (Silverblue, for instance), this isn't really that big of a difference. Changes made in persistent mode obviously won't be thrown away, but live mode is effectively stateless per-boot.
+*** Patrick: I think stateless means something else according to above links? A user downloading a new image getting a cleaner image with less history. Users who upgrade will have a slightly different image. For example, we might have forgotten an "rm_configfile".
+**** Aaron: The form of "statelessness" supplied by live mode is very similar to that supplied by a live ISO, and both https://fedoraproject.org/wiki/StatelessLinux and https://people.redhat.com/dmalcolm/stateless/stateless-linux-HOWTO-en/ mention that live CDs are considered stateless. However, the form of statelessness provided by live mode is stronger than the general "everything but the home directory goes away on reboot" that it seems stateless systems are generally intended to have, and has different end goals than this form of statelessness generally pursues.
+
+----
+
+* Aaron: "No, prohibited by file permissions"
+** Patrick: If file permissions were messed up, then writes would be possible. So it's not as good as if mounted as read-only. Perhaps we should mount root folders as read-only as an additional protection? (Plus use ephemeral overlay.)
+*** Aaron: Yes, eventually. This will be necessary for Verified Boot to function properly.
+**** Patrick: Ticket created: "immutable - mount as read-only when possible"
+
+----
+
+* Patrick: "An immutable system's filesystem is fundamentally unable to be modified by traditional means (creation, deletion, and modification of files, symlinks, etc.), even by the root account."
 ** Why would root be unable to modify the fileystem? Root can always re-mount as read-write and modify?
-* What is the difference between "immutable" and "image based"? It's currently not clear to me if these are used as synonyms.
-* Which modifications are required for Kicksecure user session, live mode to be considered immutable?
-* Which modifications are required for Kicksecure user session, persistent mode to be considered immutable?
-* Which modifications are required for Kicksecure be considered an immutable Linux distribution ?
-* "Live mode should not be trusted to prevent privileged malware from making persistent modifications to the system. The root filesystem, mounted read-only at <code>/live/image</code>, can be trivially remounted read-write by software that runs as root."
-** Correct. This is applicable to all immutable Linux distributions? If yes, needs to be pointed out to avoid the impression of a operating system specific issue.
-* Could there be an image based operating system that is not considered immutable?
-* Could there be an immutable operating system that is not image based?
+*** Aaron: Yes, but that would not be modification by traditional means. Root can directly modify filesystems at the block device level, remount things as read-write, rebuild images from scratch and provision them, etc., but it can't just do <code>touch /a</code> and have <code>/a</code> created because the filesystem is read-only. This was meant to differentiate permissions-based restrictions from mount-option- and filesystem-based restrictions.
+**** Patrick: Clarified in wiki.
+
+----
+
+* Patrick: What is the difference between "immutable" and "image based"? It's currently not clear to me if these are used as synonyms.
+** Aaron: They aren't synonyms. An immutable system is one where the core of the OS can't be modified, but this can be done without an image-based approach.
+*** Patrick: Clarified in wiki.
+
+----
+
+* Patrick: Which modifications are required for Kicksecure user session, live mode to be considered immutable?
+** Aaron: Kicksecure user session, live mode is stateless as opposed to immutable by design. "Immutable" is for when you *want* some state to persist, but don't want the OS to be changed. "Stateless" is for when you don't want state to persist at all, which is live mode's goal.
+*** Patrick: Pending definition of stateless (mentioned above).
+
+----
+
+* Patrick: Which modifications are required for Kicksecure user session, persistent mode to be considered immutable?
+** Aaron: We'd need to make <code>/usr</code> at the very least read-only (optionally with a writable overlay). Ideally we'd make a lot more than that read-only, since <code>/usr/local</code>, <code>/etc</code>, <code>/var</code>, etc. could be theoretically used to host malware. How this is implemented is up to us, we have plans in this regard for Verified Boot already.
+*** Patrick: Ticket created. Same as above.
+
+----
+
+* Patrick: Which modifications are required for Kicksecure be considered an immutable Linux distribution?
+** Aaron: Depends on one's exact definition of immutable. Technically we could claim to be immutable so long as persistent mode, user session was immutable, and the live modes were stateless. Persistent mode, sysmaint session being fully mutable would be strange though as it undoes many of the traditional reasons to have an immutable system (each OS installation is the same everywhere, impossible or at least more difficult to make damaging changes or difficult-to-track changes, etc), but our goals in being immutable are not the same as others (we only want to prevent malicious modifications).
+
+----
+
+* Aaron: "Live mode should not be trusted to prevent privileged malware from making persistent modifications to the system. The root filesystem, mounted read-only at <code>/live/image</code>, can be trivially remounted read-write by software that runs as root."
+** Patrick: Correct. This is applicable to all immutable Linux distributions? If yes, needs to be pointed out to avoid the impression of a operating system specific issue.
+*** Aaron: Technically no, this is not applicable to stateless distributions that use a fundamentally read-only filesystem such as SquashFS as the underlying image. Live ISOs are the most common example of this.
+**** Patrick: "fundamentally read-only" is the critical term. I would argue both ISO and SquashFS can be "mounted" as read-write. It's not trivial for sure. Quote chapter [[Verified_Boot#ISO_Considerations|ISO Considerations]]:
+**** <blockquote>It's hard to modify an ISO read/write. There is no public software available to really mount an ISO read/write. But it's possible in theory. The ISO should be considered read-write for attackers but read-only for the public. There is the Open Source <code>growisofs</code> tool. Also, other attacks are conceivable. Since [https://wiki.debian.org/RepackBootableISO Repacking an ISO] is documented in the Debian wiki, this can be used for both legitimate and malicious purposes and is much easier than mounting an ISO read/write.</blockquote>
+**** Patrick: As for [https://unix.stackexchange.com/questions/80305/mounting-a-squashfs-filesystem-in-read-write SquashFS, it can be extracted, modified and repacked]. So in conclusion the risk of "privileged malware from making persistent modifications to the system" is still applicable independently of the underlying filesystem?
+***** Aaron: This depends on a couple of factors, namely "practical vs. theoretical security" and presence of cryptographic verification. While in theory an attacker who gains root access might be able to modify a read-only filesystem to infect it in all manner of different ways (in-place modifications, repacking, etc.), it still requires a much higher amount of effort to modify anything, decreasing the number of interested attackers and increasing the possibility of attack failure. Furthermore, if Verified Boot is used, modifying the filesystem will simply break it rather than allowing persistent modification. Without using a fundamentally read-only filesystem, the effort of changing an "immutable" filesystem is dramatically lowered and Verified Boot is rendered
+
+----
+
+* Patrick: Could there be an image based operating system that is not considered immutable?
+** Aaron: Yes, if the image used a read/write filesystem such as ext4 rather than a read-only filesystem.
+** Patrick: Added to the wiki.
+
+----
+
+* Patrick: Could there be an immutable operating system that is not image based?
+** Aaron: Yes, these already exist. blendOS, NixOS, and I believe Ubuntu Core all are examples.
+** Aaron: Universal Blue is image-based, Fedora Silverblue seems to be. However, these images are used for ''deployment'', they aren't actually what the OS runs from. The files are still placed on a traditional filesystem that is simply mounted read-only (and can be mounted read-write and modified!). On Silverblue, I was able to remount /sysroot as read-write, then modify and save a file in the ostree repo, and the change persisted after a reboot. I was able to do the same on Universal blue (specifically the Aurora image).
 
 == trixie-port - misc qubes test failures ==
 * From Marek:
@@ -115,6 +170,13 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 * https://forums.whonix.org/t/whonix-18-0-7-5-major-release-upgrade-testers-wanted/22469/7
 ** Aaron: Posted some suggestions for improving the UX of the "Manage Software" feature of sysmaint-panel. Good to implement?
 *** Patrick: Sounds great! Please implement.
+* Aaron: New since last update:
+* https://forums.whonix.org/t/whonix-18-0-7-5-major-release-upgrade-testers-wanted/22469/11
+* https://forums.whonix.org/t/whonix-18-0-7-5-major-release-upgrade-testers-wanted/22469/14
+
+== more keyboard layout adjustments ==
+* Ensure non-English encrypted ISO installations can still be decrypted on boot using an ISO built from the latest packages
+* Ensure that GRUB keyboard layouts appear in VM and ISO builds
 
 == review tor-control-panel anon-connection-wizard merge ==
 * https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/112
@@ -412,6 +474,9 @@ Aug 11 08:27:57 localhost memlockd[1006]: Error mmaping /etc/resolv.conf: Invali
 == Tool to onionize all APT sources ==
 * https://forums.whonix.org/t/tool-to-onionize-all-apt-sources/13367
 * Should it be part of repository-dist or a standalone tool?
+
+== immutable - mount as read-only when possible ==
+* persistent mode, user session should mount root filesystem as read-only (with persistent overlay)
 
 == verified boot implementation ==
 * assume firmware can extend trust to kernel via Sovereign Boot
