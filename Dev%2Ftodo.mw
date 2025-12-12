@@ -11,6 +11,17 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== security-misc failsafe ==
+* 1) in case of known oops, a script security-misc-relax that requires root would make sense
+** invent <code>security-misc-relax</code>: undo all effects of /usr/libexec/security-misc/panic-on-oops
+*** easier to use
+*** 2) add to sysmaint-panel
+* 3) add a <code>failsafe</code> (or better name) boot option which skips panic-on-oops (and in the future other things, if needed)
+** slightly harder to use, for more severe cases where kernel panics before having a chance to boot the system
+
+== log analysis ==
+* log shared privately
+
 == Qubes /usr/libexec/security-misc/block-unsafe-logins failed ==
 * https://forums.whonix.org/t/rejecting-passwordless-sensitive-account-user/22440/7
 ** Aaron: Unable to reproduce, waiting for user feedback.
@@ -92,6 +103,50 @@ TODO
 ** Aaron: Yes, these already exist. blendOS, NixOS, and I believe Ubuntu Core all are examples.
 ** Aaron: Universal Blue is image-based, Fedora Silverblue seems to be. However, these images are used for ''deployment'', they aren't actually what the OS runs from. The files are still placed on a traditional filesystem that is simply mounted read-only (and can be mounted read-write and modified!). On Silverblue, I was able to remount /sysroot as read-write, then modify and save a file in the ostree repo, and the change persisted after a reboot. I was able to do the same on Universal blue (specifically the Aurora image).
 
+== misc AI review #3 ==
+* most seems unnecessary
+* https://github.com/assisted-by-ai/tb-updater/pull/1
+* https://github.com/assisted-by-ai/tb-updater/pull/2
+* https://github.com/assisted-by-ai/tb-updater/pull/3
+
+== windows installer - improvements ==
+* make Hyper-V less easy to miss
+** currently it is easy to click "continue" while the setting is still at "do nothing". Options might not be shown on the screen and may be hidden below the taskbar (invisible).
+** solution: no option selected by default?
+** and/or require the user to choose an option
+** if not doable: have an option that shows a popup that tells the user to choose an option
+* allow window maximizing / do not block window maximizing
+* users tend to not read these messages at all.
+* rewording suggestions:
+
+old:
+
+<pre>
+Do Nothing
+Do not modify Hyper-V configuration. This is the safest option
+
+Disable Hyper-V
+Disable Hyper-V and all Windows features that rely on it. May reduce host security
+
+Re-enable Hyper-V security features
+Re-enable Hyper-V and several Windows security features that rely on it. May improve host security
+</pre>
+
+new:
+
+<pre>
+Select an option.
+
+Keep Current Setting
+Make no changes to Hyper-V. No security change. This is the safest option.
+
+Improve VirtualBox Stability (Reduces System Security)
+Disable Hyper-V and Windows features that rely on it. Reduces overall system security. Improves VirtualBox stability and performance.
+
+Increase System Security (Reduces VirtualBox Stability)
+Re-enable Hyper-V and related Windows security features. Increases system security. May reduce VirtualBox stability and performance. This is useful if Hyper-V has been previously disabled.
+</pre>
+
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
@@ -162,27 +217,34 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 * https://github.com/QubesOS/qubes-issues/issues/10420#issuecomment-3576719255
 * Ben mentioned in the Qubes OS Matrix room that Whonix's performance seemed substantially improved, possibly because of our optimizations but also possibly because of optimizations in Qubes OS itself.
 * Workstation disposable template hanging on shutdown: https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
+* timesanitycheck occasionally fails: https://openqa.qubes-os.org/tests/161707
+** Made a fix, but then reverted, turns out machine running that test has a dead RTC battery.
 
-== trixie-port - usability-misc versus policyrcd-script-zg2 ==
-* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1119964 Add a drop directory fallback if /etc/zg-policy-rc.d.conf does not exist]
-* usability-misc Depends: on policyrcd-script-zg2
-* todo: think through if this dependency should be removed, moved elsewhere and can interact badly with user-sysmaint-split policyrcd
-* Aaron:
-** Very unlikely to interact badly. policyrcd-script-zg2 uses the alternatives system, as does user-sysmaint-split, and user-sysmaint-split installs its policy-rc.d with a higher priority than policyrcd-script-zg2, therefore it will take priority. However, this also means that the functionality offered by policyrcd-script-zg2 is broken, likely including the pointer to helper-scripts' policy-rc.d in the <code>POLICYRCD</code> environment variable used by <code>apt-get-noninteractive</code>.
-** The use of <code>POLICYRCD</code> in <code>apt-get-noninteractive</code> seems superfluous and possibly even bad. During package builds, disabling daemon restart makes sense, but this is done by installing helper-scripts' policy-rc.d with a higher priority than even user-sysmaint-split's version, so <code>POLICYRCD</code> is unnecessary to prevent things like unintentional connections to Tor. Done in <code>help-steps/prevent-daemons-from-starting</code>. Users who use <code>apt-get-noninteractive</code> would probably reasonably expect daemons to be restarted during installation of new packages.
-** Suggestion: Remove dependency, strip all instances of <code>POLICYRCD</code> from codebase where the variable is set to a path. (Currently the variable is only set in <code>apt-get-noninteractive</code> and <code>dpkg-noninteractive</code>. There is also a use in grml-debootstrap but it appears to be used as a flag, not a path, thus this should not be removed.)
-* Patrick:
-** Because daemon restarts can cause APT upgrade failures and `apt-get-noninteractive` is designed as a tool to easily fix broken APT. Documented in its man page just now. Therefore, please keep that as is.
-** todo: move dependency of policyrcd-script-zg2 from usability-misc to helper-scripts?
-** todo: review policyrcd-script-zg2. seems to be a stable, not changing much, simple package with only 1 essential file: /usr/sbin/zg-policy-rc.d
-** todo: please port user-sysmaint-split to policyrcd-script-zg2, if sensible
+== virtualbox - failure to load libwayland-client.so and libX11.so ==
+* Follow-up to systemcheck journal warning documentation task
+<pre>
+## TODO: Investigate further.
+## Aug 03 23:48:39 localhost kernel: 23:48:39.520137 main      rtldrNativeLoad: dlopen('libwayland-client.so', RTLD_NOW | RTLD_LOCAL) failed: libwayland-client.so:
+## Aug 03 23:48:39 localhost kernel: 23:48:39.520555 main      rtldrNativeLoad: dlopen('libX11.so', RTLD_NOW | RTLD_LOCAL) failed: libX11.so: cannot open shared obj
+journal_ignore_fixed_list+=( "rtldrNativeLoad: dlopen('libwayland-client.so', RTLD_NOW | RTLD_LOCAL) failed: libwayland-client.so:" )
+journal_ignore_fixed_list+=( "rtldrNativeLoad: dlopen('libX11.so', RTLD_NOW | RTLD_LOCAL) failed: libX11.so: cannot open shared obj" )
+</pre>
 
-== systemcheck - document ignored systemcheck warning messages ==
-* /etc/systemcheck.d/30_default.conf contains a lot of ignored warnings/errors
-* please add comments on top why that line is being ignored
-* add links to upstream issues
-* in unknown cases, please investigate, report upstream
-* in case of unknowns, high effort, rabbit holes, please create follow-up issues
+== virtualbox - ata1.00: Read log 0x00 page 0x00 failed, Emask 0x01 ==
+* Follow-up to systemcheck journal warning documentation task
+<pre>
+## TODO: Likely just lack of support for an ATA feature in some hypervisors, but needs further research.
+## Apr 25 10:30:25 localhost kernel: ata1.00: Read log 0x00 page 0x00 failed, Emask 0x1
+journal_ignore_fixed_list+=( "ata1.00: Read log 0x00 page 0x00 failed, Emask 0x1" )
+</pre>
+
+== qubes-whonix-workstation - XGetWindowAttributes warning ==
+* Follow-up to systemcheck journal warning documentation task
+<pre>
+## TODO: Only occurs in Qubes-Whonix-Workstation. Occurs even if input event buffering is turned off entirely via `qvm-features anon-whonix -D gui-events-max-delay`. Cause is unknown.
+## Dec 11 05:57:15 host qubes-gui[1307]: XGetWindowAttributes for 0x200005 failed in handle_create, ret=0x0
+journal_ignore_fixed_list+=( "XGetWindowAttributes" )
+</pre>
 
 == sysmaint-panel - add gsmartcontrol and smart-notifier ==
 * non-Qubes only
@@ -210,6 +272,7 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 
 == genmkfile and or developer-meta-files - scan for empty folders and abort ==
 * cause reproducible issues
+* Patrick: Done, fixed in developer-meta-files and genmkfile.
 
 == dracut improvements ==
 * install bash module by default? vs qubes initial memory
@@ -755,6 +818,21 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== trixie-port - usability-misc versus policyrcd-script-zg2 ==
+* [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1119964 Add a drop directory fallback if /etc/zg-policy-rc.d.conf does not exist]
+* usability-misc Depends: on policyrcd-script-zg2
+* todo: think through if this dependency should be removed, moved elsewhere and can interact badly with user-sysmaint-split policyrcd
+* Aaron:
+** Very unlikely to interact badly. policyrcd-script-zg2 uses the alternatives system, as does user-sysmaint-split, and user-sysmaint-split installs its policy-rc.d with a higher priority than policyrcd-script-zg2, therefore it will take priority. However, this also means that the functionality offered by policyrcd-script-zg2 is broken, likely including the pointer to helper-scripts' policy-rc.d in the <code>POLICYRCD</code> environment variable used by <code>apt-get-noninteractive</code>.
+** The use of <code>POLICYRCD</code> in <code>apt-get-noninteractive</code> seems superfluous and possibly even bad. During package builds, disabling daemon restart makes sense, but this is done by installing helper-scripts' policy-rc.d with a higher priority than even user-sysmaint-split's version, so <code>POLICYRCD</code> is unnecessary to prevent things like unintentional connections to Tor. Done in <code>help-steps/prevent-daemons-from-starting</code>. Users who use <code>apt-get-noninteractive</code> would probably reasonably expect daemons to be restarted during installation of new packages.
+** Suggestion: Remove dependency, strip all instances of <code>POLICYRCD</code> from codebase where the variable is set to a path. (Currently the variable is only set in <code>apt-get-noninteractive</code> and <code>dpkg-noninteractive</code>. There is also a use in grml-debootstrap but it appears to be used as a flag, not a path, thus this should not be removed.)
+* Patrick:
+** Because daemon restarts can cause APT upgrade failures and `apt-get-noninteractive` is designed as a tool to easily fix broken APT. Documented in its man page just now. Therefore, please keep that as is.
+** todo: move dependency of policyrcd-script-zg2 from usability-misc to helper-scripts?
+** todo: review policyrcd-script-zg2. seems to be a stable, not changing much, simple package with only 1 essential file: /usr/sbin/zg-policy-rc.d
+** todo: please port user-sysmaint-split to policyrcd-script-zg2, if sensible
+*** Aaron: Upstream code change submitted to make this possible, at https://salsa.debian.org/ArrayBolt3/policyrcd-script-zg2. We should wait to upload this to our own repository until upstream accepts it, in case they have changes they want to make.
+
 == review tor-control-panel anon-connection-wizard merge ==
 * https://forums.whonix.org/t/tor-controller-gui-tor-control-panel/5444/112
 ** Aaron: Needs more work. Commented, shared a diff of WIP changes, awaiting reply.
@@ -1085,6 +1163,186 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== systemcheck - document ignored systemcheck warning messages ==
+* /etc/systemcheck.d/30_default.conf contains a lot of ignored warnings/errors
+* please add comments on top why that line is being ignored
+* add links to upstream issues
+* in unknown cases, please investigate, report upstream
+* in case of unknowns, high effort, rabbit holes, please create follow-up issues
+* Aaron: Documented most items, marked those that are not yet documented. Commit pushed to systemcheck.
+
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
+
+* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
+** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
+* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+
+= ARCHIVED =
+== user session shutdown issue ==
+* https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
+* increase systemd verbosity, if possible, and/or
+* add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
+* Aaron: Implemented, commit pushed to usability-misc. Will require that it is explicitly enabled on testing systems.
+* Patrick: Merged.
+
+== Qubes Tor Browser automatic updates ticket comment ==
+* please comment: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3619503494
+** Aaron: Replied, also asked TPO about more frequent polling for new versions.
+
+== unicode - carriage returns related improvements ==
+* https://github.com/Kicksecure/helper-scripts/issues/28
+* 1) stdisplay
+* 2) grep-find-unicode-wrapper - Patrick already added <code>\r</code>. Please review.
+* 3) Consider that file names themselves might also contain unicode. Therefore when outputting the names of files, unicode should be stripped.
+* Aaron: Done, commits pushed to helper-scripts.
+* Patrick: Merged.
+
+== misc AI review #2 ==
+* https://github.com/assisted-by-ai/qubes-whonix/pull/1
+** Aaron: Integrated useful change from this, commit pushed to qubes-whonix.
+* https://github.com/assisted-by-ai/helper-scripts/pull/2
+** Aaron: Integrated useful changes from this, commit pushed to helper-scripts.
+* https://github.com/assisted-by-ai/helper-scripts/pull/3
+** Aaron: Implemented roughly the same idea differently than ChatGPT did, commit pushed to helper-scripts.
+* https://github.com/assisted-by-ai/Whonix-Installer/pull/2 - refactoring might not be worthwhile
+** Aaron: Should likely be rejected, see comments for rationale.
+* https://github.com/assisted-by-ai/qubes-whonix/pull/2
+** Aaron: Partially merged in, but part of it needs more discussion.
+* Patrick: new ones since last commenting here...
+* https://github.com/assisted-by-ai/helper-scripts/pull/4
+** Aaron: Integrated useful changes from this, commit pushed to helper-scripts.
+* https://github.com/assisted-by-ai/helper-scripts/pull/5 (probably not worthwhile)
+** Aaron: Rejected, appears unnecessary after looking at Tor's source code.
+* https://github.com/assisted-by-ai/helper-scripts/pull/6
+** Aaron: Rejected, see comments for rationale.
+* https://github.com/assisted-by-ai/helper-scripts/pull/7
+** Aaron: Implemented one useful thing from this, commit pushed to helper-scripts.
+* https://github.com/assisted-by-ai/helper-scripts/pull/8
+** Aaron: Added all test cases. Commit pushed to helper-scripts.
+* https://github.com/assisted-by-ai/helper-scripts/pull/9
+** Aaron: Implemented useful changes from this, commit pushed to helper-scripts.
+* https://github.com/assisted-by-ai/helper-scripts/pull/10
+** Aaron: Rejected, see comments for rationale.
+* https://github.com/assisted-by-ai/security-misc/pull/1
+** Aaron: Integrated useful changes from this, commit pushed to security-misc.
+* Patrick: All merged.
+
+== trixie-port - Qubes - sys-net - sdwdate-gui-qubes@.service - systemd protocol error ==
+<pre>
+sudo journalctl --boot -u sdwdate-gui-qubes@0-1443-1000.service | cat
+Dec 04 08:59:46 sys-net systemd[1]: Starting sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000)...
+Dec 04 08:59:57 sys-net systemd[1]: sdwdate-gui-qubes@0-1443-1000.service: Failed with result 'protocol'.
+Dec 04 08:59:57 sys-net systemd[1]: Failed to start sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000).
+</pre>
+* Patrick: Fixed. But still more issues.
+<pre>
+[WARNING] [systemcheck] systemd units check result: 1 systemd units failed to load. These might be stuck in state failed, activating or deactivating. Output of leaprun read-systemctl-logs-failed-units-pretty:
+
+########################################
+  UNIT                                  LOAD   ACTIVE     SUB   JOB   DESCRIPTION
+● sdwdate-gui-qubes@1-1483-1000.service loaded activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)
+
+Legend: LOAD   → Reflects whether the unit definition was properly loaded.
+        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
+        SUB    → The low-level unit activation state, values depend on unit type.
+        JOB    → Pending job for the unit.
+
+1 loaded units listed.
+########################################
+</pre>
+
+<pre>
+[root ~]# systemctl status sdwdate-gui-qubes@1-1483-1000.service
+○ sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy
+     Loaded: loaded (/usr/lib/systemd/system/sdwdate-gui-qubes@.service; static)
+     Active: inactive (dead)
+
+Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
+Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
+Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
+zsh: exit 3     systemctl status sdwdate-gui-qubes@1-1483-1000.service
+</pre>
+
+<pre>
+[root ~]# journalctl --boot -u sdwdate-gui-qubes@1-1483-1000.service | cat
+Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
+Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
+Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
+[root ~]#
+</pre>
+
+* systemd probably does not like that a Type=notify unit can exit
+
+<pre>
+systemctl --no-legend --no-pager --no-block --state=failed,activating,deactivating list-units ● sdwdate-gui-qubes@49-1483-1000.service loaded
+</pre>
+<pre>
+activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000) can we avoid getting stuck in that state?
+</pre>
+
+* Aaron: Fixed as discussed, commit pushed to sdwdate-gui.
+* Patrick: Merged.
+
+== helper-scripts - sanitize-string  and strip-html improvements ==
+* sanitize-string
+** please add pipe support
+** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
+*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
+* strip-html
+** please add pipe support
+* integrate minimally into tests
+* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
+* Patrick: Merged.
+* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
+** Aaron: Fixed.
+* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
+** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
+* AI:
+
+<pre>
+Additional security concerns in strip-markup
+
+    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
+
+Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
+</pre>
+
+* Aaron:
+** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
+** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
+* Patrick: Merged.
+* Patrick:
+** ./usr/lib/python3/dist-packages/stdisplay/stsponge.py - temporary file should be deleted?
+** temp_file.close() is redundant due to "with"?
+*** Aaron: Outdated, stsponge.py no longer uses temp files.
+* bug: running "strip-markup" as is without any input will hang forever
+** Aaron: Discussed in chat, we've decided to consider this intended behavior.
 == possibly outdated bridges in anon-connection-wizard ==
 * Aaron: User reported the following warning in Tor's log when trying to connect to Tor via a bridge:
 
@@ -1095,11 +1353,13 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 
 * Aaron: Can reproduce. However, using bridges obtained from The Tor Project instead of hardcoded bridges works and does not display the warning. Bridges may be outdated?
 ** Apparently fixed by syncing list of bridges with Tor Browser. Commits pushed to anon-connection-wizard and tor-control-panel.
+* Patrick: Merged.
 
 == more keyboard layout adjustments ==
 * Ensure non-English encrypted ISO installations can still be decrypted on boot using an ISO built from the latest packages
 * Ensure that GRUB keyboard layouts appear in VM and ISO builds
 ** Aaron: Both are working. Reviewed, polished set-keyboard-layout.sh and related scripts. Commits pushed to helper-scripts, live-config-dist, usability-misc, and derivative-maker.
+* Patrick: Merged.
 
 == ks/whonix 18 user bug reports ==
 * https://forums.kicksecure.com/t/systemcheck-incorrectly-warns-that-full-disk-encryption-fde-is-absent/1381
@@ -1109,6 +1369,7 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** Aaron: Posted some suggestions for improving the UX of the "Manage Software" feature of sysmaint-panel. Good to implement?
 *** Patrick: Sounds great! Please implement.
 **** Aaron: Implemented, commit pushed to sysmaint-panel.
+***** Patrick: Merged.
 * Aaron: New since last update:
 * https://forums.whonix.org/t/whonix-18-0-7-5-major-release-upgrade-testers-wanted/22469/11
 ** Fixed by Patrick.
@@ -1182,176 +1443,11 @@ https://www.whonix.org/wiki/Whonix-Host
 </pre>
 
 * Aaron: Implemented, commit pushed to Whonix-Installer.
-
-== grub dpkg-new ==
-* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
-
-<pre>
-dpkg -S /etc/grub.d/*
-grub-common: /etc/grub.d/00_header
-grub-common: /etc/grub.d/05_debian_theme
-dist-base-files: /etc/grub.d/10_00_linux_dist
-dist-base-files: /etc/grub.d/10_05_linux_main
-dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
-dist-base-files: /etc/grub.d/10_55_linux_main_advanced
-dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
-grub-common: /etc/grub.d/20_linux_xen
-grub-common: /etc/grub.d/25_bli
-grub-common: /etc/grub.d/30_os-prober
-grub-common: /etc/grub.d/30_uefi-firmware
-grub-common: /etc/grub.d/40_custom
-grub-common: /etc/grub.d/41_custom
-usability-misc: /etc/grub.d/44_kb_layout
-grub-common: /etc/grub.d/README
-zsh: exit 1     dpkg -S /etc/grub.d/*
-</pre>
-
-* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
-** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
-
-== user session shutdown issue ==
-* https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
-* increase systemd verbosity, if possible, and/or
-* add helper systemd unit (to usability-misc) that will show which units are failing to terminate once systemd sends sigterm
-* Aaron: Implemented, commit pushed to usability-misc. Will require that it is explicitly enabled on testing systems.
-
-== Qubes Tor Browser automatic updates ticket comment ==
-* please comment: https://github.com/QubesOS/qubes-issues/issues/9983#issuecomment-3619503494
-** Aaron: Replied, also asked TPO about more frequent polling for new versions.
-
-== unicode - carriage returns related improvements ==
-* https://github.com/Kicksecure/helper-scripts/issues/28
-* 1) stdisplay
-* 2) grep-find-unicode-wrapper - Patrick already added <code>\r</code>. Please review.
-* 3) Consider that file names themselves might also contain unicode. Therefore when outputting the names of files, unicode should be stripped.
-* Aaron: Done, commits pushed to helper-scripts.
-
-== misc AI review #2 ==
-* https://github.com/assisted-by-ai/qubes-whonix/pull/1
-** Aaron: Integrated useful change from this, commit pushed to qubes-whonix.
-* https://github.com/assisted-by-ai/helper-scripts/pull/2
-** Aaron: Integrated useful changes from this, commit pushed to helper-scripts.
-* https://github.com/assisted-by-ai/helper-scripts/pull/3
-** Aaron: Implemented roughly the same idea differently than ChatGPT did, commit pushed to helper-scripts.
-* https://github.com/assisted-by-ai/Whonix-Installer/pull/2 - refactoring might not be worthwhile
-** Aaron: Should likely be rejected, see comments for rationale.
-* https://github.com/assisted-by-ai/qubes-whonix/pull/2
-** Aaron: Partially merged in, but part of it needs more discussion.
-* Patrick: new ones since last commenting here...
-* https://github.com/assisted-by-ai/helper-scripts/pull/4
-** Aaron: Integrated useful changes from this, commit pushed to helper-scripts.
-* https://github.com/assisted-by-ai/helper-scripts/pull/5 (probably not worthwhile)
-** Aaron: Rejected, appears unnecessary after looking at Tor's source code.
-* https://github.com/assisted-by-ai/helper-scripts/pull/6
-** Aaron: Rejected, see comments for rationale.
-* https://github.com/assisted-by-ai/helper-scripts/pull/7
-** Aaron: Implemented one useful thing from this, commit pushed to helper-scripts.
-* https://github.com/assisted-by-ai/helper-scripts/pull/8
-** Aaron: Added all test cases. Commit pushed to helper-scripts.
-* https://github.com/assisted-by-ai/helper-scripts/pull/9
-** Aaron: Implemented useful changes from this, commit pushed to helper-scripts.
-* https://github.com/assisted-by-ai/helper-scripts/pull/10
-** Aaron: Rejected, see comments for rationale.
-* https://github.com/assisted-by-ai/security-misc/pull/1
-** Aaron: Integrated useful changes from this, commit pushed to security-misc.
-
-== trixie-port - Qubes - sys-net - sdwdate-gui-qubes@.service - systemd protocol error ==
-<pre>
-sudo journalctl --boot -u sdwdate-gui-qubes@0-1443-1000.service | cat
-Dec 04 08:59:46 sys-net systemd[1]: Starting sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000)...
-Dec 04 08:59:57 sys-net systemd[1]: sdwdate-gui-qubes@0-1443-1000.service: Failed with result 'protocol'.
-Dec 04 08:59:57 sys-net systemd[1]: Failed to start sdwdate-gui-qubes@0-1443-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1443/UID 1000).
-</pre>
-* Patrick: Fixed. But still more issues.
-<pre>
-[WARNING] [systemcheck] systemd units check result: 1 systemd units failed to load. These might be stuck in state failed, activating or deactivating. Output of leaprun read-systemctl-logs-failed-units-pretty:
-
-########################################
-  UNIT                                  LOAD   ACTIVE     SUB   JOB   DESCRIPTION
-● sdwdate-gui-qubes@1-1483-1000.service loaded activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)
-
-Legend: LOAD   → Reflects whether the unit definition was properly loaded.
-        ACTIVE → The high-level unit activation state, i.e. generalization of SUB.
-        SUB    → The low-level unit activation state, values depend on unit type.
-        JOB    → Pending job for the unit.
-
-1 loaded units listed.
-########################################
-</pre>
-
-<pre>
-[root ~]# systemctl status sdwdate-gui-qubes@1-1483-1000.service
-○ sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy
-     Loaded: loaded (/usr/lib/systemd/system/sdwdate-gui-qubes@.service; static)
-     Active: inactive (dead)
-
-Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
-Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
-Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
-zsh: exit 3     systemctl status sdwdate-gui-qubes@1-1483-1000.service
-</pre>
-
-<pre>
-[root ~]# journalctl --boot -u sdwdate-gui-qubes@1-1483-1000.service | cat
-Dec 04 09:24:22 sys-net systemd[1]: Starting sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000)...
-Dec 04 09:24:32 sys-net systemd[1]: Started sdwdate-gui-qubes@1-1483-1000.service - sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000).
-Dec 04 09:24:32 sys-net systemd[1]: sdwdate-gui-qubes@1-1483-1000.service: Deactivated successfully.
-[root ~]#
-</pre>
-
-* systemd probably does not like that a Type=notify unit can exit
-
-<pre>
-systemctl --no-legend --no-pager --no-block --state=failed,activating,deactivating list-units ● sdwdate-gui-qubes@49-1483-1000.service loaded
-</pre>
-<pre>
-activating start start sdwdate graphical user interface - Qubes socket proxy (PID 1483/UID 1000) can we avoid getting stuck in that state?
-</pre>
-
-* Aaron: Fixed as discussed, commit pushed to sdwdate-gui.
-
-== helper-scripts - sanitize-string  and strip-html improvements ==
-* sanitize-string
-** please add pipe support
-** currently: "sanitize-string: Usage: sanitize-string string [max_length]",
-*** would be better to have string length as mandatory first argument? Perhaps nolimit as a keyword? Please update code base.
-* strip-html
-** please add pipe support
-* integrate minimally into tests
-* Aaron: Done, commits pushed to helper-scripts and all repositories that used sanitize-string or strip-html (in either library or executable form).
 * Patrick: Merged.
-* small lint issue: https://github.com/Kicksecure/helper-scripts/actions/runs/19847500678/job/56867679739
-** Aaron: Fixed.
-* Should sanitize-string act like stcatn, i.e. always ensure there is a trailing newline at the end?
-** Aaron: Unsure. I would initially argue no, strings may legitimately not contain a trailing newline. If in the future we need to sanitize a string and ensure it is terminated with a newline, we should add a new option to sanitize-string to do this.
-* AI:
+== trixie-port - systemcheck test for CPU stall ==
+* assigned to Patrick
+* Done. Implemented.
 
-<pre>
-Additional security concerns in strip-markup
-
-    Terminal/console escape injection remains possible. The sanitizer removes only markup tags and replaces <, >, and & with underscores when it detects suspicious transformations, but it leaves all other control characters untouched. Because StripMarkupEngine runs with convert_charrefs = True, an attacker can supply inputs containing HTML entities for escape characters (e.g., &#27; for ESC), which will be decoded and written back out unchanged via sys.stdout.write. This can produce ANSI escape sequences in logs or terminals, enabling log forgery or malicious terminal control even though HTML tags were stripped.
-
-Not safe for contextual HTML output. The “sanitization” only removes tags and (in the fallback path) converts <, >, and & to underscores; it does not escape quotes, backticks, or other characters that are dangerous in attribute, JavaScript, or CSS contexts. If the supposedly “clean” output is later interpolated into HTML attributes or script blocks, an attacker can inject payloads such as javascript:... URLs or string-breaking quotes that lead to XSS despite markup stripping.
-</pre>
-
-* Aaron:
-** The terminal/console escape injection issue is possibly not a problem, because Python's HTML parser discards (some) entities that encode the ESC character rather than emitting the character they encode. Nonetheless, added defense-in-depth code to sanitize_string to ensure stray escapes are sanitized after HTML parsing is complete. Commits pushed to helper-scripts.
-** The contextual HTML output concern is not a worry since sanitize_string is not designed to make strings that are safe to place into the attribute of an HTML element.
-* Patrick: Merged.
-* Patrick:
-** ./usr/lib/python3/dist-packages/stdisplay/stsponge.py - temporary file should be deleted?
-** temp_file.close() is redundant due to "with"?
-*** Aaron: Outdated, stsponge.py no longer uses temp files.
-* bug: running "strip-markup" as is without any input will hang forever
-** Aaron: Discussed in chat, we've decided to consider this intended behavior.
-
-== trixie-port - suspend bug ==
-* user reported
-* Bug: suspend results in black screen with no recovery (unless hard reboot)
-* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
-* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
-
-= ARCHIVED =
 == sdwdate-gui - json decode bug ==
 <pre>
 + /usr/libexec/helper-scripts/terminal-wrapper 'leaprun sdwdate-log-viewer'
@@ -1623,9 +1719,6 @@ sdwdate[2269]: PermissionError: [Errno 13] Permission denied: '/var/lib/sdwdate/
 == 18.0.7.5-developers-only - ISO boot broken ==
 * todo
 * Fixed.
-
-== trixie-port - systemcheck test for CPU stall ==
-* assigned to Patrick
 
 == permission-hardener bug - pkexec restore issue ==
 * anon-whonix in unrestricted admin mode
