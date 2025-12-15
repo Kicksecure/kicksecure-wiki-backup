@@ -21,31 +21,31 @@ Frequently users will want to download files from the Internet. Secure downloadi
 When using the command line to download files or webpages, resorting to the simple <code>wget</code> command is ill-advised because it is [https://lists.gnu.org/archive/html/bug-wget/2012-07/msg00015.html buggy]. For example, if users do not force a request to use SSL encryption, <code>wget</code> can [https://stackoverflow.com/questions/38292532/is-strict-transport-security-hsts-supported-by-libcurl/38835162#38835162 fail silently]. Even when SSL is enforced with a command line option, this can [https://www.gnu.org/software/wget/manual/html_node/HTTPS-_0028SSL_002fTLS_0029-Options.html break interoperability with some sites] that use self-signed, expired or invalid certificates. Users could potentially ignore certificate verification warnings and proceed with downloads where the site's authenticity is in question.
 
 To provide greater security when downloading, [https://github.com/{{project_name_short}}/usability-misc <code>scurl</code>] comes pre-installed in {{project_name_long}} and provides a simple wrapper around [https://packages.debian.org/{{Stable project version based on Debian codename}}/curl <code>curl</code>]:
-* {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/scurl|text=<code>/usr/bin/scurl</code>}} simply adds <code>{{Curl_Secure}}</code> to all <code>curl</code> instances to enforce strong encryption.
-* {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/scurl-download|text=<code>scurl-download</code>}} additionally adds <code>--location</code> to follow redirects as to use extract the file name from the URL. <ref>
+* {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/scurl|text=<code>/usr/bin/scurl</code>}} simply adds <code>{{Curl_Secure}} --proto =https</code> to all <code>curl</code> instances to enforce strong encryption.
+* {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/scurl-download|text=<code>scurl-download</code>}} wraps <code>wcurl</code> and adds <code>--curl-options={{Curl_Secure}}</code>. This enforces strong encryption, follows redirects to extract the file name from the URL, and automatically saves the downloaded data to a file. <ref>
 [https://curl.haxx.se/docs/manpage.html#-O write output to a local file with the same name as the remote file retrieved]. Only the file part of the remote file is used and the path is cut off.
 </ref>
 
 <code>scurl</code> is not vulnerable to [https://security.stackexchange.com/questions/41988/how-does-sslstrip-work SSLstrip]. This is a man-in-the-middle attack which forces a user's browser to communicate with the adversary in plain-text over HTTP (poisoning the download). At present, <code>scurl</code> is available in {{project_name_short}} and the command will generally not work in other distributions.
 
-== How-to: Invoke scurl-download ==
+== How-to: Invoke scurl and scurl-download ==
 Note: In the examples below, the file will be saved in the user's current working directory. If the file should be saved elsewhere, change the current working directory before running scurl.
 
 To invoke scurl-download to download a file, simply run (replace the https:// example with the actual file location).
 
 {{CodeSelect|code=
-scurl https://example.com/browser.tar.xz
+scurl-download https://example.com/browser.tar.xz
 }}
 
 This will download <code>browser.tar.xz </code> to the current working directory.
 
-To invoke scurl-download to download a web page, run (replace the https:// example with the actual webpage).
+To invoke scurl-download to download a web page, run (replace <code>example.com</code> with the actual webpage).
 
 {{CodeSelect|code=
 scurl-download https://example.com
 }}
 
-All other curl/Linux features continue to work, such as storing the input inside of a file (change <i>index.html</i> to the desired file name).
+All curl/Linux features continue to work with <code>scurl</code>, such as storing the input inside of a file (change <i>index.html</i> to the desired file name).
 
 {{CodeSelect|code=
 scurl https://example.com > index.html
@@ -133,27 +133,23 @@ Finally, consider using [[Multiple {{project_name_short}}|Multiple {{project_nam
 = Outside of {{project_name_short}} =
 == curl ==
 {{CodeSelect|code=
-curl {{Curl_Secure}}
+curl {{Curl_Secure}} --proto =https
 }}
 
 == curl-download ==
 <u>Note:</u> Replace the <code>url</code> with the actual link to the file to download. <ref>
 * <code>--</code>: See [[Dev/bash#Use_of_End-of-Options_Parameter_.28--.29|Use of End-of-Options Parameter (--)]].
-* <code>--continue-at -</code>: {{quotation
-|quote=to tell curl to automatically find out where/how to resume the transfer. It then uses the given output/input files to figure that out.
-|context=curl man page
-}}
 </ref>
 
 {{CodeSelect|code=
-curl {{Curl_Secure}} --remote-name --continue-at - -- "url"
+wcurl --curl-options={{Curl_Secure}} -- "url"
 }}
 
 Example:
 
 <u>Note:</u> Replace the URL with the actual link to the file to download.
 
-{{PreBox|curl {{Curl_Secure}} --remote-name --continue-at - -- "<nowiki>https://</nowiki>www.kicksecure.com/download/iso/{{VersionNew}}/Kicksecure-LXQt-{{VersionNew}}.Intel_AMD64.iso"}}
+{{PreBox|wcurl --curl-options{{=}}{{Curl_Secure}} -- "<nowiki>https://</nowiki>www.kicksecure.com/download/iso/{{VersionNew}}/Kicksecure-LXQt-{{VersionNew}}.Intel_AMD64.iso"}}
 
 = Attribution =
 {{sdebian
