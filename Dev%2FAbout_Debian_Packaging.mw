@@ -33,7 +33,7 @@ Packaging serves several crucial purposes in software distribution, ensuring not
 * '''Download mirroring:''' In case the original sources are temporarily unavailable, distribution mirrors ensure that the software can still be downloaded and used.
 * '''Hardening:''' Distributions may implement additional security measures to enhance protection against threats. This could vary based on the individual DM or team, including:
 ** '''AppArmor:''' Implementing mandatory access control, like an AppArmor profile, especially if it's not maintained by the original software providers.
-** '''Compilation options:''' Utilizing more secure compilation options, which can be independent of the packages and applied distribution-wide. Such as TODO
+** '''Compilation options:''' Utilizing more secure compilation options, which can be independent of the packages and applied distribution-wide. Such as <code>-D_FORTIFY_SOURCE=2</code>.
 * '''Distribution integrations:''' Integration with the distribution's specific systems is crucial. For example, distributions using different initialization systems (like systemd, OpenRC, Runit, or SysVinit) require the DM to maintain appropriate init files for their system. For instance, Devuan, a non-systemd distribution, uses SysVinit and thus needs SysVinit scripts for all packages involving daemons (like sound servers, display servers, or internet servers).
 * '''Linting:''' Package checkers are used to automatically identify issues and enforce quality and standards in the packaging process.
 ** Lintian has [https://salsa.debian.org/lintian/lintian/-/tree/master/tags a plethora of checks] - it check for more than 1000 issues.
@@ -66,7 +66,7 @@ Packaging serves several crucial purposes in software distribution, ensuring not
 * https://forums.kicksecure.com/t/secure-and-trustless-trust-minimal-package-policy/1157/4
 
 = Lintian =
-All packages produce result in <code>lintian</code> exit code <code>0</code> and no <code>lintian</code> output. All <code>lintian</code> warnings are either:
+All packages in {{project_name_short}}'s repository result in <code>lintian</code> exit code <code>0</code> and no <code>lintian</code> output. All <code>lintian</code> warnings are either:
 
 * fixed
 * suppressed (<code>--suppress-tags</code>
@@ -130,20 +130,13 @@ reverse-depends evolution-data-server
 = Recommends vs Depends =
 This is about <code>Recommends:</code> vs <code>Depends:</code> in context of <code>debian/control</code>.
 
-<code>debian/control</code>: There are separate {{Github_link|repo={{project_name_short}}-meta-packages|path=/blob/master/debian/control|text=meta packages}} for dependencies and recommended packages. For example:
+<code>debian/control</code>: All dependencies of all {{project_name_short}} {{Github_link|repo={{project_name_short}}-meta-packages|path=/blob/master/debian/control|text=meta packages}} use <code>Depends:</code> for both dependencies and recommended packages.
 
-* <code>{{project_name_short_lowercase}}-xfce</code>
-* <code>{{project_name_short_lowercase}}-cli</code>
+The reason for this is, because if we used the <code>Recommends:</code> field for {{project_name_short}} meta packages (those which pull the required Debian upstream packages for creating {{project_name_short}}), we could not install them using <code>apt</code> with <code>--install-recommends</code>, which is <code>apt</code>'s default option, because that would also install packages recommend by any dependency we install.
 
-The reason for this is, because if we used the <code>Recommends:</code> field for {{project_name_short}} meta packages (those who pull the required Debian upstream packages for creating {{project_name_short}}), we could not install them using <code>apt</code> with <code>--install-recommends</code>, which is <code>apt</code>'s default option, because that would also install packages recommend by any dependency we install.
+On the other hand, if we installed using apt <code>--no-install-recommends</code>, the packages {{project_name_short}} meta packages recommends, will not get installed. Therefore, packages that are part of {{project_name_short}} must be dependencies, not recommends. Otherwise it would install packages such as <code>zutty</code>, which are not useful '''in the context of''' {{project_name_short}}.
 
-On the other hand, if we installed using apt <code>--no-install-recommends</code>, the packages {{project_name_short}} meta packages recommends, will not get installed.
-
-Therefore splitting them into packages suffixed <code>*-dependencies</code> or <code>*-recommended</code> which both use <code>Depends:</code> and installing them using <code>--no-install-recommends</code> appeared to be the only solution.
-
-Otherwise it would install packages such as <code>virtuoso</code>, <code>soprano</code> and <code>vlc</code>, which are not useful '''in context of''' {{project_name_gateway_long}}.
-
-The <code>Recommends:</code> and <code>Suggests:</code> field is still being used but this is mostly useful for one package advertising related packages users using <code>apt-cache show package-name</code> and [[Packages for Debian Hosts]].
+The <code>Recommends:</code> and <code>Suggests:</code> field is still being used, but this is mostly useful for one package advertising related packages to users using <code>apt-cache show package-name</code> and [[Packages for Debian Hosts]].
 
 See also:
 
@@ -151,14 +144,14 @@ See also:
 * [[Debian_Packages#Technical_Information]].
 
 = Files in Home Folder =
-Packages placing files <code>/home</code> folder must use the correct mechanism for doing so. Using defined mechanisms (see below) might be appropriate. Directly writing <code>/home</code> is prohibited for reasons listed below.
+Packages placing files in the <code>/home</code> folder must use the correct mechanism for doing so. Using defined mechanisms (see below) might be appropriate. Directly writing <code>/home</code> is prohibited for reasons listed below.
 
-* <code>/home</code> is for users. Not for distribution contributors.
+* <code>/home</code> is for users. Not for distribution package contents.
 * Leads to a [[Configuration_Files#dpkg_interactive_conflict_resolution_dialog|dpkg interactive conflict resolution dialog]] when package file is updated, in case file gets modified by the user or a program in the home folder (which is often very likely), which is a usability issue, which we try to avoid.
 * <code>serious</code> <code>lintian</code> error [https://web.archive.org/web/20200927070851/https://lintian.debian.org/tags/dir-or-file-in-home.html <code>dir-or-file-in-home</code>].
 ** Makes the package unfit for inclusion into <code>packages.debian.org</code> (very long term goal) (or other package repositories).
 ** Looks amateurish in the eyes of Debian packagers.
-* For which user? Account <code>user</code> only? Inconsistent for multi user use cases. Hard to combine with future [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Modes)]] with <code>user</code>, user <code>sysmaint</code>.
+* For which user? Account <code>user</code> only? Inconsistent for multi user use cases. Hard to combine with [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Modes)]] with account <code>user</code> and account <code>sysmaint</code>.
 * Doesn't work / inconsistent in [https://www.qubes-os.org Qubes] Template. Since packages are usually upgraded in Templates, the change never propagates to the home folder of the App Qube since it has an independently persistent home folder.
 ** Special code would be required to handle these cases. Such as a script that runs after boot but in Template that are not Disposable Template only. Example:
 *** {{Github_link|repo=tb-updater|path=/blob/master/usr/lib/systemd/system/tb-updater-first-boot.service}}
@@ -177,7 +170,7 @@ Packages placing files <code>/home</code> folder must use the correct mechanism 
 
 = Modifying Default Configuration of Third Party Packages =
 
-Taking a systemd unit file as an example: suppose <code>/lib/systemd/system/systemd-random-seed.service</code> modifications are desired.
+Taking a systemd unit file as an example: suppose <code>/usr/lib/systemd/system/systemd-random-seed.service</code> modifications are desired.
 
 File <code>/lib/systemd/system/systemd-random-seed.service</code> is owned by a third party package <code>systemd</code>.
 
@@ -223,7 +216,7 @@ This would not be an issue if the derivative distribution were to fork, rebuild,
 
 If possible, avoid <code>/etc</code> and use <code>/usr</code> instead.
 
-Why distributions are still making use of <code>/etc</code>? While it's impossible for all distributions, but the most likely reason is legacy. This is for historic reasons. <code>systemd</code>, which continues to shape the direction which Linux distributions develop, many Linux distributions and upstream projects agree with this direction of moving to <code>/usr</code>.
+Why distributions are still making use of <code>/etc</code>? The most likely reason is legacy. This is for historic reasons. <code>systemd</code>, which continues to shape the direction which Linux distributions develop, many Linux distributions and upstream projects agree with this direction of moving to <code>/usr</code>.
 
 {{quotation
 |quote=Note that while <code>systemd</code> itself explicitly supports booting up with entirely unpopulated images (<code>/usr/</code> being the only required directory to be populated) distributions might not be there yet: depending on your distribution further, manual work might be required to make this scenario work.
@@ -292,13 +285,11 @@ Testing modified desktop environment (LXQt) settings files in <code>/etc/skel</c
 
 When LXQt is shutdown, it might undo the manual or package modified settings in user home folder <code>/home/user</code> as part of LXQt "save settings" procedure on shutdown. Therefore after reboot these settings might be reverted and could not be actually tested.
 
-A script which is supposed to be run from a virtual console to simplify the steps:
-
-{{Github_link|repo=helper-scripts|path=/blob/master/usr/libexec/helper-scripts/desktop-background-skel-test|text=<code>/usr/libexec/helper-scripts/desktop-background-skel-test</code>}}
+We configure LXQt using system-wide config directories under <code>/usr/share</code>. These are then added to the <code>XDG_CONFIG_DIRS</code> environment variable, so that LXQt picks them up and uses them.
 
 = {{project_name_short}} / {{whonix}} Package Design =
 * whonix-base-files: Whonix-Host, Whonix-Gateway, Whonix-Workstation
-* whonix-libvirt: Whonix-Host only
+* libvirt-dist: Whonix-Host only
 * anon-gw-base-files: Whonix-Gateway only
 * anon-ws-base-files: Whonix-Workstation only
 * kicksecure-base-files: Kicksecure-VMs and Kicksecure-Hosts
@@ -307,9 +298,9 @@ A script which is supposed to be run from a virtual console to simplify the step
 = Package File Migration =
 Example.
 
-Migrating a file in a package such as /usr/sbin/pwchange from one package to another.
+Migrating a file in a package from one package to another.
 
-Migrating a file in a package such as /usr/sbin/pwchange from usability-misc to helper-scripts.
+Migrating a file in a package such as <code>/usr/sbin/pwchange</code> from usability-misc to helper-scripts.
 
 <pre>
 helper-scripts debian/changelog:
