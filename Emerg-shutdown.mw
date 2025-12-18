@@ -1,0 +1,71 @@
+{{Header}}
+{{Title|
+title=emerg-shutdown - Instantly Power Off the System
+}}
+{{#seo:
+|description=emerg-shutdown immediately and forcibly powers off the system if the boot drive is removed or a "panic" key combo is pressed. When used in combination with full disk encryption, it is a powerful tool to prevent data theft by physically present attackers.
+}}
+{{kernel_mininav}}
+{{intro|emerg-shutdown immediately and forcibly powers off the system if the boot drive is removed or a "panic" key combo is pressed. When used in combination with full disk encryption, it is a powerful tool to prevent data theft by physically present attackers.
+}}
+
+= Overview =
+Some of {{project_name_short}}'s security features require the system to be powered off to be effective. For instance, [[Full Disk Encryption]] only works if an attacker cannot gain access to the encryption key used to lock the disk. This key is stored in RAM while the system is powered on and running normally. If an attacker can gain physical access to the machine while the key is in RAM, they can likely extract the data on the disk or even the key itself. Disk encryption is therefore not reliable unless the system is powered off when an attacker gains access to it.
+
+If a user has to defend against an adversary that may become physically present without warning and take control of the system, they must power the system down as quickly as possible after the adversary arrives. However, traditional shutdown mechanisms are insufficient for a number of reasons:
+
+* They are oftentimes cumbersome to access (<code>Start Menu</code> &rarr; <code>Power button</code> &rarr; <code>Shut Down</code> &rarr; <code>Yes</code>), greatly reducing the chances that a user (especially a panicking user) will be able to use them in a timely fashion.
+* Even if a user can initiate a normal shutdown quickly enough, <code>systemd</code> may take an excessive amount of time to finish powering off the machine, allowing the adversary to initiate a [[Cold_Boot_Attack_Defense|cold boot attack]] or similar before the machine fully powers off.
+* Desktop machines can be physically unplugged to quickly power them off, but laptops generally will remain powered on even when AC power is lost, and removing the battery from most modern laptops is not a task that can be performed quickly.
+
+<code>emerg-shutdown</code> solves these problems by allowing a user to instantly power off the system by removing the boot drive or by pressing a "panic" key combo.
+
+<code>emerg-shutdown</code> is installed and enabled by default on Kicksecure 18 and higher. It is part of the [[security-misc]] package.
+
+= Usage =
+{{testers-only}}
+
+Due to a few known issues this is for testers only.
+
+When <code>emerg-shutdown</code> is enabled, the system may be immediately shut down by doing one of the following actions:
+
+* Press the emergency key combo (by default <code>Ctrl + Alt + End</code>.<ref>Why <code>Ctrl + Alt + End</code>? Originally <code>Ctrl + Alt + Delete</code> was used as the panic key, but other applications such as <code>systemd</code> may interpret this shortcut, and a more powerful <code>Ctrl + Alt + Delete</code> handler may be added to {{project_name_short}} in the future. <code>Ctrl + Alt + End</code> is the keyboard shortcut used by Windows Remote Desktop Connection to send <code>Ctrl + Alt + Delete</code> to a remote system (https://serverfault.com/a/57233), so it was considered suitable as an "alternate <code>Ctrl + Alt + Delete</code>".</ref> This shortcut is recognized by emerg-shutdown as a "panic button" and will cause the system to be forcibly shut down.
+* Unplug the drive or eject the disc the system was booted from (only applicable when booting from a live ISO or a USB installation). <code>emerg-shutdown</code> will detect the drive removal and will forcibly shut down the system in response.<ref><code>emerg-shutdown</code>'s core executable supports a <code>--paranoid</code> option that will cause an immediate shutdown if any device is removed from the system. This may be useful in the future for users who need the system to shut down even if they unplug the "wrong" device. There currently is no configuration option to enable this mode.</ref>
+
+Both of these actions are expected to be fast and easy to do even in high-stress situations, while also being difficult to do on accident.
+
+<code>emerg-shutdown</code> can also be used in scripts, programs, and system services to trigger an immediate shutdown. Running <code>/run/emerg-shutdown --instant-shutdown</code> as root will cause the system to be forcibly shut down.<ref>This requires root access because otherwise it would make denial-of-service attacks trivial. The usual methods of triggering <code>emerg-shutdown</code> don't require the ability to log in as root, but they do not pose a denial-of-service risk because they require a physically present user.</ref>
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = <code>emerg-shutdown</code> prioritizes shutdown speed over avoiding data loss. The system will be powered off immediately, without taking the time to sync disks, unmount filesystems, or properly terminate applications. This ''will'' cause loss of unsaved data. If disks are mounted writable, it may also cause file corruption and filesystem damage. <code>emerg-shutdown</code> should be used only in emergencies or when testing, it should not be used as a general system shutdown mechanism.
+}}
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    =
+known issue:
+
+<code>emerg-shutdown</code> bypasses [[ram-wipe]]. This may make cold boot attacks easier. A normal shutdown is therefore more secure if an attacker is not physically present. Of course, <code>emerg-shutdown</code> should be used if an attacker is physically present, because quick shutdown is more important than explicitly wiping memory contents in this scenario.
+
+Will likely be fixed in next version
+}}
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = If a normal shutdown is started (for instance by using LXQt's "Shut Down" feature, <code>shutdown now</code>, <code>poweroff</code>, or similar), <code>systemd</code> will kill the <code>emerg-shutdown</code> process. Therefore, <code>emerg-shutdown</code> cannot be used to power off the system if it hangs during shutdown, and it may not work if an attacker arrives after you have already started shutting down the system.
+
+A future version planned is ensure-shutdown feature.
+}}
+
+= Configuration =
+The emergency key combination in <code>emerg-shutdown</code> may be configured by placing a file under <code>/etc/security-misc/emerg-shutdown</code> or <code>/usr/local/etc/security-misc/emerg-shutdown</code>. See [https://github.com/Kicksecure/security-misc/blob/master/etc/security-misc/emerg-shutdown/30_security_misc.conf%23security-misc-shared <code>/etc/security-misc/emerg-shutdown/30_security_misc.conf</code>] for details.
+
+The list of supported keys is hardcoded in the <code>emerg-shutdown</code> source code, in the <code>key_table</code> variable. See [https://github.com/Kicksecure/security-misc/blob/master/usr/src/security-misc/emerg-shutdown.c%23security-misc-shared <code>/usr/src/security-misc/emerg-shutdown.c</code>] Additional keys may be added to this list in the future if necessary.
+
+= Footnotes =
+{{reflist|close=1}}
+[[Category:Documentation]]
+{{Footer}}

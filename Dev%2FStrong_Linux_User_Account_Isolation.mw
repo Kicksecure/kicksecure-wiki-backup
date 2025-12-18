@@ -360,20 +360,20 @@ If you are logged in at a TTY, and press a Ctrl+Alt+Fn key combo, the kernel's v
 
 If you use the <code>chvt</code> command while logged into a virtual terminal, it will be able to switch to another virtual terminal because the virtual terminal the user logged in at is now readable and writable by the logged-in user. It can thus access it and tell the kernel virtual terminal code to switch to a different virtual terminal.
 
-When you have a running graphical session, things are slightly more complicated. The X11 server will take control of one of the virtual consoles, and when one presses <code>Ctrl+Alt+Fn</code>, that keypress will go to X11, not the kernel virtual console code. In this instance, X11 will interpret the keypress and instruct the kernel's virtual terminal code to switch to the user's desired virtual console. (Wayland, at the very least the SwayWM compositor and likely all other wlroots-based compositors, works in a similar or identical fashion here.)
+When you have a running graphical session, things are slightly more complicated. The display server will take control of one of the virtual consoles, and when one presses <code>Ctrl+Alt+Fn</code>, that keypress will go to the display server, not the kernel virtual console code. In this instance, the display server will interpret the keypress and instruct the kernel's virtual terminal code to switch to the user's desired virtual console. (X11, Sway, and labwc, and likely most other Wayland compositors that render to a physical display, work in a similar or identical fashion here.)
 
 With the above rules in place, the only way to gain read/write access to a virtual terminal is to:
 * Have physical access to the computer, thus giving one the ability to communicate directly with the kernel virtual terminal code.
 * Or, be running under a user account that has logged in at a virtual terminal already.
 ** In this latter instance, software running as the logged-in user could ''switch'' to a different virtual terminal, but it would not be able to attempt to login at that terminal. That would require read/write access to the virtual terminal that was switched to. Virtual terminals that have a login prompt are only able to be read from and written to by root or a person with physical access to the machine.
 
-It is also possible to communicate with an application that is controlling a virtual terminal. The most obvious example of this is when an X11 server is running as root (which it does by default on Debian-based systems, Kicksecure included). In this instance, it is possible to perform some limited console-level actions (namely switching to a different virtual terminal) even without direct read/write access to any virtual terminal device (for instance, by using <code>xdotool</code> to emulate a Ctrl+Alt+Fn keypress).
+It is also possible to communicate with an application that is controlling a virtual terminal. The most common example of this is a display server. In this instance, it is possible to perform some limited console-level actions (namely switching to a different virtual terminal) even without direct read/write access to any virtual terminal device (for instance, by using an emulated input protocol in the Wayland compositor to emulate a Ctrl+Alt+Fn keypress).
 
 Even in this scenario, however, a malicious process that did this would not be able to login at the virtual terminal that was switched to, because it would not have read/write access to the virtual terminal that it switched to.
 
-Wayland does not suffer from the same problems here as Wayland compositors generally run as a non-root user and can only be accessed by the user they run as (or by the root account). File permissions are used to protect the socket the compositor uses for communicating with graphical applications. The base Wayland protocol also does not make it particularly easy to inject keystrokes into the server the way X11 does, although there are additional input method protocols that allow Wayland clients to act as input devices. Therefore, one should not assume it is impossible for a program to inject input into Wayland if it can connect to the Wayland server.
+Wayland compositors generally run as a non-root user and can only be accessed by the user they run as (or by the root account). File permissions are used to protect the socket the compositor uses for communicating with graphical applications. The base Wayland protocol also does not make it particularly easy to inject keystrokes into the server the way X11 does, although there are additional input method protocols that allow Wayland clients to act as input devices. Therefore, one should not assume it is impossible for a program to inject input into Wayland if it can connect to the Wayland server.
 
-The chvt command is a simple user-space tool that invokes this system call, but users without sufficient privilege will fail to switch virtual terminals regardless of the presence of the command.
+The chvt command is a simple user-space tool that changes virtual terminals by accessing TTY devices directly, but users without sufficient privilege will fail to switch virtual terminals regardless of the presence of the command.
 
 == sudo restrictions ==
 By Debian default, users who are not members of the group <code>sudo</code> cannot use <code>sudo</code>. Therefore limited user accounts (for example user <code>sdwdate</code>) cannot use <code>sudo</code> to attempt to crack other user account passwords to run under these users.
@@ -557,7 +557,11 @@ On Linux distributions other than those based on Kicksecure with [[sysmaint|user
 * '''Local privilege escalation vulnerabilities''': Malware requires a local privilege escalation (LPE) exploit to gain root.
 
 == X Windows System ==
-Update: Using Wayland nowadays.
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = {{project_name_short}} 18 and higher use Wayland (specifically the labwc display server) by default.
+}}
 
 Any graphical application running under X Windows System (X11) can see what any account is typing in any other application for any account.
 For example, if account <code>user</code> running X11 would run <code>lxsudo -u limited-account some-application</code> a compromised graphical application could sniff anything that account <code>user</code> is writing. Including but not limited to any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
@@ -611,8 +615,6 @@ Potential solutions:
 * [https://forums.whonix.org/t/can-apparmor-prevent-sudo-password-sniffing-through-abuse-of-x-windows-system/8973/8 Can AppArmor prevent sudo password sniffing through abuse of X Windows System?]
 * [https://forums.whonix.org/t/enlightenment-de/8900/10 Can we replace xfce window manager as an easy path to switch to wayland?]
 * In future, [[Sysmaint|sysmaint - System Maintenance User]] / [[Dev/user-sysmaint-split|user-sysmaint-split]] might solve this issue for similar reasons as in above chapter.
-
-Help welcome!
 
 == Wayland application isolation ==
 Wayland is designed to provide good isolation between simultaneously running graphical applications, while still allowing those applications to communicate with each other in controlled ways. In the base Wayland protocol, each window only knows about its own content, and events that are specifically passed to it by the compositor. It does not have any access to the contents, events, or even positions of other windows. This is intended to prevent things such as logging other applications' keystrokes, reading other applications' screen information, etc. This is mostly documented in the [https://wayland.freedesktop.org/docs/html/ch04.html Wayland Documentation].
@@ -813,7 +815,7 @@ zsh: exit 1     sudo apt update
 </pre>
 
 * If you open <code>/etc/pam.d/common-auth</code>, you'll see the auth stack most things that use PAM (including <code>sudo</code> and <code>su</code>) use in Debian. Critically, <code>sudo</code> shares this stack with <code>su</code>.
-* <code>pam_wheel</code> checks the user calling it to determine if that user is in a specific group. If not, access is denied. This doesn't block <code>lightdm</code> login because <code>lightdm</code> runs as root, and root is (apparently) allowed to authenticate as anyone. However, if account <code>user</code> is not in the specified group (in our case <code>sudo</code>), access is denied, ''regardless of what account <code>user</code> is trying to do.''
+* <code>pam_wheel</code> checks the user calling it to determine if that user is in a specific group. If not, access is denied. This doesn't block <code>greetd + wlgreet</code> login because <code>greetd</code> runs as root, and root is (apparently) allowed to authenticate as anyone. However, if account <code>user</code> is not in the specified group (in our case <code>sudo</code>), access is denied, ''regardless of what account <code>user</code> is trying to do.''
 * Our old PAM stack ran <code>pam_wheel</code> for any successful authentication, which meant that anything the user tries to use that requires authentication (<code>sudo</code>, <code>pkexec</code>, <code>su</code>) will fail due to failed authentication. This applies even if account <code>user</code> is passwordless, in which case one will see authentication automatically fail without any other user input. <code>sudo</code> attempts authentication three times, so you get three failure messages.
 * Adjusting PAM to only run <code>pam_wheel</code> when running <code>su</code> fixes the issue because now <code>su</code> is the only thing that will attempt to use <code>pam_wheel</code>. Anything else will ignore it, and so authentication will succeed. In the case of <code>sudo</code>, it will then check, see that account <code>user</code> is not part of group <code>sudo</code>, and return a clear error message rather than an authentication failure message.
 
