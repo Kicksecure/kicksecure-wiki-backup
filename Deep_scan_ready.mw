@@ -9,9 +9,39 @@ Deep Scan Ready
 [[File:Deep_Scan_Ready.png|thumb]]
 [[File:Deep_scan_ready_icon.png|thumb]]
 {{intro|
-Security should not require blind trust in the platform vendor (the company that makes the device, firmware, or OS). The {{os}} may be part of the threat model (meaning the OS itself could be compromised). Therefore, users should be able to control keys (cryptographic keys used for verification), verification, and modification (the ability to inspect and change the system). To accomplish this goal, it is important that the operating system is deep scan ready, meaning it supports being deep scanned in principle (you can inspect it from outside, without running it).
+Deep scan ready means the device owner can fully check their own device from the outside, while it is powered off, without needing permission from the vendor.
 }}
+= ELI5: What does "Deep Scan Ready" mean? =
+Bear with us, this section is ELI5. More technical explanations follow later.
+
+Imagine your computer is a locked box.
+
+There are two kinds of boxes.
+
+'''Box type A'''
+
+The company that made the box keeps the keys.
+You are told to trust their checker.
+If something bad can fool that checker, you may never know.
+
+This is '''Deep Scan Restricted'''.
+
+'''Box type B'''
+
+You keep the keys.
+You can turn the box off and safely look at everything inside.
+Nothing inside can run or hide while you are checking.
+
+This is '''Deep Scan Ready'''.
+
 = Introduction =
+'''More technically:'''
+Deep scan ready means the device owner can inspect the full operating system and boot chain while the device is powered off, using a separate clean external system.
+
+Security should not require blind trust in the platform vendor (the company that makes the device, firmware, or operating system). The {{os}} itself may be part of the threat model, meaning the operating system could be compromised.
+
+For this reason, users should be able to control keys (cryptographic keys used for verification), verification, and modification (the ability to inspect and change the system). To accomplish this goal, the operating system must be deep scan ready, meaning it supports being inspected from the outside, without running it.
+
 An important rule for deep virus scans is: do not boot a device suspected of being infected with [[malware]], because active malware can hide itself, fake "clean" results, or erase evidence. <ref>
 {{quotation
 |quote=Live analysis provides valuable, volatile information that may not be available during an offline analysis of a hard drive, e.g., dynamic data such as running processes and open ports, which are only available during system operation. However, when one of the processes on a machine includes a rootkit, the 90 ADVANCES IN DIGITAL FORENSICS III investigator must question if the results of a live analysis are tainted. When rootkits are running, the data and processes they have modified are still in use by the operating system, but this fact is not visible to the user. In fact, our experiments demonstrate that even if a live response cannot detect what is hidden, it can still provide an investigator with details about what was available to the user. This information can also help the investigator determine what the rootkit was hiding.
@@ -44,42 +74,23 @@ See also [https://learn.microsoft.com/en-us/defender-endpoint/microsoft-defender
 Deep scans are usually possible with traditional Linux distributions but often not on most mobile devices such as stock Android, because you generally cannot easily boot a trusted external system or fully inspect storage without unlocking or modifying the device.
 
 = What does deep scan ready mean? =
-(Deep scan ready means you can safely and fully inspect a device for malware from outside, while it's turned off.)
+(Deep scan ready means you can safely and fully inspect a device for malware from outside, while it is powered off.)
 
-* <u>Analyze everything:</u> All files on the disk without exception. The file system must be inspectable, meaning the owner can independently check it, including a thorough system boot chain integrity check.
+* <u>Analyze everything:</u> All files on the disk without exception. The file system must be inspectable, meaning the owner can independently check it, including a thorough integrity check of the system boot chain.
 * <u>Not only apps:</u> Deep scan ready means you can inspect the whole system, not just installed applications.
 * <u>Include boot components:</u> The scan includes the partition table (how the disk is divided), bootloader (the first program that starts the system), kernel (the core part of the OS), init (initial startup process), system files, etc.
 * <u>Keep malware inactive while scanning:</u> Malware must not be active in memory during the scan. This requires:
 ** <u>Offline deep scan:</u> Or at minimum an Offline Integrity Check; a different boot medium must be used, such as booting from USB (Live USB Checkup).
-** <u>Detached deep scan:</u> Even better, remove the disk and scan it from another clean system, from a different computer.
+** <u>Detached deep scan:</u> Even better, remove the disk and scan it from a different, clean system, on a different computer.
 * <u>Support both tools and experts:</u> The system can be scanned in various ways.
-
-by automated tools such as debcheckroot
-
-virus scanners
-
-manually by malware analysts
-
-
-debcheckroot
-
-no antivirus needed. antivirus is fully optional. the main check:
-
-1. boot from clean system
-
-2. create hashsum of bootloader, kernel, system files
-
-3. compare these hashsums with clean versions
-
-if differences are found, it's either different version, custom build or malware. can  be manually analyzed.
+** <u>Automated checksum verification tools:</u> Important system files can be compared by their cryptographic checksums (hash sums) with known clean versions. This is being elaborated in chapter [[#Deep_Scan_Tools|Deep Scan Tools]].
+** <u>Manual analysis by malware analysts:</u> A human expert can inspect suspicious changes, unusual files, and unexpected startup components.
+** <u>Automated by virus scanners:</u> While [[Malware_and_Firmware_Trojans#The_Utility_of_Antivirus_Tools|The Utility of Antivirus Tools]] is debatable, it may also be an option. Antivirus is not required. Use of antivirus is fully optional.
 
 = What is the difference of a deep scan versus a normal antivirus scan? =
 
 * <u>Normal antivirus scan:</u> Users typically do an antivirus scan after booting the system that is suspected of being infected with malware. This kind of scan runs inside the system you do not trust, so malware may be able to hide, interfere, or show false results.
 * <u>Deep scan:</u> A deep scan aims to inspect the full storage and boot components from outside the suspect system, so malware is not running while you scan.
-** checksum comparison deep analysis
-** manual deep analysis
-** antivirus deep analysis
 
 = Why should I care about computer viruses? =
 
@@ -91,74 +102,133 @@ Which operating systems are typically deep scan ready? Most, if not all, traditi
 Which operating systems are typically not deep scan ready? For example, stock Android. This is being elaborated on the [[Android|Android Insecurity]] wiki page.
 
 = Technical Implementation =
-How can an operating system implement being deep scan ready? Actually, there is nothing special to add. It's more about what the system '''doesn't''' block the user from doing.
+How can an operating system implement being deep scan ready? There is usually no special "deep scan feature" to add. Deep scan readiness is mostly about not blocking the owner from inspecting the device from the outside.
 
-What to avoid is implementing a locked bootloader that cannot be controlled by the user, also known as [[Miscellaneous_Threats_to_User_Freedom#restricted_boot|restricted boot]].
+In practice, this means the owner must be able to boot a known clean external system (for example from USB) and read the storage for inspection, without having to trust the installed OS.
+
+What to avoid are designs that prevent this, for example a locked bootloader (the first startup program) that refuses to boot anything except vendor-approved software. This is also known as [[Miscellaneous_Threats_to_User_Freedom#restricted_boot|restricted boot]]. Instead, owner-approved software should be permissible to boot such as for example with [[Sovereign Boot]].
 
 = Threat Model Differences =
-This section describes two different trust models, in other words, two ways of deciding who controls your device and what can be trusted.
+This section explains a fundamental difference in how devices can be designed: who ultimately controls the device, and who must be trusted.
 
-* <u>Vendor rooted trust:</u> Vendor lockdown, vendor lock in. The platform decides what is allowed, and the vendor controls the root of trust (for example which keys are accepted). You mainly get protection from other attackers.
-* <u>User verifiable trust:</u> The platform itself may be in the threat model, so you need ways to check and replace it from outside, without trusting it while you inspect it. Trust minimization.
-** <u>Vendor accountability:</u> The vendor cannot quietly (knowingly or unknowingly) ship different updates to different people. (Target malicious upgrades.)
-** <u>Independent auditability:</u> Designed for third party checking.
-** <u>Vendor independent verification:</u> Verify the system without trusting the provider.
-** <u>Full Device Backup Access:</u> The owner has the ability to make a full system backup.
-** <u>Verified boot:</u> This is compatible with owner controlled [[Verified Boot]] (User Settable Root of Trust). (A sample implementation work in progress is [[Sovereign Boot]].)
-** <u>Tamper Evident Boot:</u> A similar concept is Tamper Evident Boot, where tampering can not only be detected by the vendor, but also by the device owner.
+At a high level, it is about '''owner capability vs platform restriction'''.
+In other words: whether the device primarily serves the owner, or whether the owner must rely on the platform vendor for permission, visibility, and verification.
 
-It is about owner capability vs platform restriction.
+In security terms, these approaches are called different '''trust models'''. A trust model describes who holds power, who can verify what is happening, and who must be trusted without being able to independently check.
+
+Two contrasting trust models are described below.
+
+* <u>Vendor rooted trust:</u> Vendor lockdown and vendor lock in.
+** In this model, the platform decides what is allowed, and the vendor controls the root of trust, for example which cryptographic keys are accepted and which software is permitted to run.
+** This means that the user mainly receives protection against third party attackers, but must inherently trust the vendor. If the vendor makes a mistake, is compromised, pressured, or behaves maliciously, the user has limited ability to independently detect or override that behavior.
+* <u>User verifiable trust:</u> Trust minimization through independent verification.
+** In this model, the platform itself may be included in the threat model. This means the system is not automatically trusted simply because it is running.
+** Because of this assumption, the design focuses on giving the device owner ways to check, verify, and if necessary replace the platform from outside, without trusting it while it is being inspected.
+
+This leads to several important properties:
+
+* <u>Vendor accountability:</u> The vendor cannot quietly, knowingly or unknowingly, ship different software or updates to different people. Targeted malicious upgrades become detectable rather than invisible.
+* <u>Independent auditability:</u> The system is designed so that third parties can inspect and analyze it. Trust does not rely solely on the vendor's claims.
+* <u>Vendor independent verification:</u> The owner can verify the system without having to trust the provider. Verification does not require permission from the vendor.
+* <u>Full Device Backup Access:</u> The device owner has the ability to make a complete system backup, rather than being restricted to partial or vendor approved data access.
+* <u>Verified Boot:</u> This trust model is compatible with owner controlled [[Verified Boot]] (User Settable Root of Trust), where the owner decides which software keys are trusted. A sample implementation work in progress is [[Sovereign Boot]].
+* <u>Tamper Evident Boot:</u> A related concept is Tamper Evident Boot, where unauthorized modifications can be detected not only by the vendor, but also by the device owner themselves.
+
+The central distinction is not about convenience, but about control. In one model, trust flows from the vendor to the user. In the other, trust can be independently established by the owner.
 
 {{quotation
 |quote=Computer users must not be required to seek external authorization to exercise their freedoms.
 |context=Free Software Foundation: [https://www.fsf.org/campaigns/campaigns/secure-boot-vs-restricted-boot/ Will your computer's "Secure Boot" turn out to be "Restricted Boot"?]
 }}
 
+This quote highlights the concern that a system which requires external approval to function places inherent limits on the user's autonomy.
+
 {{quotation
 |quote=“Treacherous computing” is a more appropriate name, because the plan is designed to make sure your computer will systematically disobey you. In fact, it is designed to stop your computer from functioning as a general-purpose computer. Every operation may require explicit permission.
 |context=The GNU Project: [https://www.gnu.org/philosophy/can-you-trust.en.html Can You Trust Your Computer?]
 }}
 
-Similar concepts:
+This perspective reflects a long standing critique of systems where control is shifted away from the owner and into external entities.
 
-* Kali Linux provides a [https://www.kali.org/docs/general-use/kali-linux-forensics-mode/ Forensic Mode] for doing deep scans or analysis of a deep scan ready system.
+Similar concepts exist in practice. For example:
+
+* Kali Linux provides a [https://www.kali.org/docs/general-use/kali-linux-forensics-mode/ Forensic Mode], which is designed around the idea that a system should be inspectable without trusting the environment being inspected. This illustrates the broader principle of user verifiable trust.
 
 = Advantages of Deep Scan Readiness =
 Deep scan readiness discourages targeted malicious upgrades, because it is harder to hide changes when owners can verify the full system from outside.
 
 = Deep Scan Tools =
-Deep scan readiness is different from performing actual deep scans.
+Deep scan readiness is not the same thing as actually running a deep scan.
 
-This process is [[unspecific|unspecific to {{project_name_short}}]].
+Deep scan readiness means that the system is designed in a way that allows thorough inspection when needed. Performing a deep scan is a separate action that can be done later, using appropriate tools.
 
-There are instructions on how to [[Recovery#Boot_from_External_Drive|Boot from External Drive]]. In the future, more documentation and tools are planned to simplify the process of deep scanning, making it accessible to more users.
+Deep scanning itself is [[unspecific|unspecific to {{project_name_short}}]]. In practice, this means that the same methods and tools a security expert would use to deeply inspect any other Linux distribution, such as Debian, can also be used to deep scan {{project_name_short}}.
+
+There are instructions on how to [[Recovery#Boot_from_External_Drive|Boot from External Drive]]. Booting from a clean external system allows inspection of the internal system without relying on the potentially compromised operating system itself. In the future, more documentation and tools are planned to make deep scanning easier and more user friendly, so that it becomes accessible to a wider range of users.
+
+One common deep scan method is checksum comparison. A checksum is a mathematical fingerprint of a file. If even a single bit of a file changes, its checksum changes as well.
+
+The basic process works as follows:
+
+1. Boot the device from a clean and trusted external system.
+
+2. Calculate checksums of important components such as the bootloader, kernel, and core system files. These parts are critical because they control how the system starts and operates.
+
+3. Compare the calculated checksums with known clean data. If differences are found, this does not automatically mean malware. The difference could be caused by a different software version, a custom build, or intentional modifications. If necessary, a technical expert can examine the differences to determine their cause.
+
+Tools such as debcheckroot (or debcheckroot alike tools) can help verify the root file system by checking whether installed files match what the software packages are supposed to contain. This works by comparing files on the system with trusted reference data.
+
+Verification does not have to rely only on locally stored checksum data. It can use different sources, such as online repositories, CD, or DVD media. Using independent sources can be more reliable than trusting data stored on the same system being inspected.
+
+debcheckroot or similar tools (existing or yet to be invented) could support multiple verification sources, offline operation, and reproducible comparison against known good data, such as data from an official vendor software repository. This enables deep inspection without relying on traditional antivirus software. For critical components like the bootloader and kernel, checksum verification is often much more reliable than malware scanning alone.
 
 = out-of-scope =
 [[Backdoor#Firmware_Trojan|Firmware Trojan]] such as a [[Backdoor#Hard_Drive_Firmware_Trojan|hard drive firmware trojan]] and [[Backdoor#Hardware_Trojan|Hardware Trojan]] are unfortunately out-of-scope because these are hardware issues that a software-only operating system project cannot solve. These kinds of threats require hardware replacement or forensic hardware inspection.
 
 = objections =
-Ability of reading the hardware components from non-trusted hardware by the vendor is a downgrade within itself to the security of the device, because its an open door which can be used to insert or extract unwanted things.
+{| class="wikitable"
+! Objection
+! Response
+|-
 
-different issue. malicious modifications are prevented by encryption, sovereign boot, verified boot.
+|
+If someone can access system files from an external system, that can be a security downgrade compared to a deep scan restricted system, because it could create an extra access path that could be abused.
+|
+The key point is that deep scan readiness is about what the ''owner'' of the device can do, not about giving new powers to the vendor or to random outsiders.
 
-the design has in mind, that analysis is only possible with owner co-operation.
+In simple terms, this means: you, as the owner, are allowed to inspect your own device from the outside if you choose to. It does not mean that others automatically gain access.
 
+If the disk is encrypted, outsiders still cannot read the data without the owner's decryption credentials. Without your password or cryptographic key, the stored data looks like meaningless random data, even if someone can physically access the storage.
 
-Malware can erase itself once a shutdown is initiated or similar situation, so thats need to be in mind e.g:
+If the device uses owner-controlled [[Verified Boot]] and [[Sovereign Boot]], outsiders also cannot silently replace or modify boot components. The boot process actively checks what is being started and can warn the owner or refuse to boot if something was altered without authorization.
 
-https://info.lookout.com/rs/051-ESQ-475/images/lookout-pegasus-android-technical-analysis.pdf
+The overall design goal of owned-controlled Verified Boot is that external inspection or modification is only possible with the owner's explicit cooperation. This can include actions such as providing decryption credentials, unlocking the device, or physically allowing access. Without that cooperation, external access does not provide meaningful control or visibility.
+|-
 
-Scenario: Send SMS infected with malware -> Infect the device with zero click or so attack -> If shutdown/restarted initiated then self destroy -> Send another SMS later with the same malware.
+|
+Some malware can try to erase itself when you shut down or restart the device (or when it receives a "self delete" command). For example, Pegasus is reported to have such features. <ref>
+[https://info.lookout.com/rs/051-ESQ-475/images/lookout-pegasus-android-technical-analysis.pdf Lookout Pegasus Android technical analysis (PDF)]
+</ref> If that happens, a deep scan could look clean even though the device was infected.
+|
+This situation can still be investigated, but it often requires more advanced forensic techniques and expert involvement. It becomes less like running a simple scan and more like detective work.
 
+Even if the malware deletes its own files, it usually leaves other evidence behind. This can include unexpected system changes, failed or partial persistence attempts, unusual or inconsistent logs, configuration changes, patterns of reinfection, or other indirect indicators. In other words, while malware may remove its main components, it often cannot perfectly undo every change it made to the system.
 
-this can also be deep analyzed.
+In more advanced cases, a trusted technical expert (with the owner's permission) could deploy a [https://en.wikipedia.org/wiki/Blue_Pill_(software) Blue Pill] alike monitoring approach. This refers to a stealthy, low level monitoring mechanism or a kernel hook that runs earlier in the system startup process than the malware itself. Because it starts first and hides its presence, the malware cannot easily detect or evade it.
 
-once a journalist suspects this is happening, they can find a friendly geek (CCC alike community) and they can - with owner permission - install a blue pill alike tool.
+The purpose of such a setup is to quietly observe the malware's behavior, including attempts to self delete, reinfect the system, or modify components, without alerting the malware that it is being monitored.
 
-i.e. modify the kernel to observe, report the behavior without the malware noticing.
+This topic is discussed in more detail in the wiki chapter [[Android#Malware_Analysis_Capabilities:_Traditional_Linux_vs._Android|Malware Analysis Capabilities: Traditional Linux vs. Android]].
+|-
+
+|}
 
 = Deep Scan Restricted =
-Deep Scan Restricted means the device owner cannot inspect the full operating system and boot chain from a clean external environment, because bootloaders, storage access, or verification keys are controlled by the vendor, requiring trust in the running system during inspection.
+Deep Scan Restricted means that the device owner is not able to fully inspect the operating system and the boot process from a clean, independent external system.
+
+This happens because critical components such as the bootloader, access to storage, or verification keys are controlled by the vendor rather than the owner. As a result, any inspection must rely on the already running system, even though that system itself could be faulty, compromised, or untrusted.
+
+In simple terms, the owner cannot step outside the device to check it independently, and must trust the platform while trying to verify it.
 
 = Comparison of Deep Scan Ready versus Deep Scan Restricted =
 
@@ -203,8 +273,6 @@ https://www.youtube.com/watch?v=zcFg0ZJ2E_A
 {{boot_firmware}}
 
 = Footnotes =
-must br clear it's not antivirus reliant
-
 <references/>
 {{Footer}}
 [[Category:Design]]
