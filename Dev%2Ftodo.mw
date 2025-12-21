@@ -1293,6 +1293,39 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
+
+* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
+** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
+* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+
+= ARCHIVED =
 == misc lxqt work ==
 * as discussed
 ** Aaron: Done.
@@ -1368,39 +1401,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron: Documented most items, marked those that are not yet documented. Commit pushed to systemcheck.
 * Patrick: Merged.
 
-== grub dpkg-new ==
-* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
-
-<pre>
-dpkg -S /etc/grub.d/*
-grub-common: /etc/grub.d/00_header
-grub-common: /etc/grub.d/05_debian_theme
-dist-base-files: /etc/grub.d/10_00_linux_dist
-dist-base-files: /etc/grub.d/10_05_linux_main
-dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
-dist-base-files: /etc/grub.d/10_55_linux_main_advanced
-dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
-grub-common: /etc/grub.d/20_linux_xen
-grub-common: /etc/grub.d/25_bli
-grub-common: /etc/grub.d/30_os-prober
-grub-common: /etc/grub.d/30_uefi-firmware
-grub-common: /etc/grub.d/40_custom
-grub-common: /etc/grub.d/41_custom
-usability-misc: /etc/grub.d/44_kb_layout
-grub-common: /etc/grub.d/README
-zsh: exit 1     dpkg -S /etc/grub.d/*
-</pre>
-
-* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
-** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
-
-== trixie-port - suspend bug ==
-* user reported
-* Bug: suspend results in black screen with no recovery (unless hard reboot)
-* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
-* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
-
-= ARCHIVED =
 == user session shutdown issue ==
 * https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
 * increase systemd verbosity, if possible, and/or
