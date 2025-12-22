@@ -37,14 +37,13 @@ If something bad can fool their checker, you may never know.
 This is '''Deep Scan Restricted'''.
 
 = Introduction =
-'''More technically:'''
-Deep scan ready means the device owner can inspect the full operating system and boot chain while the device is powered off, using a separate clean external system. It also means the owner can, with explicit intent, observe what happens when the system starts, rather than having to trust it blindly while it is running.
+'''More technically:''' Deep scan ready means the device owner can inspect the full operating system and boot chain from a clean external system while the device is powered off, and, when needed, observe what happens during system startup instead of trusting the running system blindly.
 
-Security should not require blind trust in the platform vendor (the company that makes the device, firmware, or operating system). The {{os}} itself may be part of the threat model, meaning the operating system could be compromised.
+In some system designs, security relies on trusting the platform vendor (the company that makes the device, firmware, or operating system). In other designs, the operating system itself is included in the threat model and treated as potentially compromised.
 
-For this reason, users should be able to control keys (cryptographic keys used for verification), verification, and modification (the ability to inspect and change the system). This includes both inspection of stored data and, when required, owner-authorized modification or instrumentation of early boot components for investigation purposes.
+In the deep scan ready model, users control verification keys (cryptographic keys used for verification), verification, and modification, meaning the ability to inspect and change the system. This includes both inspection of stored data and, when required, owner-authorized modification or instrumentation of early boot components for investigation purposes.
 
-An important rule for deep virus scans is: do not boot a device suspected of being infected with [[malware]], because active malware can hide itself, fake "clean" results, erase evidence, or only exist temporarily. Some malware is designed to leave little or no persistent trace on disk and instead reappear when the system starts. <ref>
+An important rule for deep virus scans is: do not boot a device suspected of being infected with [[malware]], because active malware can hide itself, fake "clean" results, erase evidence. <ref>
 {{quotation
 |quote=Live analysis provides valuable, volatile information that may not be available during an offline analysis of a hard drive, e.g., dynamic data such as running processes and open ports, which are only available during system operation. However, when one of the processes on a machine includes a rootkit, the 90 ADVANCES IN DIGITAL FORENSICS III investigator must question if the results of a live analysis are tainted. When rootkits are running, the data and processes they have modified are still in use by the operating system, but this fact is not visible to the user. In fact, our experiments demonstrate that even if a live response cannot detect what is hidden, it can still provide an investigator with details about what was available to the user. This information can also help the investigator determine what the rootkit was hiding.
 |context=[https://opendl.ifip-tc6.org/db/conf/ifip11-9/df2007/ToddBPFSR07.pdf IFIP Open Digital Library: Todd et al. PDF]
@@ -71,37 +70,42 @@ An important rule for deep virus scans is: do not boot a device suspected of bei
 }}
 
 See also [https://learn.microsoft.com/en-us/defender-endpoint/microsoft-defender-offline Microsoft Defender Offline].
-</ref> Instead, power the device off and inspect the storage from a clean external system by performing a read only inspection (so the suspect device cannot write changes back while you are checking it). This approach is well suited for detecting persistent compromise. In cases where malware only exists during startup or reinfects the system after each boot, deeper investigation may require observing the boot process itself. To learn more, see [[Malware_and_Firmware_Trojans#Basics_of_Malware_Analysis_and_Backdoor_Hunting|Basics of Malware Analysis and Backdoor Hunting]].
+</ref> Instead, power the device off and inspect the storage from a clean external system by performing a read only inspection (so the suspect device cannot write changes back while you are checking it). This approach is well suited for detecting persistent malware. To learn more, see [[Malware_and_Firmware_Trojans#Basics_of_Malware_Analysis_and_Backdoor_Hunting|Basics of Malware Analysis and Backdoor Hunting]].
+
+Some malware is designed to leave little or no persistent trace on disk and instead reappear when the system starts. In cases of [[Deep_scan_ready#non-persistent_malware|non-persistent malware]] that reinfects the system, a deeper investigation may require observing the boot process itself.
 
 Deep scans are usually possible with traditional Linux distributions but often not on most mobile devices such as stock Android, because you generally cannot easily boot a trusted external system or take control of early system startup.
 
 = What does deep scan ready mean? =
-Deep scan ready means you can safely and fully inspect a device for malware from outside, while it is powered off. Deep Scan Ready means the owner can both inspect and, if needed, temporarily take control of the earliest execution layers to observe what happens across boots.
+Deep scan ready means you can safely and fully inspect a device for malware from outside, while it is powered off, and, if needed, temporarily take control of the earliest execution layers to observe what happens across boots.
 
 * <u>Analyze everything:</u> All files on the disk without exception. The file system must be inspectable, meaning the owner can independently check it, including a thorough integrity check of the system boot chain.
 * <u>Not only apps:</u> Deep scan ready means you can inspect the whole system, not just installed applications.
 * <u>Include boot components:</u> The scan includes the partition table (how the disk is divided), bootloader (the first program that starts the system), kernel (the core part of the OS), init (initial startup process), system files, etc.
-* <u>Keep malware inactive while scanning:</u> Malware must not be active in memory during the scan. This requires:
-** <u>Offline deep scan:</u> Or at minimum an Offline Integrity Check; a different boot medium must be used, such as booting from USB (Live USB Checkup).
-** <u>Detached deep scan:</u> Even better, remove the disk and scan it from a different, clean system, on a different computer.
-* <u>Support both tools and experts:</u> The system can be scanned in various ways.
-** <u>Automated checksum verification tools:</u> Important system files can be compared by their cryptographic checksums (hash sums) with known clean versions. This is being elaborated in chapter [[#Deep_Scan_Tools|Deep Scan Tools]].
-** <u>Manual analysis by malware analysts:</u> A human expert can inspect suspicious changes, unusual files, and unexpected startup components.
-** <u>Automated by virus scanners:</u> While [[Malware_and_Firmware_Trojans#The_Utility_of_Antivirus_Tools|The Utility of Antivirus Tools]] is debatable, it may also be an option. Antivirus is not required. Use of antivirus is fully optional.
-
-Deep scan ready requires two related capabilities. Both are about what the owner can do with their own device, without asking the vendor for permission.
-
-* <u>Passive, offline inspection:</u> This is what most people think of as an "offline scan". The owner checks the device while it is powered off, from a clean external system, so malware stays inactive.
-** <u>Forensic readiness</u>: This is sometimes called forensic readiness for the device owner.
-* <u>Owner-authorized active instrumentation of the boot process:</u> Some threats are not primarily about what is stored on disk, but about what happens during boot. Deep scan ready also means the owner can, if needed, temporarily instrument early boot components (bootloader, kernel, init, early startup) to observe what happens when the system starts.
-** <u>Investigative readiness</u>: This is sometimes called investigative readiness.
-** <u>Synonyms:</u> Instrumented Deep Scan, Boot-Time Instrumentation, or Owner-Controlled Early Boot Monitoring.
-** <u>Early execution:</u> Trusted monitoring code can run before potential malware.
 
 These two capabilities match two common classes of malware behavior:
 
 * <u>Persistent compromise:</u> Malware or unauthorized modifications that remain present across reboots. Offline inspection and checksum comparison are well suited for detecting persistent changes.
 * <u>Non-persistent reinfection:</u> Malware that is designed to exist only temporarily, erase itself, or reinfect after each boot. This is called [[Deep_scan_ready#non-persistent_malware|non-persistent malware]]. Offline inspection can look clean in this case, because there may be little or nothing persistent left to find. Detecting this often requires observing the boot process itself.
+
+Deep scan ready requires two related capabilities. Both are about what the owner can do with their own device, without asking the vendor for permission.
+
+* <u>Passive, offline inspection:</u> This is what most people think of as an "offline scan". The owner checks the device while it is powered off, from a clean external system, so malware stays inactive.
+** <u>Forensic readiness</u>: This is sometimes called forensic readiness for the device owner.
+** <u>Keep malware inactive while scanning:</u> Malware must not be active in memory during the scan. This requires:
+*** <u>Offline deep scan:</u> Or at minimum an Offline Integrity Check; a different boot medium must be used, such as booting from USB (Live USB Checkup).
+*** <u>Detached deep scan:</u> Even better, remove the disk and scan it from a different, clean system, on a different computer.
+* <u>Owner-authorized active instrumentation of the boot process:</u> Some threats are not primarily about what is stored on disk, but about what happens during boot. Deep scan ready also means the owner can, if needed, temporarily instrument early boot components (bootloader, kernel, init, early startup) to observe what happens when the system starts.
+** <u>Investigative readiness</u>: This is sometimes called investigative readiness.
+** <u>Synonyms:</u> Instrumented Deep Scan, Boot-Time Instrumentation, or Owner-Controlled Early Boot Monitoring.
+** <u>Early execution:</u> Trusted monitoring code can run before potential malware.
+
+<u>Support both tools and experts:</u> The system can be inspected and analyzed in various ways.
+
+* <u>Automated checksum verification tools:</u> Important system files can be compared by their cryptographic checksums (hash sums) with known clean versions. This is being elaborated in chapter [[#Deep_Scan_Tools|Deep Scan Tools]].
+* <u>Manual analysis by malware analysts:</u> A human expert can inspect suspicious changes, unusual files, and unexpected startup components, including analyzing system state across reboots when needed.
+* <u>Boot-time and behavioral investigation tools:</u> Owner-authorized instrumentation can be used to observe early startup behavior and system actions over time, which is useful for investigating non-persistent malware.
+* <u>Automated by virus scanners:</u> While [[Malware_and_Firmware_Trojans#The_Utility_of_Antivirus_Tools|The Utility of Antivirus Tools]] is debatable, it may also be an option. Antivirus is not required. Use of antivirus is fully optional.
 
 = What is the difference of a deep scan versus a normal antivirus scan? =
 
@@ -122,13 +126,12 @@ How can an operating system implement being deep scan ready? There is usually no
 
 In practice, this means the owner must be able to boot a known clean external system (for example from USB) and read the storage for inspection, without having to trust the installed OS.
 
-What to avoid are designs that prevent this, for example a locked bootloader (the first startup program) that refuses to boot anything except vendor-approved software. This is also known as [[Miscellaneous_Threats_to_User_Freedom#restricted_boot|restricted boot]]. Instead, owner-approved software should be permissible to boot such as for example with [[Sovereign Boot]].
+Some designs prevent this, for example a locked bootloader (the first startup program) that refuses to boot anything except vendor-approved software. This is also known as [[Miscellaneous_Threats_to_User_Freedom#restricted_boot|restricted boot]]. Instead, owner-approved software should be permissible to boot such as for example with [[Sovereign Boot]].
 
 = Threat Model Differences =
 This section explains a fundamental difference in how devices can be designed: who ultimately controls the device, and who must be trusted.
 
-At a high level, it is about '''owner capability vs platform restriction'''.
-In other words: whether the device primarily serves the owner, or whether the owner must rely on the platform vendor for permission, visibility, and verification.
+At a high level, it is about '''owner capability vs platform restriction'''. In other words: whether the device primarily serves the owner, or whether the owner must rely on the platform vendor for permission, visibility, and verification.
 
 In security terms, these approaches are called different '''trust models'''. A trust model describes who holds power, who can verify what is happening, and who must be trusted without being able to independently check.
 
@@ -258,7 +261,7 @@ This topic is discussed in more detail in the wiki chapter [[Android#Malware_Ana
 = Deep Scan Restricted =
 [[File:Deep_Scan_Restricted.png|thumb]]
 
-Deep Scan Restricted means that the device owner is not able to fully inspect the operating system and the boot process from a clean, independent external system.
+Deep scan restricted means that the device owner is not able to fully inspect the operating system and the boot process from a clean, independent external system.
 
 This happens because critical components such as the bootloader, access to storage, or verification keys are controlled by the vendor rather than the owner. As a result, any inspection must rely on the already running system, even though that system itself could be faulty, compromised, or untrusted.
 
@@ -268,6 +271,9 @@ In simple terms, the owner cannot step outside the device to check it independen
 
 = Comparison of Deep Scan Ready versus Deep Scan Restricted =
 {| class="wikitable"
+|+ ''Comparison''
+|-
+
 ! Feature
 ! Deep Scan Ready
 ! Deep Scan Restricted
@@ -283,19 +289,19 @@ In simple terms, the owner cannot step outside the device to check it independen
 | {{no}}
 |-
 
-| Owner controls boot components
-| {{yes}}
-| {{no}}
-|-
-
-| Boot-time instrumentation possible
-| {{yes}}
-| {{no}}
-|-
-
 | Detection of non-persistent malware through boot-time instrumentation possible
 | {{yes}}
 | {{no}}
+|-
+
+| Owner verifiability prioritized over platform lock-down
+| {{yes}}
+| {{no}}
+|-
+
+| Vendor-enforced uniform security policies prioritized
+| {{no}}
+| {{yes}}
 |-
 
 |}
@@ -305,7 +311,7 @@ In simple terms, the owner cannot step outside the device to check it independen
 [[File:Deep_Scan_Ready_versus_Deep_Scan_Restricted.png|600px]]
 
 = rationale for this page =
-Why does this page exist when most traditional Linux distributions are deep scan ready anyhow? Sometimes we do not know what we have until we lose it. This page raises awareness, resists calls to also follow the path of locking device owners out from their devices, and differentiates owner-controlled systems versus vendor-locked operating systems that hinder deep scanning.
+This page documents the concept of deep scan readiness and explains how different platform designs affect an owner’s ability to inspect and investigate their own device. While many traditional Linux distributions already support these capabilities, they are not universal across all platforms. The page exists to clarify the distinction between owner-controlled systems and vendor-restricted systems, and to describe how these design choices influence deep scanning, malware analysis, and forensic investigation.
 
 = Forum Discussions =
 * [https://forums.kicksecure.com/t/bootloader-lock-locked-bootloader/1190 locked bootloader]
