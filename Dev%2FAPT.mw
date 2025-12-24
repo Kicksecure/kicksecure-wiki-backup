@@ -16,16 +16,33 @@ APT by default considers only signing keys in:
 
 Signing keys in folder <code>/usr/share/keyrings</code> are ignored by default by APT, unless the <code>signed-by</code> keyword is used in APT sources files (i.e. in configuration file <code>/etc/apt/sources.list</code> or in configuration snippet drop-in folder <code>/etc/apt/sources.list.d</code>).
 
-Example  <code>signed-by</code> keyword use:
+Example <code>signed-by</code> keyword use in one-line-style sources:
 
 <pre>
 [signed-by=/usr/share/keyrings/derivative.asc]
 </pre>
 
-Example of complete deb line with  <code>signed-by</code> keyword.
+Example <code>Signed-By</code> keyword use in deb822-style sources:
 
 <pre>
-deb [signed-by=/usr/share/keyrings/derivative.asc] https://deb.kicksecure.com bullseye main contrib non-free
+Signed-By: /usr/share/keyrings/derivative.asc
+</pre>
+
+Example of a complete one-line-style deb sources line with the <code>signed-by</code> keyword.
+
+<pre>
+deb [signed-by=/usr/share/keyrings/derivative.asc] https://deb.kicksecure.com trixie main contrib non-free
+</pre>
+
+Example of a complete deb822-style deb sources stanza with the <code>signed-by</code> keyword.
+
+<pre>
+Types: deb
+URIs: https://deb.kicksecure.com
+Suites: trixie
+Components: main contrib non-free
+Enabled: yes
+Signed-By: /usr/share/keyrings/derivative.asc
 </pre>
 
 = Repository Migration =
@@ -38,13 +55,13 @@ deb [signed-by=/usr/share/keyrings/derivative.asc] https://deb.kicksecure.com bu
 
 == Which repositories contain what packages? ==
 * <u>Legacy</u>:
-** 16 and below: Mixing. Legacy. For migration purposes. Both, <code>deb.kicksecure.com</code> and <code>deb.whonix.org</code> contain all packages, i.e. contain both, all Kicksecure and all Whonix packages.
+** 16 and below: Mixing. Legacy. For migration purposes. Both <code>deb.kicksecure.com</code> and <code>deb.whonix.org</code> contain all packages, i.e. contain both all Kicksecure and all Whonix packages.
 * <u>Future</u>:
-** 17 and above: Clean separation. <code>deb.kicksecure.com</code> will contain only all Kicksecure packages and no packages of other derivatives.
+** 17 and above: Clean separation. <code>deb.kicksecure.com</code> will contain only Kicksecure packages and no packages of other derivatives.
 *** To accomplish that, in {{Github_link|repo=developer-meta-files|path=/blob/master/usr/bin/dm-reprepro-wrapper#L50}} the only thing to be removed is <code>for derivative_name_item in $derivative_name_list ; do</code> (and <code>done</code>).
 
 == changed its 'Origin' value from 'whonix' to 'kicksecure' ==
-{{Github_link|repo=derivative-maker|path=/blob/master/aptrepo_remote/kicksecure/conf/distributions}} is still using old <code>Origin</code> and <code>Label</code> values. This is to avoid the following error during "sudo apt update".
+{{Github_link|repo=derivative-maker|path=/blob/master/aptrepo_remote/kicksecure/conf/distributions}} is still using old <code>Origin</code> and <code>Label</code> values. This is to avoid the following error during <code>sudo apt update</code>.
 
 <pre>
 E: Repository 'tor+https://deb.kicksecure.com bullseye InRelease' changed its 'Origin' value from 'whonix' to 'kicksecure'
@@ -52,17 +69,30 @@ E: Repository 'tor+https://deb.kicksecure.com bullseye InRelease' changed its 'L
 N: This must be accepted explicitly before updates for this repository can be applied. See apt-secure(8) manpage for details.
 </pre>
 
-* This is avoid users updates getting more complicated by seeing above error message and needing to use <code>sudo apt update --allow-releaseinfo-change</code> to resolve it.
-* Origin and Label needs to be to be changed in {{project_name_long}} 17 (actually 18) in above file once the Kicksecure repository for Debian <code>bookworm</code> based becomes available. This will be done during [[Release Upgrade]].
+* This avoids users' updates getting more complicated by seeing the above error message and needing to use <code>sudo apt update --allow-releaseinfo-change</code> to resolve it.
+* Origin and Label need to be changed in {{project_name_long}} 17 (actually 18) in the above file once the Kicksecure repository for Debian <code>bookworm</code> becomes available. This will be done during [[Release Upgrade]].
 
 == Why does Kicksecure use Origin whonix? ==
 
 * version 16 and below: For legacy compatibility.
-** Technical detail: For the longest time, for most users <code>deb.kicksecure.com</code> was a mirror of <code>deb.whonix.org</code>. Hence used <code>Origin</code> <code>whonix</code>. To keep the amount of user confusion lowest, fewest users being affected it was decided to keep it that way until the release upgrade for version 16 (Debian <code>Origin</code> based) becomes available. Unfortunately those users who upgraded fastest saw the `Origin`/`Label` change.
-* version 17 above: No more legacy. Kicksecure will use <code>Origin</code> <code>kicksecure</code>.
+** Technical detail: For a long time, for most users <code>deb.kicksecure.com</code> was a mirror of <code>deb.whonix.org</code>. Hence <code>Origin</code> <code>whonix</code> was used. To keep the amount of user confusion as low as possible and minimize the number of affected users, it was decided to keep it that way until the release upgrade for version 16 (Debian <code>bullseye</code> based) became available. Unfortunately, those users who upgraded fastest saw the <code>Origin</code>/<code>Label</code> change.
+* version 17 and above: No more legacy. Kicksecure will use <code>Origin</code> <code>kicksecure</code>.
 
 == Background on Debian APT Origin and Label ==
-When Debian's APT sees for the first time a repository, it notes its <code>Origin</code> and <code>Label</code> fields. Should these change, Debian will show a warning/question and not proceed using any repository with a changed <code>Origin</code> or <code>Label</code> until the user accepts the change using <code>sudo apt update --allow-releaseinfo-change</code>.
+When Debian's APT sees a repository for the first time, it notes its <code>Origin</code> and <code>Label</code> fields. Should these change, Debian will show a warning and not proceed using any repository with a changed <code>Origin</code> or <code>Label</code> until the user accepts the change using <code>sudo apt update --allow-releaseinfo-change</code>.
+
+== deb822-style sources files ==
+
+The older one-line-style sources format has been deprecated and may be removed in the future. <ref>https://web.archive.org/web/20251029071653/https://manpages.debian.org/unstable/apt/sources.list.5.en.html states under the section "ONE-LINE-STYLE FORMAT": "This format is deprecated and may eventually be removed, but not before 2029."</ref> Starting in Kicksecure 18, the deb822-style format is used.
+
+Numerous upstream projects have not yet migrated to the new format, sometimes necessitating forking projects and attempting to contribute the feature upstream later. Some upstream PRs and issues related to this:
+
+* https://github.com/grml/grml-debootstrap/issues/203
+* https://github.com/grml/grml-debootstrap/pull/351
+* https://salsa.debian.org/live-team/live-build/-/merge_requests/436
+* https://lists.debian.org/debian-devel/2025/09/msg00037.html
+** https://lists.debian.org/debian-devel/2025/09/msg00044.html Quote: "Please use a .pgp extension instead of .gpg (which is now just a backwards compatibility symlink that will eventually go away)."
+* https://github.com/QubesOS/qubes-issues/issues/10494
 
 == Forum Discussion ==
 https://forums.whonix.org/t/e-repository-tor-https-deb-kicksecure-com-bullseye-inrelease-changed-its-origin-value-from-kicksecure-to-whonix/13810

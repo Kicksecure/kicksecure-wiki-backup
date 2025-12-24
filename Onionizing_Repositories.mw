@@ -3,12 +3,12 @@
 Onionizing Repositories
 }}
 {{#seo:
-|description=The guide explains how to configure Tor onion services for APT repositories to enhance security and privacy, but it may cause system updates to fail due to unreliability. The configuration provides protection against targeted and man-in-the-middle attacks and prevents tracking of installed programs.
+|description=The guide explains how to configure Tor onion services for APT repositories to enhance security and privacy, but it may cause system updates to fail due to unreliability. The configuration provides protection against targeted and man-in-the-middle attacks, and prevents tracking of installed programs.
 |image=Onionrepository23234.jpg
 }}
 [[File:Onionrepository23234.jpg|thumb]]
 {{intro|
-The guide explains how to configure experimental Tor onion services for APT repositories. The configuration provides additional security and privacy benefits, such as protection against targeted attacks, man-in-the-middle attacks and preventing tracking of installed programs, but it may cause system updates to fail due to unreliability.
+The guide explains how to configure experimental Tor onion services for APT repositories. The configuration provides additional security and privacy benefits, such as protection against targeted attacks, man-in-the-middle attacks, and preventing tracking of installed programs, but it may cause system updates to fail due to unreliability.
 }}
 = Introduction =
 
@@ -29,25 +29,56 @@ On this page, instructions are provided for onionizing sources on the [[#Debian|
 
 {{Box|text=
 '''1.''' {{Open with root rights|filename=
-/etc/apt/sources.list.d/debian.list
+/etc/apt/sources.list.d/debian.sources
 }}
 
-'''2.''' Uncomment the onionized Debian repositories.
+'''2.''' Enable the onionized Debian repositories and disable the clearnet repositories.
 
-Uncomment the following .onion mirrors and comment out (#) the corresponding https repositories (except the fasttrack repository).
+Enable the following .onion mirrors and disable the corresponding https repositories (except the fasttrack repository).
 
 {{CodeSelect|code=
-#deb tor+https://deb.debian.org/debian bullseye main contrib non-free
-#deb tor+https://deb.debian.org/debian bullseye-updates main contrib non-free
-#deb tor+https://deb.debian.org/debian-security bullseye-security main contrib non-free
-#deb tor+https://deb.debian.org/debian bullseye-backports main contrib non-free
-#deb tor+http://https://fasttrack.debian.net/debian bullseye-fasttrack main contrib non-free
+######## ENABLED SOURCES ########
 
-deb tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian bullseye main contrib non-free
-deb tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian bullseye-updates main contrib non-free
-deb tor+http://5ajw6aqf3ep7sijnscdzw77t7xq4xjpsy335yb2wiwgouo7yfxtjlmid.onion/debian-security bullseye-security main contrib non-free
-deb tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian bullseye-backports main contrib non-free
-deb tor+http://5phjdr2nmprmhdhw4fdqfxvpvt363jyoeppewju2oqllec7ymnolieyd.onion/debian bullseye-fasttrack main contrib non-free
+Types: deb
+URIs: tor+https://deb.debian.org/debian
+Suites: trixie trixie-updates trixie-backports
+Components: main contrib non-free non-free-firmware
+Enabled: no                     # <<<<< change this line from "yes" to "no"
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: tor+https://deb.debian.org/debian-security
+Suites: trixie-security
+Components: main contrib non-free non-free-firmware
+Enabled: no                     # <<<<< change this line from "yes" to "no"
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: tor+https://fasttrack.debian.net/debian-fasttrack
+Suites: trixie-fasttrack trixie-backports-staging
+Components: main contrib non-free
+Enabled: yes                    # <<<<< keep this line saying "yes"
+Signed-By: /usr/share/keyrings/fasttrack-archive-keyring.gpg
+
+######## DISABLED BY DEFAULT SOURCES ########
+
+#### deb ####
+
+Types: deb
+URIs: tor+http://2s4yqjx5ul6okpp3f2gaunr2syex5jgbfpfvhxxbbjwnrsvbk5v3qbid.onion/debian
+Suites: trixie trixie-updates trixie-backports
+Components: main contrib non-free non-free-firmware
+Enabled: yes                    # <<<<< change this line from "no" to "yes"
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: tor+http://5ajw6aqf3ep7sijnscdzw77t7xq4xjpsy335yb2wiwgouo7yfxtjlmid.onion/debian-security
+Suites: trixie-security
+Components: main contrib non-free non-free-firmware
+Enabled: yes                    # <<<<< change this line from "no" to "yes"
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+## No onion for fasttrack yet: https://salsa.debian.org/fasttrack-team/support/-/issues/27
 }}
 
 '''3.''' Save and exit.
@@ -55,12 +86,12 @@ deb tor+http://5phjdr2nmprmhdhw4fdqfxvpvt363jyoeppewju2oqllec7ymnolieyd.onion/de
 
 = Onionize {{project_name_short}} APT Sources =
 
-Follow these steps to point the {{project_name_short}} <code>sources.list</code> file to the onion mirror. See [[Project-APT-Repository|{{project name short}} APT Repository overview]] for details on the four repository choices.
+Follow these steps to point the {{project_name_short}} <code>sources</code> file to the onion mirror. See [[Project-APT-Repository|{{project_name_short}} APT Repository overview]] for details on the four repository choices.
 
 This can be done using <code>repository-dist</code> {{cli}} tool with the <code>--transport onion</code> option.
 
 {{Box|text=
-'''1.''' Open the {{project_name_short}} <code>sources.list</code> file using an editor with root rights.
+'''1.''' Run the following command:
 
 {{CodeSelect|code=
 sudo repository-dist --enable --transport onion
@@ -78,9 +109,8 @@ upgrade-nonroot
 For enhanced security, advanced users and testers can onionize Tor Project updates; see [[Tor_Versioning|Tor Versioning]] for further details.
 
 = Qubes =
-https://forum.qubes-os.org/t/qubes-dom0-update-fails-to-detect-release-version-on-all-operations/6729/16
-
-https://forum.qubes-os.org/t/onion-mirror-for-qubes-templates-itl-not-serving-debian-13-even-though-present-was-qvm-template-confusion/37358
+* https://forum.qubes-os.org/t/qubes-dom0-update-fails-to-detect-release-version-on-all-operations/6729/16
+* https://forum.qubes-os.org/t/onion-mirror-for-qubes-templates-itl-not-serving-debian-13-even-though-present-was-qvm-template-confusion/37358
 
 = Footnotes =
 {{reflist|close=1}}

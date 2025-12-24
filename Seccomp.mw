@@ -12,9 +12,9 @@ Debugging Systemd Seccomp
 {{intro|
 Seccomp Issues
 }}
-Architecture dependent. What works on Intel / AMD64 might not work on arm64 etc.
+Architecture dependent. What works on Intel / AMD64 might not work on arm64, and vice versa.
 
-To watch for systemd seccomp issues:
+To monitor systemd seccomp issues:
 
 {{CodeSelect|code=
 sudo journalctl _AUDIT_TYPE_NAME=SECCOMP -f
@@ -24,9 +24,9 @@ Sample issue ('''bold''' added):
 
 <blockquote>SECCOMP auid=4294967295 uid=108 gid=118 ses=4294967295 subj==/usr/bin/sdwdate (enforce) pid=9740 comm="sdwdate" exe="/usr/bin/python3.7" sig=31 arch=c0000015 '''syscall=140''' compat=0 ip=0x7fff96cc7df4 code=0x0</blockquote>
 
-The relevant part in above log output snippet is <code>syscall=<u>140</u></code>.
+The relevant part of the log output snippet above is <code>syscall=<u>140</u></code>.
 
-The syscall table for your particular machine will be recorded in a header file. Open <code>usr/include/ARCH-linux-gnu/asm/unistd.h</code>, replacing <code>ARCH</code>- this should give you a pointer (in the form of a <code>#include</code> statement) to the file containing the syscall table. You may have to "dig" more than one level deep to find it. The correct file will contain a list of numbers and syscall names that looks something like this:
+The syscall table for your particular machine is defined in a header file. Open <code>usr/include/ARCH-linux-gnu/asm/unistd.h</code>, replacing <code>ARCH</code>. This should give you a pointer (in the form of a <code>#include</code> statement) to the file containing the syscall table. You may have to "dig" more than one level deep to find it. The correct file will contain a list of numbers and syscall names that looks something like this:
 
 {{CodeSelect|code=
 #define __NR_read 0
@@ -42,11 +42,11 @@ In this case we know that <code>read</code> has syscall number <code>0</code>, <
 
 If you cannot find the syscall table on your system, you may need to install <code>linux-libc-dev</code>.
 
-There are online syscall, tables, such as https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md and https://marcin.juszkiewicz.com.pl/download/tables/syscalls.html, however these are not guaranteed to be accurate for your system. It is highly recommended to use the syscall table for your distribution as documented above.
+There are online syscall tables, such as [https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md Chromium OS syscall tables] and [https://marcin.juszkiewicz.com.pl/download/tables/syscalls.html Marcin Juszkiewicz syscall tables]. However, these are not guaranteed to be accurate for your system. It is highly recommended to use the syscall table for your distribution as documented above.
 
 Once you have the syscall name, add it to the system call whitelist in the systemd unit of the malfunctioning process.
 
-Note: Replace <code>sdwdate</code> with the systemd unit name to debug.
+Note: Replace <code>sdwdate</code> with the systemd unit name you are debugging.
 
 sdwdate example:
 
@@ -60,9 +60,9 @@ kloak example:
 sudoedit /usr/lib/systemd/system/kloak.service && sudo systemctl daemon-reload && sudo systemctl restart kloak && sudo systemctl --no-pager --full status kloak
 }}
 
-<code>SystemCallFilter=</code> needs to be adjusted.
+The <code>SystemCallFilter=</code> value needs to be adjusted.
 
-See also: https://github.com/Whonix/kloak/pull/1
+See also: [https://github.com/Whonix/kloak/pull/1 Whonix kloak pull request 1]
 
 {{Footer}}
 [[Category:Documentation]]

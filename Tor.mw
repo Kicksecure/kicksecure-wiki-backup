@@ -18,76 +18,80 @@ Documentation on how to use {{project_name_short}} without Tor.
 {{AdvancedUsersOnly}}
 
 = Options =
-'''Choose one <u>or</u> multiple options.'''
+{{IntroLike|
+'''Choose one <u>or</u> multiple options ({{IconSet|false|A}} to {{IconSet|false|E}}).'''
+}}
 
-'''A)''' Kicksecure Repositories Review
+{{IconSet|false|A}} Kicksecure Repositories Review
 
 Look through the repositories provided by [https://github.com/{{project_name_short}} {{project_name_short}} on GitHub] ([https://github.com/orgs/Kicksecure/repositories?q=&type=all&language=&sort=name sorted by name]). For example, [[security-misc]] can be installed without installing any packages that <code>Depends:</code> on <code>tor</code>.
 
 Each repository has a rudimentary README file that explains the functionality of the software package and how to install it.
 
-'''B)''' Packages for Debian Hosts
+{{IconSet|false|B}} Packages for Debian Hosts
 
 Some packages are mentioned on the [[Packages for Debian Hosts]] wiki page.
 
-'''C)''' Kicksecure Meta Packages Review
+{{IconSet|false|C}} Kicksecure Meta Packages Review
 
-Alternatively, the user could look at {{Github_link|repo=kicksecure-meta-packages|path=/blob/master/debian/control|text=kicksecure-meta-packages <code>debian/control</code>}} and choose meta packages that do not <code>Depends:</code> on <code>tor</code>. This isn't easy, as a package on which a meta package <code>Depends:</code> might itself have a <code>Depends:</code> on <code>tor</code>.
+Alternatively, the user could look at {{Github_link|repo=kicksecure-meta-packages|path=/blob/master/debian/control|text=kicksecure-meta-packages <code>debian/control</code>}} and choose meta packages that do not <code>Depends:</code> on <code>tor</code>. This is not easy, as a package on which a meta package <code>Depends:</code> might itself have a <code>Depends:</code> on <code>tor</code>.
 
 The user would have to review the output of APT before proceeding with installation to see if it includes <code>tor</code>.
 
-'''D)''' Install a fake Tor package
+{{IconSet|false|D}} Install a fake Tor package
 
-1. Fake <code>tor</code> already being installed:
+{{IconSet|h1|1}} Pretend that <code>tor</code> is already installed by creating a dummy package using [[Debian_Packages#dummy-dependency|dummy-dependency]]:
 
 {{CodeSelect|code=
 dummy-dependency tor
 }}
 
-2. Configure APT to update without Tor.
+{{IconSet|h1|2}} Adjust the system so that APT updates are performed without using Tor.
 
-3. [[#Update without Tor|Update without Tor]]
+{{IconSet|h1|3}} Follow the instructions in [[#Update without Tor|Update without Tor]] to complete the configuration.
 
-'''E)''' Mask the Tor service.
+{{IconSet|false|E}}  Mask the Tor service.
 
 The user could attempt to prevent Tor from starting before installing Kicksecure. [[Untested]]!
 
-1.
+{{IconSet|h1|1}} Prevent the main Tor service from starting automatically.
 
 {{CodeSelect|code=
 sudo systemctl mask tor
 }}
 
-2.
+{{IconSet|h1|2}} Prevent the default Tor instance from being started by systemd.
 
 {{CodeSelect|code=
 sudo systemctl mask tor@default
 }}
 
-3. [[#Update without Tor|Update without Tor]]
+{{IconSet|h1|3}} After masking Tor, proceed with [[#Update without Tor|Update without Tor]].
 
 = Update without Tor =
 
-'''1.''' Information.
+{{IconSet|h1|1}} Overview and preparation.
 
-Just read this. Nothing to do yet in this step.
+Read this section carefully. No commands need to be run yet.
 
 The <code>tor+</code> prefix would need to be removed from any APT sources files:
 
-* '''1)''' The {{CodeSelect|inline=true|code=
+* {{IconSet|h4|1}} The {{CodeSelect|inline=true|code=
 /etc/apt/sources.list
 }} file; <u>and</u>
-* '''2)''' Any file inside the {{CodeSelect|inline=true|code=
+* {{IconSet|h4|2}} Any file inside the {{CodeSelect|inline=true|code=
 /etc/apt/sources.list.d
 }} folder.
 
 By {{project_name_short}} default, this would involve modification of {{CodeSelect|inline=true|code=
-/etc/apt/sources.list.d/derivative.list
-}}, which can be done using the <code>repository-dist</code> tool and {{CodeSelect|inline=true|code=
-/etc/apt/sources.list.d/debian.list
+/etc/apt/sources.list.d/derivative.sources
+}}, which can be done using the <code>repository-dist</code> tool, and {{CodeSelect|inline=true|code=
+/etc/apt/sources.list.d/debian.sources
 }}, which is documented below.
 
-'''2.''' <code>/etc/apt/sources.list.d/derivative.list</code>
+{{IconSet|h1|2}} Reconfigure {{CodeSelect|inline=true|code=
+/etc/apt/sources.list.d/derivative.sources
+}} to use clearnet transport.
 
 {{CodeSelect|code=
 sudo repository-dist --enable --repository stable --transport plain-tls
@@ -95,19 +99,17 @@ sudo repository-dist --enable --repository stable --transport plain-tls
 
 See [[Project-APT-Repository]] for other options (such as testers repository, etc.).
 
-'''3.''' <code>/etc/apt/sources.list.d/debian.list</code>
-
-The <code>tor+</code> prefix would need to be removed.
+{{IconSet|h1|3}} Manually remove the <code>tor+</code> prefix from the Debian sources file.
 
 {{CodeSelect|code=
-sudo str_replace "tor+" "" /etc/apt/sources.list.d/debian.list
+sudo str_replace "tor+https" "https" /etc/apt/sources.list.d/debian.sources
 }}
 
-'''4.''' Any other APT sources files.
+{{IconSet|h1|4}} Review and update any additional APT sources files.
 
-Only in case the user had previously opted in to add additional repositories.
+Only required if additional third-party repositories were previously added.
 
-'''5.''' Done.
+{{IconSet|h1|5}} Completion.
 
 The process of disabling torified APT updates has been completed.
 
@@ -115,19 +117,19 @@ The process of disabling torified APT updates has been completed.
 == Using cacher over clearnet ==
 {{stub}}
 
-Since [https://www.kicksecure.com/?#explain-protectedupdates Kicksecure updates are torified by default /security feature)], this is not compatible with Qubes' <code>cacher</code> by default without additional configuration.
+Since [https://www.kicksecure.com/?#explain-protectedupdates Kicksecure updates are torified by default (security feature)], this is not compatible with Qubes <code>cacher</code> by default without additional configuration.
 
 To set up Qubes <code>cacher</code>:
 
-'''1.''' Disable torified updates.
+{{IconSet|h1|1}} Disable torified updates inside the {{project_name_short}} Template.
 
 The user would need to apply the instructions [[Tor#Update_without_Tor|Update without Tor]] in the {{project_name_short}} Template.
 
-'''2.''' Configure Qubes <code>cacher</code> normally.
+{{IconSet|h1|2}} Configure Qubes <code>cacher</code> using the standard Qubes documentation.
 
 [[Unspecific]] to {{project_name_short}}. [[Self Support First Policy]] applies.
 
-'''3.''' Done.
+{{IconSet|h1|3}} Completion.
 
 The process of configuring clearnet <code>cacher</code> updates has been completed.
 
@@ -135,33 +137,33 @@ The process of configuring clearnet <code>cacher</code> updates has been complet
 
 {{stub}}
 
-'''1.''' Configure Qubes <code>cacher</code> normally.
+{{IconSet|h1|1}} Set up Qubes <code>cacher</code> according to the standard Qubes instructions.
 
 [[Unspecific]] to {{project_name_short}}. [[Self Support First Policy]] applies.
 
-'''2.''' Torify <code>cacher</code>.
+{{IconSet|h1|2}} Route <code>cacher</code> traffic through Tor.
 
-<code>cacher</code> would need to be configured to use a NetVM that supports torification, such as, for example, [[Whonix]]'s <code>sys-whonix</code>. This is also unspecific to {{project_name_short}}.
+<code>cacher</code> would need to be configured to use a NetVM that supports torification, such as, for example, [[Whonix]] <code>sys-whonix</code>. This is also unspecific to {{project_name_short}}.
 
-'''3.''' Configure the {{project_name_short}} Template to use <code>cacher</code> as Qubes UpdatesProxy.
+{{IconSet|h1|3}} Configure the {{project_name_short}} Template to use <code>cacher</code> as the Qubes UpdatesProxy.
 
 Specific to Qubes, not {{project_name_short}}.
 
-'''4.''' Disable torified updates.
+{{IconSet|h1|4}} Disable torified updates inside the {{project_name_short}} Template.
 
-The user would need to apply the instructions [[Tor#Update_without_Tor|Update without Tor]] in the {{project_name_short}} Template. This is because torification would be up to <code>cacher</code> and its NetVM. <ref>
+The user would need to apply the instructions [[Tor#Update_without_Tor|Update without Tor]] in the {{project_name_short}} Template. This is because torification would be handled by <code>cacher</code> and its NetVM. <ref>
 The <code>tor+</code> syntax that {{project_name_long}} is using is not easily compatible with <code>apt-cacher-ng</code>.
 
-* https://github.com/derivative-maker/derivative-maker/blob/master/build_sources/debian_stable_current_clearnet.list
-* https://github.com/derivative-maker/derivative-maker/blob/master/build_sources/debian_testing_current_onion.list
+* https://github.com/derivative-maker/derivative-maker/blob/master/build_sources/debian_stable_current_clearnet.sources
+* https://github.com/derivative-maker/derivative-maker/blob/master/build_sources/debian_testing_current_onion.sources
 </ref>
 
-'''5.''' Done.
+{{IconSet|h1|5}} Completion.
 
 The process of configuring torified <code>cacher</code> updates has been completed.
 
 = Future =
-This is mostly [[undocumented]]. No development progress should be expected as this is not the project focus.
+This is mostly [[undocumented]]. No development progress should be expected, as this is not the project focus.
 
 = References =
 {{reflist|close=1}}
