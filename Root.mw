@@ -57,6 +57,35 @@ An exploit or payload might require a function which is unavailable inside the s
 
 [[Dev/user-sysmaint-split|<code>user-sysmaint-split</code> (Multiple Boot Modes for Better Security)]] can provide strong guidance for users to better separate their limited (everyday use) account (<code>user</code>) from their administrative account (<code>sysmaint</code>). This results in robust [[root#Prevent Malware from Sniffing the <code>Root</code> Password|Prevention of Malware Sniffing the Root Password]].
 
+= Security and Best Practices =
+
+== General Security Advice ==
+
+Commands that require <code>root</code> permissions should be run individually using <code>sudo</code>. In all cases:
+
+* Do not login as <code>root</code>.
+* Do not run <code>sudo su</code>.
+
+== Inappropriate Use of Root Rights ==
+Do not think of <code>root</code> as a shortcut to fix issues.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+It is very much discouraged to establish the following behavior:<br />
+<code>application problem</code> &rarr; "try <code>sudo</code> / <code>root</code>".
+
+Only use privilege escalation tools such as <code>sudo</code>, <code>lxsudo</code> or the accounts <code>sysmaint</code> / <code>root</code> if there is a strong rationale for doing so. Otherwise...
+}}
+
+Inappropriate Use of <code>root</code> Rights:
+
+* Can cause additional non-security related issues. <ref>
+* Applications supposed to be run as user but run as <code>root</code> might create <code>root</code> owned files. These file permissions error can lead to additional issues.
+* Inter process communications such as with dbus might be broken.
+</ref> Related is also later chapter [[#Graphical Applications with Root Rights|Graphical Applications with <code>Root</code> Rights]].
+* Risks harmful code being run as <code>root</code>.
+
 = Default Passwords =
 
 The default passwords for {{project_name_short}} are:
@@ -69,10 +98,14 @@ In new builds of {{project_name_long}} version <code>15.0.0.3.6</code>. Earlier 
 
 Users can [[Post_Install_Advice#Change_Passwords|change or set a password]] for security reasons if this is useful in their case based on this [[Default_Passwords#Information|Information]].
 
-= Running with Root Access =
+== User Password versus Root Password ==
 
-== Run with Administrative Rights ==
-To run an application with administrative ("<code><nowiki>root</nowiki></code>") rights.
+Tools such as <code>sudo</code> and <code>lxsudo</code> prompt for the password of the <code>user</code> account. This is different from the <code>root</code> account password.
+
+= Run with Administrative Rights =
+{{anchor|Running with Root Access}}
+== Command Line Applications with Root Rights ==
+To run a {{cli}} application with administrative ("<code><nowiki>root</nowiki></code>") rights.
 
 {{IconSet|h2|1}} {{sysmaint_notice}}
 
@@ -107,67 +140,85 @@ Expected output.
 root
 </pre>
 
-== User Password versus Root Password ==
-
-Tools such as <code>sudo</code> and <code>lxsudo</code> prompt for the password of the <code>user</code> account. This is different from the <code>root</code> account password.
-
-= Security and Best Practices =
-
-== General Security Advice ==
-
-Commands that require <code>root</code> permissions should be run individually using <code>sudo</code>. In all cases:
-
-* Do not login as <code>root</code>.
-* Do not run <code>sudo su</code>.
-
-== Inappropriate Use of Root Rights ==
-Do not think of <code>root</code> as a shortcut to fix issues.
-
-{{mbox
-| image   = [[File:Ambox_warning_pn.svg.png|40px]]
-| text    =
-It is very much discouraged to establish the following behavior:<br />
-<code>application problem</code> &rarr; "try <code>sudo</code> / <code>root</code>".
-
-Only use privilege escalation tools such as <code>sudo</code>, <code>lxsudo</code> or the accounts <code>sysmaint</code> / <code>root</code> if there is a strong rationale for doing so. Otherwise...
-}}
-
-Inappropriate Use of <code>root</code> Rights:
-
-* Can cause additional non-security related issues. <ref>
-* Applications supposed to be run as user but run as <code>root</code> might create <code>root</code> owned files. These file permissions error can lead to additional issues.
-* Inter process communications such as with dbus might be broken.
-</ref> Related is also later chapter [[#Graphical Applications with Root Rights|Graphical Applications with <code>Root</code> Rights]].
-* Risks harmful code being run as <code>root</code>.
-
-= Graphical Applications and Root Rights =
+== Graphical Applications and Root Rights ==
+=== Miscellaneous Applications with Root Rights ===
 {{Anchor|Graphical_Applications_with_Root_Rights}}
 
-{{IconSet|h2|1}} '''Do not run {{gui}} with <code>sudo</code>!'''
+{{IconSet|h2|1}} '''Notices'''
 
-It is discouraged to run [https://www.computerhope.com/jargon/g/gui.htm graphical user interface (GUI)] applications with <code>sudo gui-application</code>.
-
-* Never login as <code>root</code> as explained above.
-* This includes, never use <code>sudo su</code> and then start GUI applications.
-
-Doing so would be an [[#Inappropriate Use of Root Rights|Inappropriate Use of <code>Root</code> Rights]]. That would fail in many cases and is a limitation inherited from Debian. If this action is attempted, error messages like those below will appear. <ref>
+{{box|text=
+* <u>General rule:</u> Do not run {{gui}} applications with <code>sudo</code>!
+* <u>Discouraged practice:</u> Avoid running [https://www.computerhope.com/jargon/g/gui.htm graphical user interface (GUI)] applications using <code>sudo gui-application</code>.
+* <u>Never log in as <code>root</code>:</u> As explained above, logging in directly as <code>root</code> is not advised.
+* <u>Avoid <code>sudo su</code> for GUI apps:</u> Do not use <code>sudo su</code> followed by launching GUI applications.
+* <u>Reason:</u> This would constitute an [[#Inappropriate Use of Root Rights|Inappropriate Use of <code>Root</code> Rights]], inherited from Debian, and is likely to fail with error messages as noted in the footnotes. <ref>
 * https://help.ubuntu.com/community/RootSudo#Graphical_sudo
 * https://www.psychocats.net/ubuntu/graphicalsudo
-</ref>
+
+Sample error messages in Non-Qubes, Wayland:
+
+Undocumented.
+
+Sample error messages in Qubes, X11:
 
 <pre>
 No protocol specified
 </pre>
 
+Qubes:
+
 <pre>
 cannot connect to X server :0
 </pre>
+</ref>
+* <u>{{cli}} applications:</u> See [[Root#Command_Line_Applications_with_Root_Rights|Command Line Applications with Root Rights]].
+* <u>File editors:</u> See [[Root#Editing_Files_with_Root_Rights|Editing Files with Root Rights]].
+}}
 
-{{IconSet|h2|2}} '''If there is a legitimate reason to start GUI applications with <code>root</code> rights, use <code>lxsudo</code> instead.''' <ref>
-* Reason primarily: not breaking the system, reliability. Non-reason: security.
-* https://askubuntu.com/questions/270006/why-should-users-never-use-normal-sudo-to-start-graphical-applications
-* In past there was <code>gksudo</code>, <code>kdesudo</code>. Nowadays with more and more applications using PolicyKit or polkit, these applications are no longer available as of Debian <code>buster</code>. <code>lxsudo</code> is an alternative.
-</ref> Syntax:
+{{anchor|Wayland}}{{IconSet|h2|2}} '''Open GUI application with root rights.''' <ref>
+* <u>Increased difficulty running GUI apps as <code>root</code>:</u> Running graphical applications with <code>lxsudo</code>, <code>sudo --set-home</code>, or <code>pkexec</code> has become more difficult since non-Qubes {{project_name_long}} transitioned from X11 to Wayland.
+* <u>Wayland socket requirement:</u> Wayland mandates that applications access <code>$XDG_RUNTIME_DIR/$WAYLAND_SOCKET</code> in order to open GUI windows. [https://unix.stackexchange.com/a/423287/535873 See technical explanation]
+* <u>Applies to other desktops:</u> This issue may also occur when using [[Other Desktop Environments]] that operate with Wayland.
+* <u>Primary reason:</u> To avoid breaking the system and ensure reliability.
+* <u>Not a reason:</u> Security is not the primary concern in this context.
+* <u>Historical note:</u> [https://askubuntu.com/questions/270006/why-should-users-never-use-normal-sudo-to-start-graphical-applications AskUbuntu discussion on using sudo with GUI applications]
+* <u>Legacy tools:</u> In the past, tools like <code>gksudo</code> and <code>kdesudo</code> were available. <code>lxsudo</code> emerged as a newer alternative.
+* <u>Wayland compatibility issue:</u> <code>lxsudo</code> is not (yet) compatible with Wayland.
+* <u>Deprecation of tools:</u> More applications integrate with [[polkit]] (formerly PolicyKit).
+</ref>
+
+Select your platform.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= ==== Kicksecure ====
+|type=section
+|content=
+The following command should work to run Wayland applications as <code>root</code> in most instances. Syntax:
+
+<u>Note:</u> Replace <code>application-name</code> as appropriate:
+
+{{CodeSelect|code=
+sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
+}}
+
+Qt applications may try to use X11 by default, in which case above technique will fail. To override this and make Qt attempt to use Wayland instead, use:
+
+{{CodeSelect|code=
+sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR QT_QPA_PLATFORM=wayland application-name
+}}
+}} <!-- close tab -->
+
+{{Tab
+|title= ==== Kicksecure for Qubes ====
+|type=section
+|content=
+Syntax:
+
+<u>Note:</u> Replace <code>application-name</code> with the actual name of the application.
 
 {{CodeSelect|code=
 lxsudo application-name
@@ -203,10 +254,16 @@ Or.
 sudo --set-home gparted
 }}
 </ref>
+}} <!-- close tab -->
+}} <!-- close controller -->
 
-'''If there is a legitimate reason to start GUI applications with <code>root</code> rights when using Wayland, see [[#Wayland|Wayland]] instructions below.'''
+=== Polkit PolicyKit pkexec for GUI applications ===
+{{Anchor|Polkit_PolicyKit_pkexec}}
 
-{{IconSet|h2|3}} '''To edit files which can only be edited with <code>root</code> rights. Use the following syntax.'''
+Use of [[polkit]] (formerly PolicyKit) (<code>pkexec</code>) might also be appropriate for running GUI applications with root rights. Usually such applications should have desktop shortcuts or wrappers which make use of <code>pkexec</code>. There are no (or rare) known cases where users need to run <code>pkexec</code> on the command line.
+
+=== Editing Files with Root Rights ===
+'''To edit files which can only be edited with <code>root</code> rights. Use the following syntax.'''
 
 <u>Note:</u> Replace <code>/path/to/file/name</code> with the actual path to the file.
 
@@ -218,27 +275,6 @@ sudo --set-home gparted
 
 {{Open with root rights|filename=
 /etc/default/keyboard
-}}
-
-== Polkit PolicyKit pkexec for GUI applications ==
-{{Anchor|Polkit_PolicyKit_pkexec}}
-
-Use of [https://en.wikipedia.org/wiki/Polkit Polkit] (formerly PolicyKit) (<code>pkexec</code>) might also be appropriate for running GUI applications with root rights. Usually such applications should have desktop shortcuts or wrappers which make use of <code>pkexec</code>. There are no (or rare) known cases where users need to run <code>pkexec</code> on the command line.
-
-== Wayland ==
-
-Running GUI applications as <code>root</code> (<code>lxsudo</code>, <code>sudo --set-home</code>, <code>pkexec</code> is more difficult than previously, since {{project_name_long}} has been ported from X11 to Wayland. This is because Wayland requires applications to access <code>$XDG_RUNTIME_DIR/$WAYLAND_SOCKET</code> to open GUI windows. <ref>https://unix.stackexchange.com/a/423287/535873</ref> You may run into this when using [[Other Desktop Environments]] using Wayland.
-
-The following command should work to run Wayland applications as <code>root</code> in most instances. Replace <code>application-name</code> as appropriate:
-
-{{CodeSelect|code=
-sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
-}}
-
-Qt applications may try to use X11 by default, in which case this technique will fail. To override this and make Qt attempt to use Wayland instead, use:
-
-{{CodeSelect|code=
-sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR QT_QPA_PLATFORM=wayland application-name
 }}
 
 = Root Account Management =
@@ -387,7 +423,7 @@ The following steps can be used in case the password has been forgotten and need
 To change the password for account <code>user</code>, run the following command.
 
 {{CodeSelect|code=
-sudo passwd user
+sudo pwchange
 }}
 
 {{IconSet|h2|4}} '''Reboot.'''
@@ -451,7 +487,7 @@ Unlocking of user account has been completed.
 sudo adduser account-name group-name
 </pre>
 
-{{IconSet|h2|3}} Add the account to group Linux user group <code>console</code>.
+{{IconSet|h2|3}} '''Add the account to group Linux user group <code>console</code>.'''
 
 Run the following command.
 
@@ -529,7 +565,7 @@ This is required to create user <code>sysmaint</code>. For instructions, see [[S
 ** Recommended.
 ** Most secure method.
 * Disadvantage:
-** Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications run under account <code>user</code> will be terminated.
+** Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications running under account <code>user</code> will be terminated.
 
 {{IconSet|h3|1}} Power off.
 
@@ -553,45 +589,43 @@ Shutdown the system. Really power off. Not shutdown. Why? To defeat [[login spoo
 |type=section
 |content=
 
-* Advantage: can keep current account session(s) and/or graphical session (X Window System) running.
+* Advantage: can keep current account session(s) and/or graphical session (Wayland) running.
 * Disadvantages:
 ** [[Unsupported]]. Less secure. ([[Dev/user-sysmaint-split#Fast_User_Switching|<code>user-sysmaint-split</code> (developers), Fast User Switching]])
-** Cannot use graphical session during administrative tasks <ref>
-Unless perhaps advanced users manage to run a different X server on a different virtual console. This might not be possible or secure. Depends on if the exclusive lock of X can be suspended while using an X server in a different virtual console. This has not been researched.
-</ref>
+** Cannot use graphical session during administrative tasks.
 ** Requires [[SysRq]], which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
 
 {{IconSet|h3|1}} [[SysRq#Enable_SysRq|Enable SysRq]].
 
-{{IconSet|h3|2}} Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (<code>unraw</code>) <ref name=unraw-required-questionmark>
+{{IconSet|h3|2}} Make sure keyboard gets disconnected from the display server (Wayland) to [[Login spoofing|defeat login spoofing]]. (<code>unraw</code>) <ref name=unraw-required-questionmark>
 This step might be unnecessary. Not researched yet.
 </ref>
 
-[[SysRq]] + <code>w</code>
+{{Keypress|[[SysRq|SysRq]]|w}}
 
-(Press <code>Alt + SysRq + w</code>)
+(Press {{Keypress|Alt|SysRq|w}})
 
 {{IconSet|h3|3}} Switch to another [[Desktop#Virtual_Consoles|virtual console]].
 
-(Press <code>Alt + Crtl + F2</code>) <ref>
-Pressing <code>Alt + Crtl + F7</code> results in <code>tty2</code>.
+(Press {{Keypress|Alt|Ctrl|F2}}) <ref>
+Pressing {{Keypress|Alt|Ctrl|F7}} results in <code>tty2</code>.
 
 This is to make these instructions compatible with most Linux distributions as well as Qubes.
 
-* Most Linux distributions login CLI virtual consoles on <code>tty1</code> (<code>Alt + Crtl + F1</code>) by default and X Window System on <code>tty7</code> (<code>Alt + Crtl + F7</code>).
-* Qubes X Window System by default runs on <code>tty1</code>. (<code>Alt + Crtl + F1</code>)
+* Most Linux distributions login CLI virtual consoles on <code>tty1</code> ({{Keypress|Alt|Ctrl|F1}}) by default and Wayland (formerly X11) on <code>tty7</code> ({{Keypress|Alt|Ctrl|F7}}).
+* Qubes X11 by default runs on <code>tty1</code>. ({{Keypress|Alt|Ctrl|F1}})
 
-<code>tty2</code> (<code>Alt + Crtl + F2</code>) will be for most users an unused virtual console which can be used for the purpose of this chapter.
+<code>tty2</code> ({{Keypress|Alt|Ctrl|F2}}) will be for most users an unused virtual console which can be used for the purpose of this chapter.
 </ref>
 
 {{IconSet|h3|4}} Press Secure Access Key also to [[Login spoofing|defeat login spoofing]].
 
-[[SysRq]] + <code>k</code>
+{{Keypress|[[SysRq|SysRq]]|k}}
 
-(Press <code>Alt + SysRq + k</code>)
+(Press {{Keypress|Alt|SysRq|k}})
 
 {{IconSet|h3|5}} Login as account <code>sysmaint</code> from that non-graphical environment ([[Desktop#Virtual_Consoles|virtual console]]). <ref>
-An X Window System non-<code>root</code> account cannot sniff keystrokes of different (non-)<code>root</code> users utilizing a different virtual console (<code>tty</code>).
+A display server running as non-<code>root</code> account cannot sniff keystrokes of different (non-)<code>root</code> users utilizing a different virtual console (<code>tty</code>).
 </ref>
 
 {{IconSet|h3|6}} Perform any necessary administrative tasks.
@@ -604,10 +638,10 @@ logout
 
 {{IconSet|h3|8}} Switch back to previous virtual console.
 
-X Window System runs in:
+Display server runs in:
 
-* most Linux distributions: virtual console <code>7</code> (Press <code>Alt + Crtl + F7</code>)
-* Qubes: virtual console <code>1</code> (Press <code>Alt + Crtl + F1</code>)
+* most Linux distributions: virtual console <code>7</code> (Press {{Keypress|Alt|Ctrl|F7}})
+* Qubes: virtual console <code>1</code> (Press {{Keypress|Alt|Ctrl|F1}})
 
 {{IconSet|h3|9}} Re-login if needed and continue usual work as account <code>user</code>.
 
@@ -620,10 +654,10 @@ X Window System runs in:
 |content=
 
 * Advantage:
-** Can use graphical session (X Window System) during administrative tasks using privileged account <code>sysmaint</code>.
+** Can use graphical session (display server) (Wayland) (formerly X11) during administrative tasks using privileged account <code>sysmaint</code>.
 * Disadvantages:
 ** [[Unsupported]]. Less secure. ([[Dev/user-sysmaint-split#Fast_User_Switching|<code>user-sysmaint-split</code> (developers), Fast User Switching]])
-** Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications run under account <code>user</code> will be terminated. <ref>
+** Cannot keep graphical session of unprivileged account <code>user</code> running. In other words, simplified, all applications running under account <code>user</code> will be terminated. <ref>
 Non-simplified: applications run by account <code>user</code> in a different virtual console or run through systemd (<code>--system</code> or <code>--user</code>) services can be left running.
 </ref>
 ** Requires [[SysRq]], which is [[SysRq#Kicksecure_Default_SysRq_Configuration|disabled by default in Kicksecure for security reasons]].
@@ -636,17 +670,17 @@ Non-simplified: applications run by account <code>user</code> in a different vir
 
 <code>Start Menu</code> -> <code>Log Out</code>
 
-{{IconSet|h3|4}} Make sure keyboard gets disconnected from X Window System to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark />
+{{IconSet|h3|4}} Make sure keyboard gets disconnected from the display server to [[Login spoofing|defeat login spoofing]]. (unra<code>w</code>) <ref name=unraw-required-questionmark />
 
-[[SysRq]] + <code>w</code>
+{{Keypress|[[SysRq|SysRq]]|w}}
 
-(Press <code>Alt + SysRq + w</code>)
+(Press {{Keypress|Alt|SysRq|w}})
 
 {{IconSet|h3|5}} Press Secure Access Key also to [[Login spoofing|defeat login spoofing]].
 
-[[SysRq]] + <code>k</code>
+{{Keypress|[[SysRq|SysRq]]|k}}
 
-(Press <code>Alt + SysRq + k</code>)
+(Press {{Keypress|Alt|SysRq|k}})
 
 {{IconSet|h3|6}} Login as account <code>sysmaint</code>.
 
@@ -927,9 +961,9 @@ dsudo
 
 Execution of <code>passwordless-root</code> requires administrative ("<code>root</code>") rights.
 
-1. {{sysmaint_notice}}
+{{IconSet|h2|1}} {{sysmaint_notice}}
 
-2. '''Run the passwordless-root command.''' <ref>
+{{IconSet|h2|2}} '''Run the passwordless-root command.''' <ref>
 When logged in as root (such as when using Qubes or otherwise), <code>sudo</code> is not required for the following command.
 </ref>
 
@@ -937,18 +971,20 @@ When logged in as root (such as when using Qubes or otherwise), <code>sudo</code
 sudo passwordless-root
 }}
 
-3. '''Done.'''
+{{IconSet|h2|3}} '''Done.'''
 
 == privleap custom actions ==
+See also: [[privleap]]
+
 <u>Notes:</u>
 
 * Works with {{Cli}} applications only!
 
-'''1.''' Boot into {{BootEntries|key=syspers}}.
+{{IconSet|h2|1}} Boot into {{BootEntries|key=syspers}}.
 
 Setting this up requires booting into sysmaint session.
 
-'''2.''' Create file <code>/etc/privleap/conf.d/user-custom.conf</code>.
+{{IconSet|h2|2}} Create file <code>/etc/privleap/conf.d/user-custom.conf</code>.
 
 {{CodeSelect|code=
 sudo append-once /etc/privleap/conf.d/user-custom.conf "\
@@ -959,7 +995,7 @@ AuthorizedUsers=user
 "
 }}
 
-'''3.''' Check the privleap configuration file is valid.
+{{IconSet|h2|3}} Check the privleap configuration file is valid.
 
 {{CodeSelect|code=
 privleapd --check-config
@@ -967,13 +1003,13 @@ privleapd --check-config
 
 If there is no output, no error message, then the configuration is valid.
 
-'''4.''' Create executable file <code>/usr/bin/user-custom</code>.
+{{IconSet|h2|4}} Create executable file <code>/usr/bin/user-custom</code>.
 
 {{Open with root rights
 |filename=/usr/bin/user-custom
 }}
 
-'''5.''' Paste.
+{{IconSet|h2|5}} Paste.
 
 <u>Notes:</u>
 
@@ -987,21 +1023,21 @@ If there is no output, no error message, then the configuration is valid.
 custom-command-here
 }}
 
-'''6.''' Make executable.
+{{IconSet|h2|6}} Make executable.
 
 {{CodeSelect|code=
 sudo chmod +x /usr/bin/user-custom
 }}
 
-'''7.''' Boot into {{BootEntries|key=userpers}}.
+{{IconSet|h2|7}} Boot into {{BootEntries|key=userpers}}.
 
-'''8.''' Run the privleap custom action.
+{{IconSet|h2|8}} Run the privleap custom action.
 
 {{CodeSelect|code=
 leaprun user-custom
 }}
 
-'''9.''' Done.
+{{IconSet|h2|9}} Done.
 
 The process is complete.
 
@@ -1046,7 +1082,7 @@ Why not considered "rooted" in this case:
 * '''Desktop Linux''': The concept of "<code>rooting</code>" is not usually applied to traditional Linux desktops. Instead, users elevate privileges with <code>sudo</code>, which is considered a normal administrative function. The term "<code>rooted</code>" implies a fundamental change in the system's security model that is not present when using standard privilege escalation like <code>sudo</code>.
 * '''Mobile OS (Android/iOS)''': "<code>Rooting</code>" or "jailbreaking" signifies that the device’s default restrictions are bypassed, giving the user continuous and unrestricted access to system files and functions.
 
-{{Anchor|show=true|Malicious Root Management Tools}}<br/>
+{{Anchor|show=true|Malicious Root Management Tools}}
 <u>Malicious <code>Root</code> Management Tools</u>: Are an Android / iOS specific issue. Some websites say, for example, that KingRoot for Android is malware. <ref>
 https://ivonblog.com/en-us/posts/kingroot-is-a-malware/
 </ref> This issue does not exist for Linux desktop distributions. Tools such as <code>su</code>, <code>sudo</code>, <code>doas</code> are Open Source, Freedom Software and generally not considered malware. The existence of malicious <code>root</code> management tools and other issues (documented on [[Mobile_Phone_Security#Administrative_Rights|Mobile Devices Privacy and Security, Administrative Rights]]) are among reasons why <code>rooting</code> is often discouraged for mobile devices. However, a blanket recommendation to avoid <code>rooting</code> in all cases for all use cases cannot be deduced from that.
