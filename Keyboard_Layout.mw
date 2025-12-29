@@ -153,6 +153,73 @@ If you need to use a default keyboard layout for a variant, you may omit the var
 
 You can now press <code>Alt + Shift</code> to switch between the selected keyboard layouts.
 
+=== Changing the system or console keymap when using Full Disk Encryption ===
+Special care must be taken when changing the console keyboard layout if you are using full disk encryption. Failure to follow these instructions may result in an unbootable system!
+
+The disk decryption prompt is displayed during early boot. The keyboard layout used by the decryption prompt is hardcoded into the "initramfs", a small filesystem used as part of the boot process to prepare the real OS for startup. In order to decrypt the OS's primary disk, the keyboard layout used by the initramfs must allow the user to type all characters that make up the passphrase. The initramfs is occasionally regenerated so that system updates apply to it. When this occurs, the current console keyboard layout is embedded in the initramfs, and becomes the keyboard layout used at the disk decryption prompt.
+
+This means that, if you change your keyboard layout to one that doesn't allow typing all characters that are part of your passphrase, the system will become unbootable the next time the initramfs is generated. For instance, if you were using a German keyboard layout, and included a <code>ß</code> or <code>§</code> character in the passphrase, the system will become unbootable if the keyboard layout is switched to US English and the initramfs is regenerated. This is because the US English keyboard layout is not able to type the <code>ß</code> and <code>§</code> characters.
+
+<code>set-system-keymap</code> regenerates the initramfs as part of the keyboard layout change process. This will result in a system lockout on the next reboot if the above scenario occurs. <code>set-console-keymap</code> does not regenerate the initramfs, so it may not immediately cause a system lockout. However, software updates will automatically regenerate the initramfs frequently, so a system lockout will likely occur after the next software update if care is not taken.
+
+Note that if the new keyboard layout is capable of typing all characters that are part of the disk passphrase, there is no risk of lockout. One will simply have to type their passphrase using the new keyboard layout rather than the old one.
+
+If you need to change your keyboard layout, and the new layout is incompatible with your disk passphrase, you will have to change the disk passphrase to be compatible with the new disk layout. To do this '''on GUI systems''':
+
+'''1.''' Open two terminal windows, and place them side-by-side on the desktop.
+
+'''2.''' In one window, run:
+
+{{CodeSelect|code=
+sudo crypt-pwchange
+}}
+
+'''3.''' When prompted to choose a device to change the passphrase of, choose the device the root filesystem (<code>/</code>) is mounted from. You can use <code>lsblk</code> to determine which device is mounted at <code>/</code>.
+
+'''4.''' When prompted for the existing passphrase, click the ''other'' terminal window, and run:
+
+{{CodeSelect|code=
+set-labwc-keymap --no-persist OLD_KEYMAP
+}}
+
+Replace <code>OLD_KEYMAP</code> with the keyboard layout the existing disk passphrase can be typed in. This will ensure your graphical session's keyboard layout is appropriate for typing the existing passphrase.
+
+'''5.''' Click the terminal window where <code>crypt-pwchange</code> is running, and type the existing disk passphrase.
+
+'''6.''' When prompted for the new passphrase, click the ''other'' terminal window again, and run:
+
+{{CodeSelect|code=
+set-labwc-keymap --no-persist NEW_KEYMAP
+}}
+
+Replace <code>NEW_KEYMAP</code> with the new keyboard layout you wish to use. This will ensure your graphical session's keyboard layout is appropriate for typing the new disk passphrase.
+
+'''7.''' Click the terminal window where <code>crypt-pwchange</code> is running, and type the new disk passphrase.
+
+'''8.''' Type the new disk passphrase again to confirm.
+
+'''9.''' Click the ''other'' terminal window again, and run '''one''' of the following commands.
+
+To change the system-wide keyboard layout:
+
+{{CodeSelect|code=
+sudo set-system-keymap NEW_KEYMAP
+}}
+
+To change only the console keymap:
+
+{{CodeSelect|code=
+sudo set-console-keymap NEW_KEYMAP && sudo dracut --regenerate-all --force
+}}
+
+Replace <code>NEW_KEYMAP</code> with the new keyboard layout you wish to use.
+
+'''10.''' Done.
+
+The process of changing the keyboard layout and disk passphrase is complete.
+
+On CLI-only systems, you can use the same instructions as above using two virtual terminals instead of two terminal windows. Use <code>set-console-keymap KEYMAP</code> rather than <code>set-labwc-keymap --no-persist KEYMAP</code> to change the keyboard layout as needed during the process.
+
 == Virtual Terminal ==
 {{Anchor|Terminal}}
 
