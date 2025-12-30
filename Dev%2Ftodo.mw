@@ -11,6 +11,47 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== fil-c bug report ==
+* explain Debian downstream packaging issues
+* common conventions
+* link to Debian RFP
+
+== keyboard layout change and disk encryption ==
+* We allow the user to change the keyboard layout. <code>set-system-keymap</code> is even able to change the keyboard layout in the initramfs, where the disk decryption prompt appears.
+* We also allow the user to change the disk encryption passphrase.
+* If a passphrase contains characters that cannot be typed with a particular keyboard layout, and the layout is set to the problematic layout, the user will be locked out of their system and will need to boot from an external drive to recover.
+* Example: user installs with language set to German, includes <code>ß</code> character in the passphrase, then changes keyboard layout to US English
+* Example 2: user usually has their keyboard set to US English, but temporarily changes keyboard layout to Spanish, then changes their encryption passphrase to include a <code>ñ</code> character
+* Try to add safeguards to set-(console|system)-keymap and crypt-pwchange to avoid this scenario
+** Aaron: Done, commits pushed to helper-scripts and live-config-dist. Also created documentation at https://www.kicksecure.com/wiki/Keyboard_Layout#Changing_the_system_or_console_keymap_when_using_Full_Disk_Encryption.
+*** Did not make changes to crypt-pwchange, as I'm not sure what safeguards could be put in place there. There isn't a reliable way to read the current keymap from labwc that I can tell, heuristic methods based on config file parsing may be unreliable and give false alarms or fail to give alarms when needed. Warning the user if they are about to set a passphrase that can't be typed using the current console keymap might be useful, but would also require knowing the physical keyboard the user has (which may be difficult) and would likely require parsing XKB keymap files, which is non-trivial.
+* Patrick: review...
+* please close the if as early as possible:
+<pre>
+  if /usr/bin/luks-path-check /; then
+</pre>
+<pre>
+  if /usr/bin/luks-path-check /; then
+    ## TODO: "true" or log output
+    return 0
+  fi
+</pre>
+* please output what is happening:
+<pre>
+    if ! tty >/dev/null; then
+      ## Can't prompt user for confirmation, bail out
+      return 1
+    fi
+</pre>
+* use <code>&>/dev/null</code>?
+<pre>
+    if ! tty >/dev/null; then
+</pre>
+
+== systemcheck broken by privleap /usr/local/etc support ==
+* privleapd now outputs an expected "INFO:" message informing the user that "/usr/local/etc/privleap/conf.d" does not exist. This breaks a systemcheck test.
+* Possible fix; ignore lines that start with "INFO:" in the appropriate systemcheck test?
+
 == real fix for graphical-session.target bug in Qubes OS ==
 * Aaron:
 ** currently we start msgcollector-gui.service under Qubes using a file under /etc/xdg/autostart
@@ -22,12 +63,8 @@ TODO
 == dist-installer-cli function disable_kvm_virt_at_load improvements ==
 * check if kernel modules are actually loaded before attempting to run "modprobe -r" to avoid spurious error messages
 * assigned to Patrick
-
-== support disabling ipv6 on Whonix 18 ==
-* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
-
-== login wiki page - colors ==
-* document https://www.kicksecure.com/wiki/Login#Colors
+* done
+* please review
 
 == windows installer - improvements ==
 * make Hyper-V less easy to miss
@@ -36,7 +73,7 @@ TODO
 ** and/or require the user to choose an option
 ** if not doable: have an option that shows a popup that tells the user to choose an option
 * allow window maximizing / do not block window maximizing
-* users tend to not read these messages at all.
+* reason: users tend to not read these messages at all.
 * rewording suggestions:
 
 old:
@@ -167,6 +204,7 @@ journal_ignore_fixed_list+=( "rtldrNativeLoad: dlopen('libX11.so', RTLD_NOW | RT
 ## Apr 25 10:30:25 localhost kernel: ata1.00: Read log 0x00 page 0x00 failed, Emask 0x1
 journal_ignore_fixed_list+=( "ata1.00: Read log 0x00 page 0x00 failed, Emask 0x1" )
 </pre>
+* [[Dev/VirtualBox#ata1.00:_Read_log_0x00_page_0x00_failed,_Emask_0x1|ata1.00: Read log 0x00 page 0x00 failed, Emask 0x1]]
 
 == qubes-whonix-workstation - XGetWindowAttributes warning ==
 * Follow-up to systemcheck journal warning documentation task
@@ -752,6 +790,10 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== grml-debootstrap - finish deb822 PR ==
+* https://github.com/grml/grml-debootstrap/pull/351#pullrequestreview-3614443958
+* Aaron: Updated, implemented requested changes.
+
 == trixie-port - usability-misc versus policyrcd-script-zg2 ==
 * [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1119964 Add a drop directory fallback if /etc/zg-policy-rc.d.conf does not exist]
 * usability-misc Depends: on policyrcd-script-zg2
@@ -1097,22 +1139,20 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== login wiki page - colors ==
+* document https://www.kicksecure.com/wiki/Login#Colors
+* Aaron: Documented.
+
+== support disabling ipv6 on Whonix 18 ==
+* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
+* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
+
 == misc AI review #3 ==
 * most seems unnecessary
 * https://github.com/assisted-by-ai/tb-updater/pull/1
 * https://github.com/assisted-by-ai/tb-updater/pull/2
 * https://github.com/assisted-by-ai/tb-updater/pull/3
 * Aaron: Integrated the useful parts of these, commits pushed to tb-updater.
-
-== keyboard layout change and disk encryption ==
-* We allow the user to change the keyboard layout. <code>set-system-keymap</code> is even able to change the keyboard layout in the initramfs, where the disk decryption prompt appears.
-* We also allow the user to change the disk encryption passphrase.
-* If a passphrase contains characters that cannot be typed with a particular keyboard layout, and the layout is set to the problematic layout, the user will be locked out of their system and will need to boot from an external drive to recover.
-* Example: user installs with language set to German, includes <code>ß</code> character in the passphrase, then changes keyboard layout to US English
-* Example 2: user usually has their keyboard set to US English, but temporarily changes keyboard layout to Spanish, then changes their encryption passphrase to include a <code>ñ</code> character
-* Try to add safeguards to set-(console|system)-keymap and crypt-pwchange to avoid this scenario
-** Aaron: Done, commits pushed to helper-scripts and live-config-dist. Also created documentation at https://www.kicksecure.com/wiki/Keyboard_Layout#Changing_the_system_or_console_keymap_when_using_Full_Disk_Encryption.
-*** Did not make changes to crypt-pwchange, as I'm not sure what safeguards could be put in place there. There isn't a reliable way to read the current keymap from labwc that I can tell, heuristic methods based on config file parsing may be unreliable and give false alarms or fail to give alarms when needed. Warning the user if they are about to set a passphrase that can't be typed using the current console keymap might be useful, but would also require knowing the physical keyboard the user has (which may be difficult) and would likely require parsing XKB keymap files, which is non-trivial.
 
 == antivirus forum discussion ==
 * please comment
