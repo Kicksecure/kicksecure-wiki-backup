@@ -11,46 +11,8 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== fil-c bug report ==
-* explain Debian downstream packaging issues
-* common conventions
-* link to Debian RFP
-
-== keyboard layout change and disk encryption ==
-* We allow the user to change the keyboard layout. <code>set-system-keymap</code> is even able to change the keyboard layout in the initramfs, where the disk decryption prompt appears.
-* We also allow the user to change the disk encryption passphrase.
-* If a passphrase contains characters that cannot be typed with a particular keyboard layout, and the layout is set to the problematic layout, the user will be locked out of their system and will need to boot from an external drive to recover.
-* Example: user installs with language set to German, includes <code>ß</code> character in the passphrase, then changes keyboard layout to US English
-* Example 2: user usually has their keyboard set to US English, but temporarily changes keyboard layout to Spanish, then changes their encryption passphrase to include a <code>ñ</code> character
-* Try to add safeguards to set-(console|system)-keymap and crypt-pwchange to avoid this scenario
-** Aaron: Done, commits pushed to helper-scripts and live-config-dist. Also created documentation at https://www.kicksecure.com/wiki/Keyboard_Layout#Changing_the_system_or_console_keymap_when_using_Full_Disk_Encryption.
-*** Did not make changes to crypt-pwchange, as I'm not sure what safeguards could be put in place there. There isn't a reliable way to read the current keymap from labwc that I can tell, heuristic methods based on config file parsing may be unreliable and give false alarms or fail to give alarms when needed. Warning the user if they are about to set a passphrase that can't be typed using the current console keymap might be useful, but would also require knowing the physical keyboard the user has (which may be difficult) and would likely require parsing XKB keymap files, which is non-trivial.
-* Patrick: review...
-* please close the if as early as possible:
-<pre>
-  if /usr/bin/luks-path-check /; then
-</pre>
-<pre>
-  if /usr/bin/luks-path-check /; then
-    ## TODO: "true" or log output
-    return 0
-  fi
-</pre>
-* please output what is happening:
-<pre>
-    if ! tty >/dev/null; then
-      ## Can't prompt user for confirmation, bail out
-      return 1
-    fi
-</pre>
-* use <code>&>/dev/null</code>?
-<pre>
-    if ! tty >/dev/null; then
-</pre>
-
-== systemcheck broken by privleap /usr/local/etc support ==
-* privleapd now outputs an expected "INFO:" message informing the user that "/usr/local/etc/privleap/conf.d" does not exist. This breaks a systemcheck test.
-* Possible fix; ignore lines that start with "INFO:" in the appropriate systemcheck test?
+== Tor Browser not launching in Qubes-Whonix-Workstation 18 StandaloneVM ==
+* https://github.com/QubesOS/qubes-issues/issues/10514#issuecomment-3700693542
 
 == real fix for graphical-session.target bug in Qubes OS ==
 * Aaron:
@@ -59,12 +21,6 @@ TODO
 ** find and create a real fix for the issue if possible, then drop the workaround from our code
 * https://github.com/QubesOS/qubes-issues/issues/9576
 * might be same root cause: https://openqa.qubes-os.org/tests/163533/file/system_tests-qubes.tests.integ.dispvm.TC_20_DispVM_whonix-workstation-18.test_010.guest-test-inst-dvm-alt.log
-
-== dist-installer-cli function disable_kvm_virt_at_load improvements ==
-* check if kernel modules are actually loaded before attempting to run "modprobe -r" to avoid spurious error messages
-* assigned to Patrick
-* done
-* please review
 
 == windows installer - improvements ==
 * make Hyper-V less easy to miss
@@ -1139,6 +1095,59 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 = REVIEW PLEASE =
+== dist-installer-cli function disable_kvm_virt_at_load improvements ==
+* check if kernel modules are actually loaded before attempting to run "modprobe -r" to avoid spurious error messages
+* assigned to Patrick
+* done
+* please review
+** Aaron: Looks good for the most part, made one minor improvement to lsmod_deterministic. Commit pushed to helper-scripts.
+
+== systemcheck broken by privleap /usr/local/etc support ==
+* privleapd now outputs an expected "INFO:" message informing the user that "/usr/local/etc/privleap/conf.d" does not exist. This breaks a systemcheck test.
+* Possible fix; ignore lines that start with "INFO:" in the appropriate systemcheck test?
+** Fixed, but not in systemcheck. Instead, silenced the message about missing config dirs when running in privleapd in check-config mode. Commits pushed to privleap.
+
+== keyboard layout change and disk encryption ==
+* We allow the user to change the keyboard layout. <code>set-system-keymap</code> is even able to change the keyboard layout in the initramfs, where the disk decryption prompt appears.
+* We also allow the user to change the disk encryption passphrase.
+* If a passphrase contains characters that cannot be typed with a particular keyboard layout, and the layout is set to the problematic layout, the user will be locked out of their system and will need to boot from an external drive to recover.
+* Example: user installs with language set to German, includes <code>ß</code> character in the passphrase, then changes keyboard layout to US English
+* Example 2: user usually has their keyboard set to US English, but temporarily changes keyboard layout to Spanish, then changes their encryption passphrase to include a <code>ñ</code> character
+* Try to add safeguards to set-(console|system)-keymap and crypt-pwchange to avoid this scenario
+** Aaron: Done, commits pushed to helper-scripts and live-config-dist. Also created documentation at https://www.kicksecure.com/wiki/Keyboard_Layout#Changing_the_system_or_console_keymap_when_using_Full_Disk_Encryption.
+*** Did not make changes to crypt-pwchange, as I'm not sure what safeguards could be put in place there. There isn't a reliable way to read the current keymap from labwc that I can tell, heuristic methods based on config file parsing may be unreliable and give false alarms or fail to give alarms when needed. Warning the user if they are about to set a passphrase that can't be typed using the current console keymap might be useful, but would also require knowing the physical keyboard the user has (which may be difficult) and would likely require parsing XKB keymap files, which is non-trivial.
+* Patrick: review...
+* please close the if as early as possible:
+<pre>
+  if /usr/bin/luks-path-check /; then
+</pre>
+<pre>
+  if /usr/bin/luks-path-check /; then
+    ## TODO: "true" or log output
+    return 0
+  fi
+</pre>
+* please output what is happening:
+<pre>
+    if ! tty >/dev/null; then
+      ## Can't prompt user for confirmation, bail out
+      return 1
+    fi
+</pre>
+* use <code>&>/dev/null</code>?
+<pre>
+    if ! tty >/dev/null; then
+</pre>
+
+* Aaron: Implemented all requested changes, also added some extra <code>true</code> debug messages in a couple other situations. Commit pushed to helper-scripts.
+
+== fil-c bug report ==
+* explain Debian downstream packaging issues
+* common conventions
+* link to Debian RFP
+* Aaron: Created: https://github.com/pizlonator/fil-c/issues/185
+** Also sent a link to the Debian RFP.
+
 == login wiki page - colors ==
 * document https://www.kicksecure.com/wiki/Login#Colors
 * Aaron: Documented.
