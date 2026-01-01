@@ -11,9 +11,6 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== Tor Browser not launching in Qubes-Whonix-Workstation 18 StandaloneVM ==
-* https://github.com/QubesOS/qubes-issues/issues/10514#issuecomment-3700693542
-
 == real fix for graphical-session.target bug in Qubes OS ==
 * Aaron:
 ** currently we start msgcollector-gui.service under Qubes using a file under /etc/xdg/autostart
@@ -22,43 +19,18 @@ TODO
 * https://github.com/QubesOS/qubes-issues/issues/9576
 * might be same root cause: https://openqa.qubes-os.org/tests/163533/file/system_tests-qubes.tests.integ.dispvm.TC_20_DispVM_whonix-workstation-18.test_010.guest-test-inst-dvm-alt.log
 
-== windows installer - improvements ==
-* make Hyper-V less easy to miss
-** currently it is easy to click "continue" while the setting is still at "do nothing". Options might not be shown on the screen and may be hidden below the taskbar (invisible).
-** solution: no option selected by default?
-** and/or require the user to choose an option
-** if not doable: have an option that shows a popup that tells the user to choose an option
-* allow window maximizing / do not block window maximizing
-* reason: users tend to not read these messages at all.
-* rewording suggestions:
-
-old:
-
-<pre>
-Do Nothing
-Do not modify Hyper-V configuration. This is the safest option
-
-Disable Hyper-V
-Disable Hyper-V and all Windows features that rely on it. May reduce host security
-
-Re-enable Hyper-V security features
-Re-enable Hyper-V and several Windows security features that rely on it. May improve host security
-</pre>
-
-new:
-
-<pre>
-Select an option.
-
-Keep Current Setting
-Make no changes to Hyper-V. No security change. This is the safest option.
-
-Improve VirtualBox Stability (Reduces System Security)
-Disable Hyper-V and Windows features that rely on it. Reduces overall system security. Improves VirtualBox stability and performance.
-
-Increase System Security (Reduces VirtualBox Stability)
-Re-enable Hyper-V and related Windows security features. Increases system security. May reduce VirtualBox stability and performance. This is useful if Hyper-V has been previously disabled.
-</pre>
+== Qubes R4.3 bypass review ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
+* are there more ways in which that can go wrong?
+* realistic to fundamentally re-design this to avoid such kinds of issues?
+** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
+* https://github.com/QubesOS/qubes-issues/issues/6948
+* https://github.com/QubesOS/qubes-issues/issues/3994
+* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
+* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
+* Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
+** Major feature request, will most likely need to wait until after the release of R4.3.
+** Unblocked, R4.3 has been released.
 
 == browser-choice - allow use on live ISO ==
 * There is no web browser in Kicksecure ISO's user mode, by design.
@@ -142,6 +114,70 @@ guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Q
 == calamares - use gpt by default ==
 * bug: unencrypted installations are mbr by default
 * todo: port from mbr to gpt, if sane
+
+== RPi GRUB - contribute to Debian ==
+* Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
+* This and the above ticket might result in implementation feedback, such as for options in config.txt.
+* Combined this and the debian-arm notification ticket into a single email.
+* https://lists.debian.org/debian-arm/2025/04/msg00012.html
+* Found:
+** https://salsa.debian.org/raspi-team
+** https://salsa.debian.org/raspi-team
+** Seems active as per: https://salsa.debian.org/raspi-team/image-specs/-/issues/74
+** https://salsa.debian.org/raspi-team/image-specs/-/issues
+*** Please consider posting a feature request there for RPi GRUB support, if that is sensible. Draft:
+
+<pre>
+add support for GRUB as bootloader for RPi
+</pre>
+
+<pre>
+I've recently succeeded in converting an existing Debian Trixie RPi image to boot using GRUB on the RPi 4B and extensively documented how to do that. [1] I also posted about this on the debian-arm mailing list. [2]
+
+Booting in this way has several substantial advantages over the current Raspberry Pi boot process:
+
+* The kernel command line can be modified via /etc/default/grub and files under /etc/default/grub.d. Some software requires or benefits from such modifications and leverages this mechanism in GRUB to make non-invasive changes to the command line. With direct kernel boot, these changes are silently ignored, while with U-Boot + GRUB, they are correctly applied.
+* In the event of a bad kernel update, users can easily boot into older kernels as they would on a typical desktop system.
+* Recovering from a broken boot without a secondary system becomes much easier, as users can use the GRUB and U-Boot consoles to debug and manually boot the system.
+* Multiboot installations on the Pi become possible.
+
+Is this a feature for which you would welcome a merge request here, either as an option or even as the default?
+
+Obviously, at this point, RPi GRUB support could only be added to Forky and later.
+
+(I've also recently submitted a pull request to `grml-debootstrap` (a Debian bootable image builder tool) [3] [4] implementing "basic" RPi support.)
+
+* [1] https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_+_u-boot_on_Raspberry_Pi_4
+* [2] https://lists.debian.org/debian-arm/2025/04/msg00012.html
+* [3] http://packages.debian.org/grml-debootstrap
+* [4] https://github.com/grml/grml-debootstrap/pull/335
+</pre>
+
+* Aaron: Filed issue upstream using template: [https://salsa.debian.org/raspi-team/image-specs/-/issues/78 Support U-Boot + grub-efi boot flow]
+** Also filed a bug report against raspi-firmware: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607 Add support for U-Boot + grub-arm64-efi boot flow]
+
+== RPi grml-debootstrap ==
+* https://github.com/grml/grml-debootstrap/issues/114
+* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
+* Tested and polished PR and marked it as ready for review.
+* Added question about future support for U-Boot + grub-efi-arm64.
+
+== GRUB - Debian packages grub-pc and grub-efi co-install-ability ==
+* please submit a patch to Debian to make grub-pc and grub-efi co-installable
+* [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 Allow concurrent installation of grub-pc and grub-efi-amd64]
+* Submitted and awaiting review: [https://salsa.debian.org/grub-team/grub/-/merge_requests/76#note_590495 Remove ucf conffile conflict between grub-pc and grub-efi-{amd64,ia32}]
+* Unfortunately this is not going to be able to make it into Trixie, it will have to wait for Forky before it makes it into Debian Stable.
+
+== live-build - grub.cfg GRUB configuration - loopback.cfg ==
+* add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
+* Requires fixes in live-build and Dracut to make work:
+** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. A fix for this has been integrated into my fork of live-build. MR to upstream here: https://salsa.debian.org/live-team/live-build/-/merge_requests/376
+** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it. Only appears to be a problem on Debian Bookworm, Trixie works just fine.
+*** Task is on hold until we migrate to Trixie.
+** (Side note: At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.)
+
+== live-build - policy-rc.d handling ==
+* https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 == virtualbox - failure to load libwayland-client.so and libX11.so ==
 * Follow-up to systemcheck journal warning documentation task
@@ -746,9 +782,13 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== Tor Browser not launching in Qubes-Whonix-Workstation 18 StandaloneVM ==
+* https://github.com/QubesOS/qubes-issues/issues/10514#issuecomment-3700693542
+** Aaron: Diagnosed issue, waiting for feedback on suggested solution from Marek.
+
 == grml-debootstrap - finish deb822 PR ==
 * https://github.com/grml/grml-debootstrap/pull/351#pullrequestreview-3614443958
-* Aaron: Updated, implemented requested changes.
+* Aaron: Updated, implemented requested changes. Looks like we're just waiting for upstream now.
 
 == trixie-port - usability-misc versus policyrcd-script-zg2 ==
 * [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1119964 Add a drop directory fallback if /etc/zg-policy-rc.d.conf does not exist]
@@ -825,26 +865,9 @@ xdg-desktop-por[1655]: Failed connect to PipeWire: Couldn't create PipeWire cont
 * Patrick: Is this reported upstream, so one day Debian, calamares will be fixed and can be used without XWayland?
 ** Aaron: Looked at Debian's systemd bug reports, did not find anything. Filed a report of my own against the <code>systemd</code> package (as that's the package that ships /usr/share/dbus-1/system.d/systemd-localed-read-only.conf). https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1118702
 
-== Qubes R4.3 bypass review ==
-* https://github.com/QubesOS/qubes-issues/issues/10328
-* are there more ways in which that can go wrong?
-* realistic to fundamentally re-design this to avoid such kinds of issues?
-** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
-* https://github.com/QubesOS/qubes-issues/issues/6948
-* https://github.com/QubesOS/qubes-issues/issues/3994
-* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
-* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
-* Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
-** Major feature request, will most likely need to wait until after the release of R4.3.
-
 == Qubes misc review #2 ==
 * https://github.com/QubesOS/qubes-core-agent-linux/pull/613
 ** Awaiting further feedback from HW42.
-
-== Qubes R4.2 default_dispvm bypass ==
-* https://github.com/QubesOS/qubes-issues/issues/10328
-** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
-** Fix merged, unsure when this will be backported to R4.2 or if any additional effort is needed to do this. Asked Marek in the Qubes Matrix room about next steps for this.
 
 == kloak - handle dynamic keyboard layout changes ==
 * when the user changes the keyboard layout in labwc, kloak's keyboard layout configuration does not change to match
@@ -937,62 +960,9 @@ Mozilla has blogged about rollback attacks in the past. [x]
 * please use discretion on how worthwhile it is to spend time on this. as in, if you think it's doable without huge effort and you like docker, please implement. Otherwise, please only provide instructions for reproduction and leave it to upstream or tableseeker to fix.
 ** Aaron: Ran into complications trying to fix this myself, handed off to tabletseeker for further investigation.
 
-== RPi GRUB - contribute to Debian ==
-* Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
-* This and the above ticket might result in implementation feedback, such as for options in config.txt.
-* Combined this and the debian-arm notification ticket into a single email.
-* https://lists.debian.org/debian-arm/2025/04/msg00012.html
-* Found:
-** https://salsa.debian.org/raspi-team
-** https://salsa.debian.org/raspi-team
-** Seems active as per: https://salsa.debian.org/raspi-team/image-specs/-/issues/74
-** https://salsa.debian.org/raspi-team/image-specs/-/issues
-*** Please consider posting a feature request there for RPi GRUB support, if that is sensible. Draft:
-
-<pre>
-add support for GRUB as bootloader for RPi
-</pre>
-
-<pre>
-I've recently succeeded in converting an existing Debian Trixie RPi image to boot using GRUB on the RPi 4B and extensively documented how to do that. [1] I also posted about this on the debian-arm mailing list. [2]
-
-Booting in this way has several substantial advantages over the current Raspberry Pi boot process:
-
-* The kernel command line can be modified via /etc/default/grub and files under /etc/default/grub.d. Some software requires or benefits from such modifications and leverages this mechanism in GRUB to make non-invasive changes to the command line. With direct kernel boot, these changes are silently ignored, while with U-Boot + GRUB, they are correctly applied.
-* In the event of a bad kernel update, users can easily boot into older kernels as they would on a typical desktop system.
-* Recovering from a broken boot without a secondary system becomes much easier, as users can use the GRUB and U-Boot consoles to debug and manually boot the system.
-* Multiboot installations on the Pi become possible.
-
-Is this a feature for which you would welcome a merge request here, either as an option or even as the default?
-
-Obviously, at this point, RPi GRUB support could only be added to Forky and later.
-
-(I've also recently submitted a pull request to `grml-debootstrap` (a Debian bootable image builder tool) [3] [4] implementing "basic" RPi support.)
-
-* [1] https://www.kicksecure.com/wiki/Dev/boot#Booting_Debian_Trixie_with_GRUB_+_u-boot_on_Raspberry_Pi_4
-* [2] https://lists.debian.org/debian-arm/2025/04/msg00012.html
-* [3] http://packages.debian.org/grml-debootstrap
-* [4] https://github.com/grml/grml-debootstrap/pull/335
-</pre>
-
-* Aaron: Filed issue upstream using template: [https://salsa.debian.org/raspi-team/image-specs/-/issues/78 Support U-Boot + grub-efi boot flow]
-** Also filed a bug report against raspi-firmware: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607 Add support for U-Boot + grub-arm64-efi boot flow]
-
-== RPi grml-debootstrap ==
-* https://github.com/grml/grml-debootstrap/issues/114
-* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
-* Tested and polished PR and marked it as ready for review.
-* Added question about future support for U-Boot + grub-efi-arm64.
-
 == grml-debootstrap - EFI partition size ==
 * https://github.com/grml/grml-debootstrap/issues/221
 * zeha currently does not want to implement this until systemd-boot "happens" (I'm guessing this means until it is supported by grml-debootstrap).
-
-== GRUB - Debian packages grub-pc and grub-efi co-install-ability ==
-* please submit a patch to Debian to make grub-pc and grub-efi co-installable
-* [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 Allow concurrent installation of grub-pc and grub-efi-amd64]
-* Submitted and awaiting review: [https://salsa.debian.org/grub-team/grub/-/merge_requests/76#note_590495 Remove ucf conffile conflict between grub-pc and grub-efi-{amd64,ia32}]
-* Unfortunately this is not going to be able to make it into Trixie, it will have to wait for Forky before it makes it into Debian Stable.
 
 == ISO - GRUB - silence cosmetic errors in live ISO GRUB ==
 * Earlier attempts to fix cosmetic errors in GRUB failed, since they introduced bugs into the live-build-provided boot screen.
@@ -1078,23 +1048,64 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 ** https://github.com/sudo-project/sudo/issues/415
 * Once we go sudoless, this will no longer be a concern except for VMs that aren't sudoless.
 
-== live-build - grub.cfg GRUB configuration - loopback.cfg ==
-* add https://www.supergrubdisk.org/wiki/Loopback.cfg compatibility (as as Debian Live ISO)
-* Requires fixes in live-build and Dracut to make work:
-** live-build is specifying the wrong kernel parameter for loopback booting when using dracut - it's using <code>findiso</code> when it should be using <code>iso-scan/filename</code>. A fix for this has been integrated into my fork of live-build. MR to upstream here: https://salsa.debian.org/live-team/live-build/-/merge_requests/376
-** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it. Only appears to be a problem on Debian Bookworm, Trixie works just fine.
-*** Task is on hold until we migrate to Trixie.
-** (Side note: At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.)
-
 == live-build - lb-binary should not run apt-get update ==
 * todo
 * Bug filed at https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1087470
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
-== live-build - policy-rc.d handling ==
-* https://salsa.debian.org/live-team/live-build/-/merge_requests/409
-
 = REVIEW PLEASE =
+== support disabling ipv6 on Whonix 18 ==
+* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
+* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
+** Patrick has confirmed we should investigate allowing disabling IPv6 at the kernel level.
+** Implemented, commits pushed to helper-scripts, user-sysmaint-split, anon-gw-anonymizer-config, and anon-ws-disable-stacked-tor.
+
+== windows installer - improvements ==
+* make Hyper-V less easy to miss
+** currently it is easy to click "continue" while the setting is still at "do nothing". Options might not be shown on the screen and may be hidden below the taskbar (invisible).
+** solution: no option selected by default?
+** and/or require the user to choose an option
+** if not doable: have an option that shows a popup that tells the user to choose an option
+* allow window maximizing / do not block window maximizing
+* reason: users tend to not read these messages at all.
+* rewording suggestions:
+
+old:
+
+<pre>
+Do Nothing
+Do not modify Hyper-V configuration. This is the safest option
+
+Disable Hyper-V
+Disable Hyper-V and all Windows features that rely on it. May reduce host security
+
+Re-enable Hyper-V security features
+Re-enable Hyper-V and several Windows security features that rely on it. May improve host security
+</pre>
+
+new:
+
+<pre>
+Select an option.
+
+Keep Current Setting
+Make no changes to Hyper-V. No security change. This is the safest option.
+
+Improve VirtualBox Stability (Reduces System Security)
+Disable Hyper-V and Windows features that rely on it. Reduces overall system security. Improves VirtualBox stability and performance.
+
+Increase System Security (Reduces VirtualBox Stability)
+Re-enable Hyper-V and related Windows security features. Increases system security. May reduce VirtualBox stability and performance. This is useful if Hyper-V has been previously disabled.
+</pre>
+
+* Aaron: Implemented, commit pushed to Whonix-Installer. However, two serious issues were found that may make continued work on this installer difficult or not worthwhile:
+** It is possible to crash the installation by clicking the checkbox for viewing installation details while the OVA file is being unpacked. The reason why this occurs is unclear, it seems to be a memory management issue, but the place where it occurs doesn't make much sense. The "Application.ProcessMessages" mechanism being used to allow the UI to update might not be a safe way of doing things (re-entrancy problem?).
+** Windows Smart App Control blocks the installation of Whonix-Starter because it is unsigned and Microsoft's heuristics didn't declare the application safe after looking at it.
+
+== Whonix-on-UTM - double .raw filename extension ==
+* https://forums.whonix.org/t/whonix-on-mac-m1-arm-user-support-still-unsupported-at-time-of-writing/11310/441
+** Aaron: Fixed, commits pushed to derivative-maker and libvirt-dist.
+
 == dist-installer-cli function disable_kvm_virt_at_load improvements ==
 * check if kernel modules are actually loaded before attempting to run "modprobe -r" to avoid spurious error messages
 * assigned to Patrick
@@ -1151,10 +1162,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 == login wiki page - colors ==
 * document https://www.kicksecure.com/wiki/Login#Colors
 * Aaron: Documented.
-
-== support disabling ipv6 on Whonix 18 ==
-* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
-* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
 
 == misc AI review #3 ==
 * most seems unnecessary
@@ -1287,6 +1294,12 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== Qubes R4.2 default_dispvm bypass ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
+** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
+** Fix merged, unsure when this will be backported to R4.2 or if any additional effort is needed to do this. Asked Marek in the Qubes Matrix room about next steps for this.
+** Archiving, as we do not intend on backporting this to R4.2 after all.
+
 == kvm shared folders - switch to virtiofs ==
 * virtio-9p is broken, it's not possible to write files to the shared folder with an Ubuntu host.
 ** This turns out to only be the case if the shared folder is not world-writable.
