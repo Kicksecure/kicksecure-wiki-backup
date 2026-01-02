@@ -11,32 +11,26 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== real fix for graphical-session.target bug in Qubes OS ==
-* Aaron:
-** currently we start msgcollector-gui.service under Qubes using a file under /etc/xdg/autostart
-** this seems to be causing hung shutdown bugs: https://openqa.qubes-os.org/tests/162679/#downloads
-** find and create a real fix for the issue if possible, then drop the workaround from our code
-* https://github.com/QubesOS/qubes-issues/issues/9576
-* might be same root cause: https://openqa.qubes-os.org/tests/163533/file/system_tests-qubes.tests.integ.dispvm.TC_20_DispVM_whonix-workstation-18.test_010.guest-test-inst-dvm-alt.log
-
-== Qubes R4.3 bypass review ==
-* https://github.com/QubesOS/qubes-issues/issues/10328
-* are there more ways in which that can go wrong?
-* realistic to fundamentally re-design this to avoid such kinds of issues?
-** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
-* https://github.com/QubesOS/qubes-issues/issues/6948
-* https://github.com/QubesOS/qubes-issues/issues/3994
-* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
-* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
-* Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
-** Major feature request, will most likely need to wait until after the release of R4.3.
-** Unblocked, R4.3 has been released.
+== support disabling ipv6 on Whonix 18 ==
+* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
+* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
+** Patrick has confirmed we should investigate allowing disabling IPv6 at the kernel level.
+** Implemented, commits pushed to helper-scripts, user-sysmaint-split, anon-gw-anonymizer-config, anon-ws-disable-stacked-tor, and whonix-firewall.
+* Patrick: Please revert whonix-firewall changes as discussed.
 
 == browser-choice - allow use on live ISO ==
 * There is no web browser in Kicksecure ISO's user mode, by design.
 * Installing a browser in this mode is currently impossible because browser-choice cannot install web browsers without <code>pkexec</code>.
 * Add privleap actions to the live ISO only that allows installation of browsers without needing <code>pkexec</code>
 * Add support for using these actions to browser-choice
+
+== bug: "Open in Folder" button in Tor Browser broken ==
+* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
+* Fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
+
+== pcmanfm-qt race condition with wlr_resize_watcher ==
+* Under KVM, occasionally wlr_resize_watcher will resize the display at the exact wrong time, and cause pcmanfm-qt to end up stuck in the upper-right corner of the screen.
+* Try to detect when pcmanfm-qt is supposed to be starting, and make wlr_resize_watcher wait to resize the display until it has started if possible.
 
 == trixie-port - misc qubes test failures ==
 * From Marek:
@@ -320,6 +314,15 @@ Nov 06 16:29:18 localhost mount-shared[1099]: /sbin/mount.vboxsf: mounting faile
 * current implementation: forks frequently, has to re-open and re-parse <code>/etc/shadow</code> and related files for every query. Results in noticeable performance delays in some scripts, also is non-atomic and vulnerable to race conditions.
 * better implementation: a library that caches <code>/etc/shadow</code> and related files when the library is sourced. Queries rely on in-memory data and avoid forking if possible.
 * refactor existing bash code? rewrite in Python? Python may be simpler and faster, but existing bash implementation seems very stable.
+
+== real fix for graphical-session.target bug in Qubes OS ==
+* Aaron:
+** currently we start msgcollector-gui.service under Qubes using a file under /etc/xdg/autostart
+** this seems to be causing hung shutdown bugs: https://openqa.qubes-os.org/tests/162679/#downloads
+** find and create a real fix for the issue if possible, then drop the workaround from our code
+* https://github.com/QubesOS/qubes-issues/issues/9576
+* might be same root cause: https://openqa.qubes-os.org/tests/163533/file/system_tests-qubes.tests.integ.dispvm.TC_20_DispVM_whonix-workstation-18.test_010.guest-test-inst-dvm-alt.log
+* Lowered priority, Marek reports that the issues we were seeing with hung shutdowns are done after fixing sdwdate-gui's systemd configuration.
 
 == three finger salute ==
 * https://forums.kicksecure.com/t/ctrl-alt-del-three-finger-salute-action/1197
@@ -782,6 +785,20 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== Qubes R4.3 bypass review ==
+* https://github.com/QubesOS/qubes-issues/issues/10328
+* are there more ways in which that can go wrong?
+* realistic to fundamentally re-design this to avoid such kinds of issues?
+** Aaron: NetVM authentication, to ensure the NetVM used by a particular qube provides the features and security/anonymity guarantees needed by that qube? May be vaguely related to the "qrexec to NetVM" task.
+* https://github.com/QubesOS/qubes-issues/issues/6948
+* https://github.com/QubesOS/qubes-issues/issues/3994
+* Aaron: Looked at the relevant issues, I'm not entirely sure how the Salt issue is directly relevant, but I did look at it and will keep it in mind.
+* Aaron: Sent an email with some ideas to the qubes-devel mailing list: https://www.mail-archive.com/qubes-devel@googlegroups.com/msg05660.html
+* Aaron: Feature request: https://github.com/QubesOS/qubes-issues/issues/10334
+** Major feature request, will most likely need to wait until after the release of R4.3.
+** Unblocked, R4.3 has been released.
+** Aaron: Made a spec for the feature and shared it on the bug report. Waiting for feedback.
+
 == Tor Browser not launching in Qubes-Whonix-Workstation 18 StandaloneVM ==
 * https://github.com/QubesOS/qubes-issues/issues/10514#issuecomment-3700693542
 ** Aaron: Diagnosed issue, waiting for feedback on suggested solution from Marek.
@@ -1054,12 +1071,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== support disabling ipv6 on Whonix 18 ==
-* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
-* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
-** Patrick has confirmed we should investigate allowing disabling IPv6 at the kernel level.
-** Implemented, commits pushed to helper-scripts, user-sysmaint-split, anon-gw-anonymizer-config, and anon-ws-disable-stacked-tor.
-
 == windows installer - improvements ==
 * make Hyper-V less easy to miss
 ** currently it is easy to click "continue" while the setting is still at "do nothing". Options might not be shown on the screen and may be hidden below the taskbar (invisible).
