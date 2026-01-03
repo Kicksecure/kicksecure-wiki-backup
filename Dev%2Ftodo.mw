@@ -11,99 +11,16 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== support disabling ipv6 on Whonix 18 ==
-* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
-* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
-** Patrick has confirmed we should investigate allowing disabling IPv6 at the kernel level.
-** Implemented, commits pushed to helper-scripts, user-sysmaint-split, anon-gw-anonymizer-config, anon-ws-disable-stacked-tor, and whonix-firewall.
-* Patrick: Please revert whonix-firewall changes as discussed.
-
-== browser-choice - allow use on live ISO ==
-* There is no web browser in Kicksecure ISO's user mode, by design.
-* Installing a browser in this mode is currently impossible because browser-choice cannot install web browsers without <code>pkexec</code>.
-* Add privleap actions to the live ISO only that allows installation of browsers without needing <code>pkexec</code>
-* Add support for using these actions to browser-choice
-
 == bug: "Open in Folder" button in Tor Browser broken ==
 * https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
-* Fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
+* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
+** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-q/t/issues/1834
+** We might be able to write a lightweight daemon that listens for a file manager launch request, execs PCManFM-Qt with the appropriate arguments when requested, and then wait to start itself again until PCManFM-Qt is closed.
+* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
 
 == pcmanfm-qt race condition with wlr_resize_watcher ==
 * Under KVM, occasionally wlr_resize_watcher will resize the display at the exact wrong time, and cause pcmanfm-qt to end up stuck in the upper-right corner of the screen.
 * Try to detect when pcmanfm-qt is supposed to be starting, and make wlr_resize_watcher wait to resize the display until it has started if possible.
-
-== trixie-port - misc qubes test failures ==
-* From Marek:
-** General performance issues, may be solved by making things more efficient in general
-*** https://openqa.qubes-os.org/tests/159131
-*** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
-**** Applied some optimizations to sdwdate and sdwdate-gui. systemd reports a relatively fast boot time now (around 7 seconds), however the time from a <code>qvm-run</code> call to application startup is still pretty long.
-** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
-*** Add a privleap rule for inserting v4l2loopback kernel module
-**** Done: https://github.com/QubesOS/qubes-video-companion/pull/33
-** https://openqa.qubes-os.org/tests/159089
-*** Random timesanitycheck failure, likely will not reoccur.
-** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
-*** /tmp/user/1000 owned by root again, try to make an automated reproducer for this
-**** Automated reproducer couldn't trigger the issue. Audited all mkdir calls, pushed a commit to helper-scripts with a fix to lockfile.sh. Unlikely to fix the issue, but worthwhile.
-***** Patrick: Merged. Yes, worthwhile to fix. Also yes, unlikely to fix the issue since the issue started before lockfile.sh got introduced.
-** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
-*** Can't reproduce here, probably already fixed?
-**** Found that the fix was indeed already applied.
-* From Ben:
-** https://openqa.qubes-os.org/tests/159100#step/TC_00_DispVMPerf_whonix-workstation-18/21
-*** Might have been the msgprogressbar issue, hopefully won't reoccur
-* Results of benchmarking a cloned debian-13-xfce qube while adding bits from Kicksecure into it gradually, giving the qube only 400 MB of RAM with no ability to balloon:
-
-<pre>
-Using packages from trixie Kicksecure repo, not trixie-developers
-Before any morph: (8.388 + 8.015 + 8.112) / 3 = 8.171
-After adding helper-scripts: (8.005 + 8.179 + 7.999) / 3 = 8.061
-After adding security-misc: (8.222 + 8.346 + 8.404) / 3 = 8.324 (with outlier 18.132) (Marked drop in performance here, and the outlier did take an awfully long time, does the first boot after security-misc installation do something weird?)
-After adding usability-misc: (8.381 + 8.395 + 8.326) / 3 = 8.367
-After adding dist-base-files: (8.516 + 8.399 + 8.431) / 3 = 8.448
-After adding kicksecure-base-files: (8.253 + 8.461 + 8.430) / 3 = 8.381
-After adding desktop-config-dist: (8.714 + 8.580 + 8.598) / 3 = 8.630 (Another marked drop in performance here)
-After adding sdwdate: (8.867 + 8.751 + 8.946) / 3 = 8.854 (another marked drop in performance here, not really a surprise since this pulled in Tor)
-After adding sdwdate-gui: (9.167 + 9.075 + 9.165) / 3 = 9.135 (another marked drop in performance)
-After adding systemcheck: (9.057 + 9.125 + 9.103) / 3 = 9.095
-After adding msgcollector-gui: (9.171 + 9.190 + 9.224) / 3 = 9.195 (noticeable performance drop)
-After adding vm-config-dist: (9.245 + 9.378 + 9.112) / 3 = 9.245 (doesn't seem to be a truly reliable drop in performance)
-After adding bootclockrandomization: (9.312 + 9.152 + 9.081) / 3 = 9.181
-After adding dist-general-gui-lxqt: (9.264 + 9.112 + 9.187) / 3 = 9.187
-... should have done more incremental benchmarks here ...
-After installing the rest of everything with kicksecure-qubes-gui-lxqt: (9.974 + 9.976 + 9.921) / 3 = 9.957
-</pre>
-
-* Takeaways from benchamrking:
-** It might be worth trying to avoid forking in our startup scripts; maybe having less forks and less units would allow for faster operation. Unfortunately Python multithreading isn't very fast, and Bash doesn't have multithreading, so we can't get parallelism and absence of forks at the same time.
-** We might see if we can avoid blocking startup on units that aren't startup-critical. sdwdate-gui, for instance, takes some time to come up, but also apparently blocks the UI showing up for a quarter of a second on my test machine, which could possibly be avoided.
-** None of the performance issues here seem particularly egregious to me, certainly not enough to cause slews of timeouts like we're seeing in Whonix's tests on OpenQA.
-** I used a very low-RAM system for this, and it worked quite well; no memory exhaustion issues were encountered.
-** Further research needs to be done on the specific tests that are timing out to determine what they're trying to do that is timing out.
-* Investigation of logs from a DispVM test where Whonix-Workstation timed out:
-** Qubes' test infra seems to have a periodic hardware lag issue that affects all VMs.
-** Whonix is probably just the first thing to trim timeouts because we have too many services doing too many resource-intensive tasks during early boot.
-
-<pre>
-guest-disp2246.log (Fedora Linux 42, 7 second kernel load time, 1 second from "Qubes: done" to disk mount, login prompt, 35 second runtime)
-guest-disp3748.log (Fedora Linux 42, 6 second kernel load time, 2 seconds from "Qubes: done" to disk mount, login prompt, 66 second runtime)
-guest-disp5735.log (Fedora Linux 42, 7 second kernel load time, 2 seconds from "Qubes: done" to disk mount, login prompt, 29 second runtime)
-guest-disp5839.log (Debian 13, 6 second kernel load time, 9 seconds from "Qubes: done" to disk mount, login prompt (barely), 60 second runtime)
-guest-disp5955.log (Whonix-Gateway 18, 9 second kernel load time, 12 seconds from "Qubes: done" to disk mount, no login prompt, 81 second runtime)
-guest-disp6231.log (Whonix-Gateway 17, 7 second kernel load time, 3 seconds from "Qubes: done" to disk mount, login prompt, 62 second runtime)
-guest-disp6497.log (Debian 13, 6 second kernel load time, 8 seconds from "Qubes: done" to disk mount, login prompt (barely), 39 second runtime)
-guest-disp678.log (Fedora Linux 42, 8 second kernel load time, 4 seconds from "Qubes: done" to disk mount, login prompt (barely), 39 second runtime)
-guest-disp7152.log (Whonix-Workstation 18, 7 second kernel load time, 6 seconds from "Qubes: done" to disk mount, no login prompt, 70 second runtime)
-guest-disp9514.log (Debian 13, 5 second kernel load time, 6 seconds from "Qubes: done" to disk mount, login prompt (barely), 43 second runtime)
-guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Qubes: done" to disk mount, login prompt, hours long runtime for obvious reasons)
-</pre>
-
-* https://github.com/QubesOS/qubes-issues/issues/10420#issuecomment-3576719255
-* Ben mentioned in the Qubes OS Matrix room that Whonix's performance seemed substantially improved, possibly because of our optimizations but also possibly because of optimizations in Qubes OS itself.
-* Workstation disposable template hanging on shutdown: https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
-* timesanitycheck occasionally fails: https://openqa.qubes-os.org/tests/161707
-** Made a fix, but then reverted, turns out machine running that test has a dead RTC battery.
 
 == calamares - use gpt by default ==
 * bug: unencrypted installations are mbr by default
@@ -785,6 +702,80 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== trixie-port - misc qubes test failures ==
+* From Marek:
+** General performance issues, may be solved by making things more efficient in general
+*** https://openqa.qubes-os.org/tests/159131
+*** https://openqa.qubes-os.org/tests/159129#step/TC_00_Dom0Upgrade_whonix-gateway-18/2
+**** Applied some optimizations to sdwdate and sdwdate-gui. systemd reports a relatively fast boot time now (around 7 seconds), however the time from a <code>qvm-run</code> call to application startup is still pretty long.
+** https://openqa.qubes-os.org/tests/159123 (this one is due to sudo blocked)
+*** Add a privleap rule for inserting v4l2loopback kernel module
+**** Done: https://github.com/QubesOS/qubes-video-companion/pull/33
+** https://openqa.qubes-os.org/tests/159089
+*** Random timesanitycheck failure, likely will not reoccur.
+** https://github.com/Whonix/updates-status/issues/290#issuecomment-3524509617
+*** /tmp/user/1000 owned by root again, try to make an automated reproducer for this
+**** Automated reproducer couldn't trigger the issue. Audited all mkdir calls, pushed a commit to helper-scripts with a fix to lockfile.sh. Unlikely to fix the issue, but worthwhile.
+***** Patrick: Merged. Yes, worthwhile to fix. Also yes, unlikely to fix the issue since the issue started before lockfile.sh got introduced.
+** https://github.com/Whonix/updates-status/issues/289#issuecomment-3524513760
+*** Can't reproduce here, probably already fixed?
+**** Found that the fix was indeed already applied.
+* From Ben:
+** https://openqa.qubes-os.org/tests/159100#step/TC_00_DispVMPerf_whonix-workstation-18/21
+*** Might have been the msgprogressbar issue, hopefully won't reoccur
+* Results of benchmarking a cloned debian-13-xfce qube while adding bits from Kicksecure into it gradually, giving the qube only 400 MB of RAM with no ability to balloon:
+
+<pre>
+Using packages from trixie Kicksecure repo, not trixie-developers
+Before any morph: (8.388 + 8.015 + 8.112) / 3 = 8.171
+After adding helper-scripts: (8.005 + 8.179 + 7.999) / 3 = 8.061
+After adding security-misc: (8.222 + 8.346 + 8.404) / 3 = 8.324 (with outlier 18.132) (Marked drop in performance here, and the outlier did take an awfully long time, does the first boot after security-misc installation do something weird?)
+After adding usability-misc: (8.381 + 8.395 + 8.326) / 3 = 8.367
+After adding dist-base-files: (8.516 + 8.399 + 8.431) / 3 = 8.448
+After adding kicksecure-base-files: (8.253 + 8.461 + 8.430) / 3 = 8.381
+After adding desktop-config-dist: (8.714 + 8.580 + 8.598) / 3 = 8.630 (Another marked drop in performance here)
+After adding sdwdate: (8.867 + 8.751 + 8.946) / 3 = 8.854 (another marked drop in performance here, not really a surprise since this pulled in Tor)
+After adding sdwdate-gui: (9.167 + 9.075 + 9.165) / 3 = 9.135 (another marked drop in performance)
+After adding systemcheck: (9.057 + 9.125 + 9.103) / 3 = 9.095
+After adding msgcollector-gui: (9.171 + 9.190 + 9.224) / 3 = 9.195 (noticeable performance drop)
+After adding vm-config-dist: (9.245 + 9.378 + 9.112) / 3 = 9.245 (doesn't seem to be a truly reliable drop in performance)
+After adding bootclockrandomization: (9.312 + 9.152 + 9.081) / 3 = 9.181
+After adding dist-general-gui-lxqt: (9.264 + 9.112 + 9.187) / 3 = 9.187
+... should have done more incremental benchmarks here ...
+After installing the rest of everything with kicksecure-qubes-gui-lxqt: (9.974 + 9.976 + 9.921) / 3 = 9.957
+</pre>
+
+* Takeaways from benchamrking:
+** It might be worth trying to avoid forking in our startup scripts; maybe having less forks and less units would allow for faster operation. Unfortunately Python multithreading isn't very fast, and Bash doesn't have multithreading, so we can't get parallelism and absence of forks at the same time.
+** We might see if we can avoid blocking startup on units that aren't startup-critical. sdwdate-gui, for instance, takes some time to come up, but also apparently blocks the UI showing up for a quarter of a second on my test machine, which could possibly be avoided.
+** None of the performance issues here seem particularly egregious to me, certainly not enough to cause slews of timeouts like we're seeing in Whonix's tests on OpenQA.
+** I used a very low-RAM system for this, and it worked quite well; no memory exhaustion issues were encountered.
+** Further research needs to be done on the specific tests that are timing out to determine what they're trying to do that is timing out.
+* Investigation of logs from a DispVM test where Whonix-Workstation timed out:
+** Qubes' test infra seems to have a periodic hardware lag issue that affects all VMs.
+** Whonix is probably just the first thing to trim timeouts because we have too many services doing too many resource-intensive tasks during early boot.
+
+<pre>
+guest-disp2246.log (Fedora Linux 42, 7 second kernel load time, 1 second from "Qubes: done" to disk mount, login prompt, 35 second runtime)
+guest-disp3748.log (Fedora Linux 42, 6 second kernel load time, 2 seconds from "Qubes: done" to disk mount, login prompt, 66 second runtime)
+guest-disp5735.log (Fedora Linux 42, 7 second kernel load time, 2 seconds from "Qubes: done" to disk mount, login prompt, 29 second runtime)
+guest-disp5839.log (Debian 13, 6 second kernel load time, 9 seconds from "Qubes: done" to disk mount, login prompt (barely), 60 second runtime)
+guest-disp5955.log (Whonix-Gateway 18, 9 second kernel load time, 12 seconds from "Qubes: done" to disk mount, no login prompt, 81 second runtime)
+guest-disp6231.log (Whonix-Gateway 17, 7 second kernel load time, 3 seconds from "Qubes: done" to disk mount, login prompt, 62 second runtime)
+guest-disp6497.log (Debian 13, 6 second kernel load time, 8 seconds from "Qubes: done" to disk mount, login prompt (barely), 39 second runtime)
+guest-disp678.log (Fedora Linux 42, 8 second kernel load time, 4 seconds from "Qubes: done" to disk mount, login prompt (barely), 39 second runtime)
+guest-disp7152.log (Whonix-Workstation 18, 7 second kernel load time, 6 seconds from "Qubes: done" to disk mount, no login prompt, 70 second runtime)
+guest-disp9514.log (Debian 13, 5 second kernel load time, 6 seconds from "Qubes: done" to disk mount, login prompt (barely), 43 second runtime)
+guest-sys-net.log (Fedora Linux 42, 6 second kernel load time, 0 seconds from "Qubes: done" to disk mount, login prompt, hours long runtime for obvious reasons)
+</pre>
+
+* https://github.com/QubesOS/qubes-issues/issues/10420#issuecomment-3576719255
+* Ben mentioned in the Qubes OS Matrix room that Whonix's performance seemed substantially improved, possibly because of our optimizations but also possibly because of optimizations in Qubes OS itself.
+* Workstation disposable template hanging on shutdown: https://openqa.qubes-os.org/tests/161078/file/system_tests-qubes.tests.integ.dispvm_perf.TC_00_DispVMPerf_whonix-workstation-18.test_001.guest-test-inst-dvm.log
+* timesanitycheck occasionally fails: https://openqa.qubes-os.org/tests/161707
+** Made a fix, but then reverted, turns out machine running that test has a dead RTC battery.
+* Issues may be resolved, waiting for Ben Grande to report how the next full test goes.
+
 == Qubes R4.3 bypass review ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 * are there more ways in which that can go wrong?
@@ -1071,6 +1062,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== support disabling ipv6 on Whonix 18 ==
+* https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
+* Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
+** Patrick has confirmed we should investigate allowing disabling IPv6 at the kernel level.
+** Implemented, commits pushed to helper-scripts, user-sysmaint-split, anon-gw-anonymizer-config, anon-ws-disable-stacked-tor, and whonix-firewall.
+* Patrick: Please revert whonix-firewall changes as discussed.
+** Aaron: Done, commit pushed to whonix-firewall.
+
+== browser-choice - allow use on live ISO ==
+* There is no web browser in Kicksecure ISO's user mode, by design.
+* Installing a browser in this mode is currently impossible because browser-choice cannot install web browsers without <code>pkexec</code>.
+* Add privleap actions to the live ISO only that allows installation of browsers without needing <code>pkexec</code>
+* Add support for using these actions to browser-choice
+* Aaron: Implemented, commits pushed to browser-choice, live-config-dist, and privleap.
+
 == windows installer - improvements ==
 * make Hyper-V less easy to miss
 ** currently it is easy to click "continue" while the setting is still at "do nothing". Options might not be shown on the screen and may be hidden below the taskbar (invisible).
