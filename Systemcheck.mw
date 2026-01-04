@@ -138,7 +138,7 @@ Checks if <code>check.torproject.org</code> reports the IP to be a Tor IP addres
 |-
 
 ! Network Connection
-| Check that setup-dist has properly configured networking.
+| <s>Check that setup-dist has properly configured networking.</s>
 |-
 
 ! Operating System Updates Check
@@ -292,7 +292,7 @@ In Qubes TemplateVMs, networking is assumed inactive and the result may be repor
 |-
 
 ! IP Forwarding Disabled
-| Additional confirmation that IP forwarding is disabled on {{project_name_gateway_short}}, warning if routing behavior is detected when it should not occur by default. (Whonix-Gateway only.)
+| Confirmation that IP forwarding is disabled, warning if routing behavior is detected when it should not occur by default. (Whonix-Gateway only.)
 |-
 
 ! Output Behavior and Verbose Mode
@@ -308,20 +308,20 @@ In Qubes TemplateVMs, networking is assumed inactive and the result may be repor
 
 Platform specific.
 
-* Kicksecure: Applicable. See below.
-* Kicksecure for Qubes: Not applicable, because Qubes has its own updater, which is documented on the [[Operating_System_Software_and_Updates|Operating System Software and Updates]] wiki page.
+* <u>Kicksecure:</u> Applicable. See below.
+* <u>Kicksecure for Qubes:</u> Not applicable, because Qubes has its own updater, which is documented on the [[Operating_System_Software_and_Updates|Operating System Software and Updates]] wiki page.
 
 Runs approximately every 6 hours.
 
 Features:
 
-* Passive popup.
-* Wait for a good time to run the update check.
-** Waits 2 minutes after boot before checking for updates, to give the user a chance to run APT before the package database gets locked. Updatecheck runs APT, which locks the package database as it updates it.
-** Runs {{CodeSelect|inline=true|code=leaprun onion-time-pre-script}} up to 5 times until it succeeds. Waits 2 minutes between each call if it fails. This is to ensure Tor bootstrap has been completed.
-** Waits up to 6 minutes for sdwdate to complete time synchronization.
-** Waits up to 20 minutes for the package database to be unlocked, which means no other APT process (run by the user) is currently locking it.
-* Stale notifications are cleared. If there was an issue upgrading but not when updatecheck runs again, the stale, no longer applicable notification will be cleared to avoid confusion.
+* <u>Passive popup:</u> Shows a notification without requiring immediate interaction.
+* <u>Deferred update check:</u> Waits for a good time to run the update check.
+** <u>Boot delay:</u> Waits 2 minutes after boot before checking for updates, to give the user a chance to run APT before the package database gets locked. updatecheck runs APT, which locks the package database as it updates it.
+** <u>Tor bootstrap wait:</u> Runs {{CodeSelect|inline=true|code=leaprun onion-time-pre-script}} up to 5 times until it succeeds. Waits 2 minutes between each call if it fails. This is to ensure Tor bootstrap has been completed.
+** <u>Time synchronization wait:</u> Waits up to 6 minutes for sdwdate to complete time synchronization.
+** <u>APT lock wait:</u> Waits up to 20 minutes for the package database to be unlocked, which means no other APT process (run by the user) is currently locking it.
+* <u>Stale notification cleanup:</u> Stale notifications are cleared. If there was an issue upgrading but not when updatecheck runs again, the stale, no longer applicable notification will be cleared to avoid confusion.
 
 <u>Note:</u> No administrative ("[[root|<code>root</code>]]") rights required. Do <u>not</u> use <u>sudo</u>!
 
@@ -358,21 +358,80 @@ updatecheck starts automatically when a normal user logs in graphically into a n
 When <code>user-sysmaint-split</code> is installed, the <code>sysmaint</code> user account will only be able to log into a sysmaint graphical session, and only when the system is booted into a <code>SYSMAINT session</code>. The sysmaint graphical session is not a normal desktop, and it does not automatically run all of the services configured in <code>/etc/xdg/autostart</code>. This means updatecheck will not run in a sysmaint session.
 
 = Physical Security Check =
+Several checks related to [[Protection Against Physical Attacks]].
+
 '''Figure:''' ''systemcheck - Physical Security Check''
 
 [[File:physical-security-check.png|600px]]
 
-Several checks related to [[Protection Against Physical Attacks]].
+Checks <u>included</u>:
 
-* [[Login]] security check:
-** Checks if all Linux user accounts have a password set or if it is absent.
-** Checks if all Linux user accounts have an autologin set or if it is absent.
-* Whether [[Full Disk Encryption|{{fde}}]] is enabled or disabled.
-* Whether the [[Grub|GRUB]] boot menu is protected by a [[Protection_Against_Physical_Attacks#Bootloader_Password|Bootloader Password]].
+* <u>[[Login]] security check:</u>
+** <u>Password status:</u> Checks if all Linux user accounts have a password set or if it is absent.
+** <u>Autologin status:</u> Checks if all Linux user accounts have an autologin set or if it is absent.
+* <u>Full disk encryption:</u> Whether [[Full Disk Encryption|{{fde}}]] is enabled or disabled.
+* <u>Bootloader password:</u> Whether the [[Grub|GRUB]] boot menu is protected by a [[Protection_Against_Physical_Attacks#Bootloader_Password|Bootloader Password]].
 
-Checks not included:
+Checks <u>not</u> included:
 
-* [[Protection_Against_Physical_Attacks#BIOS_Password|BIOS Password]] check. Operating systems do not have permission to detect if a BIOS password is set or absent.
+* <u>BIOS password:</u> [[Protection_Against_Physical_Attacks#BIOS_Password|BIOS Password]] check. Operating systems do not have permission to detect if a BIOS password is set or absent.
+
+== Physical Security Check - Meaning of Colors ==
+<code>systemcheck</code>'s login security check table displays information about the password and autologin status of each standard user account on the system. Each entry in this table is color-coded to indicate whether the current configuration is secure or not.
+
+The following table explains the color meanings for the Password column.
+
+{| class="wikitable"
+|+ Login Security Check colors and meanings (Password column)
+|-
+
+! Color
+! Password Status
+! Meaning
+|-
+
+| style="background-color: {{Green}}" | Green
+| {{nowrap|Locked (Present),}}<br/>{{nowrap|Restricted (Present),}}<br/>{{nowrap|Locked (Absent),}}<br/>{{nowrap|Restricted (Absent),}}<br/>{{nowrap|Present}}
+| Likely to be secure. If an account cannot be logged into at a login prompt, or requires a password to log in, it is resistant to malicious login attempts. Note that if a weak password is assigned to an account, it may still be insecure.
+|-
+
+| style="background-color: {{Yellow}}" | Yellow
+| Absent, for non-root accounts
+| May be a security risk. Passwordless accounts can be logged into without authentication, which makes them dangerous if an attacker can access the machine and the account has access to sensitive data. Many users do not have physical attackers in their threat model, or have other protections that mitigate this (such as full disk encryption), so this is not always a problem.
+|-
+
+| style="background-color: {{Red}}" | Red
+| Absent, for the root account
+| Always a security risk. The root account should never be passwordless, as this may allow unprivileged malicious programs to escalate to root without user interaction.
+|-
+|}
+
+The following table explains the color meanings for the Autologin column.
+
+{| class="wikitable"
+|+ Login Security Check colors and meanings (Autologin column)
+|-
+
+! Color
+! Autologin Status
+! Meaning
+|-
+
+| style="background-color: {{Green}}" | Green
+| Disabled
+| Likely to be secure. If autologin is disabled, an account's password (if any) is required to log into it.
+|-
+
+| style="background-color: {{Yellow}}" | Yellow
+| Enabled, for non-root accounts
+| May be a security risk. Autologin bypasses the password of the autologin-enabled account. The same concerns for passwordless accounts apply here.
+|-
+
+| style="background-color: {{Red}}" | Red
+| Enabled, for the root account
+| Always a security risk. The user will likely end up using the root account for general computing tasks if autologin is enabled for root, dramatically increasing the system's attack surface and breaking various applications.
+|-
+|}
 
 = Unwanted Packages Check =
 Unwanted packages that systemcheck will warn against.
@@ -500,7 +559,7 @@ sudo -u canary signify-openbsd -V -e -p /usr/share/repository-dist/derivative-di
 |
 * Minimal {{Github_link|repo=systemcheck|path=/tree/master/usr/libexec/systemcheck/canary-daemon|text=<code>canary-daemon</code>}} (with <code>systemd-notify</code>).
 * The {{Github_link|repo=systemcheck|path=/tree/master/usr/libexec/systemcheck/canary|text=<code>canary</code>}} wrapper includes logic on when to run <code>canary-download.py</code>.
-** This only runs on {{project_name_gateway_short}} to reduce server load.
+** This only runs on Whonix-Gateway to reduce server load. (Whonix only.)
 * Comprises a systemcheck module {{Github_link|repo=systemcheck|path=/tree/master/usr/libexec/systemcheck/check_warrant_canary.bsh|text=<code>check_warrant_canary.bsh</code>}}.
 |-
 
