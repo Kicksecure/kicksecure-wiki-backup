@@ -18,14 +18,6 @@ TODO
 ** We might be able to write a lightweight daemon that listens for a file manager launch request, execs PCManFM-Qt with the appropriate arguments when requested, and then wait to start itself again until PCManFM-Qt is closed.
 * Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
 
-== pcmanfm-qt race condition with wlr_resize_watcher ==
-* Under KVM, occasionally wlr_resize_watcher will resize the display at the exact wrong time, and cause pcmanfm-qt to end up stuck in the upper-right corner of the screen.
-* Try to detect when pcmanfm-qt is supposed to be starting, and make wlr_resize_watcher wait to resize the display until it has started if possible.
-
-== calamares - use gpt by default ==
-* bug: unencrypted installations are mbr by default
-* todo: port from mbr to gpt, if sane
-
 == RPi GRUB - contribute to Debian ==
 * Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
 * This and the above ticket might result in implementation feedback, such as for options in config.txt.
@@ -67,12 +59,6 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 * Aaron: Filed issue upstream using template: [https://salsa.debian.org/raspi-team/image-specs/-/issues/78 Support U-Boot + grub-efi boot flow]
 ** Also filed a bug report against raspi-firmware: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607 Add support for U-Boot + grub-arm64-efi boot flow]
 
-== RPi grml-debootstrap ==
-* https://github.com/grml/grml-debootstrap/issues/114
-* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
-* Tested and polished PR and marked it as ready for review.
-* Added question about future support for U-Boot + grub-efi-arm64.
-
 == GRUB - Debian packages grub-pc and grub-efi co-install-ability ==
 * please submit a patch to Debian to make grub-pc and grub-efi co-installable
 * [https://bugs-devel.debian.org/cgi-bin/bugreport.cgi?bug=904062 Allow concurrent installation of grub-pc and grub-efi-amd64]
@@ -86,9 +72,6 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 ** dracut is failing to run <code>udevadm trigger</code> during its device scanning, so even when it finds the ISO and attaches it as a loopback device, it never finds it. Only appears to be a problem on Debian Bookworm, Trixie works just fine.
 *** Task is on hold until we migrate to Trixie.
 ** (Side note: At least on QEMU, loopback mounts in GRUB fail with out-of-memory errors if the system uses UEFI. With BIOS it works fine. Not quite sure why this happens, very well may be an issue with QEMU's implementation of UEFI hardware or my usage thereof.)
-
-== live-build - policy-rc.d handling ==
-* https://salsa.debian.org/live-team/live-build/-/merge_requests/409
 
 == virtualbox - failure to load libwayland-client.so and libX11.so ==
 * Follow-up to systemcheck journal warning documentation task
@@ -702,6 +685,17 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * if not, should be replaced by safe-rm
 
 = WAITING ON =
+== RPi grml-debootstrap ==
+* https://github.com/grml/grml-debootstrap/issues/114
+* Draft PR at https://github.com/grml/grml-debootstrap/pull/335, needs more testing and work
+* Tested and polished PR and marked it as ready for review.
+* Added question about future support for U-Boot + grub-efi-arm64.
+* Merged in master, requested another review. Hopefully this will be mergeable now.
+
+== bug: default_dispvm of Whonix-Workstation AppVMs not always being set properly ==
+* https://forum.qubes-os.org/t/can-we-automatically-set-default-disposable-template-at-the-time-of-app-qube-creation/38336/9
+** Fix: https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/29, waiting for merge.
+
 == trixie-port - misc qubes test failures ==
 * From Marek:
 ** General performance issues, may be solved by making things more efficient in general
@@ -1062,6 +1056,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== calamares - use gpt by default ==
+* bug: unencrypted installations are mbr by default
+* todo: port from mbr to gpt, if sane
+* Aaron: Likely not a good idea until a Calamares release with https://github.com/calamares/calamares/pull/2422 in it is made (the version in Trixie doesn't have this yet). We'd have to introduce a bios-grub partition unconditionally on both EFI and BIOS, and only one bootloader would be installed. This would mean that BIOS systems would end up with a bios_boot partition and no ESP, while EFI systems would get both bios_boot and ESP partitions but only an EFI bootloader installed. Once the linked PR is present in a release, we will be able to always have both partitions and both bootloaders.
+** Technically GRUB can be installed on BIOS systems without a bios_boot partition, but <code>grub-install</code> must be run with <code>--force</code> to do this, and the bootloader may break at any time if this is done. See https://savannah.gnu.org/bugs/index.php?32391#comment1:
+
+<blockquote>
+The blocklists are unreliable because the filesystems can move the files around at will and so the exact sectors are subject to change. Any such change creates both a reliability and security problem. Previously the blocks were only rarely moved around. However, now, with features like tail repacking and online defragmenter it will become increasingly of a problem.
+</blockquote>
+
+== pcmanfm-qt race condition with wlr_resize_watcher ==
+* Under KVM, occasionally wlr_resize_watcher will resize the display at the exact wrong time, and cause pcmanfm-qt to end up stuck in the upper-right corner of the screen.
+* Try to detect when pcmanfm-qt is supposed to be starting, and make wlr_resize_watcher wait to resize the display until it has started if possible.
+* Aaron: Attempted fix created, seems to work at first glance. Commit pushed to vm-config-dist.
+
 == support disabling ipv6 on Whonix 18 ==
 * https://forums.whonix.org/t/how-to-disable-ipv6-in-whonix-18/22584
 * Aaron: Discovered it was already possible to disable IPv6, I was just doing it wrong. Shared a method of doing it on the forums, unsure if a more thorough solution should be pursued or if I should just document the existing method on the wiki.
@@ -1311,6 +1320,11 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== live-build - policy-rc.d handling ==
+* https://salsa.debian.org/live-team/live-build/-/merge_requests/409
+* Aaron: Got this to a mergeable state, waiting for feedback.
+* Merged, archiving.
+
 == Qubes R4.2 default_dispvm bypass ==
 * https://github.com/QubesOS/qubes-issues/issues/10328
 ** Aaron: Waiting on https://github.com/QubesOS/qubes-core-admin-addon-whonix/pull/25 for this as I intend to backport this to R4.2 to solve this.
