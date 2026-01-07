@@ -83,7 +83,7 @@ Since configuration drop-in folders are not standardized, drop-in snippets are p
 * <code>bash</code> <code>source</code>, or
 * <code>sh</code> (shell script) <code>.</code> (same as <code>bash</code> <code>source</code>).
 
-https://superuser.com/questions/46139/what-does-source-do
+[https://superuser.com/questions/46139/what-does-source-do Super User: What does "source" do?]
 </ref> in lexical order, such as <code>/etc/profile.d</code> or <code>/etc/X11/Xsession.d</code>.
 * Some contain scripts that are executed, such as <code>/etc/grub.d</code> (used for generating the GRUB boot menu).
 
@@ -133,7 +133,7 @@ Configuration of Tor is a special case; see [[Tor#Configuration|Tor configuratio
 It is possible to reset configuration files to vendor defaults. This is useful if a user changes their mind or selected the wrong action <ref>For example, not installed instead of installed.</ref> in response to a [[Operating_System_Software_and_Updates#Changed_Configuration_Files|Changed Configuration File]].
 
 {{Box|text=
-'''1.''' Check using <code>debsums</code>.
+{{IconSet|h1|1}} Check using <code>debsums</code>.
 
 Run [https://manpages.debian.org <code>debsums</code>] to show a list of changed and missing configuration files.
 
@@ -153,7 +153,7 @@ This means:
 package-name: changed-configuration-file
 </pre>
 
-'''2.''' Reinstall the package.
+{{IconSet|h1|2}} Reinstall the package.
 
 In the command below, replace <code>package-name</code> with the actual name of the package, such as <code>sdwdate</code>. <ref>
 {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/apt-get-reset|text=<code>apt-get-reset</code>}} is a {{project_name_short}}-specific feature. It performs an action like this:
@@ -175,9 +175,11 @@ Configuration file '/etc/sdwdate.d/30_default.conf', does not exist on system.
 Installing new config file as you requested.
 </pre>
 
-'''3.''' Re-check using <code>debsums</code>.
+{{IconSet|h1|3}} Re-check using <code>debsums</code>.
 
 Re-run <code>sudo debsums -ce</code> to confirm the correct configuration files were changed as intended.
+
+{{IconSet|h1|4}} Done.
 }}
 
 = Commenting Syntax and Effects =
@@ -212,29 +214,52 @@ Re-run <code>sudo debsums -ce</code> to confirm the correct configuration files 
 |}
 
 = Systemd Configuration =
+== Conditional Skipping of Systemd Units using Systemd Drop-Ins ==
+systemd units can be selectively disabled depending on conditions. This is a systemd feature.
+
+In other words, systemd can be told: "Only start this unit if a certain condition is met." If the condition is not met, systemd will skip starting the unit.
+
+For example, file {{CodeSelect|inline=true|code=
+/usr/lib/systemd/system/mnt-shared-vbox.service.d/30_grub-live.conf
+}} (in [https://github.com/Kicksecure/vm-config-dist package <code>vm-config-dist</code>]) does that.
+
+{{CodeSelect|code=
+[Unit]
+
+## Debian forked upstream module 90overlay-root
+ConditionKernelCommandLine=!rootovl
+
+## dracut upstream module 90overlayfs - grub-live / ISO
+ConditionKernelCommandLine=!rd.live.overlay.overlayfs=1
+}}
+
+In this example the <code>mnt-shared-vbox.service</code> will be skipped (not started) if kernel parameters <code>rootovl</code> and/or <code>rd.live.overlay.overlayfs=1</code> (which represents live mode) are included in the kernel command line (<code>/proc/cmdline</code>) (<code>ConditionKernelCommandLine</code>).
+
+This works because <code>ConditionKernelCommandLine=</code> checks the kernel command line and only starts the unit when the condition evaluates to true. The leading <code>!</code> negates the match, meaning the condition is only true when the specified parameter is not present.
+
 == Disable Systemd Drop-Ins ==
 This is an example. Adjust as needed.
 
-'''1.''' Create the override directory:
+{{IconSet|h1|1}} Create the override directory:
 
 {{CodeSelect|code=
 sudo mkdir -p /etc/systemd/system/openvpn@openvpn.service.d/
 }}
 
-'''2.''' Disable the specific drop-in file by linking it to <code>/dev/null</code>:
+{{IconSet|h1|2}} Disable the specific drop-in file by linking it to <code>/dev/null</code>:
 
 {{CodeSelect|code=
 sudo ln -sf /dev/null /etc/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 }}
 
-'''3.''' Done.
+{{IconSet|h1|3}} Done.
 
 = Move Files Out of the Way =
 This wiki chapter explains how to safely move system-managed files "out of the way" using [http://manpages.debian.org/dpkg-divert <code>dpkg-divert</code>] so they aren't overwritten during package updates. It includes identifying package ownership, checking file existence, moving files, and optionally undoing the diversion and restoring the original file.
 
 <code>dpkg-divert</code> is a standard Debian tool. [[Based on Debian|{{project_name_short}} is based on Debian]]. This process is [[Unspecific|unspecific to {{project_name_short}}]]. The [[Self Support First Policy]] applies.
 
-'''1.''' Create folder.
+{{IconSet|h1|1}} Create folder.
 
 This is the folder where the files will be moved.
 
@@ -242,7 +267,7 @@ This is the folder where the files will be moved.
 sudo mkdir --parents /var/lib/user
 }}
 
-'''2.''' Learn which package owns the file.
+{{IconSet|h1|2}} Learn which package owns the file.
 
 Syntax:
 
@@ -256,7 +281,7 @@ Example:
 dpkg -S /usr/lib/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 }}
 
-'''3.''' Learn the syntax for file diversion.
+{{IconSet|h1|3}} Learn the syntax for file diversion.
 
 <u>Note:</u> Do not run this command yet.
 
@@ -264,7 +289,7 @@ dpkg -S /usr/lib/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 sudo dpkg-divert --divert /path/to/new/file/location --rename /path/to/file/to/move/out/of/the/way
 </pre>
 
-'''4.''' Check if the file exists.
+{{IconSet|h1|4}} Check if the file exists.
 
 Syntax:
 
@@ -280,7 +305,7 @@ Example:
 ls /usr/lib/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 }}
 
-'''5.''' Example of diverting the file.
+{{IconSet|h1|5}} Example of diverting the file.
 
 <u>Note:</u> Adjust paths for your use case.
 
@@ -288,11 +313,11 @@ ls /usr/lib/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 sudo dpkg-divert --divert /var/lib/user/50_unpriv.conf --rename /usr/lib/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 }}
 
-'''6.''' Confirm the file has been moved.
+{{IconSet|h1|6}} Confirm the file has been moved.
 
-'''7.''' Done.
+{{IconSet|h1|7}} Done.
 
-'''8.''' Undo DPKG diversion.
+{{IconSet|h1|8}} Undo DPKG diversion.
 
 Syntax:
 
@@ -306,7 +331,7 @@ Example:
 sudo dpkg-divert --no-rename --remove /usr/lib/systemd/system/openvpn@openvpn.service.d/50_unpriv.conf
 }}
 
-'''9.''' Restore the file.
+{{IconSet|h1|9}} Restore the file.
 
 Reinstall the package as per [[Install_Software#Re-Install_Package|Re-Install Package]] or even as per [[Configuration_Files#Reset_Configuration_Files_to_Vendor_Default|Reset Configuration Files to Vendor Default]].
 
@@ -336,7 +361,7 @@ For various subjects, user [[documentation]] provides advice on which VM configu
 For advanced users only.
 
 Most configuration files in Debian are handled by <code>dpkg</code>. Evidence for that is in <code>dpkg</code> source code file <code>src/configure.c</code>. <ref>
-outdated github mirror: https://github.com/endlessm/dpkg/blob/master/src/configure.c
+outdated GitHub mirror: [https://github.com/endlessm/dpkg/blob/master/src/configure.c src/configure.c]
 </ref>
 
 <pre>
