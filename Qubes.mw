@@ -123,7 +123,7 @@ Optional: The user may create new App Qubes based on the <code>{{project_name_wo
 {{Tab
 |title= == HVM ==
 |content=
-Using the Kicksecure [[ISO]] is <u>not</u> the recommended way to install {{project_name_long}} on Qubes.
+Using Kicksecure inside an HVM, installing Kicksecure using its [[ISO]] is <u>not</u> the recommended way to install {{project_name_long}} on Qubes.
 
 If the user wishes to use the ISO for any reason (such as testing, development, comparison, or curiosity), the following steps apply (More details can be found in [https://www.qubes-os.org/doc/standalones-and-hvms/ Qubes documentation].
 
@@ -204,10 +204,14 @@ https://github.com/QubesOS/qubes-issues/issues/7412
 
 {{IconSet|h1|6}} Done.
 
-{{IconSet|h1|7}} Troubleshooting.
+See also:
 
-If networking is only working in either the user session or sysmaint session, and is not functional in the other session, you may have unintentionally disabled the "<code>All users may connect to this network</code>" setting. To fix this:
+* [https://forum.qubes-os.org/t/qubes-hvm-how-to-auto-detect-the-network-settings-ip-gateway-from-inside-the-vm/27523 Qubes HVM: How to auto detect the network settings (IP, gateway) from inside the VM?]
+* [[Recovery#Qubes|Qubes (VM) Recovery]].
 
+=== HVM - Troubleshooting ===
+==== HMM - Networking Troubleshooting ====
+If networking is only working in either the user session or sysmaint session, and is not functional in the other session, you may have unintentionally disabled the "<code>All users may connect to this network</code>" setting. To fix, see footnote. <ref>
 {{IconSet|h1|1}} Boot into whichever session has working networking.
 
 {{IconSet|h1|2}} Right-click on the Network Manager taskbar icon, then choose "Edit connections..."
@@ -219,13 +223,8 @@ If networking is only working in either the user session or sysmaint session, an
 {{IconSet|h1|5}} Press "Save".
 
 {{IconSet|h1|6}} Done. Networking should now work in the previously broken session.
+</ref>
 
-See also:
-
-* [https://forum.qubes-os.org/t/qubes-hvm-how-to-auto-detect-the-network-settings-ip-gateway-from-inside-the-vm/27523 Qubes HVM: How to auto detect the network settings (IP, gateway) from inside the VM?]
-* [[Recovery#Qubes|Qube (VM) Recovery]].
-
-=== HVM - Troubleshooting ===
 ==== Low RAM, CLI interface ====
 
 If the user will see:
@@ -332,44 +331,65 @@ These steps ensure that all changes made to the Template are properly propagated
 
 = Known Issues =
 
-* Qubes has potential local privilege escalation issue: [https://github.com/QubesOS/qubes-issues/issues/9717 harden insecure permissions inside <code>/dev/xen</code> folder / research security impact of the Qubes <code>/dev/xen</code> folder permissions #9717] -- This issue is [[unspecific|unspecific to {{project_name_short}}]] and is entirely unrelated to {{project_name_short}}. It equally applies to App Qubes that are not using <code>qubes-core-agent-passwordless-root</code> such as Qubes Debian minimal Template.
-* On Qubes OS R4.3, it is possible a deluge of notifications will appear any time a Kicksecure 18 template or AppVM is running. These notifications will say <code>Denied: sdwdate-gui.ConnectCheck</code>. This will result if <code>qubes-core-admin-addon-kicksecure</code> is not installed and set up in dom0. If this occurs:
+{{IconSet|h1|1}} Qubes has potential local privilege escalation issue
+
+* <u>Issue:</u> Qubes has a potential local privilege escalation issue: [https://github.com/QubesOS/qubes-issues/issues/9717 harden insecure permissions inside <code>/dev/xen</code> folder / research security impact of the Qubes <code>/dev/xen</code> folder permissions #9717].
+* <u>Notes:</u> This issue is [[unspecific|unspecific to {{project_name_short}}]] and is entirely unrelated to {{project_name_short}}. It equally applies to App Qubes that are not using <code>qubes-core-agent-passwordless-root</code> such as Qubes Debian minimal Template.
+
+{{IconSet|h1|2}} Qubes OS R4.3: repeated <code>Denied: sdwdate-gui.ConnectCheck</code> notifications
+
+* <u>Issue:</u> On Qubes OS R4.3, it is possible a deluge of notifications will appear any time a Kicksecure 18 template or AppVM is running. These notifications will say <code>Denied: sdwdate-gui.ConnectCheck</code>.
+* <u>Cause:</u> This will result if <code>qubes-core-admin-addon-kicksecure</code> is not installed and set up in dom0.
+* <u>Resolution:</u> If this occurs, follow the steps below.
 
 {{Box|text=
-'''1.''' In dom0, run the following commands (from the R4.3 installation instructions above):
+{{IconSet|h2|1}} In dom0, install <code>qubes-core-admin-addon-kicksecure</code>.
 
 {{CodeSelect|code=
 sudo qubes-dom0-update --action=install qubes-core-admin-addon-kicksecure
 }}
 
+{{IconSet|h2|2}} Restart <code>qubesd</code>.
+
 {{CodeSelect|code=
 sudo systemctl restart qubesd.service
 }}
 
-'''2.''' Launch Qterminal in the <code>kicksecure-18</code> template.
+{{IconSet|h2|3}} Launch Qterminal in the <code>kicksecure-18</code> template
 
-'''3.''' In the terminal, run <code>bash</code>. The default shell (zsh) will not work here.
+{{IconSet|h2|4}} Switch to <code>bash</code>
 
-'''4.''' Once a Bash prompt appears, run:
+* <u>Command:</u> In the terminal, run <code>bash</code>.
+* <u>Note:</u> The default [[shell]] (<code>zsh</code>) will not work here.
+
+{{CodeSelect|code=
+bash
+}}
+
+{{IconSet|h2|5}} Run the post-install scripts
 
 {{CodeSelect|code=
 cd /etc/qubes/post-install.d {{!}}{{!}} exit 1
 for i in *.sh; do source "$i"; done
 }}
 
-'''5.''' Shut down the <code>kicksecure-18</code> template and all AppVMs based on it.
+{{IconSet|h2|6}} Shut down template and AppVMs
 
-'''6.''' In dom0, run:
+* <u>Action:</u> Shut down the <code>kicksecure-18</code> template and all AppVMs based on it.
+
+{{IconSet|h2|7}} In dom0, verify Kicksecure features
 
 {{CodeSelect|code=
 qvm-features kicksecure-18 {{!}} grep '^kicksecure'
 }}
 
-'''7.''' Verify that you see a line that looks like <code>kicksecure 1</code>.
+{{IconSet|h2|8}} Confirm expected output.
 
-'''8.''' Done.
+* <u>Expected:</u> Verify that you see a line that looks like <code>kicksecure 1</code>.
 
-The process of installing and setting up <code>qubes-core-admin-addon-kicksecure</code> is complete.
+{{IconSet|h2|9}} Done.
+
+* <u>Result:</u> The process of installing and setting up <code>qubes-core-admin-addon-kicksecure</code> is complete.
 }}
 
 = Developer Information =
@@ -382,8 +402,6 @@ Information for developers:
 * Please contribute to {{project_name_short}} and Qubes OS by creating and maintaining a <code>kicksecure-{{VersionShort}}</code> Qubes Template.
 
 = Footnotes =
-qubes-core-admin-addon-kicksecure
-
 {{reflist|close=1}}
 {{Footer}}
 [[Category:Documentation]]
