@@ -11,6 +11,13 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
+== review and improve pre and colors ==
+* /usr/libexec/helper-scripts/pre.bsh
+* /usr/libexec/helper-scripts/get_colors.sh
+* please review
+** ignore the awkward file extension which is for some other time to correct (sh vs bsh)
+* please improve in case of any issues
+
 == live-build - deb822 support PR ==
 * Aaron:
 ** review received, changes requested: https://salsa.debian.org/live-team/live-build/-/merge_requests/436#note_711296
@@ -1155,79 +1162,6 @@ Re-enable Hyper-V and related Windows security features. Increases system securi
 ** Windows Smart App Control blocks the installation of Whonix-Starter because it is unsigned and Microsoft's heuristics didn't declare the application safe after looking at it.
 * Patrick: Merged.
 
-== systemcheck broken by privleap /usr/local/etc support ==
-* privleapd now outputs an expected "INFO:" message informing the user that "/usr/local/etc/privleap/conf.d" does not exist. This breaks a systemcheck test.
-* Possible fix; ignore lines that start with "INFO:" in the appropriate systemcheck test?
-** Fixed, but not in systemcheck. Instead, silenced the message about missing config dirs when running in privleapd in check-config mode. Commits pushed to privleap.
-* Patrick: Merged.
-
-== keyboard layout change and disk encryption ==
-* We allow the user to change the keyboard layout. <code>set-system-keymap</code> is even able to change the keyboard layout in the initramfs, where the disk decryption prompt appears.
-* We also allow the user to change the disk encryption passphrase.
-* If a passphrase contains characters that cannot be typed with a particular keyboard layout, and the layout is set to the problematic layout, the user will be locked out of their system and will need to boot from an external drive to recover.
-* Example: user installs with language set to German, includes <code>ß</code> character in the passphrase, then changes keyboard layout to US English
-* Example 2: user usually has their keyboard set to US English, but temporarily changes keyboard layout to Spanish, then changes their encryption passphrase to include a <code>ñ</code> character
-* Try to add safeguards to set-(console|system)-keymap and crypt-pwchange to avoid this scenario
-** Aaron: Done, commits pushed to helper-scripts and live-config-dist. Also created documentation at https://www.kicksecure.com/wiki/Keyboard_Layout#Changing_the_system_or_console_keymap_when_using_Full_Disk_Encryption.
-*** Did not make changes to crypt-pwchange, as I'm not sure what safeguards could be put in place there. There isn't a reliable way to read the current keymap from labwc that I can tell, heuristic methods based on config file parsing may be unreliable and give false alarms or fail to give alarms when needed. Warning the user if they are about to set a passphrase that can't be typed using the current console keymap might be useful, but would also require knowing the physical keyboard the user has (which may be difficult) and would likely require parsing XKB keymap files, which is non-trivial.
-* Patrick: review...
-* please close the if as early as possible:
-<pre>
-  if /usr/bin/luks-path-check /; then
-</pre>
-<pre>
-  if /usr/bin/luks-path-check /; then
-    ## TODO: "true" or log output
-    return 0
-  fi
-</pre>
-* please output what is happening:
-<pre>
-    if ! tty >/dev/null; then
-      ## Can't prompt user for confirmation, bail out
-      return 1
-    fi
-</pre>
-* use <code>&>/dev/null</code>?
-<pre>
-    if ! tty >/dev/null; then
-</pre>
-
-* Aaron: Implemented all requested changes, also added some extra <code>true</code> debug messages in a couple other situations. Commit pushed to helper-scripts.
-* Patrick: Merged.
-
-== fil-c bug report ==
-* explain Debian downstream packaging issues
-* common conventions
-* link to Debian RFP
-* Aaron: Created: https://github.com/pizlonator/fil-c/issues/185
-** Also sent a link to the Debian RFP.
-
-== login wiki page - colors ==
-* document https://www.kicksecure.com/wiki/Login#Colors
-* Aaron: Documented.
-
-== misc AI review #3 ==
-* most seems unnecessary
-* https://github.com/assisted-by-ai/tb-updater/pull/1
-* https://github.com/assisted-by-ai/tb-updater/pull/2
-* https://github.com/assisted-by-ai/tb-updater/pull/3
-* Aaron: Integrated the useful parts of these, commits pushed to tb-updater.
-* Patrick: Merged.
-
-== antivirus forum discussion ==
-* please comment
-* https://forums.whonix.org/t/installation-of-antivirus-scanners-by-default/9755
-* Aaron: Researched, posted a comment.
-
-== genmkfile debdistfile broken ==
-* this went wrong: https://github.com/Kicksecure/security-misc/commit/5e45248eb63ecb4b7f924ff9fcba6b40f5bf1244
-** should have been a simple single line append. instead 2 files got changed a lot.
-* already fixed in git
-* the question is, why results differ widely between us?
-* Aaron: Found issue, use of <code>find</code> without <code>sort</code> in genmkfile led to different results on different machines. Fix pushed to genmkfile.
-* Patrick: Merged.
-
 == immutability wiki review ==
 * please review, improve
 * https://www.kicksecure.com/wiki/Dev/immutable
@@ -1340,6 +1274,79 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== login wiki page - colors ==
+* document [[Systemcheck#Physical_Security_Check_-_Meaning_of_Colors|Physical Security Check - Meaning of Colors]]
+* Aaron: Documented.
+
+== antivirus forum discussion ==
+* please comment
+* https://forums.whonix.org/t/installation-of-antivirus-scanners-by-default/9755
+* Aaron: Researched, posted a comment.
+
+== genmkfile debdistfile broken ==
+* this went wrong: https://github.com/Kicksecure/security-misc/commit/5e45248eb63ecb4b7f924ff9fcba6b40f5bf1244
+** should have been a simple single line append. instead 2 files got changed a lot.
+* already fixed in git
+* the question is, why results differ widely between us?
+* Aaron: Found issue, use of <code>find</code> without <code>sort</code> in genmkfile led to different results on different machines. Fix pushed to genmkfile.
+* Patrick: Merged.
+
+== misc AI review #3 ==
+* most seems unnecessary
+* https://github.com/assisted-by-ai/tb-updater/pull/1
+* https://github.com/assisted-by-ai/tb-updater/pull/2
+* https://github.com/assisted-by-ai/tb-updater/pull/3
+* Aaron: Integrated the useful parts of these, commits pushed to tb-updater.
+* Patrick: Merged.
+
+== keyboard layout change and disk encryption ==
+* We allow the user to change the keyboard layout. <code>set-system-keymap</code> is even able to change the keyboard layout in the initramfs, where the disk decryption prompt appears.
+* We also allow the user to change the disk encryption passphrase.
+* If a passphrase contains characters that cannot be typed with a particular keyboard layout, and the layout is set to the problematic layout, the user will be locked out of their system and will need to boot from an external drive to recover.
+* Example: user installs with language set to German, includes <code>ß</code> character in the passphrase, then changes keyboard layout to US English
+* Example 2: user usually has their keyboard set to US English, but temporarily changes keyboard layout to Spanish, then changes their encryption passphrase to include a <code>ñ</code> character
+* Try to add safeguards to set-(console|system)-keymap and crypt-pwchange to avoid this scenario
+** Aaron: Done, commits pushed to helper-scripts and live-config-dist. Also created documentation at https://www.kicksecure.com/wiki/Keyboard_Layout#Changing_the_system_or_console_keymap_when_using_Full_Disk_Encryption.
+*** Did not make changes to crypt-pwchange, as I'm not sure what safeguards could be put in place there. There isn't a reliable way to read the current keymap from labwc that I can tell, heuristic methods based on config file parsing may be unreliable and give false alarms or fail to give alarms when needed. Warning the user if they are about to set a passphrase that can't be typed using the current console keymap might be useful, but would also require knowing the physical keyboard the user has (which may be difficult) and would likely require parsing XKB keymap files, which is non-trivial.
+* Patrick: review...
+* please close the if as early as possible:
+<pre>
+  if /usr/bin/luks-path-check /; then
+</pre>
+<pre>
+  if /usr/bin/luks-path-check /; then
+    ## TODO: "true" or log output
+    return 0
+  fi
+</pre>
+* please output what is happening:
+<pre>
+    if ! tty >/dev/null; then
+      ## Can't prompt user for confirmation, bail out
+      return 1
+    fi
+</pre>
+* use <code>&>/dev/null</code>?
+<pre>
+    if ! tty >/dev/null; then
+</pre>
+
+* Aaron: Implemented all requested changes, also added some extra <code>true</code> debug messages in a couple other situations. Commit pushed to helper-scripts.
+* Patrick: Merged.
+
+== fil-c bug report ==
+* explain Debian downstream packaging issues
+* common conventions
+* link to Debian RFP
+* Aaron: Created: https://github.com/pizlonator/fil-c/issues/185
+** Also sent a link to the Debian RFP.
+
+== systemcheck broken by privleap /usr/local/etc support ==
+* privleapd now outputs an expected "INFO:" message informing the user that "/usr/local/etc/privleap/conf.d" does not exist. This breaks a systemcheck test.
+* Possible fix; ignore lines that start with "INFO:" in the appropriate systemcheck test?
+** Fixed, but not in systemcheck. Instead, silenced the message about missing config dirs when running in privleapd in check-config mode. Commits pushed to privleap.
+* Patrick: Merged.
+
 == 351-socks-auth-extensions - review ==
 * please search code base for: <code>random_socks_user_name</code>
 * implement, if sensible:
