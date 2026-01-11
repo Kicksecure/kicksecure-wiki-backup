@@ -3,13 +3,13 @@
 Strong Linux User Account Isolation
 }}
 {{#seo:
-|description=Protect Linux User Accounts against Brute Force Attacks, Administrative ("Root") Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
+|description=Protect Linux User Accounts against Brute Force Attacks, Administrative ("Root") Account Locking, Console Lockdown, sudo password sniffing, X Windows System / Wayland Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
 |image=Useraccountisolatiom123123.jpg
 }}
 {{passwords_mininav}}
 [[File:Useraccountisolatiom123123.jpg|200px|thumb]]
 {{intro|
-Protect Linux User Accounts against Brute Force Attacks, Administrative ("Root") Account Locking, Console Lockdown, sudo password sniffing, X Windows System Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
+Protect Linux User Accounts against Brute Force Attacks, Administrative ("Root") Account Locking, Console Lockdown, sudo password sniffing, X Windows System / Wayland Password Sniffing, /proc/pid/sched spy on keystrokes, Linux user account cracking, pam_faillock, pam-tally2, pam-cracklib, /etc/securetty
 }}
 
 = Introduction =
@@ -560,20 +560,23 @@ On Linux distributions other than those based on Kicksecure with [[sysmaint|user
 {{mbox
 | type    = notice
 | image   = [[File:Ambox_notice.png|40px|alt=Info]]
-| text    = {{project_name_short}} 18 and higher use Wayland (specifically the labwc display server) by default.
+| text    =
+
+* <u>No longer applicable:</u> {{project_name_short}} 18 (and higher) use Wayland (specifically the <code>labwc</code> display server) by default.
 }}
 
-Any graphical application running under X Windows System (X11) can see what any account is typing in any other application for any account.
-For example, if account <code>user</code> running X11 would run <code>lxsudo -u limited-account some-application</code> a compromised graphical application could sniff anything that account <code>user</code> is writing. Including but not limited to any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
-
-See the following footnotes for references about security issues with GUI isolation related to X Windows System (X11). <ref>
+* <u>Upstream status:</u> X Windows System (X11) is deprecated upstream by its original developers.
+* <u>Keystroke interception:</u> Any graphical application running under X11 can see what any account is typing in any other application.
+* <u>Example:</u> For example, if account <code>user</code> running X11 would run <code>lxsudo -u limited-account some-application</code>, a compromised graphical application could sniff anything that account <code>user</code> is writing.
+* <u>Password prompts:</u> This includes, but is not limited to, any <code>sudo</code> password prompts. This is also the case for applications running under mandatory access control framework [[AppArmor]].
+* <u>References:</u> See the following footnotes for references about security issues with GUI isolation related to X Windows System (X11). <ref>
 [https://blog.invisiblethings.org/2011/04/23/linux-security-circus-on-gui-isolation.html Quote] Joanna Rutkowska, security researcher, founder and advisor (formerly architecture, security, and development) of Qubes OS:
 
 <blockquote>
 One application can sniff or inject keystrokes to another one, can take snapshots of the screen occupied by windows belonging to another one, etc.
 </blockquote>
 </ref> <ref>
-Note: Rewritten "user" with "account" for clarity.
+Note: Rewrote "user" to "account" for clarity.
 
 https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366
 
@@ -583,7 +586,7 @@ https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-521646366
 Why “I” can do it but account “man” cannot? What makes “me” and account “man” different?
 
 On non-Qubes Debian I am always wondering if I can switch a virtual console using ctrl + alt + F1, why can account “man” not? And how’s that different in Qubes?
-<blockquote>
+</blockquote>
 
 @marmarek wrote:
 
@@ -609,12 +612,8 @@ While [https://forums.whonix.org/t/enforce-kernel-module-software-signature-veri
 Yes, X (or other process with access to input device) can grab it for exclusive access, disabling Alt+Ctrl+F1 or similar combos. This still is independent of what is happening on other terminals. Especially, input devices grabbed in this mode are handled by X server (or other process that grabbed them). As long as X server doesn’t have access to other terminals, it still can’t influence them.
 </blockquote>
 </ref>
-
-Potential solutions:
-
-* [https://forums.whonix.org/t/can-apparmor-prevent-sudo-password-sniffing-through-abuse-of-x-windows-system/8973/8 Can AppArmor prevent sudo password sniffing through abuse of X Windows System?]
-* [https://forums.whonix.org/t/enlightenment-de/8900/10 Can we replace xfce window manager as an easy path to switch to wayland?]
-* In future, [[Sysmaint|sysmaint - System Maintenance User]] / [[Dev/user-sysmaint-split|user-sysmaint-split]] might solve this issue for similar reasons as in above chapter.
+* <u>Mitigation in {{project_name_short}}:</u> Sudo password sniffing was fixed by [[Sysmaint|sysmaint - System Maintenance User]] / [[Dev/user-sysmaint-split|user-sysmaint-split]] during the version 17 development cycle.
+* <u>Further reading:</u> https://forums.whonix.org/t/what-makes-wayland-more-secure/22672
 
 == Wayland application isolation ==
 Wayland is designed to provide good isolation between simultaneously running graphical applications, while still allowing those applications to communicate with each other in controlled ways. In the base Wayland protocol, each window only knows about its own content, and events that are specifically passed to it by the compositor. It does not have any access to the contents, events, or even positions of other windows. This is intended to prevent things such as logging other applications' keystrokes, reading other applications' screen information, etc. This is mostly documented in the [https://wayland.freedesktop.org/docs/html/ch04.html Wayland Documentation].
@@ -622,6 +621,18 @@ Wayland is designed to provide good isolation between simultaneously running gra
 While the base protocol places severe restrictions on what windows know, Wayland compositors in general will allow some additional info to be shared with windows, depending on the particular compositor. For instance, compositors that implement the wlr-layer-shell protocol will allow surfaces to be created that have some knowledge about their position on the screen, while compositors that implement certain image capture protocols will allow applications to access the graphical contents of other windows. Compositors may also allow access to the screen contents or contents of individual windows through PipeWire and the system's xdg-desktop-portal implementation. In general, applications should not assume that other applications will not be able to snoop on their screen contents, even under Wayland.
 
 Keylogging is still a concern with many Wayland compositors, specifically those based upon wlroots such as labwc. See "[https://github.com/labwc/labwc/discussions/2698 Allow restricting layer-shell and emulated input protocol access to whitelisted applications]". These compositors provide emulated input functionality that can be used to forward keystrokes sent to the wrong window, to the window they were originally intended for. If combined with a full-screen transparent window (or a layer-shell surface), this can likely be used to implement a rootless keylogger for Wayland. labwc has some features in place that will eventually allow preventing sandboxed apps (such as Flatpaks) from being able to do this, but these features are not fully developed yet. See "[https://github.com/labwc/labwc/pull/2398 Block privileged protocols for sandboxed clients]". Similar techniques may be usable for implementing a rootless mouse tracker as well. In general, applications should not assume that other applications will not be able to snoop on keystrokes and mouse events sent to them.
+
+TODO:
+
+* https://github.com/labwc/labwc/discussions/2392
+* https://github.com/labwc/labwc/issues/1897
+* https://github.com/labwc/labwc/pull/1817
+* https://github.com/labwc/labwc/discussions/1002
+* https://github.com/labwc/labwc/pull/1004
+* https://github.com/labwc/labwc/pull/3089
+
+Forum discuss:
+https://forums.whonix.org/t/what-makes-wayland-more-secure/22672
 
 == /proc/pid/sched spy on keystrokes ==
 

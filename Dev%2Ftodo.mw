@@ -11,18 +11,32 @@ TODO
 }}
 {{Developers-only}}
 = TODO DEV =
-== tb-updater potential permission issue ==
-* review, fix what update-torbrowser should do if run inside Qubes Template under account user versus sysmaint versus root
-* https://forums.whonix.org/t/rm-errors-when-running-update-torbrowser-on-a-fresh-whonix-workstation-18-template/22659
-* https://forums.whonix.org/t/whonix-workstation-18-update-torbrowser-and-salt-template-management-beware-of-default-user-switch-to-sysmaint/22664
-* add (privleap based) fix permissions fix
-* existing function: tb_fix_permissions
-* potential fix: adduser sysmaint user (requires syntax check)
-** add account user to group sysmaint
-** use add_groups_to_linux_user_account
+== default speaker volume setting ==
+* https://forums.kicksecure.com/t/system-sound-volume-at-100-post-install-18-0-8-7-feedback/1468
+** Aaron: Implemented, commit pushed to desktop-config-dist.
+*** I should add a config file to this before this is merged.
+* Patrick: Merged. Blocked.
+** Aaron: Unblocked, we've decided against adding a configuration file as discussed. However, crashes in sysmaint session with <code>Failed to get sink information: No such entity</code>.
+** Aaron: Reverted for now, awaiting feedback from exfil on the forums. We might not want to implement this at all.
+*** Turns out this is occurring on physical hardware, thus this is still worth fixing.
+*** Implemented, commits pushed to desktop-config-dist and user-sysmaint-split.
+* Patrick:
+** 1) do_once file is creates prior setting the volume. Is this by design? It might make sense if we see a remote chance that this might fail but we want to book to only be blocked once, not twice at least. If so, please comment.
+** 2) use light_sleep? ("read -t 0.1" seems functional, so light sleep should be compatible with fractions indeed)
+** 3) should discard stderr of "pactl get-default-sink" to avoid log spam`?
+** 4) seems hard to debug since it only runs once and we cannot instruct the user to manually run it. The systemd-detect-virt, wait, pactl get-default-sink, pactl set-sink-volume is therefore perhaps best if moved to usability-misc? Also useful to reduce code duplication.
+** 5) user-sysmaint-split:
 
-== qvm-tags migration issue ==
-* https://forums.whonix.org/t/qubes-4-2-4-3-whonix-17-18-denied-sdwdate-gui-connectcheck-from-anon-whonix-to-sys-whonix/22656
+first it checks:
+
+<pre>
+if command -v pactl &>/dev/null; then
+   pactl set-sink-mute @DEFAULT_SINK@ false || true
+fi
+</pre>
+
+but then it is attempting to run pactl anyhow
+** 6) What is the chance that pactl might hang forever? Should we use `timeout` or a (yet to be invented) timeout_wrapper?
 
 == research sandboxing technique pros and cons ==
 * option 1: vm-app-manager
@@ -676,20 +690,33 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 * research if shred is still useful nowadays
 * if not, should be replaced by safe-rm
 
+== port to Debian forky ==
+* compositior
+** review, update [[Dev/Strong_Linux_User_Account_Isolation#Wayland_application_isolation|Wayland application isolation]]
+** are we staying on labwc or move to a more secure Wayland compositior, if any is available?
+** https://forums.kicksecure.com/t/wayland-only-or-noland/1170
+
 = WAITING ON =
+== qvm-tags migration issue ==
+* https://forums.whonix.org/t/qubes-4-2-4-3-whonix-17-18-denied-sdwdate-gui-connectcheck-from-anon-whonix-to-sys-whonix/22656
+* Aaron: Waiting for info, this seems to be already handled, but requires a reboot or qubesd restart to trigger the tagging. This probably can be "fixed" by documenting the behavior, assuming there isn't any deeper issue involved.
+
+== tb-updater potential permission issue ==
+* review, fix what update-torbrowser should do if run inside Qubes Template under account user versus sysmaint versus root
+* https://forums.whonix.org/t/rm-errors-when-running-update-torbrowser-on-a-fresh-whonix-workstation-18-template/22659
+* https://forums.whonix.org/t/whonix-workstation-18-update-torbrowser-and-salt-template-management-beware-of-default-user-switch-to-sysmaint/22664
+* add (privleap based) fix permissions fix
+* existing function: tb_fix_permissions
+* potential fix: adduser sysmaint user (requires syntax check)
+** add account user to group sysmaint
+** use add_groups_to_linux_user_account
+* Aaron: Cannot reproduce, asked for additional information.
+
 == live-build - deb822 support PR ==
 * Aaron:
 ** review received, changes requested: https://salsa.debian.org/live-team/live-build/-/merge_requests/436#note_711296
 ** finish working with upstream to get this merged
 ** Made some changes, still discussing details with upstream.
-
-== default speaker volume setting ==
-* https://forums.kicksecure.com/t/system-sound-volume-at-100-post-install-18-0-8-7-feedback/1468
-** Aaron: Implemented, commit pushed to desktop-config-dist.
-*** I should add a config file to this before this is merged.
-* Patrick: Merged. Blocked.
-** Aaron: Unblocked, we've decided against adding a configuration file as discussed. However, crashes in sysmaint session with <code>Failed to get sink information: No such entity</code>.
-** Aaron: Reverted for now, awaiting feedback from exfil on the forums. We might not want to implement this at all.
 
 == trixie port - calamares - use gpt by default ==
 {{anchor|show=true|calamares - use gpt by default}}
@@ -1085,6 +1112,17 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== battery icon not showing up on physical hardware systems ==
+* https://forums.kicksecure.com/t/no-battery-status-indicator-18-0-8-7-feedback/1491
+** Aaron: Bugfix created, commit pushed to vm-config-dist.
+
+== usbguard.service unable to be disabled easily ==
+* Aaron:
+** https://forums.kicksecure.com/t/problems-with-kicksecure-18-in-qubes-os-usbguard-in-sys-qubes/1489
+** Document the right way to disable USBGuard on the wiki if it isn't already documented
+** <code>usbguard-dbus.service</code> also needs to be disabled. Documented on the wiki.
+*** Follow-up note, <code>usbguard-dbus.service</code> is not running by default in a sysmaint session. Perhaps it should be?
+
 == review and improve pre and colors ==
 * /usr/libexec/helper-scripts/pre.bsh
 * /usr/libexec/helper-scripts/get_colors.sh
