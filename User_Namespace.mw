@@ -1,0 +1,90 @@
+{{Header}}
+{{title|title=
+Unprivileged User Namespace
+}}
+{{#seo:
+|description=Unprivileged user namespaces (userns) enable non-root users to create isolated environments but also pose security risks. Learn the implications and how to disable them in Kicksecure.
+}}
+{{intro|
+Unprivileged user namespaces (<code>userns</code>) are a feature in the Linux kernel that enable non-root users to create isolated environments. While <code>userns</code> can enhance security for certain applications using <code>userns</code>-based sandboxes, <code>userns</code> also increases the kernel's attack surface, posing security risks. This article explores the consequences of disabling unprivileged user namespaces and provides a step-by-step guide for implementing this security measure in Kicksecure.
+}}
+= Introduction =
+[[security-misc]] has an [[Security-misc#Optional_Features|Optional Feature]] to disable unprivileged user namespaces mentioned in [https://github.com/Kicksecure/security-misc security-misc readme].
+
+See also:
+
+* https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+
+= Consequences of Disabling Unprivileged User Namespace =
+Disabling unprivileged user namespaces breaks:
+
+* bubblewrap
+* flatpak
+* AppImages
+* docker?
+* popular browser's ([[Firefox|Firefox]], [[Chrome]], [[Chromium]]) sandboxes
+* This list is non-exhaustive.
+
+= HowTo: Disabling Unprivileged User Namespace =
+{{IconSet|h1|1}} Create a new sysctl configuration file.
+
+{{Open with root rights|filename=
+/etc/sysctl.d/50_user.conf
+}}
+
+{{IconSet|h1|2}} Paste sysctl settings.
+
+{{CodeSelect|code=
+kernel.unprivileged_userns_clone=0
+user.max_user_namespaces=0
+}}
+
+{{IconSet|h1|3}} Save.
+
+{{IconSet|h1|4}} Reboot required. <ref>
+Or apply sysctl.
+</ref>
+
+{{IconSet|h1|5}} Done.
+
+= SUID =
+Using SUID instead is also not a suitable alternative. SUID is also a risk. (Hence, [[SUID Disabler and Permission Hardener]] exists.)
+
+{{quotation
+|quote=This mode is not recommended, and some Flatpak apps and features will not work.
+
+[...]
+
+This is a security trade-off. Disallowing unprivileged use of user namespaces reduces the kernel's attack surface, which mitigates some attacks; but it also disallows some sandboxing techniques, which prevents other attacks from being mitigated. Making <code>bwrap</code> or <code>flatpak-bwrap</code> setuid root also carries some risk: an attacker might be able to exploit vulnerabilities in <code>bwrap</code> to achieve root privilege escalation.
+|context=flatpak wiki, chapter [https://github.com/flatpak/flatpak/wiki/User-namespace-requirements#setuid-bubblewrap Setuid bubblewrap]
+}}
+
+Therefore Kicksecure does not use suid-root bubblewrap.
+
+= Future =
+{{quotation
+|quote=Access to unprivileged user namespaces have become too much of a security threat for Ubuntu. The upstream AppArmor project recently introduced a mechanism 49 to allow the use of unprivileged user namespaces to only those applications that both require the access and are appropriately confined by AppArmor (and to deny access to all other applications)
+|context=[https://discourse.ubuntu.com/t/spec-unprivileged-user-namespace-restrictions-via-apparmor-in-ubuntu-23-10/37626 AppArmor unprivileged user namespace restrictions in Ubuntu 23.10]
+}}
+
+Kernel parameter <code>kernel.apparmor_restrict_unprivileged_userns=0</code> is unfortunately Ubuntu-specific, hence not re-usable by Kicksecure.
+
+Without this security hardening, all locally running applications could use user namespaces (<code>userns</code>) and attempt to exploit them for user-to-root escalation. With this hardening, <code>userns</code> usage is restricted to specific applications such as Chromium that explicitly require it.
+
+However, even with all of this hardening in place, as described in [https://ading.dev/blog/posts/chrome_sandbox_escape.html Chrome sandbox escape], if the browser gets exploited, the browser is allowed to use <code>userns</code> and the system remains vulnerable to <code>userns</code>-based attacks.
+
+Given that browsers are evolving into operating systems where users do almost everything, the effective security gain from these measures is not as significant as it might seem. Nowadays, Java isn't the "write once, run anywhere" framework we all rely on. The browser is.
+
+Therefore, completely disabling user namespaces using <code>user.max_user_namespaces=0</code> is the safer setting.
+
+= Related =
+* [https://gitlab.com/apparmor/apparmor/-/wikis/unprivileged_userns_restriction AppArmor Wiki: Unprivileged User Namespace Restriction]
+
+= Discussions =
+* https://forums.kicksecure.com/t/unprivileged-user-namespaces-kernel-unprivileged-userns-clone-can-not-run-flatpak-apps-appimages-after-kicksecure-update/592/
+* {{Github_link|repo=security-misc|path=/issues/274}}
+
+= Footnotes =
+<references />
+{{Footer}}
+[[Category:Documentation]]

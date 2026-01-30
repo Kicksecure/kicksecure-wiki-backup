@@ -1,0 +1,411 @@
+{{Header}}
+{{Title|title=
+Remount Secure
+}}
+{{#seo:
+|description=Secure Mount Options for better security hardening and /etc/fstab modifications by a Linux distribution
+|image=Mountoptions.jpg
+}}
+{{intro|
+Secure Mount Options for better Security Hardening / /etc/fstab modifications by a Linux distribution
+
+Considering the most maintainable, stable solution. See also [[Dev/maintainability]] and [[Stable Version User Experience]].
+
+See also:
+
+* [[Security-misc#Remount_Secure|Remount Secure]]
+* [[noexec|Enhanced Security via Mount Options and Compiler Restrictions]]
+}}
+[[File:Mountoptions.jpg|thumb]]
+= Environments =
+* servers
+* desktops
+* initrdless
+* initramfs-tools
+* dracut
+* mkosi-initrd
+* perhaps other init systems
+* OpenVZ (not using initrd?)
+* Qubes
+* systemd-nspawn (not using initrd)
+
+= Mount Points =
+* A) API file systems (virtual file systems provided by the kernel or init system)
+* B) real partitions
+* C) directories
+
+= Mount Users =
+* A) Default system file systems
+* B) Additional, user mounted file systems such as external drives or /etc/fstab modifications
+
+= Build Tools =
+There are at least 4 major build tools.
+
+These tools are responsible for creating <code>/etc/fstab</code>. That is why changing <code>/etc/fstab</code> by default in {{project_name_short}} as a Linux distribution is difficult.
+
+* '''VM images:''' {{project_name_short}} VM images are built using derivative-maker which uses grml-debootstrap but might use mkosi in the future.
+* '''ISO installer:''' When installing {{project_name_short}} from [[ISO]] using Calamares, the installer creates <code>/etc/fstab</code>.
+* '''Qubes:''' [[Qubes|{{project_name_short}} for Qubes]] Template is created by Qubes builder.
+** https://github.com/QubesOS/qubes-core-agent-linux/blob/main/filesystem/fstab
+* '''Others:''' [[chroot]] and [[Distribution Morphing]].
+
+= Approaches =
+== initrd based mount options hardening ==
+
+This approach hardens mount options inside the initrd (initramfs). That means it runs very early during boot, before the system switches into the real root file system.
+
+* initramfs-tools: <code>/usr/share/initramfs-tools/init</code>
+* [https://forums.whonix.org/t/replacing-initramfs-tools-with-dracut/4487 dracut: used by Kicksecure by default at time of writing.]
+** There is an implementation in <code>security-misc</code> currently disabled by default.
+*** <code>/usr/lib/dracut/modules.d-disabled</code>
+*** Was functional.
+*** Was said to slow down the boot process.
+*** Maybe the slowness issues could be worked on by debugging the script. Tracing, debug output execution times throughout its run. Perhaps parallelization, i.e. running the mount commands into the background.
+
+Advantages:
+
+* happens at early boot before <code>switch-root</code> into the root file system
+
+Disadvantages:
+
+* initrd specific (initramfs-tools vs dracut vs maybe mkosi-initrd or perhaps other init systems)
+* Does not work with initrdless systems, such as:
+** Custom kernel with all modules already compiled-in.
+** Boot / virtualization methods not involving an initrd such as systemd-nspawn, and perhaps docker, OpenVZ.
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+* shell scripting (in case of the dracut based implementation by security-misc)
+
+== Systemd drop-in mount options for units that already exist ==
+
+This approach does not create new mounts. Instead, it adds extra settings ("drop-ins") to mount units that already exist, so the existing mount is hardened without changing the original unit file.
+
+For example, <code>/etc/systemd/system/home.mount.d/hardening.conf</code>:
+
+<pre>
+[Mount]
+Options=nodev,nosuid
+</pre>
+
+There is a reason we create a configuration file under <code>unit.mount.d</code> and do not do our hardening directly within the unit file <code>unit.mount</code>. There also is a very valid reason we choose to do this under <code>/etc</code> instead of doing everything under <code>/usr/lib</code> and respecting the conventions.
+
+Firstly, we do not create a unit file directly. The goal of having drop-in config files for mount option hardening is to be universal. If we create a mount unit, we would make several assumptions. We do not know if the user really has a dedicated partition for our target unit, and even if they do, we do not know which one it is. We also do not want to assume that it does not exist and bind it directly. Adding this config file under this path provides many benefits. For example, if there is no dedicated partition for <code>/home</code> on disk, our config file <code>/etc/systemd/system/home.mount.d/hardening.conf</code> has literally no effect. It is a unit configuration extension for a unit that does not exist, so it will have no effect. The effect will be there if there is a <code>home.mount</code> unit. Then our hardening takes place.
+
+Advantages:
+* Systemd drop-in files.
+* No further system specific adjustments and/or configurations required.
+* No shell scripting required.
+* Hardening what already exists as a mount unit.
+
+Disadvantages:
+* Can only be used for mount points declared in /etc/fstab.
+* Will not work for API file systems, like /dev/shm, /run, /proc, /sys, etc.
+* minor: systemd dependent
+* minor: drop-in files need to be placed in /etc and cannot be placed in /lib, not too conventional for a package
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+
+See also:
+
+* {{Github_link|repo=security-misc|path=/pull/165}}
+* {{Github_link|repo=security-misc|path=/pull/195#issuecomment-1938716410}}
+
+== Systemd drop-in mount units for units that normally do not exist ==
+
+This approach can create a mount unit even when the system normally would not have one. The idea is to harden a directory by bind-mounting it to itself, so mount options like <code>noexec</code>, <code>nosuid</code>, and <code>nodev</code> can be applied even without a dedicated partition.
+
+This one is a rather tricky one. For example, we might place the following file at <code>/usr/lib/systemd/system/var.mount</code>:
+
+<pre>
+[Unit]
+Description=Bind Mount /var with no dedicated partition
+
+[Mount]
+What=/var
+Where=/var
+Options=defaults,nodev,nosuid,bind
+
+[Install]
+WantedBy=sysinit.target
+</pre>
+
+Now the tricky part is, we want the unit to come into effect when there is actually no partition for <code>/var</code> on disk. Should this be the case, a proper mount unit will be created on startup by the system using the <code>/etc/fstab</code> file. Having this unit under this specific path provides us with this exact functionality. When there is a line in fstab for a partition, a proper mount unit gets created dynamically that overrides our unit under this path, so it effectively becomes non-existent. But if there is no such unit to override us, we take effect and assume that since there is no mount unit to override us, there is no partition on disk for <code>/var</code>, so we can bind it to itself.
+
+Binding partitions to itself is also tricky for other reasons. This is not a real mount. Binding one directory to itself allows us a workaround to make use of the hardened mount options for that said directory. But if we want to bind several paths, that may be nested in a way, the order of binding would then be essential. Having bound <code>/var</code> to itself before binding <code>/var/tmp</code> will result in a double bind situation that allows several points of access to <code>/var/tmp</code>. A process that might have opened this directory before the second bind might retain access under the options normally meant for <code>/var</code>. Not to mention the extra complexity introduced during boot and shutdown with nested bind mounts. So when writing such units, attention must be paid to the order.
+
+Advantages:
+* Systemd drop-in files.
+* No further system specific adjustments and/or configurations required.
+* No shell scripting required.
+
+Disadvantages:
+* Can be used only for directories with no dedicated partitions on disk.
+* Will not work for API file systems, like /dev/shm, /run, /proc, /sys, etc.
+* Whether or not it is conventionally acceptable for a package to directly create mount units is unclear.
+* Nested binds need to be configured properly not to break or cause breakage.
+* There 'may' be a time window to access these directories before the bind mount, untested.
+
+== systemd kernel parameter based mount options hardening ==
+
+This approach passes extra mount instructions to systemd using kernel parameters (usually configured via GRUB). This allows systemd to mount file systems with hardened options from the start, without editing <code>/etc/fstab</code>.
+
+<code>/etc/default/grub.d/40_secure-mount.cfg</code> as suggested in {{Github_link|repo=security-misc|path=/pull/195}} thanks to monsieuremre!
+
+<pre>
+# tmp and api file systems
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX systemd.mount-extra=tmpfs:/tmp:[:tmpfs[:defaults,nodev,nosuid,noexec]]"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX systemd.mount-extra=udev:/dev:[:devtmpfs[:defaults,nosuid,noexec]]"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX systemd.mount-extra=tmpfs:/dev/shm:[:tmpfs[:defaults,nodev,nosuid,noexec]]"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX systemd.mount-extra=tmpfs:/run:[:tmpfs[:defaults,nodev,nosuid,noexec]]"
+</pre>
+
+<pre>
+systemd.mount-extra=tmpfs:/dev/shm[:tmpfs[:defaults,noexec,nosuid,nodev]]
+</pre>
+
+Each field is handled as the corresponding fstab field. This option can be specified multiple times, like the following:
+
+<pre>
+systemd.mount-extra=udev:/dev:devtmpfs:defaults,nosuid,noexec
+systemd.mount-extra=tmpfs:/dev/shm:tmpfs:defaults,nosuid,noexec,nodev
+systemd.mount-extra=tmpfs:/tmp:tmpfs:defaults,nosuid,noexec,nodev
+</pre>
+
+We could also use the system credential fstab.extra to declare a path to our alternative fstab file. Lines in this file would be parsed in addition to the usual fstab.
+
+* {{Github_link|repo=security-misc|path=/pull/165#issuecomment-1817934219}}
+* {{Github_link|repo=security-misc|path=/issues/157#issuecomment-1869080721}}
+* https://www.freedesktop.org/software/systemd/man/latest/systemd-fstab-generator.html
+
+Advantages:
+
+* Can be used for all mount points.
+* No package owns or modifies the fstab file, reducing implementation and maintenance complexity.
+* Ideal and only way to modify the mount options for API file systems without manually remounting them.
+
+Disadvantages:
+
+* Does not work in Qubes unless using in-VM kernel? Wrong. See sysmaint kernel boot option.
+* (acceptable) increase length of already (for other reasons) lengthy kernel command line.
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+
+== Autogenerated alternative /etc/fstab ==
+This approach tells the system to use an alternative <code>/etc/fstab</code> file at boot. The alternative file is generated from the original, but with hardened options.
+
+<pre>
+GRUB_CMDLINE_LINUX_DEFAULT="LIBMOUNT_FSTAB=/etc/something SYSTEMD_SYSROOT_FSTAB=/etc/something SYSTEMD_FSTAB=/etc/something"
+</pre>
+
+{{Github_link|repo=security-misc|path=/pull/165#issuecomment-1827922062}}
+
+Advantages:
+
+* Not touching /etc/fstab.
+* Not using the old fstab directly.
+* We never call mount.
+* We never remount.
+* Systemd handles everything as usual.
+* Everything mounts securely in the first place.
+* We never manually check anything.
+* All we do is generate a custom fstab from the original one, without modifying or owning it.
+* (minor) Short kernel command line expansion.
+* Can be reverted in grub boot menu by editing kernel command line in case it is broken.
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+
+Disadvantages:
+
+* Parsing /etc/fstab. Shell scripting required to create alternative /etc/fstab. awk, sed, str_replace, bash while true read loop? That would be the difficult, fragile, messy part.
+* (Unlikely but untested) If the user edits /etc/fstab and uses mount, it might reset the hardened mount options? (Most probably not)
+* Also be confusing for users why mount options are hardened in the first place because these aren't done in the place where everyone would expect these. That is in /etc/fstab. Maybe could be mitigated by documenting this fact in original /etc/fstab. Which would be modifying the fstab, which is the very thing we try avoiding.
+* configurability: how to disable /tmp noexec? (Parser can be configured to respect simple config files)
+* Might be confusing for the unaware user.
+
+== systemd unit file based mount options hardening ==
+This approach uses a standard systemd service (Type=oneshot) that runs early during boot and remounts file systems with hardened options.
+
+* A "normal" systemd unit file (Type=oneshot) that runs early during the boot process and remounts.
+* {{Github_link|repo=security-misc|path=/blob/master/usr/bin/remount-secure}}
+* {{Github_link|repo=security-misc|path=/blob/master/usr/lib/systemd/system/remount-secure.service}}
+* {{Github_link|repo=security-misc|path=/blob/master/usr/lib/systemd/system/sysinit-post.target}}
+
+Advantages:
+
+* No initrd modifications.
+
+Disadvantages:
+
+* Shell scripting.
+* Happens after initrd.
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+* ...?
+
+== /etc/fstab file based mount options hardening ==
+This approach ships a hardened <code>/etc/fstab</code> by default (for new builds and installers). This is the traditional location where sysadmins expect mount options to be configured.
+
+* Shipping a hardened by default /etc/fstab in new Kicksecure builds.
+* Upgrading existing Kicksecure builds is possible too, can be considered later.
+* {{Github_link|repo=security-misc|path=/blob/master/usr/share/doc/security-misc/fstab-vm}}
+* {{Github_link|repo=security-misc|path=/issues/157}}
+
+Advantages:
+
+* No initrd modifications.
+* No shell scripting.
+* configurability: As expected by sysadmins. /etc/fstab could be used normally. No special user documentation required.
+* Should be the most robust, stable place as this is traditionally the place to configure this.
+
+Disadvantages:
+
+* Tailored for Kicksecure such as for VM builds or installations from [[ISO]] using Calamares installer.
+* Not a generic solution for security-misc.
+* Needs to be contributed separately to Qubes: https://github.com/QubesOS/qubes-issues/issues/5329
+
+Plan:
+
+* If and only if needed: Combine this with [[#systemd kernel parameter based mount options hardening]] for the API file systems.
+
+== remount-secure daemon ==
+
+Implement remount-secure as a daemon that runs before <code>sysinit.target</code> and after <code>local-fs.target</code>. It will do an initial scan of file systems and remount applicable file systems and directories securely, then monitor the system's mounts and remount newly introduced file systems securely as needed. Configuration files will be used to allow adding new bind-mounts to directories that are not real mountpoints, and to allow applying more permissive mount options to certain mountpoints. The system administrator will be able to modify this configuration as desired.
+
+Advantages:
+
+* No initrd modifications.
+* Not touching /etc/fstab.
+* Handles file systems introduced at runtime, not just ones present at bootup.
+* Handles file systems that aren't known about while in the initrd (i.e. those for which mount units exist outside of the initrd).
+* Can be used for all mount points.
+* Allows sysadmin customization.
+
+Disadvantages:
+
+* configurability: Not as expected by sysadmins using /etc/fstab. Needs different way to customize.
+* May be confusing to users who don't expect mount options to be manipulated by remount-secure.
+* Requires remounting, we can't reconfigure <code>mount</code> to use more secure default mount options.
+* Will override settings like <code>-o exec,dev,suid</code> unless those settings are configured in the remount-secure configuration files.
+
+=== remount-secure daemon potential race conditions ===
+* might be a weakness, not a vulnerability
+* might only be circumvented if malware with exec permission is running but without SUID access waiting for a SUID race condition
+* abusing the race condition in most cases will require root
+** but if malware already has root, SUID race condition is no longer required
+** because only root can create SUID binaries that set user id to root
+** only an issue if there's already vulnerable SUID on the mounted device
+* still a lot more secure than without remount-secure daemon
+
+= Issues =
+* {{Github_link|repo=security-misc|path=/issues/198|text=pam-tmpdir-helper breaks certain initramfs-update actions on systems with noexec on the /tmp mount}}
+= Miscellaneous =
+== /run/user/1000 bypass ==
+Quote madaidan:
+
+<blockquote>/run/user/1000 bypasses /run's <code>noexec</code> as it is its own mount point. We might want to look into restricting that too.</blockquote>
+
+== Resources ==
+* {{Github_link|repo=security-misc|path=/pull/68}}
+* {{Github_link|repo=security-misc|path=/pull/69}}
+* [https://phabricator.whonix.org/T941 lock down interpreters / compilers (interpreter lock) (compiler lock)]
+* https://seifried.org/lasg/installation/
+
+= Implementations by Other Operating Systems =
+== CLIP OS ==
+https://github.com/clipos/products_clipos/blob/master/core/configure.d/40_fstab.sh
+
+== RedHat ==
+Note: Extremely outdated and no more valid or relevant, but still is a good point of reference to understand the underlying concept.
+
+Quote https://people.redhat.com/sgrubb/files/hardening-rhel5.pdf
+
+<blockquote>Partitioning
+
+Allow minimal privileges via mount options
+
+* Noexec on everything possible
+* Nodev everywhere except / and chroot partitions
+* Nosetuid everywhere except /
+* Consider making /var/tmp link to /tmp, or maybe mount -bind option
+
+A reasonable /etc/fstab:
+
+<pre>
+LABEL=/               /               ext3    defaults                      1 1
+LABEL=/tmp            /tmp            ext3    defaults,nosuid,noexec,nodev  1 2
+LABEL=/var/log/audit  /var/log/audit  ext3    defaults,nosuid,noexec,nodev  1 2
+LABEL=/home           /home           ext3    defaults,nosuid,nodev         1 2
+LABEL=/var            /var            ext3    defaults,nosuid               1 2
+LABEL=/boot           /boot           ext3    defaults,nosuid,noexec,nodev  1 2
+/tmp                  /var/tmp        ext3    defaults,bind,nosuid,noexec,nodev  1 2
+tmpfs                 /dev/shm        tmpfs   defaults,nosuid,noexec,nodev  0 0
+devpts                /dev/pts        devpts  gid=5,mode=620                0 0
+sysfs                 /sys            sysfs   defaults                      0 0
+proc                  /proc           proc    defaults                      0 0
+LABEL=SWAP-sda6       swap            swap    defaults                      0 0
+</pre>
+</blockquote>
+
+== CentOS ==
+Quote https://wiki.centos.org/HowTos/OS_Protection#Modifying_fstab
+
+<blockquote>Modifying fstab
+
+Once you have your partitions broken out and sized accordingly, you can begin to restrict the various mount points as much as possible. You should add nodev, noexec, and nosuid wherever possible. An example of a decently restricted /etc/fstab file is below:
+
+<pre>
+/dev/VG_OS/lv_root          /        ext3      defaults     1 1
+/dev/VG_OS/lv_tmp           /tmp     ext3      defaults,nosuid,noexec,nodev  1 2
+/dev/VG_OS/lv_vartmp        /var/tmp ext3      defaults,nosuid,noexec,nodev 1 2
+/dev/data_vol/lv_home       /home    ext3      defaults,nosuid,nodev  1 2
+/dev/VG_OS/lv_var           /var     ext3      defaults,nosuid     1 2
+/dev/data_vol/lv_web        /var/www ext3      defaults,nosuid,nodev  1 2
+/dev/sda1                   /boot    ext3      defaults,nosuid,noexec,nodev  1 2
+tmpfs                       /dev/shm tmpfs     defaults 0 0
+devpts                      /dev/pts devpts    gid=5,mode=620 0 0
+sysfs                       /sys     sysfs     defaults    0 0
+proc                        /proc    proc      defaults    0 0
+/dev/_VG_OS/lv_swap         swap     swap      defaults    0 0
+</pre>
+
+Obviously you'll need to modify this example to suit your own system. LVM, volume names, labels etc are all subject to change. Please don't copy this example verbatim and expect it to work for you.
+
+The webserver mount can also be set noexec, however this will impact cgi based applications, as well as server side includes which rely on the execute bit hack. If you're not using cgi applications, I would recommend at least testing noexec and using it if there are no negative side-effects.</blockquote>
+
+== Arch Linux ==
+<blockquote>Mount options
+
+Following the principle of least privilege, file systems should be mounted with the most restrictive mount options possible (without losing functionality).
+
+Relevant mount options are:
+
+* nodev: Do not interpret character or block special devices on the file system.
+* nosuid: Do not allow set-user-identifier or set-group-identifier bits to take effect.
+* noexec: Do not allow direct execution of any binaries on the mounted file system.
+** Setting noexec on /home disallows executable scripts and breaks Wine* and Steam.
+** Some packages (building nvidia-dkms for example) may require exec on /var.
+
+*Wine does not need the exec flag for opening Windows executables. It is only needed when Wine itself is installed in /home.
+
+File systems used for data should always be mounted with nodev, nosuid and noexec.
+
+Potential file system mounts to consider:
+
+* /var
+* /home
+* /dev/shm
+* /tmp
+* /boot
+</blockquote>
+
+= Forum Discussion =
+https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707
+
+= Attribution =
+
+{{sdebian
+|link=https://www.debian.org/doc/manuals/securing-debian-manual/ch04s10.en.html
+|text=Mounting partitions the right way
+}}
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Design]]

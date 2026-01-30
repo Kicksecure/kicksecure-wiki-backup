@@ -1,0 +1,101 @@
+{{Header}}
+{{title|title=
+Immutability and Statelessness
+}}
+{{#seo:
+|description=Explains what "immutable" and "stateless" means in {{project_name_short}}, including how different boot modes affect system and file access.
+}}
+{{live}}
+{{Developers-only}}
+<u>'''This wiki page is a work in progress.'''</u>
+{{intro|
+An "immutable" system is one where core parts of the system cannot be changed while it is running. A "stateless" system is one where the system forgets everything done on it after a reboot. {{project_name_short}} provides features similar to immutable and stateless systems, via <code>grub-live</code>. This page explains what immutability and statelessness means in practice and how you can choose the right mode for your needs.
+}}
+= Introduction =
+The term "immutable" generally means that the running system fundamentally cannot be altered. Immutability does not simply mean that file permissions prevent modification of certain files. An immutable system's filesystem is fundamentally unable to be modified by traditional means (creation, deletion, and modification of files, symlinks, etc.), even by the administrative ("<code>root</code>") account.
+
+In technical terms, this is generally achieved by mount-options and/or and filesystem-based restrictions. By mounting the file system as [[read-only]] or by using a read-only file system such as ISO or SquashFS. Directories that store mutable state (such as <code>/home</code>, but also <code>/root</code>, <code>/var</code>, and possibly other paths) are stored.
+
+The term "stateless" generally means that the system forgets all changes made to it when a reboot occurs. Statelessness and immutability have some overlap, since stateless systems are usually implemented by mounting an ephemeral overlay over the top of an immutable filesystem. Unlike merely immutable systems, stateless systems forget changes made to mutable state directories such as <code>/home</code>.
+
+Statelessness is limited to filesystems only. Other forms of state, such as UEFI variables, firmware updates, etc. may be preserved even if the system is otherwise stateless.
+
+Neither immutability, statelessness nor live mode should not be trusted to prevent privileged malware from making persistent modifications to the system. The root filesystem, mounted read-only at <code>/live/image</code>, can be trivially remounted read-write by software that runs as root unless using [[Verified Boot]].
+
+For further explanation and comparisons with other Linux distributions, see [[Dev/immutable]] and [[Dev/Stateless]].
+
+== Immutability in {{project_name_short}} ==
+{{project_name_short}} is not an immutable distribution, and does not yet provide an immutable boot mode. It does, however, provide a stateless boot mode via <code>grub-live</code>. See below for more info.
+
+In the future, {{project_name_short}} may provide an immutable boot mode as part of implementing [[Verified Boot]].
+
+== Statelessness in {{project_name_short}} ==
+{{project_name_short}} currently provides two primary boot modes, [[Live Mode|live mode]] and [[Persistent Mode|persistent mode]].
+
+== Live Mode ==
+In live mode, all filesystems that are part of the OS installation (including <code>/home</code>, <code>/var</code>) are mounted read-only. 
+
+All writes are redirected to RAM, which is volatile memory.
+
+Writable tmpfs overlays are then applied to these filesystems using OverlayFS, to allow the directories to be written to even though the filesystems themselves cannot be changed.
+
+Applications can freely read from and write to files on the OS, even on the root filesystem, but these changes are immediately wiped upon shutdown.
+
+== Persistent Mode ==
+In persistent mode, filesystems are mounted read/write and can be modified normally.
+
+== Common Boot Mode Features ==
+In both boot modes, system folders such as <code>/usr</code>, <code>/etc</code>, <code>/var</code>, <code>/boot</code>, and <code>/root</code> cannot be modified by the <code>user</code> account because of file permissions. This is not a consequence of live mode or immutability. 
+
+Note that in persistent mode, services that run as root may (and in practice will) make changes to the root filesystem; <code>updatecheck</code> will update apt software lists, <code>systemd-journald</code> will save system logs, etc.
+
+The [[Grub|GRUB]] boot menu allows you to choose whether to enable stateless operation or not. Want everything read-only? Select live mode. Need saved data to persist? Use persistent mode.
+
+If <code>user-sysmaint-split</code> is installed, file permissions and restrictions on the priviledge escalation utilities (such as <code>sudo</code> and <code>pkexec</code>) utilities prevent regular (non-administrative) users (such as account <code>user</code>) from making modifications to most files outside of the <code>/home</code> folder. To make permanent changes to system folders like <code>/usr</code>, <code>/etc</code>, <code>/var</code>, <code>/boot</code>, or <code>/root</code>, boot into persistent mode, sysmaint session. For more details, see [[Sysmaint]].
+
+If the user-sysmaint split does not suit your needs, consider using [[unrestricted_admin_mode|Unrestricted Admin Mode]].
+
+= Simplified Boot Modes Comparison Table =
+
+{| class="wikitable"
+|+ Simplified Boot Modes Comparison Table
+|-
+
+! Feature
+! [[Persistent Mode|PERSISTENT Mode]] (USER Session)
+! [[Live Mode|LIVE Mode]] (USER Session)
+! [[Live Mode|LIVE Mode]] (SYSMAINT Session)
+! [[Persistent Mode|PERSISTENT Mode]] (SYSMAINT Session)
+|-
+
+! What it’s for
+| Everyday use with saved personal files and settings.
+| Temporary use. All changes are forgotten after reboot.
+| Temporary system repair or maintenance.
+| Full access for permanent system changes.
+|-
+
+! Can change system files (like <code>/usr</code>, <code>/etc</code>)
+| {{No}}, prohibited by file permissions
+| {{No}}, prohibited by file permissions and modifications by system services will be lost on reboot
+| {{No}}, modifications will be lost on reboot
+| {{Yes}}, read-write
+|-
+
+! Can save files in <code>/home</code> (personal folder)
+| {{Yes}}, saved after reboot
+| {{No}}, temporary only
+| {{No}}, temporary only
+| {{Yes}}, saved after reboot
+|-
+
+|}
+
+Advanced users, developers can also have a look at the more complex [[Dev/user-sysmaint-split#Boot_Modes_Comparison_Table|Boot Modes Comparison Table]].
+
+= Future =
+New mount options.
+
+{{reflist|close=1}}
+[[Category:Documentation]]
+{{Footer}}

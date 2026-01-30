@@ -1,0 +1,796 @@
+{{Header}}
+{{title|title=
+ToDo for {{project_name_long}} Wiki Devs
+}}
+{{#seo:
+|description=Website Enhancements Planning
+}}
+{{devwiki}}
+{{intro|
+Website Enhancements Planning
+}}
+= TODO: ADMIN - SOON =
+== innovative ==
+
+first Linux distribution
+
+* enable all kernel settings to mitigate CPU security vulnerabilities
+* KSPP recommendations
+
+first and only distribution
+
+* to mitigate targeted malicious updates
+* to implement Securing Debian Manual
+
+first to implement on desktop Linux distribution:
+
+* user-sysmaint-split
+
+== hard features vs soft features ==
+* todo
+
+== Advanced Security Components tagline ==
+* prefer a more textual overview? See comparison with Debian.
+
+= TODO: ADMIN - DELAYED =
+== wiki editor bug - buttons broken ==
+* how to reproduce: edit -> show preview -> press buttons (such as "code" button) -> nothing happens
+
+'''DEV'''
+* Could not be reproduced
+* Dev opened Testpage and other pages. Edit -> show preview -> (do nothing, not even refocus into editing window) -> every custom button works
+
+== Small images super resistant cache problem ==
+
+* Dev noticed that especially with small images it's hard to really clear them on their file wiki page after a new version has been uploaded
+* Even clear cache minimal from the admin panel does not work. Clear cache cookie is active, nocache setting in the browser dev tools network setting. Still the old file is shown in the preview and the "original file" link, not the new file
+* Note: On larger images this issue does not seem to happen so much. The images are mostly updated if browser cache is not active
+* Note: The "query trick" was also tried, like https://www.kicksecure.com/wiki/File:Bootloader-pass.png?ab=c, but did not work
+* Especially on this page [[:File:Bootloader-pass.png]] it is clearly visible that the new version is different from the version in the preview
+* Task for admin: What can we do to either automatically or manually refresh?
+
+== archivebox ==
+https://archivebox.io/#quickstart
+
+== illustrative images creation ==
+Implementation probably needs discussion.
+
+* Hiding your identity is harder than just hiding your IP.
+* You can't be anonymous without being secure.
+* your Whonix with Tor versus your IP without Whonix
+* route randomization
+* Ask yourself - privacy by design / privacy by policy
+* freedom / freedom security / security
+* why security matters
+* why anonymity matters
+
+'''DEV'''
+* It was agreed upon with admin that these tasks need a media / posting strategy first
+* So this task is delayed until admin has such a strategy
+
+== new thank you donation message ==
+1) CORS issues are fixed now? (Patrick attempted to fix these.)
+
+2) explain Patrick how to draft a HTML e-mail with text-only fallback in Thunderbird
+
+3) Possible to have a plaintext fallback if HTML is disabled by the e-mail client?
+
+4) e-mail for
+
+* Kicksecure
+* Whonix
+
+5) bug?
+
+This page is in Quirks Mode. Page layout may be impacted. For Standards Mode use “<!DOCTYPE html>”.
+
+https://developer.mozilla.org/docs/Web/HTML/Quirks_Mode_and_Standards_Mode
+
+Valid HTML better / good idea for best e-mail reader compatibility?
+
+'''DEV'''
+
+# How can I check CORS issues?
+# In thunderbird multipart email can be accomplished by going to "Options > Sending Format" and choose "Both HTML and Plain Text"
+## This Sending Format however only seems to take effect if the mail is truly sent. So saving it as a draft and then "saving as" .eml does work but does not create a multipart email
+## So maybe admin should send the email to his own email address and then save the .eml file
+## However this eml file needs to be modified for each recipient, so there needs to be more work done
+## Maybe another mail software needs to be involved
+# The plaintext fallback is exactly what we want to accomplish with multipart
+# What is meant with task 4?
+# Maybe live discussion is needed
+
+Patrick:
+
+send HTML <code>Content-Type: multipart/alternative; boundary=</code> message
+
+{{CodeSelect|code=
+cat filename.txt {{!}} sendmail -i test@test.com
+}}
+
+== MultiWiki: delete deleted files ==
+
+'''DEV'''
+
+* I suggest upgrading mw-multi-wiki
+* Currently it is the case that files which are deleted are not updated during mw-multi-wiki deploy
+* This means that a dev would have to delete the other files manually and keep track somewhere which files to delete later
+* This is a problem because sometimes files should not be deleted before everything is finished and admin has approved development. And it also cannot be deleted before because then the wiki which is not updated yet would not function anymore
+* So I suggest admin upgrades the mw-multi-wiki script and checks for formerly Category:MultiWiki files that are now deleted and delete them too
+* Or maybe find another solution
+
+Patrick:
+
+* How mw-multi-wiki could detect deleted files from Category:MwDeleteMe?
+** Currently mw-multi-wiki uses MediaWiki API to look at https://www.kicksecure.com/wiki/Category:MultiWiki
+** Once a page is deleted, it vanishes from the Category:MultiWiki page. Therefore mw-multi-wiki "forgets" about its existence.
+* '''A)''' mw-multi-wiki could be stateful and "remember" which pages were ever in mw-multi-wiki but that's ugly because then an idempotent, clean script would be dependent on remembering the state in some state file. The state would be difficult to share among developers.
+* '''B)''' A Category:MwDeleteMe could be invented. Delete all contents from the page and add that Category. Then mw-multi-wiki could remove it first from slave and eventually form the master wiki. Also non-ideal because not an intuitive process as it requires the developer to remember this because it's not a simple as using as using the wiki's internal deletion feature.
+* '''C)''' Deletion log https://www.kicksecure.com/wiki/Special:Log/delete doesn't contain categories.
+** Parsing the deleted revision for Category:MultiWiki might be error prone (if a wiki page was MultiWiki in the past but then it was only a comment).
+
+status:
+
+Patrick asked on the MediaWiki mailing list. https://lists.wikimedia.org/hyperkitty/list/mediawiki-l@lists.wikimedia.org/thread/DIREH7YFVQPYHIJFFUXNBE6PVJ6OSMUX/
+
+new idea: diff the categories in the different wikis
+
+report only
+
+== MultiWiki: Think about PHP files ==
+
+* For the workflow it would be good to not only deploy the js and css files to the "slave" wikis, but also the php-scripts for combined and headscript content
+* Pro: if there are more than 2 wikis (which are not at the moment) then it's way easier to manage
+* Con: At the moment it's not necessary. And we would need to be very careful with who gets the rights
+
+== Stage Server as Master ==
+
+* MultiWiki feature requests:
+** The idea is the separate MultiWiki files into "code" (js, css files) and "content" (content pages)
+** pull code (CSS, JS, widgets) from Kicksecure stage server
+*** How about templates such as [[Template:Header]]?
+**** These need to be in a special category to be recognized as code?
+* stage server feature request:
+** The stage server becomes the master server for code files. That way new scripts can be developed and tested on the stage server without disrupting the normal production use of the public wikis. Once a new feature is ready it can be multiwiki deployed from the stage server (master) to the slave wikis
+* For content pages the Kicksecure wiki might still be the master however
+
+== check this stuff ==
+
+* https://developer.chrome.com/docs/devtools/application/back-forward-cache/
+** This is a browser dev tools functionality
+** Checks if a page stays in cache forwards and backwards
+** Dev has tested this on both wikis on hp, about, download, docs and donate - works fine everywhere
+** Does probably not need to be documented because Lighthouse does this automatically and gives error messages if not working
+** A site note: They explain that cache-control: no-store should be used only for pages that have private information, everything else no-cache
+* https://www.mediawiki.org/wiki/Snippets/Load_an_additional_JavaScript_or_stylesheet_file_on_all_pages
+** This gives another method to load styles and javascript for all pages
+** This is not needed because we already have our own build process and headscript
+* https://marketingpipeline.github.io/CSS-Image-Loader/index.html
+** Here is the main link https://github.com/MarketingPipeline/CSS-Image-Loader
+** This is a topic that Dev research a while ago
+** It's basically a hack. That hack might become an HTMl feature in the future, it would make sense. But for now it's using a common browser W3C-non-conformity (i. e. images may not have after or before pseudo elements).
+** The author himself states <blockquote>Note: this is just a proof of concept. You should still provide a fallback source for your images using an onerror etc. As iOS / Webkit devices do NOT currently support the CSS attribute ::before needed for the fallback error image.</blockquote>
+** Conclusion: Not recommended to use currently.
+* https://medium.com/free-code-camp/using-svg-as-placeholders-more-image-loading-techniques-bed1b810ab2c
+** In this article some best practices for image are discussed
+** We use some of the techniques already (for example for the preloaded hero images
+** Dev did see nothing that we would need to implement right now
+* https://github.com/kizule/mediawiki-extensions-Kicksecure
+** This is just a hello world right now. Not sure what should be accomplished here?
+* https://textoptimizer.com/
+** Seems like an interesting tool
+** Appears to be a "tag cloud from the internet"
+** Dev not sure how useful. Can be good for SEO, but needs a lot of work, because those words cannot be just pasted in
+** The tool also offers an AI assistant, but it's probably risky to "AI-ify" the whole website just for (questionable) SEO improvements
+** Also this tool is free for now which is suspicious. Probably a venture capitalist project with a lot of VC money which will cost a lot in the future
+* https://github.com/vozlt/nginx-module-vts
+** Seems very interesting
+
+== Server forcing browser cache clear methods ==
+
+'''DEV'''
+* As discussed with admin a method for forcing the browser to reload a document by the server is needed - especially for the mobile browsers. They sometimes don't even reload the document, but just the headers and they seem to ignore or misinterpret our cache headers
+* Suggestions: Admin could use
+** <code>cache-control: no-store</code> : This would be a very aggressive anti cache strategy that prevents any caching. It's maybe too aggressive, but mentioned for completeness
+** <code>cache-control: no-cache, must-revalidate</code> : no-cache does not prevent the use of caching, but forces the browser to revalidate with the origin server
+** <code>ETag: [versionId]</code> : The Etag header could be used. This is basically a version number header for the document
+* Opinion
+** We are currently using: <code>cache-control: s-maxage=86400, must-revalidate, max-age=0</code>
+** Dev thinks that we are missing the <code>no-cache</code> value. This should be tried first. All the big platforms seem to have it https://fred-gu.medium.com/fix-the-annoying-web-page-caching-issue-permanently-5d16527d0b5a
+** ETag also seems like an interesting method. The article above does not mention ETag, but it might be there. But browsers could also ignore ETag
+** No-store seems too aggressive and can maybe only be used if the request has the <code>?debug=true</code> query. But on the other hand our developer bypasses are good enough Dev thinks
+* For more information
+** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+** https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
+* different per resource:
+** https://www.kicksecure.com/mw-autogen/mw-combined-skincss.min.css?css-extension=1&hsversion_from_server_replacement_unixtime=1754559025&hsversion_from_server_replacement_unixtime=1754404298&hsversion_from_server_replacement_unixtime=1752481663&hsversion_from_server_replacement_unixtime=1747560625&hsversion_from_server_replacement_unixtime=1746696625&hsversion_from_server_replacement_unixtime=1746506245&hsversion_from_server_replacement_unixtime=1744450225&hsversion_from_server_replacement_unixtime=1744204573&hsversion_from_server_replacement_unixtime=1743067824&hsversion_from_server_replacement_unixtime=1743067824&hsversion_from_server_replacement_unixtime=1742808625&hsversion_from_server_replacement_unixtime=1742808625
+** https://www.kicksecure.com
+* backend server vs frontend server
+* goals: caching users versus debugging developers
+
+== page protection ==
+* Would it be possible / sensible to add "Dev only" pages? Anon-user should in general not be able to edit those pages at all for security reasons.
+** MediaWiki supports that. For example for [[Template:DonatePageContent]] go to:
+*** More -> Protect -> allow only administrators
+* All multi wiki and some more pages like payment should be added to this category
+** All multi wiki: No. Some are simple content pages (such as [[Template:Open_File]]) which are already sufficiently protected by the flagged revisions wiki extension.
+** Some security critical pages may indeed need write protection.
+** Please look through security critical pages and protect them. If it is a massive amount, please instead just share a list of  them privately so this can be done via mediawiki-shell API. Link format does not matter.
+
+<pre>
+https://www.kicksecure.com/wiki/Dev/website
+https://www.kicksecure.com/wiki/Dev/todo
+</pre>
+
+or
+
+<pre>
+Dev/website
+Dev/todo
+</pre>
+
+* Could also consider: add category protect and then one day auto protect these via API.
+
+'''DEV'''
+* Dev suggests adding the following pages, because they are functional. Following the rationale of admin content pages are not to be extra protected (apart from the automatic flagged revisions). Rule of thumbs
+* If a template accepts parameters it's likely to be protected
+* Also templates are to be protected which are content but
+** purely functional or
+** administrative or
+** where it's uper unlikely a normal user could be reasonably assumed to have sensible input for changes.
+* Dev would leave it to admin to decide when to protect these pages. Threat level is not high due to flagged revisions. It's just that these pages are super unlikely to "benefit" from anon intervention. So it makes sense to protect them just to save unnecessary work (meaning: looking through anon page edits which should not be edited anyways)
+<pre>
+Template:Admins
+Template:AdvancedUsersOnly
+Template:Anchor
+Template:Anchor_link
+Template:Apt_key_add
+Template:Archived
+Badtitle
+Template:Box
+Template:Bugs_Issues_Troubleshooting_mininav
+Template:ClearLine
+Template:Cli
+Template:Clickable_button
+Widget:CodeSelect
+Template:CodeSelect
+Template:Collapsible
+MediaWiki:Common.css
+MediaWiki:Common.js
+Template:Community_Support
+Template:Contact_icon_bullet_list
+Template:ContentImage
+Template:Contribute_mininav
+Template:Contributor
+Template:Curl_Secure
+Template:Curl_Secure_Download
+Template:CustomRepo
+Template:Default_Passwords
+Template:Developers-only
+Template:Do_not_continue_on_gpg_verification_errors
+Template:Donate_Legal_Disclaimer
+Donate/Affiliate_Link
+Donate/AUD
+Donate/Bank_Wire
+Donate/Bitcoin
+Donate/Credit_Card
+Donate/Crypto
+Donate/Ethereum
+Donate/EUR
+Donate/GBP
+Donate/Monero
+Donate/PayPal
+Donate/Tax-Deductible
+Donate/USD
+Template:Donation_appeal_download
+Template:Donation_mininav
+Widget:Donation_Panel
+Template:DonorCard
+Widget:Download_Button
+Template:Download_image_and_signature
+Template:DownloadTableUnified
+Template:Draft
+Widget:EagerImage
+Template:ETA
+Widget:Expand_or_Collapse_All
+Template:Expand_or_Collapse_All
+Template:ExtLink
+Widget:ExtLink
+Template:Flatpak_add_repository_short
+Widget:FlyInNotification
+Template:FlyInNotification
+Widget:Footer
+Template:Free
+Widget:Free
+Widget:Freedom
+Template:Get_Signing_Key
+Template:GnuPG_file_names
+Template:GoogleOff
+Template:Gui
+Template:Header
+Widget:Header
+Widget:Headline
+Template:Headline
+Template:Hide_all_banners
+Template:Hsversion
+Widget:HtmlComment
+Template:Icon
+Widget:Icon_Bullet_List
+Template:IconSet
+Template:Intro
+Template:IntroLike
+Template:Javascript-looks-better-with-javascript
+Widget:LeftRightImageText
+Template:LeftRightImageText
+Template:License_name
+Template:Mbox
+Template:Mirror
+MediaWiki:Mobile.js
+Template:Mod
+Template:Name
+Template:Name-address
+Template:Name-city
+Template:Name-company-registration
+Template:Name-country
+Template:Name-email
+Template:Name-short
+Template:Name-zip
+Template:Navi_project_install_options
+Template:Newline
+Widget:Non-freedom
+Template:Non-freedom
+Template:Non-freedom-software
+Template:Nowrap
+Template:Os
+Template:Pay_by_PayPal_Subscription
+Widget:Pay_by_PayPal_Subscription
+Template:Payments
+Template:Policy_mininav
+Template:PreBox
+Premium_Support
+Template:PreventEnhanceHeadlines
+Template:Privacy_Policy_Specific
+Template:Privacypolicy/Left
+Template:Privacypolicy/Right
+Template:Project_age_years
+Template:Project_License
+Template:Qubes_AppArmor
+Template:Quotation
+Template:Random_number
+Template:Release_mininav
+Template:Responsive_Thumbnails
+Template:Selfsupport_mininav
+Template:ShareTooltip
+Template:Signing_key_kvm
+Template:Signing_key_kvm_signify
+Template:Signing_key_main
+Template:Signing_key_main_download_command_line
+Template:Signing_key_main_signify
+MediaWiki:Sitenotice EndOfYear.css
+Template:SitenoticeBanner
+MediaWiki:Spam-whitelist
+Template:Stable
+Template:Stable_project_version_based_on_Debian_testing_codename
+Template:Stub
+</pre>
+
+= TODO DEV =
+
+== IntroLike versus kicksecure_wiki Template Bug ==
+<pre>
+{{IntroLike|Open file <code>/usr/local/etc/torrc.d/50_user.conf</code> in a {{kicksecure_wiki|wikipage=Software#Text_Editor|text=text editor}} of your choice, with administrative rights.}}
+</pre>
+
+{{IntroLike|Open file <code>/usr/local/etc/torrc.d/50_user.conf</code> in a {{kicksecure_wiki|wikipage=Software#Text_Editor|text=text editor}} of your choice, with administrative rights.}}
+
+== <code>div class="margin-top-20"</code> in tab controller triggers derivative.asc download ==
+
+* affects https://www.kicksecure.com/w/index.php?title=ISO, https://www.kicksecure.com/w/index.php?title=Template:DownloadTableUnified
+* broken code:
+
+<pre>
+{{Tab
+|type=controller
+|linkid=link1
+|content=
+{{Tab
+|title= ==== OpenPGP {{{flavor}}} {{{version_type}}} ====
+|image=[[File:GnuPG-Logo.svg|25px]]
+|active=true
+|content=
+<div class="margin-top-20">[[File:Icon-openpgp.png|40px]] {{#widget:Download_Button
+|text=OpenPGP Signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.asc
+}}
+</div>
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main}}
+}} <!-- close tab: OpenPGP -->
+
+{{Tab
+|title= ==== signify {{{flavor}}} {{{version_type}}} ====
+|image=[[File:Signify_Logo.svg|25px]]
+|active=false
+|content=
+
+[[File:Icon-sha512.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums
+}}
+
+<hr>
+
+[[File:Icon-sha512signify.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file signify signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums.sig
+}}
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main_signify}}
+}} <!-- close: tab signify -->
+}} <!-- close: tab controller -->
+</pre>
+
+* renders as:
+
+{{Tab
+|type=controller
+|linkid=link1
+|content=
+{{Tab
+|title= ==== OpenPGP {{{flavor}}} {{{version_type}}} ====
+|image=[[File:GnuPG-Logo.svg|25px]]
+|active=true
+|content=
+<div class="margin-top-20">[[File:Icon-openpgp.png|40px]] {{#widget:Download_Button
+|text=OpenPGP Signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.asc
+}}
+</div>
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main}}
+}} <!-- close tab: OpenPGP -->
+
+{{Tab
+|title= ==== signify {{{flavor}}} {{{version_type}}} ====
+|image=[[File:Signify_Logo.svg|25px]]
+|active=false
+|content=
+
+[[File:Icon-sha512.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums
+}}
+
+<hr>
+
+[[File:Icon-sha512signify.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file signify signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums.sig
+}}
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main_signify}}
+}} <!-- close: tab signify -->
+}} <!-- close: tab controller -->
+
+* bug: OpenPGP tab acts as an external link, clicking the signify tab, then the OpenPGP tab results in a download of <code>derivative.asc</code> rather than switching back to the OpenPGP tab
+* fixed code:
+
+<pre>
+{{Tab
+|type=controller
+|linkid=link1
+|content=
+{{Tab
+|title= ==== OpenPGP {{{flavor}}} {{{version_type}}} ====
+|image=[[File:GnuPG-Logo.svg|25px]]
+|active=true
+|content=
+[[File:Icon-openpgp.png|40px]] {{#widget:Download_Button
+|text=OpenPGP Signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.asc
+}}
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main}}
+}} <!-- close tab: OpenPGP -->
+
+{{Tab
+|title= ==== signify {{{flavor}}} {{{version_type}}} ====
+|image=[[File:Signify_Logo.svg|25px]]
+|active=false
+|content=
+
+[[File:Icon-sha512.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums
+}}
+
+<hr>
+
+[[File:Icon-sha512signify.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file signify signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums.sig
+}}
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main_signify}}
+}} <!-- close: tab signify -->
+}} <!-- close: tab controller -->
+</pre>
+
+* renders as:
+
+{{Tab
+|type=controller
+|linkid=link1
+|content=
+{{Tab
+|title= ==== OpenPGP {{{flavor}}} {{{version_type}}} ====
+|image=[[File:GnuPG-Logo.svg|25px]]
+|active=true
+|content=
+[[File:Icon-openpgp.png|40px]] {{#widget:Download_Button
+|text=OpenPGP Signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.asc
+}}
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main}}
+}} <!-- close tab: OpenPGP -->
+
+{{Tab
+|title= ==== signify {{{flavor}}} {{{version_type}}} ====
+|image=[[File:Signify_Logo.svg|25px]]
+|active=false
+|content=
+
+[[File:Icon-sha512.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums
+}}
+
+<hr>
+
+[[File:Icon-sha512signify.png|40px]] {{#widget:Download_Button
+|text=SHA-512 checksum file signify signature
+|icon=sig
+|url=/download/{{{after_slash}}}/{{{version}}}/{{{project_name}}}-{{{flavor}}}-{{{version}}}.{{{extension}}}.sha512sums.sig
+}}
+
+<hr>
+
+[[File:Icon-key.png|40px]] {{signing_key_main_signify}}
+}} <!-- close: tab signify -->
+}} <!-- close: tab controller -->
+
+* OpenPGP tab no longer acts as link
+* what changed: <code>&lt;div class="margin-top-20"&gt;...&lt;/div&gt;</code> tag was removed
+
+== content improvements ==
+
+=== Comparison_with_Others - Upcoming ===
+* fill out the following table [[Comparison_with_Others#Upcoming|Upcoming]] based on Kickscure Homepage Section "Upcoming Security Enhancements"
+** use similar style as on the rest of the [[Comparison_with_Others]] wiki page
+
+=== Whonix KVM wiki content improvement ===
+* https://www.whonix.org/wiki/KVM
+* similar to VirtualBox wiki page
+
+=== Whonix Windows Installer wiki content improvement ===
+* https://www.whonix.org/wiki/Windows_Quick_Start_Testers_Only_Version
+* similar to VirtualBox wiki page
+
+=== hardware and firmware documentation ===
+{{boot_firmware}}
+
+* how to best organize the topics
+* content review
+* improvement
+* contextualization (avoid lost at hello effect)
+* [[Open_Source_Hardware]] talks a lot about Intel ME but that's not Open Source and maybe should be moved to [[Out-of-band_Management_Technology]], just a short mention instead
+
+= WAITING ON =
+
+== New utility script file ==
+
+'''DEV'''
+* Dev introduces new _utility.php in admin files
+* 2 methods that are already used in other scripts are highly optimized and improved
+* Already used in wikibook-generate. It was pretty much needed for better output and debugging and maintainability of code
+* Could be used in other admin files too - recommended
+* In general: Just FYI
+
+= REVIEW PLEASE =
+
+== SysRq key ==
+* improve [[SysRq]]
+* install Template key or similar (copy from wikipedia)
+* make it similar to https://en.wikipedia.org/wiki/Magic_SysRq_key#Commands
+
+<pre>
+{{key|[[Alt key|Alt]]|[[system request|SysRq]]}}
+</pre>
+
+'''DEV'''
+* Done
+* Template name keypress was chosen, because it's a valid word and has no spaces and it is less generic than "key"
+* Wikipedia template could not be accessed because it has protected status
+* We use our IconSet template as a shortcut under the hood
+* Up to 6 keys are supported (more than you would ever need)
+* Documentation and wikitests, see [[Dev/mediawiki#Keypress_template|Keypress template]]
+* Template IconSet was also slightly improved
+* Page SysRq was upgraded using new template
+
+== whonix homepage link previews ==
+
+* Previously links showed the normal wiki link previews, not anymore
+* Probably to new file structur
+* Could maybe fixed by JS wiki hook
+
+'''DEV'''
+* Done
+* As it turns out due to Mediawiki changes the ext-preview only fires if there is a title added
+* Instead of added a title to the over 200 links Dev added a title via JS (which is reasonable because ext-preview only works if JS is active) and THEN fires ext-preview again to catch the newly titled links
+
+Patrick:
+
+* Please write mediawiki bug report.
+
+'''DEV'''
+* Dev has done extensive research with and without AI
+* It seems that there has been an huge change in the way this extension works.
+* For example in [https://github.com/wikimedia/mediawiki-extensions-Popups/commit/a5d4bec8fdf7aa1397cf1d15db224808dcb85199 this old commit] you can see they us <code><nowiki>.find( 'a[href][title]:not(' + mw.popups.IGNORE_CLASSES.join(', ') + ')' )</nowiki></code>. Now they have some abstract selector stuff, it seems this is in [https://github.com/wikimedia/mediawiki-extensions-Popups/blob/master/src/preview/model.js this file], look for <code><nowiki>function createModel</nowiki></code>
+* For the two reasons (1) It seems that in the past only href+title links were considered and (2) this seems to be the case today - so Dev thinks that maybe this was a bug in a "transitional" version of the extension that on our homepage links worked while not having a title attribute
+* There is no grounds for a bug report because this is clearly and has clearly been a desired behavior of this extension
+
+== Tab Controller versus Images ==
+'''direct use of SVG images functional'''
+<code><nowiki>[[File:Kicksecure-logo-rectangle.svg</nowiki></code> can be used directly. Nice but unexpected since this was previously broken and hence Template:SVG was implemented.
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= === {{project_name_short}} ===
+|image=[[File:Kicksecure-logo-rectangle.svg|50px]]
+|content=
+test
+}}
+}}
+'''SVG Template Broken'''
+Was broken. Now functional.
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= === {{project_name_short}} ===
+|image={{SVG|Kicksecure-logo-rectangle.svg|25px}}
+|content=
+test
+}}
+}}
+
+'''DEV'''
+* All is working as expected
+* Former broken states can not be examined unfortunately
+* The use of the File syntax was hardened in last sprint. BUT the svg image is still rendered as PNG, even without the use of the 25px width. It's always png
+* Therefore we introduced the SVG template which worked last time when Dev developed it and seems to still work as expected
+** HOWEVER the syntax above is not correct as specified in our documentation. Limiting the SVG with the template is done with e. g. <code>|width=25px</code> or <code>|height=25px</code>, NOT using an anonymous param.
+** Dev could implement that however, because the syntax used above makes sense and is intuitive as it's close to the File syntax. Dev would suggest making the second anonymous parameter "width" and keep width and height for specific use
+** In the above example it works in the controller despite the wrong syntax because the controller got a "CSS upgrade" to always limit the icon size to the available space in the controller tab
+
+Patrick:
+
+* please allow anonymous parameter. More similar to wiki File: syntax
+
+'''DEV'''
+* Done
+* See documentation here [[Dev/mediawiki#SVG_template_and_widget|SVG template and widget]]
+
+Patrick:
+
+* also possible to say like <code>100px</code>. that it is how it is commonly used in mediawiki syntax.
+
+'''DEV'''
+* Done
+* The px is now auto-filtered in height, width and 2 (anon)
+* See documentation here [[Dev/mediawiki#SVG_template_and_widget|SVG template and widget]]
+* wikitest was also updated
+
+* Admin found that "image not loading bug" still persists
+
+'''DEV'''
+* Todo Admin?
+* Dev researched that this seems to apply to not-logged-in users only
+* Dev tried to solve the problem
+** changed <code>$wgSpecialPageLockdown['Redirect'] = [ 'user' ];</code> to <code>$wgSpecialPageLockdown['Redirect'] = [ '*' ];</code> in file <code>33-lockdown.php</code>. This changed to wiki feedback from "Login required" to <code><nowiki><accessdenied></nowiki></code>
+** Dev tried <code>$wgNamespacePermissionLockdown[NS_FILE]['read']  = "*";</code> and <code>$wgNamespacePermissionLockdown[NS_MEDIA]['read'] = "*";</code> and also Whitelisting efforts like <code>$wgWhitelistReadRegexp[] = '(?i)^File:.*\.svg$';</code>. But nothing worked to change "accessdenied" for anon users
+** At the end Dev reset everything to the previous state in file <code>33-lockdown.php</code>
+* Maybe admin knows how to make Special:Redirect/file available for anon users. It seems there is a sophisticated userrights system set in place by admin. Normally <code>Special:Redirect/file</code> should be accessible for anon users
+** To test click this direct link. If logged in you will see the image. If anon then you will be asked to login or if you set <code>$wgSpecialPageLockdown['Redirect'] = [ '*' ];</code> then you will get "accessdenied" {{ExtLink|icons=none|https://www.kicksecure.com/wiki/Special:Redirect/file/Kicksecure-logo-rectangle.svg
+}}
+
+'''DEV'''
+* As agreed with admin all cards are now similar in all section
+* '''TODO ADMIN''': Please fill out all "TODO modal text" and fill the content
+
+== GitHub Link Template ==
+* similar to [[Template:Kicksecure_link]] and [[Template:Kicksecure_wiki]] it would be good to have a [[Template:github_link]]
+* example use case: [https://github.com/{{project_name_short}}/ram-wipe wipe RAM at shutdown software solution]
+* unspecific to Kicksecure
+
+'''DEV'''
+* Done
+* Please read documentation [[Dev/mediawiki#Github_link_Template|Github_link Template]] and check out the tests [[Dev/wikitest#Github_link_Template|Github_link Template]]
+* Especially check if the quality of life ideas of Dev are satisfactory
+* '''NOTE''': This template is based on [[Template:ExtLink]]. This is set to <code>|icons=none</code> because no archive option seemed plausible for Dev
+
+Patrick:
+
+* please add a small github icon
+* please port Kicksecure, Whonix to use this new template
+
+'''DEV'''
+* Done
+* The ExtLink template was updated to auto-detect github links and create a github icon (for consistency)
+* In GitHub link the icons=none was removed
+* Both documentations were updated
+* new wikitests for ExtLink were added
+* New path feature was added to GitHub link
+* Replacement were tried below, but then aborted (in agreement with admin) due to too much complexity
+
+{| class="wikitable"
+|-
+! use case id !! use case !! regexp description !! regexp !! replacement !! pages affected / changes ca
+|-
+| 1 || <code><nowiki>https://github.com/[kK]icksecure/repoName/.*</nowiki></code> || ignore href and wikilink, identify repoName and path || (?<!href=")(?<![>\|\[\/])https:\/\/github\.com\/[kK]icksecure\/([^\/\?#]+)(\/[^\s"\]\[<>]*)?(?=(?:\s|["\]\[<>]|$)) || <code><nowiki>{{Github_link|repo=$1|path=$2}}</nowiki></code> || 40+ / 100+
+|-
+| 1b || <code><nowiki>[https://github.com/[kK]icksecure/repoName/.* linktext]</nowiki></code> || ignore href and wikilink, identify repoName and path and linktext || \[\s*https:\/\/github\.com\/[[kK]icksecure\/([^\/\s\?#]+)(\/[^\s\]]*)\s+([^\]]+)\] || <code><nowiki>{{Github_link|repo=$1|path=$2|text=$3}}</nowiki></code> || partially completed
+|-
+| 2 || <code><nowiki>https://github.com/{{project_name_short}}/repo-name/.*</nowiki></code> || same as 1 || (?<!href=")(?<![\|\[\/])https:\/\/github\.com\/\{\{project_name_short\}\}\/([^\/\?#]+)(\/[^\s"\]\[<>\(\)]*)?(?=(?:\s|["\]\[<>\(\)]|$)) || same as 1 || 55 / 100+
+|-
+| 2b || <code><nowiki>[https://github.com/{{project_name_short}}/repo-name/.* linktext]</nowiki></code> || same as 1b || \[\s*https:\/\/github\.com\/\{\{project_name_short\}\}\/([^\/\s\?#]+)(\/[^\s\]]*)\s+([^\]]+)\] || <code><nowiki>{{Github_link|repo=$1|path=$2|text=$3}}</nowiki></code> ||  47 / 200+
+|-
+| || Everything below aborted ↓ || || || ||
+|-
+| 3 || <code><nowiki>https://github.com/other-user/other-repo-name/.*</nowiki></code> || ignore href and wikilink, identify user and repoName and path || <code><nowiki>|gituser=user|repo=repoName|path=/.*</nowiki></code> || ||
+|-
+| 3b || <code><nowiki>[https://github.com/other-user/other-repo-name/.* linktext]</nowiki></code> || ignore href and wikilink, identify repoName and path and linktext || if no linktext then same as case 3. if linktext then <code><nowiki>|gituser=user|repo=repoName|path=/.*|text=linktext</nowiki></code> || ||
+|-
+| 4 || <code><nowiki>https://github.com/{{project_name_short}}/?q=apparmor&type=all&language=&sort=</nowiki></code> || - || Manual correction (not many cases) || ||
+|-
+| 5 || <code><nowiki>href="https://github.com</nowiki></code> || - || Ignore, cannot be corrected because no wiki syntax || ||
+|-
+| 6 || all other links are checked manually || || || ||
+|}
+
+Notes
+* This link here does not seem to work, also before the replacement: [[BackupScript#Automated_Backup_Script|Automated Backup Script]] . Maybe use "Whonix", because there's a Whonix file in the folder
+
+= Footnotes =
+{{reflist|close=1}}
+[[Category:Development]]
+{{Footer}}

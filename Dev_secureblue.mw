@@ -1,0 +1,386 @@
+{{Header}}
+{{title|title=
+Comparison of secureblue with Kicksecure and Development Notes
+}}
+{{#seo:
+|description=Comparison of some of secureblue and Kicksecure security enhancements, hardening techniques, and unique development features. Explore detailed differences, overlapping features, and future improvement notes for both security-focused operating systems.
+}}
+{{intro|
+secureblue and Kicksecure are both hardened operating systems prioritizing security. This wiki page provides a side-by-side comparison of some of their security features, development decisions, and the rationale behind various implementations. Explore how each system addresses security challenges. This guide serves as a resource for developers, security enthusiasts, and users seeking insight into cutting-edge OS security practices.
+}}
+
+<u>Quick, preliminary analysis version 0.1</u>, only based on a quote from [https://github.com/secureblue/secureblue secureblue GitHub repository] <code>README.md</code> as of November, 2024, commit hash [https://github.com/secureblue/secureblue/blob/e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83/docs/README.md e40b70df06a30c3a2d99f337f3cbfe3d5a54aa83] and related linked files, plus a comment on [[#Unprivileged User Namespaces]] as of secureblue release 4.3.0.
+
+<u>Quick update:</u> January 2026: Updated to reflect Kicksecure 18.
+
+= Lineage =
+
+Based on Fedora, which comes with its own issues. See: {{whonix_wiki
+|wikipage=Dev/Operating_System#Fedora
+|text=Whonix wiki, Dev/Operating System, chapter Fedora
+}}
+
+= Hardening =
+
+<blockquote>
+Hardening
+</blockquote>
+
+<blockquote>
+* Installing and enabling [https://github.com/GrapheneOS/hardened_malloc hardened_malloc] globally, including for Flatpaks. <ref>[https://github.com/rusty-snake/fedora-extras Thanks to rusty-snake's spec]</ref>
+</blockquote>
+
+Kicksecure is no longer using hardened_malloc for reasons elaborated in chapter [[Hardened_Malloc#Deprecation_in_Kicksecure|Hardened Malloc, Deprecation in Kicksecure]].
+
+<blockquote>
+* Installing [https://github.com/secureblue/Trivalent Trivalent], which is inspired by [https://github.com/GrapheneOS/Vanadium Vanadium]. <ref>[https://grapheneos.org/usage#web-browsing Why chromium?]</ref> <ref>[https://forum.vivaldi.net/post/669805 Why not flatpak chromium?]</ref>
+</blockquote>
+
+Unavailable in Kicksecure at time of writing. See [[Dev/Default Browser|Kicksecure Default Browser - Development Considerations]] for general considerations and chapter [[Dev/Default_Browser#Trivalent|Trivalent]] specifically.
+
+<blockquote>
+* Setting numerous hardened sysctl values <ref>[https://github.com/secureblue/secureblue/blob/live/files/system/etc/sysctl.d/hardening.conf details]</ref>
+</blockquote>
+
+secureblue <code>/etc/sysctl.d/hardening.conf</code> file as of commit [https://github.com/secureblue/secureblue/blob/cb11fbcaaed34c92d0993fb1f4395824f28d3742/config/files/usr/etc/sysctl.d/hardening.conf#L43 cb11fbcaaed34c92d0993fb1f4395824f28d3742] was inspired by, more or less copied and pasted from Kicksecure as can be seen from the following comment found in that file.
+
+<pre>
+## Prevent kernel info leaks in console during boot.
+## https://phabricator.whonix.org/T950
+kernel.printk = 3 3 3 3
+</pre>
+
+Past attribution as of [https://github.com/secureblue/secureblue/blob/c824e7e37b8a09d827458a8dac12df0b96e42f37/POSTINSTALL-README.md#create-a-separate-wheel-account-for-admin-purposes <code>POSTINSTALL-README.md</code> git commit </code>c824e7e37b8a09d827458a8dac12df0b96e42f37</code>] was.
+
+<blockquote>
+- Setting numerous hardened sysctl values (Inspired by but not the same as Kicksecure's)
+</blockquote>
+
+Attribution was removed in git commit [https://github.com/secureblue/secureblue/commit/9e11ed2f8e33f2280046808b70317ecf5f5336e6 9e11ed2f8e33f2280046808b70317ecf5f5336e6].
+
+Therefore, Kicksecure has mostly the same settings. These can be found in package [https://github.com/Kicksecure/security-misc security-misc], specifically in folder [https://github.com/Kicksecure/security-misc/tree/master/usr/lib/sysctl.d <code>/usr/lib/sysctl.d</code>].
+
+If there are any differences, these can be discovered during ticket [https://github.com/Kicksecure/security-misc/issues/283 review secureblue sysctl].
+
+Kicksecure might have more complete sysctl settings as per:
+
+{{quotation
+|quote=This section is inspired by the Kernel Self Protection Project (KSPP). It attempts to implement all recommended Linux kernel settings by the KSPP and many more sources.
+
+https://kspp.github.io/Recommended_Settings<br />
+https://github.com/KSPP/kspp.github.io
+|context=security-misc readme
+}}
+
+<blockquote>
+* Remove SUID-root from [https://github.com/secureblue/secureblue/blob/live/files/scripts/removesuid.sh numerous binaries] and replace functionality [https://github.com/secureblue/secureblue/blob/live/files/system/usr/bin/setcapsforunsuidbinaries using capabilities]
+</blockquote>
+
+Kicksecure has [[SUID Disabler and Permission Hardener]]. See also chapter [[#capabilities|capabilities]].
+
+<blockquote>
+* Disable Xwayland by default (for GNOME, Plasma, and Sway images)
+</blockquote>
+
+Not possible with LXQt sadly yet at the time of writing. lxqt-panel breaks. <ref>
+[https://forums.kicksecure.com/t/wayland-only-or-noland/1170/7 forum post]
+</ref>
+
+Kicksecure 18 and higher use Wayland via the labwc display server. The current desktop environment is LXQt.
+
+At this point, Kicksecure (and Whonix) runs primarily inside VMs. GNOME and KDE are unsuitable for Kicksecure.
+
+* GNOME due to security and privacy concerns elaborated on [[Dev/GNOME]].
+* In the past [https://forums.whonix.org/t/user-poll-xfce-vs-kde-kde-deprecation-considered/6235 KDE was Whonix's default desktop environment but then ported to Xfce due to performance issues]. See also [[Dev/KDE]].
+* Xfce was not suitable for general use under Wayland in Debian Trixie. It was missing essential desktop features. LXQt was the only desktop environment researched that was suitable for Kicksecure and mature enough to use with Wayland in Debian Trixie.<ref>[https://forums.kicksecure.com/t/wayland-only-or-noland/1170/5 forum post]</ref>
+
+<blockquote>
+* Mitigation of [https://github.com/Aishou/wayland-keylogger LD_PRELOAD attacks] via <code>ujust toggle-bash-environment-lockdown</code>
+</blockquote>
+
+TODO Kicksecure: research
+
+<blockquote>
+* Disabling coredumps
+</blockquote>
+
+Implemented in security-misc.
+
+<blockquote>
+* Disabling all ports and services for firewalld
+</blockquote>
+
+No open ports for Kicksecure by default.
+
+<blockquote>
+* Adds per-network MAC randomization
+</blockquote>
+
+The effectiveness of this approach is unclear. Leak-proof MAC Randomization has technical implementation challenges. For references, see [[Dev/MAC]] wiki page.
+
+TODO Kicksecure:
+
+* {{Github_link|repo=security-misc|path=/issues/184|text=MAC randomization breaks root server and VirtualBox DHCP / IPv6PrivacyExtensions might be problematic #184
+}}
+* See also [[MAC Address]].
+
+<blockquote>
+* Blacklisting numerous unused kernel modules to reduce attack surface <ref>[https://github.com/secureblue/secureblue/blob/live/files/system/etc/modprobe.d/blacklist.conf details]</ref>
+</blockquote>
+
+secureblue [https://github.com/secureblue/secureblue/commits/live/files/system/etc/modprobe.d/blacklist.conf <code>/etc/modprobe.d/blacklist.conf</code>] as of git commit [https://github.com/secureblue/secureblue/blob/c8eff2ca0bc9f7f2db9e1e172dc70942e6983912/files/system/etc/modprobe.d/blacklist.conf c8eff2ca0bc9f7f2db9e1e172dc70942e6983912]
+
+looks similar, might be inspired/forked from Kicksecure [https://github.com/Kicksecure/security-misc/tree/master/etc/modprobe.d <code>/etc/modprobe.d</code>] files but probably adjusted for secureblue. <ref>
+For example, if secureblue does not provide an ISO with squashfs, then secureblue can disable the module.
+
+<pre>
+install squashfs /bin/false
+</pre>
+</ref>
+
+<blockquote>
+* Enabling only the [https://flathub.org/apps/collection/verified/1 flathub-verified] remote by default
+</blockquote>
+
+Quote [[Install_Software#Kicksecure_Flathub_Repository_Default_Settings|Kicksecure Flathub Repository Default Settings]]:
+
+"Kicksecure mitigates the issues described in chapter [[#Flathub_Package_Sources_Security|Flathub Package Sources Security]] related to unverified applications and non-freedom software by using Flatpak's subset option with the <code>verified_floss</code> parameter, which means that only Flatpaks can be installed that are both <code>verified</code> apps and <code>floss</code> (Freedom Software)."
+
+<blockquote>
+* Sets numerous hardening kernel arguments (Inspired by [https://madaidans-insecurities.github.io/guides/linux-hardening.html Madaidan's Hardening Guide]) <ref>[https://github.com/secureblue/secureblue/blob/live/KARGS.md details]</ref>
+</blockquote>
+
+Kicksecure has the same because Madaidan contributed to Kicksecure. Also see KSPP as mentioned above.
+
+<blockquote>
+* Require wheel user authentication via polkit for <code>rpm-ostree install</code> <ref>[https://github.com/rohanssrao/silverblue-privesc why?]</ref>
+</blockquote>
+
+This feature was inspired by Kicksecure as per quote.
+
+{{quotation
+|quote=Creating a dedicated wheel user and removing wheel from your primary user helps prevent certain attack vectors, like:
+
+* https://www.kicksecure.com/wiki/Dev/Strong_Linux_User_Account_Isolation#LD_PRELOAD
+* https://www.kicksecure.com/wiki/Root#Prevent_Malware_from_Sniffing_the_Root_Password
+|context=[https://github.com/secureblue/secureblue/blob/c824e7e37b8a09d827458a8dac12df0b96e42f37/POSTINSTALL-README.md#create-a-separate-wheel-account-for-admin-purposes secureblue <code>POSTINSTALL-README.md</code> as of git commit <code>c824e7e37b8a09d827458a8dac12df0b96e42f37</code>]
+}}
+
+Implemented differently in Kicksecure. User documentation: [[root]]; [[sysmaint]]. Developer documentation: [[Dev/user-sysmaint-split|user-sysmaint-split]]; [[Dev/Strong_Linux_User_Account_Isolation|Strong Linux User Account Isolation]]
+
+<blockquote>
+* Brute force protection by locking user accounts for 24 hours after 50 failed login attempts, hardened password encryption and password quality suggestions
+</blockquote>
+
+{{quotation
+|quote=User accounts are locked after 50 failed login attempts using <code>pam_faillock</code>.
+
+https://kspp.github.io/Recommended_Settings<br />
+https://github.com/KSPP/kspp.github.io
+|context=security-misc readme
+}}
+
+* Developer documentation: [[Dev/Strong_Linux_User_Account_Isolation#Bruteforcing_Linux_User_Account_Passwords_Protection|Bruteforcing Linux User Account Passwords Protection]]
+* User documentation: [[Default Passwords]] and [[Passwords]]
+
+<blockquote>
+* Installing usbguard and providing <code>ujust</code> commands to automatically configure it
+</blockquote>
+
+[[USBGuard]] is installed by default in Kicksecure.
+
+<blockquote>
+* Installing bubblejail for additional sandboxing tooling
+</blockquote>
+
+bubblewrap is installed by default in Kicksecure. Installing sandboxing tools by default however does not increase security, unless the user is using it. TODO Kicksecure: [[sandbox-app-launcher]] / [[vm-app-manager]]
+
+<blockquote>
+* Set opportunistic DNSSEC and DNSOverTLS for systemd-resolved
+</blockquote>
+
+Kicksecure does not use <code>systemd-resolved</code> by default due to <code>systemd-resolved</code> security issues, see [[Dev/systemd-resolved]].
+
+DNS security requires further development work. TODO Kicksecure: [[DNS Security]] / [https://forums.whonix.org/t/use-dnscrypt-by-default-in-kicksecure-not-whonix/8117/1 Use DNSCrypt by default in Kicksecure?]
+
+<blockquote>
+* Configure chronyd to use Network Time Security (NTS) <ref>[https://github.com/GrapheneOS/infrastructure/blob/main/chrony.conf using chrony config from GrapheneOS]</ref>
+</blockquote>
+
+Kicksecure uses [[sdwdate]].
+
+<blockquote>
+* Disable KDE GHNS by default <ref>[https://blog.davidedmundson.co.uk/blog/kde-store-content why?]</ref>
+</blockquote>
+
+Probably useful for secureblue but not essential for Kicksecure since it does not use KDE by default.
+
+user documentation: [[Other Desktop Environments]]
+
+<blockquote>
+* Disable install & usage of GNOME user extensions by default
+</blockquote>
+
+Probably useful for secureblue but not essential for Kicksecure since it does not use GNOME by default.
+
+user documentation: [[Other Desktop Environments]]
+
+<blockquote>
+* Use HTTPS for all RPM mirrors
+</blockquote>
+
+Kicksecure uses <code>tor+https</code> for APT as configured in [https://github.com/Kicksecure/anon-apt-sources-list anon-apt-sources-list] and documented on the [[About]] wiki page.
+
+<blockquote>
+* Set all default container policies to <code>reject</code>, <code>signedBy</code>, or <code>sigstoreSigned</code>
+</blockquote>
+
+Not applicable to Kicksecure since it is not a container focused operating system at time of writing. Probably useful for secureblue if using [https://github.com/containers/image containers' images].
+
+<blockquote>
+* Disable a variety of services by default (including cups, geoclue, passim, and others)
+</blockquote>
+
+Kicksecure does not install these by default and comes with [https://github.com/Kicksecure/security-misc?tab=readme-ov-file#application-specific-hardening Application-specific hardening].
+
+<blockquote>
+* Removal of the unmaintained and suid-root fuse2 by default
+</blockquote>
+
+Kicksecure has [[SUID Disabler and Permission Hardener]].
+
+= capabilities =
+<blockquote>
+* Remove SUID-root from [https://github.com/secureblue/secureblue/blob/live/files/scripts/removesuid.sh numerous binaries] and replace functionality [https://github.com/secureblue/secureblue/blob/live/files/system/usr/bin/setcapsforunsuidbinaries using capabilities]
+</blockquote>
+
+Kicksecure has [[SUID Disabler and Permission Hardener]]. As for capabilities, these can be useful but adding capabilities can also increase attack surface.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_dac_read_search,cap_audit_write=ep" "/usr/bin/chage"
+</pre>
+</blockquote>
+
+Kicksecure prefers not re-adding capabilities for <code>chage</code>.
+
+{{quotation
+|quote=
+These tools probably are used much nowadays on Linux desktop single user computers. If you need any of this, you are better off using root.
+
+* <code>chage</code> [https://manpages.debian.org/chage man] (change user password expiry information)
+|context=[[SUID_Disabler_and_Permission_Hardener#SUID_SGID_Hardening_Issues|Kicksecure, SUID Disabler and Permission Hardener, SUID SGID Hardening Issues]]
+}}
+
+No user has reported yet that they need the ability to use <code>chage</code>. For the benefit of security hardening, <code>chage</code> remains non-functional in Kicksecure (lower attack surface) for non-root user.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_chown,cap_dac_override,cap_fowner,cap_audit_write=ep" "/usr/bin/chfn"
+</pre>
+</blockquote>
+
+Same as above.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_dac_read_search,cap_audit_write=ep" "/usr/sbin/unix_chkpwd"
+</pre>
+</blockquote>
+
+Same as above.
+
+<code>cap_dac_read_search</code> is dangerous.
+
+{{quotation
+|quote=CAP_DAC_READ_SEARCH
+
+* Bypass file read permission checks and directory read and execute permission checks;
+|context=https://man7.org/linux/man-pages/man7/capabilities.7.html
+}}
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_dac_read_search=ep" "/usr/libexec/openssh/ssh-keysign"
+</pre>
+</blockquote>
+
+TODO: Kicksecure: While <code>cap_dac_read_search</code> is still dangerous, it's better than SUID.
+
+<blockquote>
+<pre>
+set_caps_if_present "cap_sys_admin=ep" "/usr/bin/fusermount3"
+</pre>
+</blockquote>
+
+* Kicksecure whitelists <code>fusermount</code> SUID, which is dangerous. (Optional user opt-in: [[SUID_Disabler_and_Permission_Hardener#Disable_All_SUID_Binaries|Disable All SUID Binaries]]) When using [[Dev/user-sysmaint-split]], <code>fusermount</code> is only accessible during [[sysmaint]] session by account <code>sysmaint</code>.
+* secureblue sets <code>cap_sys_admin</code> for <code>fusermount</code>, which is dangerous. [https://lwn.net/Articles/486306/ CAP_SYS_ADMIN: the new root]
+* Most other Linux desktop distributions: Neither SUID nor capabilities hardening.
+
+= Unprivileged User Namespaces =
+<blockquote>
+Disabling unprivileged user namespaces by default for the unconfined domain and the container domain
+</blockquote>
+
+* [https://github.com/secureblue/secureblue/releases/tag/v4.3.0 SecureBlue v4.3.0 Release Notes]
+
+This is probably useful.
+
+{{quotation
+|quote=Without this security hardening, all locally running applications could use user namespaces (<code>userns</code>) and attempt to exploit them for user-to-root escalation. With this hardening, <code>userns</code> usage is restricted to specific applications such as Chromium that explicitly require it.
+|context=[[User_Namespace|Kicksecure Unprivileged User Namespace wiki page]]
+}}
+
+Quote [https://github.com/secureblue/secureblue/blob/live/docs/USERNS.md SecureBlue documentation on SELinux-based USERNS restrictions]
+
+<blockquote>
+Since user namespaces are now restricted via selinux, we no longer need separate <code>userns</code> images.
+</blockquote>
+
+Separate <code>userns</code> enabled versus <code>userns</code> disabled images or setting would still be useful.
+
+{{quotation
+|quote=However, even with all of this hardening in place, as described in [https://ading.dev/blog/posts/chrome_sandbox_escape.html Chrome sandbox escape], if the browser gets exploited, the browser is allowed to use <code>userns</code> and the system remains vulnerable to <code>userns</code>-based attacks.
+
+Given that browsers are evolving into operating systems where users do almost everything, the effective security gain from these measures is not as significant as it might seem. Nowadays, Java isn't the "write once, run anywhere" framework we all rely on. The browser is.
+
+Therefore, completely disabling user namespaces using <code>user.max_user_namespaces=0</code> is the safer setting.
+|context=[[User_Namespace|Kicksecure Unprivileged User Namespace wiki page]]
+}}
+
+= sudoless =
+The term "sudoless" can be confusing. See also [[Root#sudoless|definition of "sudoless"]].
+
+{{quotation
+|quote=v4.2.0 - secureblue goes sudoless!
+
+In a continuing effort to minimize and eventually eliminate suid-root binaries, <code>sudo</code>, <code>su</code>, and <code>pkexec</code> have all been removed from the images. As noted at the end of this section of the postinstall readme, polkit prompts and manual polkit invokations via <code>run0</code> can be used to accomplish the same functionality without suid-root, notably even for non-wheel users (by prompting for the wheel user's password). In addition, suid-root has been removed from numerous other binaries that don't require it.
+|context=secureblue release announcement: [https://github.com/secureblue/secureblue/releases/tag/v4.2.0 v4.2.0 - secureblue goes sudoless!]
+}}
+
+Kicksecure does not use [https://www.freedesktop.org/software/systemd/man/256/run0.html <code>run0</code>] at time of writing due to security concerns, quote:
+
+{{quotation
+|quote=It’s larger than doas. Way larger. run0 (really systemd-run) is 2642 lines long (including newlines and whatnot), and is heavily tied into the systemd codebase, which is about 1.3 million lines of C code. It’s unclear how much of that could be used to exploit run0, but some of it quite possibly can. doas on the other hand is relatively isolated (the only library it uses beyond the C standard library is PAM), and is only 1,850 lines long. Ergo, less attack surface.
+|context=Kicksecure developer, Aaron Rainbolt, [https://forums.whonix.org/t/replace-sudo-with-doas/17482/28 forum post]
+}}
+
+Instead, Kicksecure has [[Dev/user-sysmaint-split|user-sysmaint-split (Role-Based Boot Modes for Enhanced Security)]], where privilege escalation tools such as <code>sudo</code>, <code>su</code>, and <code>pkexec</code> are non-executable by account <code>user</code>. These can only be used during the [[sysmaint]] session by account <code>sysmaint</code>.
+
+= See Also =
+* [https://www.kicksecure.com/#security Kicksecure Security Features]
+* [[Comparison with Others]]
+* [[About]]
+
+= Discussions =
+For reference only.
+
+* https://github.com/secureblue/secureblue/issues/67
+* https://github.com/secureblue/secureblue/pull/90
+* https://github.com/secureblue/secureblue/issues/173
+* https://github.com/secureblue/secureblue/issues/814 (security-misc licensing discuss (keyword: legal))
+
+= Footnotes =
+<references />
+{{Footer}}
+[[Category:Development]]

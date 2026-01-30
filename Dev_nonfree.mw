@@ -1,0 +1,322 @@
+{{Header}}
+{{title|title=
+Non-Freedom Firmware and Drivers
+}}
+{{#seo:
+|description=This page discusses the security arguments for and against shipping non-freedom firmware blobs and drivers.
+}}
+{{freedom_software_mininav}}
+{{intro|
+This page discusses the security arguments for and against shipping non-freedom firmware blobs and drivers.
+}}
+= Defaults =
+{| class="wikitable"
+! Logo
+! Architecture Family
+! Sub-architectures
+! Downloadable Images: <br/>non-freedom firmware installed by default / <br/>no package <code>firmware-nonfreedom</code> installed by default
+|-
+
+| [[File:Intel-amd-combi-logo.svg|50px|link=Intel_AMD64]]
+| [[Intel_AMD64|Intel / AMD64]]
+| <code>amd64</code>
+| {{No}}
+|-
+
+| [[File:Arm64-logo.svg|50px|link=ARM64]]
+| [[ARM64|ARM]]
+| <code>armel</code>, <code>armhf</code>, <code>arm64</code>
+| {{Yes}}
+|-
+
+| [[File:raspberry-pi-logo.svg|50px|link=Raspberry_Pi]]
+| [[Raspberry_Pi|Raspberry Pi (RPi)]]
+| <code>armhf</code>
+| {{Yes}}
+|-
+
+| [[File:Ppc64-logo.svg|50px|link=PPC64]]
+| [[PPC64|Power]]
+| <code>ppc64el</code>
+| {{Yes}}
+|-
+
+| [[File:Riscv64-logo.svg|50px|link=RISCV64]]
+| [[RISCV64|RISCV]]
+| <code>riscv64</code>
+| {{Yes}}
+|-
+
+| [[File:Apple-with-intel-logo.jpg|50px|link=macOS#Intel-based_MacBook]]
+| [[macOS#Intel-based_MacBook|Intel-based Mac]]
+| <code>amd64</code>
+| TODO
+|-
+
+| [[File:Apple-mx-logo.jpg|50px|link=MacOS#Apple_Silicon]]
+| [[MacOS#Apple_Silicon|Apple Silicon Mac]]
+| <code>arm64</code>
+| TODO
+|-
+
+| [[File:Logo-apple-500x500.png|50px|link=macOS]]
+| [[macOS|Apple Mac (Generic)]]
+| <code>amd64</code>, <code>arm64</code>
+| TODO
+|-
+
+| 
+| IBM System/390
+| <code>s390x</code>
+| {{Yes}}
+|-
+
+| 
+| MIPS
+| <code>mipsel</code>, <code>mips64el</code>
+| {{Yes}}
+|-
+
+| 
+| 
+| <code>i386</code>
+| [[Unsupported]].
+|-
+
+|}
+
+* Builds from source code: derivative-maker [https://github.com/Kicksecure/derivative-maker/blob/master/build-steps.d/2800_create-lb-iso build-steps.d/2800_create-lb-iso] works on an opt-in basis. Starting from version <code>18.0.7.7</code>, when attempting to build an ISO, choosing between <code>--freedom true</code> (no non-freedom firmware, install Freedom Software only) and <code>--freedom false</code> (install non-freedom firmware by default) is mandatory.
+* Downloadable images: If the architecture supports <code>firmware-nonfreedom</code>, it will be installed by default. At the time of writing, only on the Intel/AMD64 architecture <code>firmware-nonfreedom</code> is installed by default, which is useful due to [[Firmware_Security_and_Updates#Processor_Microcode_Updates|Processor Microcode Updates]].
+* Generally: amd-microcode / intel-microcode isn't available, isn't installable as package for architecture arm64, risc, etc. and isn't needed either.
+
+= Nonfree Firmware =
+== Security Argument ==
+On the Tails issue tracker there is an [https://gitlab.tails.boum.org/tails/tails/-/issues/5393 interesting discussion about shipping nonfree firmware blobs]. Most convincing arguments start in [https://gitlab.tails.boum.org/tails/tails/-/issues/5393#note_117229 comment 11]:
+
+It talks about https://packages.debian.org/{{Stable project version based on Debian codename}}/firmware-linux-nonfree
+
+Bold / italic added.
+
+<blockquote>
+There is no evidence that anything in the Linux kernel is spyware. The firmware blobs are loaded into devices which need them to function. The alternative is for them to be present in the device from the beginning, as I explain later.
+
+<blockquote>
+Here, for example, almost a year ago, all you summarily refused to discuss this issue:<br />
+https://web.archive.org/web/20210416183217/https://mailman.boum.org/pipermail/tails-support/2016-March/000345.html
+</blockquote>
+</blockquote>
+
+<blockquote>
+In that thread, you linked to a paper on DMA malware. Note that the blobs in question are typically firmware for PCI devices, usually NICs. DMA malware works by abusing the bus master bit and becoming bus master, allowing DMA requests. Most modern UEFI/BIOS come with ACPI tables built in, which contains one table, the DMAR table, which can be used by the IOMMU to restrict the addresses a device with bus master is allowed to access. If you boot with `intel_iommu=on` or `amd_iommu=force` , and your DMAR table is valid, then DMA malware, if it is loaded after the IOMMU enforces its restrictions, is effectively crippled. Tails unfortunately does not enable the IOMMU by default, as it breaks a lot of hardware with broken DMAR tables (BIOS vendors suck, don't they?), but it's trivial to enable it yourself.
+</blockquote>
+
+<blockquote>
+'''Being free software, and being endorsed by the Free Software Foundation are different things.''' By many definitions, something can still be FOSS even if it distributes blobs which run on NICs for example, as long as those blobs do not run on the CPU alongside the kernel. '''In the case that they run as firmware, they are effectively no different than an updatable ROM.''' ''If you select an FSF-endorsed distro, you are still running the same type of blob.'' '''The only difference is that it is bunt into your hardware, not in the kernel.''' '''If there is a backdoor, as you worry about, it will not be neutered just because it is distributed through a ROM rather than loaded by the kernel.''' If anything, loading through the kernel is safer, because people are more willing to reverse engineer it or audit it (yes, closed source blobs ''can'' be reverse engineered and audited), whereas something burnt into a ROM will likely never be touched.
+</blockquote>
+
+<blockquote>
+That is primarily due to philosophical reasons, and possibly misunderstandings. '''I can completely understand the philosophical ideology''' behind "Fine, let the hardware manufacturers distribute the blobs, but I don't want ''my'' distro to take part in it at all!", '''but you'd be deluding yourself to say that it improves your security.''' The only way to improve your security (or at least the openness of the whole software ecosystem) is to get the firmware/ROM source to be open, not simply be content with it being burnt into your hardware.
+</blockquote>
+
+<blockquote>
+But in the end, if you're really worried about covert backdoors on this level, why are you singling out what really amounts to just NIC firmware, most of which boils down to just a few brands? There's so much more which puts people at risk if an adversary with these capabilities is after them. After all, the Linux kernel is huge, takes patches from many people, and is poorly audited. Adding a mistake (bugdoor) would not be hard. I don't mean something obvious like `if (uid = 0)` from the old `wait4()` backdoor attempt either. There's also the fact that, no matter how open your software is, you're running on entirely closed hardware. Who cares about the Intel Manageability Engine or the Embedded Controller Firmware when the entirety of the immensely complex processor is closed.
+</blockquote>
+
+<blockquote>
+Now start porting Tails to seL4 or INTEGRITY-178B, and run it entirely on OpenSPARC, and then you can be happy. :P
+</blockquote>
+
+<blockquote>
+But seriously though, if you're this passionate about this, learn how to use `r2` and get to reverse engineering those blobs.
+</blockquote>
+
+<blockquote>
+'''Not distributing firmware in the kernel does ''not'' affect the risk of "spyware" whatsoever. If there is going to be a backdoor, it can also exist burnt into the ROM.''' ''Not having firmware blobs in the kernel does not mean they do not still exist. It just means they are distributed in a different way.'' Do you think that a Realtek NIC that does not need uploaded firmware, but does use a burnt in ROM, cannot have a backdoor in its built in firmware, but a Broadcom NIC that requires firmware and does not use burnt in ROM can?
+</blockquote>
+
+<blockquote>
+'''Furthermore, all the blobs in the kernel are only loaded for the people who are using the specific hardware which requires it.''' ''If you are not using the tg3 driver, you will not be loading the tg3 firmware.'' So if someone uses tg3, they will not be able to use a "libre" Tails. If someone uses r8192, they won't be using firmware blobs for their NIC regardless of whether they use a "libre" Tails or current Tails. '''Simply put, people who do not use blob-requiring hardware will not be using blobs, regardless.''' '''People who do need blobs will either be using ''nothing''''' , or an NIC that loads blobs. Those people are screwed anyway, whereas people who are using NICs which don't need blobs don't have to worry.
+</blockquote>
+
+== Other Projects ==
+=== Debian ===
+Debian official image nowadays includes non-freedom firmware.
+
+{{quotation
+|quote=The Debian official media may include firmware that is otherwise not part of the Debian system to enable use of Debian with hardware that requires such firmware.
+|context=https://www.debian.org/vote/2022/vote_003#texte
+}}
+
+{{quotation
+|quote=The winners
+
+Option 5 "Change SC for non-free firmware in installer, one installer"
+|context=https://www.debian.org/vote/2022/vote_003#outcome
+}}
+
+Note: SC stands for the Debian Social Contract.
+
+Sources:
+
+* https://lwn.net/Articles/910065/
+* https://www.tomshardware.com/news/debian-includes-proprietary-code
+* https://cdimage.debian.org/images/unofficial/non-free/images-including-firmware/
+
+=== Tails - The Amnesic Incognito Live System - Position ===
+Tails developer intrigeri [https://web.archive.org/web/20210416180924/https://mailman.boum.org/pipermail/tails-support/2016-March/000347.html wrote]:
+
+<blockquote>
+We have actual users. If they can't use Tails on their current, real-world hardware, then likely they'll use something else, that has just the same amount of binary firmware blobs, except it won't have any of Tails properties that some people find worthwhile.
+</blockquote>
+
+=== Qubes ===
+* https://www.qubes-os.org/faq/#is-qubes-os-free-and-open-source-software
+* https://www.qubes-os.org/faq/#will-qubes-seek-to-get-certified-under-the-gnu-free-system-distribution-guidelines-gnu-fsdg
+* https://forum.qubes-os.org/t/qubes-debian-templates-have-non-free-contrib-apt-by-default/13035/103
+
+== Argument of Negative Adaption ==
+I believe that negative publicity can still generate attention and attract new users. In fact, bad news is often better than no news at all. This is particularly true for {{project_name_long}}, which is still far from reaching its maximum popularity and user base.
+
+It is worth noting that Ubuntu has faced bad publicity due to its nonfree practices in the past, such as [https://www.networkworld.com/article/2226367/making-sense-of-the-ubuntu-licensing-fiasco.html requiring Linux Mint to sign a license contract with Canonical] and [https://www.eff.org/deeplinks/2012/10/privacy-ubuntu-1210-amazon-ads-and-data-leaks introducing the Amazon search lens and data leaks]. Despite this, Ubuntu remains the most popular Linux distribution.
+
+Similarly, Tails, another popular privacy-oriented operating system, includes firmware-linux-nonfree by default, but this decision did not significantly decrease its user base. The criticism was limited to a small number of users who expressed their concerns on the Tails issue tracker and mailing list several years ago.
+
+== Overview of Arguments ==
+
+The stance against non-freedom blobs can be argued from multiple perspectives.
+
+* '''A)''' <u>The security argument:</u> which was refuted above.
+* '''B)''' <u>The philosophical argument:</u> a stance against ever including any kind of non-freedom software. This is based on striving to be the best possible Freedom Software vendor.
+* '''C)''' <u>Argument of negative adaption:</u> the claim that the number of users would decrease due to fallout from being associated with non-freedom software, resulting in bad reputation, word of mouth, and negative media coverage.
+
+== Comparison Table ==
+{| class="wikitable"
+|+ ''Comparison Table - <code>(non)[[Open Source Hardware|Freedom Hardware Design]]</code> vs <code>(non)Freedom Firmware</code> installed''
+
+|-
+
+| '''Thing'''
+| '''<code>[[Avoid nonfreedom software|nonfreedom]] hardware design</code> with <code>nonfreedom firmware</code> installed'''
+| '''<code>nonfreedom hardware design</code> <u>without</u> <code>nonfreedom firmware</code> installed'''
+| '''<code>Freedom Hardware Design</code> with <code>nonfreedom firmware</code> installed'''
+| '''<code>Freedom Hardware Design</code> <u>without</u> <code>nonfreedom firmware</code> installed'''
+|-
+
+| built-in provided <code>nonfreedom firmware</code> blobs not active in kernel (security argument)
+| {{Yes}}
+| {{No}}
+| {{Yes}} <ref name=none-built-in>By definition, there are no built-in <code>nonfreedom firmware</code> blobs to begin with due to the absence of <code>nonfreedom hardware design</code>.</ref>
+| {{Yes}} <ref name=none-built-in />
+|-
+
+| <code>nonfreedom firmware</code> package-provided <code>nonfreedom firmware</code> blobs not active in kernel (security argument)
+| {{No}}
+| {{Yes}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+| no <code>nonfreedom software</code> active (security argument)
+| {{No}}
+| {{No}}
+| {{Yes}}
+| {{Yes}}
+|-
+
+| boot medium entirely clean from <code>nonfreedom software</code> (philosophical argument)
+| {{No}}
+| {{Yes}}
+| {{No}}
+| {{Yes}}
+|-
+
+| system entirely clean from <code>nonfreedom software</code> (philosophical argument)
+| {{No}}
+| {{No}}
+| {{No}}
+| {{Yes}}
+|-
+
+|}
+
+== {{project_name_short}} Lead Developer Position ==
+
+Some people argue that it's better to ship something broken, insecure, or unusable for most users than to compromise on Freedom Software principles. While I believe in the importance of Free Software, I don't think it's practical to adhere to these principles to the point of sacrificing usability and functionality.
+
+That said, I'm not a non-freedom software minimalist like RMS, nor am I a Freedom Software maximalist like RMS. I believe in finding a practical balance between the two.
+
+Therefore, when considering practicality vs. Freedom Software principles, I've decided that <code>firmware-linux-nonfree</code> will be installed by default on {{project_name_short}} Host. This decision ensures that our users have a better out-of-the-box experience and that we can support a wider range of hardware.
+
+However, it is understood that some users may prefer a completely Free Software system. That's why {{project_name_short}}'s build script supports command-line parameters <code>--freedom true</code> to skip the installation of any non-freedom software, making it easy to create custom builds or forks that adhere to Freedom Software principles.
+
+== Overview of Packages ==
+These will not be all shipped in {{project_name_long}}. This is only a notepad for developers to decide which packages to ship and which ones not.
+
+* [https://packages.debian.org/stable/atmel-firmware atmel-firmware] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-ath9k-htc firmware-ath9k-htc] - freedom (Debian main; free firmware)
+* [https://packages.debian.org/stable/firmware-atheros firmware-atheros] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-brcm80211 firmware-brcm80211] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-ipw2x00 firmware-ipw2x00] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-iwlwifi firmware-iwlwifi] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-libertas firmware-libertas] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-realtek firmware-realtek] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-ti-connectivity firmware-ti-connectivity] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-zd1211 firmware-zd1211] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-mediatek firmware-mediatek] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-linux-free firmware-linux-free] - freedom (free software)
+* [https://packages.debian.org/stable/firmware-misc-nonfree firmware-misc-nonfree] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-intel-misc firmware-intel-misc] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/amd64-microcode amd64-microcode] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-nonfreedom-network firmware-nonfreedom-network] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-amd-graphics firmware-amd-graphics] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-intel-sound firmware-intel-sound] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-linux firmware-linux] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-linux-nonfree firmware-linux-nonfree] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-nvidia-graphics firmware-nvidia-graphics] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-intel-graphics firmware-intel-graphics] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/intel-microcode intel-microcode] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-adi firmware-adi] - nonfreedom (debian nonfree repo) - deprecated transitional package
+* [https://packages.debian.org/stable/firmware-intelwimax firmware-intelwimax] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-myricom firmware-myricom] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-netronome firmware-netronome] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-ivtv firmware-ivtv] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-netxen firmware-netxen] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-qcom-media firmware-qcom-media] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-qlogic firmware-qlogic] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-b43-installer firmware-b43-installer] - contrib (Debian contrib; downloads Broadcom's non-free b43 firmware during installation by package maintainer script) (not same drivers as firmware-b43legacy-installer)
+* [https://packages.debian.org/stable/firmware-ralink firmware-ralink] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-b43legacy-installer firmware-b43legacy-installer] - contrib (Debian contrib; downloads Broadcom's non-free b43legacy firmware during installation by package maintainer script) (not same drivers as firmware-b43-installer) <ref>
+https://salsa.debian.org/debian/b43-fwcutter/blob/master/debian/firmware-b43-installer.postinst
+</ref>
+* [https://packages.debian.org/stable/firmware-bnx2 firmware-bnx2] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-samsung firmware-samsung] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-bnx2x firmware-bnx2x] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-microbit-micropython firmware-microbit-micropython] - freedom (Debian main) (small board computer (SBC))
+* [https://packages.debian.org/stable/firmware-siano firmware-siano] - nonfreedom (debian nonfree repo)
+* [https://packages.debian.org/stable/firmware-cavium firmware-cavium] - nonfreedom (debian nonfree repo)
+
+= Nonfree Drivers =
+Closed source drivers pose privacy and security risks and are therefore unacceptable. With the wide selection of PC hardware that supports the FLOSS-only mainline kernel, we can make this decision with pragmatism in mind.
+
+Nvidia's closed drivers have been confirmed to contain telemetry baked into them.<ref>https://forums.developer.nvidia.com/t/is-there-telemetry-in-nvidias-proprietary-linux-drivers/46414 "So NVIDIA customer care has informed me that all latest drivers from them, including Linux drivers contain telemetry."</ref> The open Nouveau stack is an alternative for those running Nvidia GPUs. Nouveau is included in mainline Linux.
+
+Proprietary drivers require the continued support of the vendor for compatibility with the latest Linux versions. Withdrawal of support at the end of product life cycles, or because it is not financially desirable for the companies involved, means users will be stuck running ancient kernels in perpetuity to maintain hardware functionality at the expense of security updates. Many Google Android OEMs are a sad example of this epidemic. Also, the closed driver module cannot be patched for security problems, nor can the fixes be legally redistributed even if available.
+
+= Forum Discussion =
+https://forums.whonix.org/t/whonix-host-nonfree-blobs-firmware-linux-nonfree/7251
+
+= See Also =
+* [[Reasons for Freedom Software|Why {{project_name_short}} is Freedom Software]]
+* [[Avoid_nonfreedom_software|Avoid non-freedom software]]
+* [[Policy_On_Nonfreedom_Software|{{project_name_short}} Policy On Non-Freedom Software]]
+* Context: [https://forums.whonix.org/t/whonix-host-operating-system/3931 {{project_name_short}} Host Operating System Development]
+* Purpose of forum thread [https://forums.whonix.org/t/whonix-host-nonfree-blobs-firmware-linux-nonfree/7251 Whonix host - nonfree blobs - firmware-linux-nonfree]: keeping the discussion of nonfree vs free out of above thread.
+* Non-Purpose of this: non-freedom software in {{project_name_short}} VMs (there is none but if you think there is [https://forums.whonix.org/t/adding-non-freedom-contrib-non-free-apt-repositories-by-default-is-it-safe/3300 another thread]
+* Related: [https://forums.whonix.org/t/whonix-and-free-system-distribution-guidelines-gnu-fsdg/5877 {{project_name_short}} and Free System Distribution Guidelines (GNU FSDG)] and [[Policy_On_Nonfreedom_Software|{{project_name_short}} Policy On Non-Freedom Software]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Design]]

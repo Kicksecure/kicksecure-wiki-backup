@@ -1,0 +1,570 @@
+{{Header}}
+<!--
+Copyright:
+
+   {{project_name_long}} Advanced Security Guide wiki page Copyright (C) Amnesia <amnesia at boum dot org>
+   {{project_name_short}} Advanced Security Guide wiki page Copyright (C) 2012 - 2017 Patrick Schleizer <adrelanos@whonix.org>
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to:
+
+    Free Software Foundation, Inc.
+    51 Franklin St, Fifth Floor
+    Boston, MA 02110-1301, USA.
+
+On Debian GNU/Linux systems, the complete text of the GNU General Public
+License can be found in the /usr/share/common-licenses' directory.
+
+The complete text of the GNU General Public License can also be found online on gnu.org <https://www.gnu.org/licenses/gpl.html>, in {{project_name_short}} virtual machine images in /usr/share/common-licenses/GPL-3 file or on Github <{{Github_link|repo=derivative-maker|path=/blob/master/GPLv3}}>.
+-->
+<!--
+Wiki pages found in the Advanced Security Guide contain material from the Tails Protection against cold boot attacks page; see: <https://git.immerda.ch/?p=amnesia.git;a=blob;f=wiki/src/doc/advanced_topics/cold_boot_attacks.mdwn;hb=d249db72228b498407d85fb762b49ec155871ded>.
+-->
+{{Title|title=
+Protection against Physical Attacks
+}}
+{{#seo:
+|description=BIOS Password, Problematic Interfaces, Screen Lock, Virtual Consoles, Login Screen, Side Channel Attacks
+|image=Protectionagainst234234234.jpg
+}}
+{{physical-mininav}}
+{{passwords_mininav}}
+[[File:Protectionagainst234234234.jpg|thumb]]
+{{intro|
+BIOS Password, Problematic Interfaces, Screen Lock, Virtual Consoles, Login Screen, Side Channel Attacks
+}}
+= Introduction =
+
+Physical attacks require adversaries to have direct access to a user's computer and cannot be conducted remotely. This section should be read in conjunction with the [[Full_Disk_Encryption|Full Disk Encryption]] and [[Encrypted_Images|Encrypted Images]] chapters.
+
+= BIOS Password =
+The Basic Input/Output System (BIOS) is non-volatile firmware which performs hardware initialization during the computer's  booting process after it is powered on. It also provides runtime services for operating systems and progams. BIOS in modern PCs initialize and test system hardware components, as well as loading a boot loader or operating system from a mass memory device. The Unified Extensible Firmware Interface (UEFI) is the successor to BIOS that was released in 2011. <ref>
+https://en.wikipedia.org/wiki/BIOS
+</ref>
+
+Most hardware-level settings are stored in BIOS, including power options, boot options and memory information. The BIOS menu allows the user to set and change a boot password for the computer upon startup. An administrator password can also be set to prevent others from changing BIOS settings.
+
+* '''A)''' '''BIOS power-on password'''; <u>and/or</u>
+* '''B)''' '''BIOS administrator password'''
+
+To set a BIOS boot password: <ref>
+https://web.archive.org/web/20220803213740/https://www.techwalla.com/articles/how-to-change-the-administrator-password-in-bios
+</ref> <ref>
+https://web.archive.org/web/20210430031204/https://www.intowindows.com/how-to-set-bios-or-uefi-password-in-windows-10/
+</ref>
+
+* Turn on / restart the computer.
+* Press the relevant key to access the BIOS menu. It is usually one of: <code>Del</code>, <code>Esc</code>, <code>F2</code>, <code>F10</code>, or <code>F12</code>.
+* Navigate to the Security or Password section using the arrow keys.
+* Search for an entry named "Password on boot" or similar.
+* Enter the new, [[Passwords#Generating_Unbreakable_Passwords|strong password]].
+* Save the changes made to BIOS settings. On most PCs, this is done by pressing <code>Esc</code> or <code>F10</code> &rarr; <code>Save and Exit</code>. Check the bottom of the BIOS screen to be sure.
+* Reboot the computer and confirm a password prompt now appears.
+
+For greater security, a password should be set to access the BIOS menu itself. Search the Security or Password BIOS menu for "Set supervisor password", "User password", "System password", or something similar. <ref>
+If the system has both a supervisor password and a user password, then set passwords for both.
+</ref> Also, users may prefer to configure BIOS to only allow booting from HDD/SSD so the computer cannot be booted from CD-ROM or USB flash drives.
+
+It should be noted that this is hardware dependent. There are:
+
+* '''A)''' <u>Secure BIOS Password implementations</u>: If the password has been forgotten, the motherboard might be [https://en.wikipedia.org/wiki/Brick_(electronics) bricked].
+* '''B)''' <u>Insecure BIOS Password implementations</u>: On some hardware this method will only prevent casual attempts to gain access. There are [https://www.technibble.com/how-to-bypass-or-remove-a-bios-password/ numerous] [https://www.instructables.com/How-to-Bypass-BIOS-Passwords/ methods] of [https://web.archive.org/web/20170511122202/https://www.askvg.com/how-to-reset-remove-bypass-a-bios-or-cmos-password/ bypassing, removing or resetting BIOS passwords]. Some methods include easily available recovery modes, removal of the CMOS batters and/or BIOS password reset [https://en.wikipedia.org/wiki/Jumper_(computing) jumper].
+
+Before relying on the security of the BIOS password, the user should research the security of their motherboard's BIOS.
+
+{{sdebian
+|link=https://www.debian.org/doc/manuals/securing-debian-manual/ch03.en.html#bios-passwd
+|text=Choose a BIOS password
+}}
+
+= Bootloader Password =
+<u>Note:</u> There are two distinct prompts in GRUB:
+
+'''A)''' [[Grub#GRUB_Bootloader_Authentication_Password_Prompt|GRUB <u>Bootloader Authentication Password Prompt</u>]] (related to protecting GRUB menu and settings from unauthorized changes);
+* '''Figure:''' ''GRUB Bootloader Authentication Password Prompt''
+** [[File:grub_bootloader_password.jpg]]
+'''B)''' [[Grub#EFI-_GRUB_Disk_Decryption_Password_Prompt|EFI BIOS]] or [[Grub#Legacy_BIOS_-GRUB_Disk_Decryption_Password_Prompt|Legacy BIOS]] <u>Disk Decryption Password Prompt</u> (related to unlocking an encrypted <code>/boot</code>):
+* '''Figure:''' ''GRUB Bootloader Disk Decryption Password Prompt (EFI)''
+** [[File:EFIGrubpass.png|600px]]
+
+This chapter focuses on the <u>bootloader authentication password</u>.
+
+<u>Note:</u> The GRUB authentication password is unrelated to [[Full Disk Encryption]].
+
+* Purpose of a bootloader password:
+** Prevent unauthorized users from editing boot parameters or accessing recovery options through the GRUB menu.
+** Without a password, someone with physical access can modify boot entries to bypass security mechanisms, load an alternative kernel, or boot into single-user mode.
+* Is a GRUB password useful when using FDE with encrypted <code>/boot</code>?
+** '''FDE Already Protects Data''': Without the FDE password, the data on the disk remains inaccessible.
+** '''Bootloader Security is Less Critical''': Since the disk is encrypted, unauthorized users can't alter its contents or boot into the system without decrypting it first.
+** Note: [https://forums.kicksecure.com/t/iso-change-to-unencrypted-boot-if-using-full-disk-encryption/420 Due to the less secure encryption and bad usability supported by GRUB's FDE features, {{project_name_short}} defaults to using FDE with '''unencrypted''' <code>/boot</code>.] Installing {{project_name_short}} with <code>/boot</code> encrypted requires using manual partitioning.
+* When a GRUB password is useful with FDE and unencrypted <code>/boot</code>:
+** '''Protect Against Physical Access Attacks''': If an attacker gains physical access and can boot from external media or tamper with the GRUB menu, they might not access the encrypted data but could still cause disruptions by modifying boot files.
+* When a bootloader password might be redundant:
+** '''Dedicated Single-User FDE Systems''': If you're the sole user and you physically secure your device, a GRUB password might add minimal value.
+** '''Trusted Environment''': If the system is in a trusted physical environment, the additional step of a GRUB password could be unnecessary.
+* '''{{VMs}}''':
+** <u>Physically protected hosts:</u> Unnecessary.
+** <u>Physically unprotected hosts:</u> In scenarios where physical access to the VM's host system is possible, a GRUB password can serve as an additional layer of protection against tampering with boot settings. However, administrators or attackers with access to the hypervisor can bypass the GRUB password by mounting the virtual disk and editing configuration files directly.
+* '''Servers''':
+** Servers are often managed remotely, and GRUB passwords require manual input during boot. This makes them impractical for systems that rely on automated reboots or remote administration since physical presence is required to enter the password.
+
+A GRUB bootloader password is not critically important if you're already using full disk encryption, but it can provide an additional layer of security in specific scenarios when physical access is a concern. Assess your threat model and decide accordingly.
+
+While a GRUB password can mitigate some physical attacks, it won't protect against many others.
+
+* '''Boot from Other Devices:''' Attackers can boot from a USB drive, CD, or network (PXE boot) to bypass the system’s internal bootloader entirely. A BIOS password might make attacks that rely on this strategy more difficult or impossible.
+* '''Disk Removal:''' Removing the disk and connecting it to another computer allows the attacker to bypass GRUB altogether. If the disk isn’t encrypted, the attacker has unrestricted access to all data.
+* '''Tampering with Hardware or Firmware:''' Attackers can flash the firmware (e.g., BIOS/UEFI) to introduce malicious code, effectively bypassing GRUB entirely or compromising the system during boot.
+* '''Others:''' Listed on this wiki page.
+
+== How to set a bootloader password ==
+Select an option.
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= ===grub-pwchange===
+|type=section
+|image=
+|addToClass=info-box
+|content=
+'''1.''' Prerequisite knowledge: [[Protection_Against_Physical_Attacks#Bootloader_Password|Bootloader Password]]
+
+'''2.''' Information.
+
+<code>grub-pwchange</code> is a GRUB bootloader password management tool for systems with only one human user. It supports:
+
+* Setting an encrypted bootloader password by creating GRUB account <code>user</code> and storing it in file <code>/etc/grub.d/44_password</code>. (Then running <code>sudo update-grub</code>.)
+* Deleting the bootloader password by removing <code>/etc/grub.d/44_password</code>.
+* It configures GRUB to always require a password at boot for all actions.
+
+<code>grub-pwchange</code> does NOT handle:
+
+* [[Full Disk Encryption|{{fde}}]]
+
+Advanced GRUB features not supported by <code>grub-pwchange</code>:
+
+* Multiple GRUB user accounts
+* Fine-grained permissions (e.g., allow boot without password but require one to edit kernel cmdline)
+* Changing manually set GRUB passwords not managed by this tool
+
+Advanced use should be configured manually.
+
+For developer information, see footnote. <ref>
+Results in GRUB configuration file <code>/boot/grub/grub.cfg</code> to be appended with:
+
+{{CodeSelect|code=
+sudo cat /boot/grub/grub.cfg
+}}
+
+<pre>
+### BEGIN /etc/grub.d/44_password ###
+set superusers="user"
+password_pbkdf2 user grub.pbkdf2.sha512.10000.password-hash-replaced
+### END /etc/grub.d/44_password ###
+</pre>
+</ref>
+
+'''3.''' Exercise.
+
+Before using this in production, it's best to test this in a safe environment such as on another computer or inside a virtual machine. This is because if the GRUB bootloader password is wrong, there are bugs or other issues (such as with keyboard layout), you might lock yourself out and require [[Recovery]].
+
+It is also recommended to practice how to disable the GRUB bootloader password using a recovery boot medium, for example by booting from ISO and editing <code>/boot/grub/grub.cfg</code> to disable the GRUB bootloader password.
+
+'''4.''' Usage.
+
+{{CodeSelect|code=
+sudo grub-pwchange
+}}
+
+'''5.''' Password prompt.
+
+You'll be prompted to enter a password.
+
+* To set the password: Type a password.
+* To disable the GRUB bootloader password: Keep it empty, simply press enter.
+
+'''Figure:''' ''GRUB bootloader password prompt''
+
+[[File:bootloader-pass.png|400px]]
+
+(We plan to update this screenshot to say "user".)
+
+'''6.''' You'll be prompted to enter the same password again for verification.
+
+* To set the password: Type the same password.
+* To disable the GRUB bootloader password: Keep it empty, simply press enter.
+
+'''7.''' Result.
+
+Read the output of <code>grub-pwchange</code>. It will most likely report success.
+
+<pre>
+/usr/sbin/grub-pwchange: SUCCESS: GRUB bootloader password for GRUB account 'user' was set successfully in '/etc/grub.d/44_password'.
+</pre>
+
+In case of issues, contact [[Support]].
+
+'''8.''' Done.
+
+'''9.''' Reboot.
+
+'''10.''' After selecting a boot option at GRUB boot menu, the user will be prompted for a username and password.
+
+* username: <code>user</code>
+* password: The password that you have set using <code>grub-pwchange</code>.
+
+After entering the username, press enter. You'll be prompted for the password. After typing the password and pressing enter, the system should boot. If you're back to the GRUB boot menu, then either the username or password was typed incorrectly. There could also be issues with the keyboard layout.
+
+The username is always <code>user</code>. <ref>
+This is hardcoded in the <code>grub-pwchange</code> script.
+</ref>
+}}
+
+{{Tab
+|title= ===Simple===
+|type=section
+|image=
+|addToClass=info-box
+|content=
+
+This is the simplest way to set a GRUB password, assuming the user is named <code>user</code> and has root access. Using this method, '''<u>all</u>''' GRUB/boot menu entries will be locked behind a username and password.
+
+'''1.''' Make sure '''grub-common''' is installed.
+
+{{CodeSelect|code=
+sudo apt update && sudo apt install grub-common
+}}
+
+'''2.''' Run the Grub password generator [https://manpages.debian.org/stable/grub-common/grub-mkpasswd-pbkdf2.1.en.html grub-mkpasswd-pbkdf2] and enter the desired password that you wish to use.
+
+{{CodeSelect|code=
+grub-mkpasswd-pbkdf2
+}}
+
+'''3.''' The output will look similar to the following: (copy the part starting with '''grub.pbkdf2.sha512.10000.<hashed-password>''')
+
+<code>PBKDF2 hash of your password is grub.pbkdf2.sha512.10000.<The-hashed-password></code>
+
+'''4.''' Open the custom GRUB configuration file at <code>/etc/grub.d/40_custom</code> (using a text editor like nano).
+
+{{CodeSelect|code=
+sudo nano /etc/grub.d/40_custom
+}}
+
+'''5.''' Add the necessary lines to the file, including the copied grub.pbkdf2.sha512.10000.<hashed-password> along with the username of the machine (which is user in our case).
+
+{{CodeSelect|code=
+set superusers="user"
+password_pbkdf2 user grub.pbkdf2.sha512.10000.<hashed-password>
+}}
+
+'''6.''' Save and exit the file, then update GRUB to apply the changes.
+
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+'''7.''' Reboot. A prompt should appear if you press the <code>e</code> key, <code>Esc</code>, or if you want to run Kicksecure from the boot menu, asking for a username and password.
+
+[[File:bootloader-pass.png|400px]]
+
+'''8.''' Done.
+
+}} <!-- close tab: 1 Straight/Simple -->
+
+{{Tab
+|title= ===Advanced===
+|image=
+|addToClass=info-box
+|content=
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= ====Separate root and user====
+|type=section
+|addToClass=info-box
+|active=true
+|content=
+
+This is [[Unsupported|undocumented]].
+
+[https://www.gnu.org/software/grub/manual/grub/html_node/Authentication-and-authorisation.html GRUB Authentication and Authorization]
+}} <!-- close tab A -->
+
+{{Tab
+|title= ====Hide the Ability to Edit Entries====
+|addToClass=info-box
+|content=
+
+This is [[Unsupported|undocumented]].
+}} <!-- close tab: B -->
+
+{{Tab
+|title= ====Disable GRUB to show advanced entries (like recovery mode)====
+|addToClass=info-box
+|content=
+
+This is [[Unsupported|undocumented]].
+
+}} <!-- close tab: C -->
+
+}} <!-- close tab controller: A B C -->
+
+}} <!-- close tab: 2 Advanced -->
+
+}} <!-- close tab controller: All -->
+
+See also: [[Grub|GRUB]]
+
+{{sdebian
+|link=https://www.debian.org/doc/manuals/securing-debian-manual/lilo-passwd.en.html
+|text=Set a (...) GRUB password
+}}
+
+= Cold Boot Attacks =
+
+Check [[Cold Boot Attack Defense]] Section.
+
+= Evil Maid Attack =
+
+Check [[AEM|Anti Evil Maid]] Section.
+
+= Problematic Interfaces =
+
+There are a number of computer interfaces that pose the risk of a [https://en.wikipedia.org/wiki/DMA_attack direct memory access (DMA) attack]. Potentially exploitable interfaces include ExpressCard, PCMCIA, FireWire, PCI, PCI Express or Thunderbolt.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = High-speed expansion ports allow attackers to penetrate computers and other peripherals because the connected devices have direct hardware access to enable maximum throughput.
+}}
+
+In practice, attached devices are permitted to read and write directly to memory, often without supervision of the operating system. This is in contrast to user-mode applications that are usually prevented from accessing memory locations that are not explicitly authorized by virtual memory controllers. <ref name=DMA_attack>
+https://en.wikipedia.org/wiki/DMA_attack
+</ref>
+
+A successful DMA attack on an unattended, live computer allows the adversary to: <ref>
+https://louwrentius.com/firewire-the-forgotten-security-risk.html
+</ref> <ref name=DMA_attack /> <ref>
+https://privatecore.com/resources-overview/physical-memory-attacks/index.html</ref> <ref>
+https://web.archive.org/web/20170427144955/https://www.delaat.net/rp/2011-2012/p14/report.pdf
+</ref>
+
+* Access sensitive cryptographic material in memory.
+* Circumvent FDE.
+* Inject executable code.
+* Partially or fully read the memory address space.
+* Read documents, files or other digital traces present in memory.
+* Take control of the entire system, for example via the network.
+* Unlock screensavers without a passphrase.
+
+DMA attack software tools which mimic the [https://en.wikipedia.org/wiki/FinFisher#FinFireWire abilities of state-level adversaries] are even available on [https://github.com/carmaa/inception GitHub]! <ref>
+This is not an endorsement for the use of hacking tools.</ref> Mitigating the threat of a DMA attack requires mostly physical security countermeasures; it is recommended to:
+
+* Consider blocking or removing dangerous ports completely.
+* Disable them in BIOS or UEFI.
+* Never allow unknown and potentially malicious devices to be inserted into these ports. <ref>This is another reason why high-risk users should never leave their devices unattended.
+</ref>
+* Securely configure these interfaces.
+* Use [https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit IOMMU] technology if available, along with software which supports it, like Qubes. <ref>
+IOMMU maps device-visible virtual addresses to physical addresses. The security benefit is that devices that are passed through to guest virtualized machines -- AppVMs in Qubes -- are unable to access the host's physical memory. This makes DMA attacks against the host very difficult and can lead to memory corruption if attempted. Qubes OS automatically uses device passthrough to isolate USB controllers and network devices from the host, thus helping prevent these and other attacks. An IOMMU may also prevent DMA attacks from host devices (not passed through to a VM), although this is not necessarily guaranteed to work in all situations. See https://security.stackexchange.com/questions/176503/dma-attacks-despite-iommu-isolation
+</ref>
+* Use Linux kernel options to disable DMA by Firewire devices. Package [[security-misc]] is installed by default and implements this, see also [https://github.com/{{project_name_short}}/security-misc#disables-and-blacklists-kernel-modules package description].
+
+= Screen Lock =
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = If a computer is left unattended, always lock the screen of the host or shut it down for greater security.
+}}
+
+Locking the screen on the host prevents others from viewing or using the device. It is advisable to configure the screen to lock after a period of inactivity, and a [[Passwords#Generating_Unbreakable_Passwords|strong password]] is recommended.
+
+* '''X11''': Be aware that screen lockers provide [https://blog.martin-graesslin.com/blog/2015/01/why-screen-lockers-on-x11-cannot-be-secure/ notoriously weak protection], especially under X11. Do not overestimate their effectiveness. <ref>
+Attacks that have bypassed screen lockers on most platforms can easily be found online.
+</ref>
+* '''Wayland''': Screen locking under Wayland is theoretically more secure since the system will not unlock if the screen locker crashes, nor can sensitive information be easily displayed on top of the lock screen. <ref>
+See also [https://wayland.app/protocols/ext-session-lock-v1 Wayland, Session Lock].
+</ref>
+
+To manually lock the screen: <ref>
+https://www.isunshare.com/windows-10/3-ways-to-lock-windows-10-computer.html</ref> <ref>https://swissmacuser.ch/new-lock-screen-feature-in-macos-high-sierra/
+</ref>
+
+<u>Linux</u>:
+
+* <code>Menu panel</code> &rarr; <code>Lock Screen</code>.
+* Shortcuts vary depending on the desktop environment in use, such as GNOME, KDE, LXQt, and others.
+
+'''Recommendations:'''
+
+* If using X11, do not enable <code>Alt + Ctrl + Backspace</code> to kill the X Server. Do not disable <code>DontZap</code> in the Xorg configuration. <ref name=screenlocker-security-forum-discussion>
+https://forums.whonix.org/t/screen-locker-in-security-can-we-disable-these-at-least-4-backdoors/8128
+</ref> <ref>
+[https://www.jwz.org/xscreensaver/faq.html Quote from xscreensaver FAQ]:
+
+<blockquote>
+Backdoor #1: Ctrl-Alt-Backspace
+
+This keystroke kills the X server, and on some systems, leaves you at a text console. If the user launched X11 manually, that text console will still be logged in. [...]
+</blockquote>
+</ref>
+
+'''Notes:'''
+
+* In {{project_name_short}} 18 and higher, the default screenlocker is [https://github.com/swaywm/swaylock Swaylock]. Swaylock does not display a password prompt while the lock screen is active, and does not provide a traditional text box showing the length of the currently entered password. The lock screen is currently configured to look like the default wallpaper background. To unlock, type your password and press Enter. A circular indicator will appear on the screen to provide simple visual feedback as each character of the password is typed.
+
+= Sleep Mode =
+Best avoided unless a screen lock is being used. See also above.
+
+= Virtual Consoles =
+[[File:virtual_console.png|thumb|virtual console example]]
+
+Linux allows you to access a text-only user interface to the system by pressing a key combo like Ctrl+Alt+F1, Ctrl+Alt+F2, etc. These virtual consoles are not locked by the GUI screen locker, and do not automatically time out. If you use virtual consoles for any reason, you should always run <code>exit</code> to log out of the virtual console immediately after you are done using it. It's also advisable to check all virtual consoles and log out them before leaving the system unttended. <ref name=screenlocker-security-forum-discussion /> <ref>
+[https://www.jwz.org/xscreensaver/faq.html Quote xscreensaver FAQ]:
+
+<blockquote>
+Backdoor #2: Ctrl-Alt-F1, Ctrl-Alt-F2, etc.
+
+These keystrokes will switch to a different virtual console, while leaving the console that X11 is running on locked. If you left a shell logged in on another virtual console, it is unprotected. So don’t leave yourself logged in on other consoles. You can disable VT switching globally and permanently by setting DontVTSwitch in your xorg.conf, but that might make your system harder to use.
+</blockquote>
+</ref>
+
+See also:
+
+* [[Desktop#Virtual_Consoles|virtual consoles usage instructions]]
+* [[Server_Security_Guide#User_Account_Password_Security|Server Security Guide, User Account Password Security]]
+
+= Login Screen =
+[[File:Gui_login.png|thumb|graphical login screen (by login manager <code>greetd + wlgreet</code>)]]
+
+<u>Host versus VMs:</u>
+
+* '''Host operating system:''' A login screen can be useful if the user wants to require a password in order to log in to the system.
+* '''VMs:''' It is not very useful to enable a login screen inside VMs. If the host operating system (OS) is ever compromised, then any VMs it hosts are also effectively compromised. Therefore, if anything, it is much better to lock the host screen. See also [[#Screen Lock|Screen Lock]].
+
+<u>Note:</u>
+
+* '''Login, yes:''' A login screen only protects the login.
+* '''Encryption, no:''' A login screen does not provide [[Full_Disk_Encryption|Full Disk Encryption (FDE)]]!
+
+A login screen can be provided by a login manager. For example, greetd + wlgreet is the login manager used by default in {{project_name_short}}.
+
+{{project_name_short}} is configured by default to autologin. Hence, no login screen will be shown by default.
+
+To enable a login screen in {{project_name_short}}, it is required to disable autologin. For instructions on how to do that, see [[Desktop#Disable_Autologin|disable autologin]].
+
+See also: [[Login]]
+
+= Side Channel Attacks =
+
+{{mbox
+| type      = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = {{project_name_short}} does not provide protection against most [https://en.wikipedia.org/wiki/Side-channel_attack side-channel attacks].
+}}
+
+Side-channel attacks are made possible by physical effects caused by cryptosystem operations (''on the side'') which provide extra information about system secrets like cryptographic keys, state information, or full/partial plaintexts. Wikipedia defines side-channel attacks as: <ref name=sidechannel_attack>https://en.wikipedia.org/wiki/Side-channel_attack</ref>
+
+<blockquote>...any attack based on information gained from the physical implementation of a cryptosystem, rather than brute force or theoretical weaknesses in the algorithms (compare cryptanalysis). For example, timing information, power consumption, electromagnetic leaks or even sound can provide an extra source of information, which can be exploited to break the system.</blockquote>
+
+Side-channels emerge because computation takes place on a non-ideal system, composed of transistors, wires, power supplies, memory, and peripherals. Component characteristics vary with the instructions and data that are processed, allowing measurable variance to be used by attackers. <ref>http://rootlabs.com/articles/IEEE_SideChannelAttacks.pdf</ref>
+
+{| class="wikitable"
+|+ ''Primary Side-channel Attack Classes'' <ref name=sidechannel_attack />
+
+|-
+! '''Attack Class'''
+! '''Description'''
+|-
+! Acoustic Cryptanalysis
+| Sound produced during computation is used for attacks.
+|-
+! Cache Attacks
+| Attackers monitor cache accesses made by the user in shared physical systems like virtualized environments or cloud services.
+|-
+! Data Remanence
+| Sensitive data are read after supposedly being deleted.
+|-
+! Differential Fault Analysis
+| Secrets are discovered by introducing faults in a computation.
+|-
+! Electromagnetic Attacks
+| Leaked electromagnetic radiation allows attacks that can provide plaintexts and other information. Cryptographic keys can be inferred via this method; for example, see [https://en.wikipedia.org/wiki/Tempest_(codename) TEMPEST].
+|-
+! Optical
+| Secrets and sensitive data are read by visual recordings with a high resolution camera, or other devices.
+|-
+! Power-monitoring Attacks
+| Attacks use measurements of varying hardware power consumption during computation.
+|-
+! Software-initiated Fault Attacks
+| [https://en.wikipedia.org/wiki/Row_hammer Row hammer] is an example of this attack, whereby off-limits memory is changed by rapidly accessing adjacent memory, leading to state retention loss.
+|-
+! Timing Attacks
+| Attacks are based on measuring how long various computations take to perform, such as the attacker's password compared to the user's unknown one.
+|}
+
+While {{project_name_short}} has to side-channel attacks (security-misc; tirdad; sdwdate), in general it ''cannot'' provide protection against most classes, nor [https://en.wikipedia.org/wiki/Hardware_keylogger hardware keyloggers], TEMPEST, miniature cameras, laser microphones and so on. Full disk encryption is also helpless against these attacks.
+
+For further reading on this complex topic, see [https://owasp.org/www-pdf-archive/Side_Channel_Vulnerabilities.pdf here], [https://web.archive.org/web/20220801104851/http://gauss.ececs.uc.edu/Courses/C653/lectures/SideC/intro.pdf here] and [https://web.archive.org/web/20220909063101/https://scl.uconn.edu/courses/ece6095/lectures/side_channels.pdf here].
+
+= Hardware-based Tampering Protection =
+
+Many attacks are possible if a sufficiently sophisticated attacker is able to probe, modify, or directly access hardware interfaces inside a device. Many devices used within modern systems assume that they are operating in a trusted environment and thus make no or very little effort to secure or validate the origin of signals they send and receive. This means that if an attacker is able to sniff these signals or inject their own signals into the system, they can potentially compromise the machine and gain access to sensitive data such as encryption keys. [https://www.youtube.com/watch?v=wTl4vEednkQ This video] provides a good overview of an attack on a TPM chip that uses hardware tampering. The equipment necessary to carry out these attacks is not always expensive or difficult to use.
+
+Hardware-based tampering protection mechanisms attempt to detect when an attacker is tampering with the system, taking immediate measures to report or prevent the attack. These kinds of protections are generally integrated into computer hardware as part of the device, though there are exceptions. If your computer supports tampering protection, it will likely allow you to configure this protection in the BIOS settings. The exact steps to take to enable tampering protection will depend on your hardware.
+
+Some examples of tampering protection mechanisms:
+
+* Enterprise-grade Dell hardware (e.g., Optiplex and Latitude machines) often features a [https://www.youtube.com/watch?v=UQ-6rUPhBQQ chassis intrusion switch] that detects when the side panel is removed from the machine.
+** Depending on the machine, this switch may be configured to:
+*** Log intrusion events in the BIOS.
+*** Beep very loudly when the machine is opened.
+*** Prevent the system from booting until an intrusion warning is cleared by an authorized user.
+** A determined attacker may bypass the switch by cutting the cover open rather than removing it normally.
+* Some HP machines include a feature called [https://h20195.www2.hp.com/v2/getpdf.aspx/4AA7-8167ENW.pdf TamperLock], which is similar to a chassis intrusion switch. In addition to blocking boot, TamperLock can clear the system's TPM when the cover is opened.
+* The [https://www.crowdsupply.com/design-shift/orwl ORWL physically secure computer] used a special wire mesh to detect any attempt to physically access the motherboard (including drilling or cutting the outer cover). When detected, the system would immediately wipe an internal encryption key used to protect the internal solid-state drive. ORWL machines are no longer produced.
+* The [https://www.physec.de/en/solutions/physec-seal/ PHYSEC SEAL] is a miniature radar device that can detect and report when a device is tampered with.
+
+= Malicious Hardware Modifications =
+Hardware implants.
+
+Hardware Replacement or Modification: Attackers could replace hardware components, such as the keyboard, to capture passwords or encryption keys, bypassing the need for GRUB, <code>/boot</code> partition tampering by sniffing full disk decryption passwords.
+
+External:
+
+* https://hak5.org/products/lan-turtle
+
+Internal:
+
+* https://github.com/ufrisk/pcileech
+
+= See Also =
+
+{{physical-mininav}}
+
+= Footnotes =
+{{reflist|close=1}}
+
+= License =
+{{License_Amnesia|{{FULLPAGENAME}}}}
+
+{{Footer}}
+
+[[Category:Documentation]]

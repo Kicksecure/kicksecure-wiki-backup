@@ -1,0 +1,167 @@
+{{Header}}
+{{title|title=
+Server Security Guide
+}}
+{{#seo:
+|description=Server Security Guide for {{project_name_long}}, Linux, and {{project_name_long}} Hardening
+|image=Securityguide123132.jpg
+}}
+{{server_mininav}}
+[[File:Securityguide123132.jpg|thumb]]
+{{intro|
+Server Security Guide for {{project_name_short}}, Linux, and {{project_name_short}} Hardening
+}}
+{{stub}}
+= User Account Password Security =
+An adversary might connect a keyboard to a server and attempt to [[login]] into a virtual console. See also [[Desktop#Virtual_Consoles|Virtual Consoles Usage Documentation]] and [[Protection_Against_Physical_Attacks#Virtual_Consoles|Protection against Physical Attacks, Virtual Consoles]].
+
+The user should set a password for account <code>user</code>. If using [[sysmaint|user-sysmaint-split]], the user should also set a password for account <code>sysmaint</code>.
+
+If logging in passwordless over [[SSH]] using public key authentication, the user might be tempted to [[User#Locking_a_Password|Locking a Password]]. However, then [[recovery]] using a virtual console over a KVM switch (such as PiKVM) will be no longer possible.
+
+= Confidential Computing =
+{{quotation
+|quote=Confidential computing is an advanced security technology that protects data while it's in use, complementing existing protections for data at rest and in transit. The goal is to isolate sensitive data from unauthorized access, even from the cloud provider or system administrators.
+|context=[[Dev/confidential computing|Confidential Computing (developers)]]
+}}
+
+To the best of the author's knowledge, reasonably secure confidential computing is not currently achievable with Freedom Software. Technical details are available on the wiki pages [[Dev/confidential computing|Confidential Computing (developers)]] and [[Verified Boot]].
+
+= E-Mail Delivery =
+== DMARC Strict Alignment ==
+Consider using DMARC strict alignment:
+
+* <code>aspf=s;</code>
+* <code>adkim=s</code>
+* relaxed alignment <code>aspf=r;</code> / <code>adkim=r</code> might lead to spammers sending e-mails impersonating the domain name and DMARC passing anyhow.
+* [https://web.archive.org/web/20221013074445/https://www.zerobounce.net/faqs/services.html Illustrative examples on DMARC Strict Alignment]
+
+== Tools ==
+
+* https://www.dmarcanalyzer.com/dmarc/dmarc-record-check/
+* https://report-uri.com/account/reports/dmarc/
+* https://www.mailhardener.com/dashboard/dmarc-reports
+* https://www.mailhardener.com/tools/dkim-validator
+* https://tools.socketlabs.com/
+* [https://www.appmaildev.com/en/dkimfile SPF/DKIM/DMARC/DomainKey/RBL Online Test]
+* https://github.com/6point6/dmarc_checker
+
+== DKIM Header Injection Attack ==
+Introduction:
+
+* https://prog.world/dkim-replay-attack-on-gmail/
+* https://utcc.utoronto.ca/~cks/space/blog/spam/DKIMSpamReplayAttack
+* https://wordtothewise.com/2014/05/dkim-injected-headers/
+* https://www.zdnet.com/article/dkim-useless-or-just-disappointing/
+
+Mitigation:
+
+* https://halon.io/blog/the-dkim-replay-attack-and-how-to-mitigate
+* https://noxxi.de/research/breaking-dkim-on-purpose-and-by-chance.html
+* https://proton.me/blog/dkim-replay-attack-breakdown
+* https://security.stackexchange.com/questions/265408/how-many-times-need-e-mail-headers-be-signed-with-dkim-to-mitigate-dkim-header-i
+* https://github.com/rspamd/rspamd/issues/2136
+
+Future:
+
+* https://datatracker.ietf.org/doc/draft-kucherawy-dkim-anti-replay/
+
+== DKIM Replay Attack ==
+
+* https://wordtothewise.com/2014/05/dkim-replay-attacks/
+* https://tools.wordtothewise.com/rfc/6376#section-8.6
+* https://www.socketlabs.com/blog/dkim-replay-attacks-preventive-measures-to-protect-email-deliverability/
+
+Could a DKIM replay attack be resolved by enforcing In theory, yes. In practice, unsupported by DMARC. See [https://serverfault.com/questions/812367/dmarc-alignment-enforce-messages-pass-both-spf-and-dkim DMARC Alignment: Enforce messages pass BOTH SPF and DKIM]. And unlikely to be ever implemented since this would break the e-mail forwarding use case.
+
+== DKIM Required ==
+Is SPF + DMARC sufficient or would this lead to ending up in the spam folder?
+
+* DMARC will <code>pass</code> (success, not a failure) when either SPF or DMARC has <code>pass</code>.
+** Such as <code>pass</code> (as in DMARC reports) however does only indicate that DMARC was <code>pass</code>. The e-mail could still end up being rejected for being spam or end up in the spam folder.
+* Quote https://emfluence.com/blog/how-dkim-affects-email-deliverability: <blockquote>Yahoo! requires DKIM to sign up for their Feedback Loop (where they keep track of spam complaints). That means anyone who doesn’t have DKIM set up isn’t capturing spam complaints at Yahoo!, and because of that, those email addresses aren’t being suppressed automatically. That could put you on the road to being blocked or blacklisted by Yahoo!</blockquote>
+* https://dmarcly.com/blog/can-i-set-up-dmarc-without-dkim doesn't mention spam.
+* Quote https://support.google.com/a/answer/174124?hl=en: <blockquote>Without DKIM, messages sent from your organization or domain are more likely to be marked as spam by receiving mail servers.</blockquote>
+
+== e-mail self hosting is hard ==
+
+* https://www.reddit.com/r/selfhosted/comments/xoi5im/google_smtp_low_domain_reputation/
+* and google postmaster tools don't help https://www.tablix.org/~avian/blog/archives/2019/04/google_is_eating_our_mail/
+* https://superuser.com/questions/1718259/google-bounce-email-with-error-550-5-7-1-our-system-has-detected-that-this-messa
+* https://support.google.com/mail/thread/13395379/domain-reputation-got-bad-and-not-restoring-for-1-5-months-all-messages-bounced-back-with-550-5-7
+
+rain dance required:
+
+* https://www.mailmonitor.com/repair-a-bad-domain-reputation-with-gmail/
+
+== SPF ==
+SPF mostly ignored:
+
+* "SPF is terrible, but was necessary"
+** https://security.stackexchange.com/questions/115981/why-do-email-that-didnt-pass-spf-checks-go-to-my-mailbox
+
+== Headers ==
+View e-mail headers:
+
+* For example in Thunderbird: select an e-mail -> <code>View</code> -> <code>Message Source</code>
+
+There are two different "From" fields in an e-mail.
+
+* A) 'MAIL FROM' https://en.wikipedia.org/wiki/Bounce_address
+* B) 'From' header https://en.wikipedia.org/wiki/Email#Message_header
+
+Very good explanation here: https://www.xeams.com/difference-envelope-header.htm
+
+== Checking DKIM Signatures on the Command Line ==
+Might be mostly only useful for learning and testing purposes.
+
+Install <code>dkimverify</code>.
+
+{{Install Package|package=
+python3-dkim
+}}
+
+{{CodeSelect|code=
+dkimverify < e-mail.eml
+}}
+
+== Abuse Notifications ==
+* consider signing up for https://www.abuse.net/addnew.phtml
+
+== Standard E-Mail Addresses ==
+* a number of [https://webmasters.stackexchange.com/questions/2030/should-i-set-up-standard-email-accounts-what-are-they standard e-mail addresses] should redirect to the inbox of the server administrator
+
+= Miscellaneous Server Tests=
+* See also [[Website_Tests|Website and Server Tests]].
+* https://www.ssllabs.com/
+* https://www.hardenize.com/
+* https://www.sshaudit.com/
+* https://hstspreload.org/
+* https://securityheaders.com/
+* https://clickjacker.io
+* https://www.validbot.com/
+* https://realfavicongenerator.net/
+* https://sitecheck.sucuri.net/
+* https://hostedscan.com/
+* https://talosintelligence.com/
+* https://www.debugbear.com/resource-hint-validator
+* https://www.debugbear.com/test/website-speed
+* https://developers.google.com/search/docs/appearance/structured-data
+* https://pagespeed.web.dev/
+* https://www.giftofspeed.com/gzip-test/
+* https://gtmetrix.com/
+* https://www.webpagetest.org/
+* https://technicalseo.com/tools/robots-txt/
+* https://www.cloudflare.com/ssl/encrypted-sni/
+
+= See Also =
+* https://help.ubuntu.com/lts/serverguide/console-security.html
+* [[Website Tests]]
+* [[Browser Tests]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

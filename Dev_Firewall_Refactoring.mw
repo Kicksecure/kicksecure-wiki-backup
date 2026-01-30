@@ -1,0 +1,136 @@
+{{Header}} __FORCETOC__
+{{title|title=
+Dev/Firewall Refactoring
+}}
+{{#seo:
+|description=How to refactor the firewall script while ensuring no unintended nftables changes occur.
+}}
+{{intro|
+How to refactor the firewall script while ensuring no unintended nftables changes occur.
+}}
+= Ensuring nftables Rules Remain Unchanged =
+'''1.''' Store the current nftables rules in the file <code>nftables-old</code>.
+
+{{CodeSelect|code=
+sudo nft --stateless list ruleset > nftables-old
+}}
+
+'''2.''' Do activities, wait, etc.
+
+'''3.''' Store the current nftables rules in the file <code>nftables-new</code>.
+
+{{CodeSelect|code=
+sudo nft --stateless list ruleset > nftables-new
+}}
+
+'''4.''' Compare <code>nftables-old</code> and <code>nftables-new</code>.
+
+Use a console diff viewer:
+
+{{CodeSelect|code=
+diff nftables-old nftables-new
+}}
+
+Or use a graphical diff viewer:
+
+{{CodeSelect|code=
+meld nftables-old nftables-new
+}}
+
+= Ensuring nftables Rules Remain Unchanged During Firewall Refactoring =
+'''1.''' Store the current nftables rules in the file <code>nftables-old</code>.
+
+{{CodeSelect|code=
+sudo nft --stateless list ruleset > nftables-old
+}}
+
+'''2.''' Refactor the {{project_name_long}} firewall code.
+
+'''3.''' {{Reload_Firewall}}
+
+'''4.''' Store the current nftables rules in the file <code>nftables-new</code>.
+
+{{CodeSelect|code=
+sudo nft --stateless list ruleset > nftables-new
+}}
+
+'''5.''' Compare <code>nftables-old</code> and <code>nftables-new</code>.
+
+Use a console diff viewer:
+
+{{CodeSelect|code=
+diff nftables-old nftables-new
+}}
+
+Or use a graphical diff viewer:
+
+{{CodeSelect|code=
+meld nftables-old nftables-new
+}}
+
+= systemcheck nftables Test =
+This feature does not exist yet.
+
+* "''systemcheck (which is somewhat a replacement for the lack of a test suite) could indeed be useful to check if the loaded nftables rules match a hardcoded nftables dump. Yes, with additional firewall add-ons, that would be challenging. These firewall add-ons could ship a dump that also gets verified (e.g., an <code>nftables-dumps.d</code> folder checked by systemcheck). However, managing multiple firewall add-ons with dumping might stretch what the {{project_name_short}} project can realistically implement.''" (From [https://forums.whonix.org/t/bolt-on-for-whonix-firewall-best-place-to-put-files/2222 (Forum) Bolt on for whonix_firewall - best place to put files?])
+** systemcheck could use this nftables diff functionality to warn users about non-standard or unexpected rules. Similar to unwanted package detection, it could prompt users to run a command such as <code>nftables-save-whonix</code> to establish a new baseline. systemcheck would then pass unless further unexpected changes occurred, at which point it would issue another warning.
+
+= Splitting the {{project_name_short}} Firewall Script for Better Readability =
+''From Patrick:''<br>
+"I have been considering whether the firewall script should be split. Many sections are used by multiple packages, including the firewall and vpn-firewall. In the future, a corridor-gateway might also be introduced.
+
+Sections that could be refactored into helper scripts:
+* <code>error_handler</code>
+* Source config folder
+* IPv4 DEFAULTS
+* IPv4 PREPARATIONS
+* IPv4 DROP INVALID INCOMING PACKETS
+* IPv4 FORWARD
+* IPv6
+* Additional minor components (<code>nftables_cmd</code>)
+
+These sections could be converted into shell functions and moved to helper scripts.
+
+The risk of altering firewall rules during refactoring is minimal because changes can be verified.
+
+However, the primary goal is to make the firewall scripts easier to read, not harder to audit. I am unsure whether keeping everything in one file or splitting it up would be simpler at this stage."
+
+* Early files in the firewall configuration folder could contain Bash scripting in the form:
+<pre>
+function ScriptFuncPreloadElement1() { script lines, e.g. $nftables_cmd ''blah'' }
+</pre>
+** Optionally followed by inline execution within the same file:
+<pre>
+ScriptFuncPreloadElement1
+# (Within the same file == calling main().)
+</pre>
+** This approach separates code definition from execution.
+* "''Another question with firewall code injection and pre/post hooks is when they should be dispatched. This depends on what functionality you want to implement.''"
+* Example:
+<pre>
+if [ "$(type -t firewall_input_hook_end)" = "function" ]; then
+   firewall_input_hook_end
+fi
+</pre>
+** However, this would only allow a single call per hook. Users would need to chain all calls within <code>whonix_firewall.d</code>. Perhaps using array variables instead, with code such as:
+<pre>
+firewall_input_hook_end[${#firewall_input_hook_end[@]}]=ScriptFuncPreloadElement1
+</pre>
+*** ''Users would need to manage the array order appropriately.''
+** Hooks within the firewall would then iterate through the array at the appropriate execution point.
+<hr>
+'''<u>Reference</u>: [https://forums.whonix.org/t/whonix-torrents-and-being-a-good-tor-citizen/1766 (Forum) torrents, and being a good Tor citizen]'''
+<br>
+<u>''Solution, part b''</u> demonstrates an example set of nftables rules that could be injected within the firewall. (''Proof of concept only.'')
+<hr>
+'''<u>Reference</u>: [https://forums.whonix.org/t/favourite-whonix-bash-script-boilerplate-template/2235/2 (Forum) Favorite (Whonix?) Bash script boilerplate template?]'''
+<br>
+* (Begins) a consolidation of a standard scripting framework.
+
+= See Also =
+* {{whonix_wiki
+|wikipage=Dev/Firewall_Unload
+|text=Firewall Unloading
+}}
+
+{{Footer}}
+[[Category:Development]]

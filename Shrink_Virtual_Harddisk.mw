@@ -1,0 +1,258 @@
+{{Header}}
+{{Title|title=
+Shrink Virtual Hard Disk Size
+}}
+{{#seo:
+|description=Free disk space. Decrease the size of a virtual disk. Decrease virtual machine storage capacity.
+|image=Shrink_Virtual_Harddisk.png
+}}
+<div class="mininav">
+* [[Grow_Virtual_Harddisk|Virtual Hard Disk Size Increase]]
+* [[Shrink_Virtual_Harddisk|Shrink Virtual Hard Disk Size]]
+</div>
+[[File:Shrink_Virtual_Harddisk.png|200px|thumb]]
+{{intro|
+Free disk space. Decrease the size of a virtual disk. Decrease virtual machine storage capacity.
+}}
+= Introduction =
+Over the course of many system upgrades, logging, and similar activity, the image files can grow substantially. Deletion of obsolete files does not automatically shrink the disk size back, because it has grown to accommodate the data.
+
+= Overview =
+<u>Note:</u> When you create a large file or download a large file and then delete it from the {{VM}}, the space will not be freed automatically. Disk shrinking is required.
+
+In summary, the following steps are required to shrink the disk.
+
+{{IconSet|h1|1}} Delete files to free space.
+
+{{IconSet|h1|2}} Remove the <code>bdev_allow_write_mounted=0</code> kernel parameter.
+
+Elaborated below.
+
+{{IconSet|h1|3}} Reboot your virtual machine in [[Live Mode|live mode]] - [[sysmaint]] session.
+
+{{IconSet|h1|4}} Inside the VM: Apply the <code>zerofree</code> procedure.
+
+{{IconSet|h1|5}} Shut down the VM.
+
+{{IconSet|h1|6}} On the host {{os}}: Run a virtualizer specific command to release the freed space.
+
+{{IconSet|h1|7}} Done.
+
+== Steps ==
+{{Testers-Only}}
+
+Platform specific. Select your virtualizer.
+
+* Non-Qubes: See below.
+* Qubes: [[Undocumented]]. [[unspecific|Unspecific to {{project_name_long}}]]. [[Self_Support_First_Policy|Self Support First Policy]] applies. Refer to Qubes documentation.
+
+A tool called <code>zerofree</code> is needed to shrink the backing virtual disk file. Since the defaults are <code>ext4</code> partitions, the process might be a bit involved:
+
+{{IconSet|h1|1}} <u>Inside the VM:</u>
+
+{{IconSet|h1|2}} Install the package <code>zerofree</code> in the virtual machine you want to shrink.
+
+{{Install Package|package=
+zerofree
+}}
+
+{{IconSet|h1|3}} Safe space inside the VM.
+
+Delete what you no longer need in the VM, and run <code>apt-get purge</code>, <code>apt-get autoremove</code>, <code>apt-get clean</code>, etc. as needed.
+
+{{IconSet|h1|4}} Reboot your virtual machine in [[Live Mode|live mode]] - [[sysmaint]] session. <ref>
+Alternatively, booting into [[Persistent Mode|persistent mode]] - [[Recovery#Recovery_Mode|recovery mode]] would also be possible. But in that case, additional commands would need to be typed.
+
+{{CodeSelect|code=
+systemctl stop systemd-journald.socket
+}}
+
+{{CodeSelect|code=
+systemctl stop systemd-journald.service
+}}
+
+{{CodeSelect|code=
+mount -o remount,ro /
+}}
+</ref>
+
+{{IconSet|h1|5}} Remove the <code>bdev_allow_write_mounted=0</code> kernel parameter.
+
+Either by making a [[Grub#Temporary_Kernel_Boot_Parameter_Change|Temporary Kernel Boot Parameter Change]] or [[Grub#Permanent_Configuration_Changes|Permanent Configuration Changes]]. <ref>
+https://forums.whonix.org/t/how-to-compress-and-prevent-vdi-from-ballooning-after-each-update-deleting-large-files/22675/11
+</ref>
+
+{{IconSet|h1|6}} Run zerofree.
+
+Platform specific. Select your virtualizer.
+
+{{Tab
+|type=controller
+|linkid=virtualizer-choice
+|content=
+
+{{Tab
+|title= == VirtualBox ==
+|image=[[File:Virtualbox_logo.png|25px]]
+|addToClass=info-box
+|content=
+
+{{CodeSelect|code=
+sudo zerofree -v /dev/sda3
+}}
+}} <!-- close tab: VirtualBox -->
+
+{{Tab
+|title= == KVM ==
+|image=[[File:Kvm-new-logo.png|25px]]
+|addToClass=info-box
+|content=
+
+{{CodeSelect|code=
+zerofree -v /dev/vda1
+}}
+
+}} <!-- close tab: KVM -->
+
+{{Tab
+|title= == Qubes ==
+|image=[[File:Qubes-logo-blue.png|25px]]
+|addToClass=info-box
+|active=false
+|content=
+[[Undocumented]]. [[unspecific|Unspecific to {{project_name_long}}]]. [[Self_Support_First_Policy|Self Support First Policy]] applies.
+
+Refer to the Qubes OS user documentation.
+}} <!-- close tab: Qubes -->
+}} <!-- close Controller -->
+
+{{IconSet|h1|7}} Shut down the VM.
+
+{{IconSet|h1|8}} <u>On the host:</u>
+
+{{IconSet|h1|9}} Compact the host VM image.
+
+Platform specific. Select your virtualizer.
+
+{{Tab
+|type=controller
+|linkid=virtualizer-choice
+|content=
+
+{{Tab
+|title= == VirtualBox ==
+|image=[[File:Virtualbox_logo.png|25px]]
+|addToClass=info-box
+|content=
+Host operating system specific.
+
+* Linux: VBoxManage modifymedium disk “/path/to/disk.vdi” --compact
+* Windows: VBoxManage.exe modifymedium disk “C:\path\to\disk.vdi” --compact
+
+[[unspecific|Unspecific to {{project_name_long}}]]. [[Self_Support_First_Policy|Self Support First Policy]] applies.
+
+{{IconSet|h1|10}} Done.
+
+forum discussions:
+
+* [https://forums.whonix.org/t/how-to-compress-and-prevent-vdi-from-ballooning-after-each-update-deleting-large-files/22675 How to compress and prevent vdi from "ballooning" after each update & deleting large files?]
+* [https://forums.whonix.org/t/automate-recovering-free-space-from-vdi-disks/22467 Automate recovering free space from VDI disks]
+
+}} <!-- close tab: VirtualBox -->
+
+{{Tab
+|title= == KVM ==
+|image=[[File:Kvm-new-logo.png|25px]]
+|addToClass=info-box
+|content=
+
+{{IconSet|h1|10}} Open a terminal on the host.
+
+{{IconSet|h1|11}} Switch to root.
+
+{{CodeSelect|code=
+sudo -s
+}}
+
+{{IconSet|h1|12}} Change directory to the <code>/var/lib/libvirt/images</code> folder.
+
+{{CodeSelect|code=
+cd /var/lib/libvirt/images
+}}
+
+{{IconSet|h1|13}} View files inside the <code>/var/lib/libvirt/images</code> folder.
+
+{{CodeSelect|code=
+ls
+}}
+
+{{IconSet|h1|14}} Create a backup of the disk you want to shrink by moving <code>YourVirtualMachineDisk.qcow2</code> to <code>YourVirtualMachineDisk.qcow2.backup</code>.
+
+<u>Note:</u>
+
+* Replace <code>YourVirtualMachineDisk.qcow2</code> with the actual name of your virtual hard disk.
+* Replace <code>YourVirtualMachineDisk.qcow2.backup</code> with the actual name of your virtual hard disk.
+
+{{CodeSelect|code=
+mv YourVirtualMachineDisk.qcow2 YourVirtualMachineDisk.qcow2.backup
+}}
+
+{{IconSet|h1|15}} Shrink the disk using <code>qemu-img</code>.
+
+{{CodeSelect|code=
+qemu-img convert -O qcow2 -p YourVirtualMachineDisk.qcow2.backup YourVirtualMachineDisk.qcow2
+}}
+
+{{IconSet|h1|16}} Boot up the VM and see if it is working. If it is, you can delete the backup of the qcow2 file.
+
+{{IconSet|h1|17}} Done.
+
+There are more advanced approaches using thin provisioned images based on a static qcow2 backing file, which is often preferred. However, the above is a basic method for producing a smaller qcow2 disk file. <ref>
+Credit goes to forum user [https://forums.whonix.org/u/tempest tempest]: [https://forums.whonix.org/t/is-it-possible-to-re-shrink-the-qcow2-image-files/13228/3 post in "Is it possible to re-shrink the qcow2 image files?"]
+</ref>
+
+forum discussion: [https://forums.whonix.org/t/is-it-possible-to-re-shrink-the-qcow2-image-files/13228/9 Is it possible to re-shrink the qcow2 image files?]
+
+}} <!-- close tab: KVM -->
+
+{{Tab
+|title= == Qubes ==
+|image=[[File:Qubes-logo-blue.png|25px]]
+|addToClass=info-box
+|active=false
+|content=
+[[Undocumented]]. [[unspecific|Unspecific to {{project_name_long}}]]. [[Self_Support_First_Policy|Self Support First Policy]] applies.
+
+Refer to the Qubes OS user documentation.
+}} <!-- close tab: Qubes -->
+}} <!-- close Controller -->
+
+= Build from Source Code =
+
+Refer to [[Dev/Build_Documentation|Build and Update {{project_name_short}} from Source Code]] and utilize this setting:
+
+{{CodeSelect|code=
+--vmsize 50G
+}}
+
+= Future =
+Either:
+
+* {{IconSet|h1|A}} [[dracut|<code>dracut</code>]] module, or
+* {{IconSet|h1|B}} <code>mkosi-initrd</code> systemd unit,
+
+that runs <code>zerofree</code> before mounting the root disk would be useful. Such a feature does not exist yet in any Linux distribution.
+
+= Forum Discussion =
+* [https://forums.whonix.org/t/the-workstation-vmdk-gets-bigger-and-bigger/218 The Workstation VMDK gets bigger and bigger]
+* https://forums.whonix.org/t/automate-recovering-free-space-from-vdi-disks/22467
+
+= See Also =
+* [[Grow_Virtual_Harddisk|Grow Virtual Hard Disk Size Increase]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

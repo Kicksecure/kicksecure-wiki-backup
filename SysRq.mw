@@ -1,0 +1,217 @@
+{{Header}}
+{{#seo:
+|description=HowTo: Use SysRq for System Recovery and to prevent Malware from Sniffing the Root Password. The SysRq function in Linux is equivalent to the well-known Control-Alt-Delete (Ctrl+Alt+Del) function in Windows.
+|image=Sysrq12312d21.jpg
+}}
+{{Title|
+title=System Recovery using SysRq Key
+}}
+[[File:Sysrq12312d21.jpg|thumb]]
+{{intro|
+The SysRq function in Linux is equivalent to the well-known Control-Alt-Delete {{Keypress|Ctrl|Alt|Del}} function in Windows. This page documents how to use SysRq for system recovery and to prevent malware from sniffing the root password.
+}}
+
+= Use Cases =
+
+The SysRq (a.k.a [https://www.hashbangcode.com/article/raising-skinny-elephants-utterly-boring Raising Skinny Elephants Is Utterly Boring]) or "Security Keys" ([https://en.wikipedia.org/wiki/Secure_attention_key SAK]) function in Linux is equivalent to the well-known {{Keypress|Ctrl|Alt|Del}} (Control-Alt-Delete) function in Windows, otherwise referred to as the "three-finger salute". Debian documentation notes that SysRq combinations are useful for bypassing bad situations and gaining usable keyboard access without stopping the system. <ref>https://www.debian.org/doc/manuals/debian-reference/ch09.en.html#_alt_sysrq_key</ref> In effect this provides insurance against system malfunctions due to support compiled in the Linux kernel -- pressing SysRq followed by the required key for a specific command "rescues" the system.
+
+SysRq is handled directly by the kernel, not by (a)getty, systemd, or Wayland (formerly X11).
+
+<blockquote>Call oom_kill, which kills a process to alleviate an OOM condition</blockquote>
+
+This is more effective than {{Keypress|Ctrl|C}} or <code>kill -s sigkill</code>. When the whole machine appears frozen, {{Keypress|Ctrl|C}} often will not have any effect. SysRq has a higher chance of being processed by the kernel, except if the kernel itself is locked up.
+
+== System Recovery ==
+
+[https://en.wikipedia.org/wiki/Magic_SysRq_key Wikipedia] notes:
+<blockquote>The magic SysRq key is a key combination understood by the [https://en.wikipedia.org/wiki/Linux_kernel Linux kernel], which allows the user to perform various low-level commands regardless of the system's state. It is often used to recover from [https://en.wikipedia.org/wiki/Freeze_(computing) freezes], or to [https://en.wikipedia.org/wiki/Booting reboot] a computer without corrupting the [https://en.wikipedia.org/wiki/Filesystem filesystem]. Its effect is similar to the computer's hardware [https://en.wikipedia.org/wiki/Reset_button reset button] (or power switch) but with many more options and much more control.
+
+This key combination provides access to powerful features for software development and disaster recovery. In this sense, it can be considered a form of [https://en.wikipedia.org/wiki/Escape_sequence escape sequence]. Principal among the offered commands are means to forcibly unmount file systems, kill processes, recover keyboard state, and write unwritten data to disk. With respect to these tasks, this feature serves as a tool of last resort.
+
+The magic SysRq key cannot work under certain conditions, such as a [https://en.wikipedia.org/wiki/Kernel_panic kernel panic] or a hardware failure preventing the kernel from running properly.</blockquote>
+
+In the {{project_name_long}} case, magic SysRq keys are useful when the guest is unresponsive, especially in cases where VMs are running headless and a GUI console is not available for forcing them to shut off on the host.
+
+== Malware ==
+
+SysRq can be used to [[Login spoofing|defeat login spoofing]], i.e. malware masquerading as a login prompt and stealing passwords.
+
+[https://www.kernel.org/doc/html/v4.14/admin-guide/sysrq.html#okay-so-what-can-i-use-them-for Quote from Linux Kernel Documentation]:
+
+<blockquote>SAK (Secure Access Key) is useful when you want to be sure there is no trojan program running at the console which could grab your password when you try to login. It will kill all programs on the given console, thus letting you make sure that the login prompt you see is actually the one from init, not some trojan program.</blockquote>
+
+= Kicksecure Default SysRq Configuration =
+
+SysRq is disabled by default in Kicksecure for security reasons. This has been discussed in pull request [https://github.com/Kicksecure/security-misc/pull/150 Disable SysRq by default].
+
+This is implemented in the package ''security-misc'' in the file <code>/usr/lib/sysctl.d/990-security-misc.conf</code>.
+
+= Enable SysRq =
+
+Note: SysRq is disabled in Kicksecure by default for security reasons, see: [[#Kicksecure Default SysRq Configuration|Kicksecure Default SysRq Configuration]].
+
+SysRq can be enabled temporarily or permanently.
+
+{{IconSet|h2|A}} '''To temporarily enable SysRq, run:'''
+
+{{CodeSelect|code=
+echo "1" {{!}} sudo tee /proc/sys/kernel/sysrq
+}}
+
+{{IconSet|h2|B}} '''To permanently enable SysRq, run:'''
+
+{{CodeSelect|code=
+echo "kernel.sysrq = 1" {{!}} sudo tee -a /etc/sysctl.d/999_sysrq.conf
+}}
+
+After completing the temporary or permanent change, check that SysRq has been properly set:
+
+{{CodeSelect|code=
+cat /proc/sys/kernel/sysrq
+}}
+
+Expected output:
+
+<pre>
+1
+</pre>
+
+= Overview of Commands =
+
+<blockquote>
+SysRq : HELP : loglevel(0-9) reboot(b) crash(c) terminate-all-tasks(e) memory-full-oom-kill(f) kill-all-tasks(i) thaw-filesystems(j) sak(k) show-backtrace-all-active-cpus(l) show-memory-usage(m) nice-all-RT-tasks(n) poweroff(o) show-registers(p) show-all-timers(q) unraw(r) sync(s) show-task-states(t) unmount(u) force-fb(V) show-blocked-tasks(w) dump-ftrace-buffer(z)
+</blockquote>
+
+* <code>loglevel(0-9)</code>
+* <code>reboot(b)</code>
+* <code>crash(c)</code>
+* <code>terminate-all-tasks(e)</code>
+* <code>memory-full-oom-kill(f)</code>
+* <code>kill-all-tasks(i)</code>
+* <code>thaw-filesystems(j)</code>
+* <code>sak(k)</code>
+* <code>show-backtrace-all-active-cpus(l)</code>
+* <code>show-memory-usage(m)</code>
+* <code>nice-all-RT-tasks(n)</code>
+* <code>poweroff(o)</code>
+* <code>show-registers(p)</code>
+* <code>show-all-timers(q)</code>
+* <code>unraw(r)</code>
+* <code>sync(s)</code>
+* <code>show-task-states(t)</code>
+* <code>unmount(u)</code>
+* <code>force-fb(V)</code>
+* <code>show-blocked-tasks(w)</code>
+* <code>dump-ftrace-buffer(z)</code>
+
+= Usage =
+
+SysRq can also be used by writing to <code>/proc/sysrq-trigger</code>.
+
+{{CodeSelect|code=
+sudo -u root bash
+}}
+
+{{CodeSelect|code=
+echo h > /proc/sysrq-trigger
+}}
+
+== Qubes ==
+
+See: [https://github.com/QubesOS/qubes-issues/issues/5492 add Qubes host key to allow switching virtual console {{Keypress|Ctrl|Alt|F1}} for SysRq for HVM].
+
+{{Anchor|security}}
+
+= Development =
+
+* [https://superuser.com/questions/375816/how-to-check-which-sysrq-functions-are-enabled How to check which SysRq functions are enabled?]
+* sysctl is set to <code>kernel.sysrq=0</code> at time of writing.
+** {{Github_link|repo=security-misc|path=/pull/60|text=Restrict the SysRq key #60}}
+** {{Github_link|repo=security-misc|path=/blob/master/usr/lib/sysctl.d/990-security-misc.conf%23security-misc-shared|text=/usr/lib/sysctl.d/990-security-misc.conf}}
+* [https://fedoraproject.org/wiki/QA/Sysrq Fedora wiki: QA/Sysrq]
+
+== Security Discussion ==
+
+Several security concerns and unanswered questions about SysRq require further investigation.
+
+-----
+
+'''Possible privilege escalation'''
+
+[https://forums.whonix.org/t/sysrq-magic-sysrq-key/8079/20 SysRq security concern raised by madaidan]:
+
+<blockquote>Being able to run a bunch of commands that would normally require root (such as killing every process, remounting all filesystems read-only, etc.) as an unprivileged user doesn’t look very good. Sounds like a possible privilege escalation hole and/or a feature that can easily be abused.</blockquote>
+
+On the other hand, {{Keypress|SysRq|K}} is also dubbed the Secure Access Key. Therefore, SysRq is not completely disabled without further consideration. This raises the following questions:
+
+* Can a user only kill their own processes with SysRq, or any process?
+* What if an unprivileged user kills a very important process that is usually only accessible by root?
+
+-----
+
+'''Screensavers'''
+
+[https://www.jwz.org/xscreensaver/faq.html Quote from screensaver FAQ]:
+
+<blockquote>Backdoor #3: {{Keypress|Alt|SysRq|F}}
+
+    This is the Linux kernel "OOM-killer" keystroke. It shoots down random long-running programs of its choosing, and so might target and kill xscreensaver, and there's no way for xscreensaver to protect itself from that. You can disable it globally with: sudo 'echo 176 > /proc/sys/kernel/sysrq'
+
+    (As of version 5.41, if xscreensaver is setuid, and you are running Linux 2.6.37 or newer, xscreensaver attempts to request that the kernel's out-of-memory assassin not randomly unlock the screen on you, but it's only a request.)</blockquote>
+
+Related: [https://forums.whonix.org/t/screen-locker-in-security-can-we-disable-these-at-least-4-backdoors/8128 Screen Locker (In)Security - Can we disable these at least 4 backdoors?]
+
+-----
+
+'''Keyboard events'''
+
+Quote [https://www.kernel.org/doc/html/v4.14/admin-guide/sysrq.html Linux Magic System Request Key Hacks]:
+
+<blockquote>Note that the value of <code>/proc/sys/kernel/sysrq</code> influences only the invocation via a keyboard.</blockquote>
+
+<blockquote>Invocation of any operation via <code>/proc/sysrq-trigger</code> is always allowed (by a user with admin privileges).</blockquote>
+
+This raises the question:
+
+* Could a compromised non-root user generate the keyboard event and thereby use SysRq? [https://forums.whonix.org/t/sysrq-magic-sysrq-key/8079/22 Quote]:
+
+<blockquote>Things such as xdotool won’t work as the SysRq key isn’t handled by Xorg, and things like /dev/uinput or /proc/sysrq-trigger require root access already.</blockquote>
+
+-----
+
+'''Remote SysRq use'''
+
+SysRq can be triggered remotely, see: [https://github.com/xairy/unlockdown unlockdown].
+
+== Virtual Console Handling ==
+
+It is unclear whether control is reserved to users performing {{Keypress|Alt|Ctrl|F1}}, see:
+
+* [https://forums.whonix.org/t/sysrq-magic-sysrq-key/8079/25 Not (a)getty.]
+* https://forums.whonix.org/t/sysrq-magic-sysrq-key/8079/26
+* https://forums.whonix.org/t/sysrq-magic-sysrq-key/8079/38
+
+== Attacks from Lesser Adversaries with Physical Access ==
+
+See: [https://forums.whonix.org/t/should-lesser-adversaries-with-physical-access-be-part-of-the-threat-model-of-whonix-whonix-host-kicksecure/7997 Should (lesser) adversaries with physical access be part of the threat model of Whonix / Whonix-Host / Kicksecure?]
+
+== Development Discussion ==
+
+Forum development discussion: [https://forums.whonix.org/t/sysrq-magic-sysrq-key/8079 SysRq (Magic SysRq key)]
+
+= See Also =
+* [[Login_spoofing|Login Spoofing]]
+* [https://www.whonix.org/wiki/KVM#Magic_SysRq_Keys KVM SysRq]
+* [https://en.wikipedia.org/wiki/Magic_SysRq_key Wikipedia: Magic SysRq key]
+
+= Attribution =
+
+{{sdebian
+|link=https://www.debian.org/doc/manuals/securing-debian-manual/restrict-sysrq.en.html
+|text=Restricting the use of the Magic SysRq key
+}}
+
+= Footnotes =
+{{reflist|close=1}}
+[[Category:Documentation]]
+{{Footer}}

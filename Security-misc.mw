@@ -1,0 +1,549 @@
+{{Header}}
+{{#seo:
+|description=Documentation for package security-misc.
+|image=Securitymisc.jpg
+}}
+{{kernel_mininav}}
+{{title|title=
+security-misc: Enhance Miscellaneous Security Settings
+}}
+[[File:Securitymisc.jpg|thumb]]
+{{intro|
+Documentation for package security-misc.
+}}
+= Stable Features =
+[https://github.com/{{project_name_short}}/security-misc#enhances-miscellaneous-security-settings Described here].
+
+= system map =
+TODO: document
+
+* https://forums.whonix.org/t/kernel-hardening/7296/84
+* https://forums.whonix.org/t/remove-system-map-cannot-work-lib-modules-is-mounted-read-only/13324
+
+= Optional Features =
+Note: See also the dedicated wiki page for [[User_Namespace|Unprivileged User Namespace]].
+
+'''1.''' Open [https://github.com/Kicksecure/security-misc security-misc readme].
+
+'''2.''' Optional: Read all.
+
+'''3.''' Use the browser internal search for {{CodeSelect|inline=true|code=Optional -}} and read.
+
+'''4.''' Learn about optional sysctl features.
+
+<u>Note:</u> Look at the file but do not make any changes. This is because changes in any files in <code>/usr</code> folder are overwritten the next time the package which owns that file is updated.
+
+{{Open_File|filename=
+/usr/lib/sysctl.d/990-security-misc.conf
+}}
+
+'''5.''' Create a new sysctl configuration file.
+
+<u>Note:</u> This is because this file in <code>/etc</code> folder will remain unmodified by the package manager APT.
+
+{{Open with root rights|filename=
+/etc/sysctl.d/50_user.conf
+}}
+
+'''6.''' Paste sysctl settings.
+
+Example:
+
+<u>Note:</u> Do not use these settings without learning what might break by using these settings. There are reasons why these settings are non-default.
+
+{{CodeSelect|code=
+kernel.unprivileged_userns_clone=0
+user.max_user_namespaces=0
+
+fs.binfmt_misc.status=0
+
+net.ipv4.tcp_sack=0
+net.ipv4.tcp_dsack=0
+
+net.ipv6.conf.*.use_tempaddr=2
+}}
+
+'''7.''' Save.
+
+'''8.''' Learn about optional kernel parameter features.
+
+<u>Note:</u> Look at the file but do not make any changes.
+
+{{Open_File|filename=
+/etc/default/grub.d/40_kernel_hardening.cfg
+}}
+
+'''9.''' Create a new [[Grub]] configuration file.
+
+{{Open with root rights|filename=
+/etc/default/grub.d/50_user.conf
+}}
+
+'''10.''' Paste kernel parameters.
+
+{{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX panic_on_taint=0xC0924"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX ipv6.disable=1"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX mem_encrypt=on"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX kvm_amd.sev=1"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX kvm_amd.sev_es=1"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX kvm_amd.sev_snp=1"
+}}
+
+'''11.''' Save.
+
+'''12.''' Update the GRUB configuration.
+
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+'''13.''' Reboot required.
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+'''14.''' Done.
+
+Appendix:
+
+* [https://github.com/Kicksecure/security-misc/blob/master/usr/lib/sysctl.d/990-security-misc.conf <code>/usr/lib/sysctl.d/990-security-misc.conf</code> on github]
+* [https://github.com/Kicksecure/security-misc/blob/master/etc/default/grub.d/40_kernel_hardening.cfg <code>/etc/default/grub.d/40_kernel_hardening.cfg</code> on github]
+
+= Testing Features =
+{{Anchor|Restrict Hardware Information to Root}}
+== Reduce Kernel Information Leaks ==
+[[File:Limit-kernel-leak-hp-promo.jpg|thumb]]
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = Known to prevent the labwc display server (used by default in Kicksecure 18 and higher) from starting. May also cause the operating system not to start.
+}}
+
+By default, on most if not all (Linux based) operating systems, the Linux kernel makes lots of information available to running programs (and therefore by extension also to [[Malware]]). There's an optional feature to reduce such kernel information leaks.
+
+{{Testers-only}}
+
+{{box|text=
+* <u>Security Impact</u>: There are many of hardware, kernel, debug information, etc. in <code>/sys</code> and <code>/proc</code>, which is especially problematic and has been the cause of many infoleaks such as kernel pointer leaks.
+* <u>Security / Privacy Impact</u>: Details about your hardware can aid attacks and can be used for identification.
+* <u>Threat</u>: This information is per Debian (and probably most popular Linux distributions) available to attackers with local code execution privileges which includes,
+** malicious applications collecting such information and submitting it to data collectors,
+** as well as both, compromised non-privileged users and the privileged root user.
+* <u>Non-Threat</u>: This information does not randomly leak to third parties on clean (non-compromised) machines through use of legitimate applications such as the APT package manager. Legitimate applications do not request the information from the kernel, let alone leak them to third-parties over the internet.
+* <u>Goal</u>: This information should by default be unavailable to non-privileged users and [[Dev/user-sysmaint-split|user-sysmaint-split]].
+* <u>Solution</u>: Therefore security-misc includes the <code>hide-hardware-info.service</code> systemd unit.
+** Restricts access to <code>/sys</code>, <code>/proc/cpuinfo</code>, <code>/proc/bus</code>, and <code>/proc/scsi</code> to the root user only.
+** This also hides most hardware identifiers.
+* <u>Status</u>: This setting is disabled by default because it might break many applications. Testers-only! Call for testers and forum discussion: [https://forums.whonix.org/t/restrict-hardware-information-to-root-testers-wanted/8618 Restrict Hardware Information to Root - Testers Wanted!]
+* <u>Enable</u>: It can optionally be enabled by running the following command.
+** {{CodeSelect|code=
+sudo systemctl enable hide-hardware-info.service
+}}
+** Reboot required.
+** A whitelist that allows specific applications to access <code>/sys</code> and <code>/proc/cpuinfo</code> is enabled by default to maintain basic functionality. <ref>
+{{Github_link|repo=security-misc|path=/blob/master/usr/lib/systemd/system/user%40.service.d/sysfs.conf}}
+</ref>
+* <u>Limitations of Solution</u>:
+** <u>root compromise:</u> Attackers which gained root compromise and/or malicious/compromised whitelisted applications have access to this information.
+** <u>CPUID:</u> Cannot hide [[CPUID]].
+* <u>Testing:</u> See [[#Testing]]
+* <u>Possible Future Enhancements</u>: [[Dev/user-sysmaint-split|user-sysmaint-split]]
+}}
+
+=== Reduce Kernel Information Leaks - Known Issues ===
+* [https://forums.whonix.org/t/restrict-hardware-information-to-root-testers-wanted/8618/60 breaks labwc startup]
+* browsers:
+** Firefox: functional
+** Chromium:
+*** from packages.debian.org: broken, fails with an error popup, because it attempts to read <code>/proc/cpuinfo</code>.
+*** from flatpak: functional
+* ISO image to USB writer tools:
+** breaks balanaEtcher
+
+=== Whitelisting Applications ===
+
+To whitelist applications, they must be run under the <code>sysfs</code> group (if allowing access to <code>/sys</code>) and/or the <code>cpuinfo</code> group (if allowing access to <code>/proc/cpuinfo</code>).
+
+Remember that any whitelisted applications add to the attack surface. An attacker can attempt to exploit a vulnerability in the whitelisted application(s) to gain access to hardware information.
+
+==== Linux User Group Member Method ====
+{{anchor|addgroup method}}
+
+'''1.''' For example, to add account <code>user</code> to group <code>cpuinfo</code>, run the following command. (Note, this is weakening protections.)
+
+{{CodeSelect|code=
+sudo adduser user cpuinfo
+}}
+
+'''2.''' For example, to add account <code>user</code> to group <code>sysfs</code>, run the following command. (Note, this is weakening protections.)
+
+{{CodeSelect|code=
+sudo adduser user sysfs
+}}
+
+'''3.''' Re-login required after changing groups.
+
+Easiest: reboot. <ref>
+No reboot required: Use the "execute command as different group ID" command line utility <code>sg</code> to execute the <code>cpu-info</code> (from Debian package <code>cpuinfo</code>) application under group <code>cpuinfo</code>.
+
+{{CodeSelect|code=
+sg cpuinfo cpu-info
+}}
+</ref> <ref>
+Also no reboot required:
+
+{{CodeSelect|code=
+sudo -u user bash
+}}
+
+{{CodeSelect|code=
+cpu-info
+}}
+
+Or.
+
+{{CodeSelect|code=
+sudo -u user cpu-info
+}}
+</ref>
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+'''4.''' Done.
+
+For example, after reboot it would be possible to run the <code>cpu-info</code> utility (from Debian package <code>cpuinfo</code>).
+
+{{CodeSelect|code=
+cpu-info
+}}
+
+==== systemd ====
+For example, to run a systemd service as the <code>sysfs</code> group, create a [[Configuration_Files#Configuration_Drop-In_Folders|drop-in directory]] and add the following.
+
+{{CodeSelect|code=
+[Service]
+SupplementaryGroups=sysfs
+}}
+
+==== setgid method ====
+To run a specific binary as the <code>sysfs</code> group, the binary must be owned by the <code>sysfs</code> group and be made setgid. To achieve this,
+
+'''1.''' change the ownership of the binary by running the following.
+
+{{CodeSelect|code=
+sudo chgrp sysfs /path/to/binary
+}}
+
+'''2.''' Then make the binary setgid.
+
+{{CodeSelect|code=
+sudo chmod g+s /path/to/binary
+}}
+
+'''3.''' Done.
+
+The binary will now run with the permissions of the <code>sysfs</code> group and have access to <code>/sys</code>.
+
+All of these steps can also be applied to the <code>cpuinfo</code> group.
+
+=== Disable the Whitelist ===
+
+In order to reduce the attack surface as much as possible, optionally the whitelist can be disabled entirely.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=warning]]
+| text    =
+'''Warning:'''
+
+Note that this setting will break many applications; for example, the desktop environment will not even start. Do not perform this action unless you understand the implications and can reverse the change.
+}}
+
+'''1.''' {{Open with root rights|filename=
+/etc/hide-hardware-info.d/50_user.conf
+}}
+
+'''2.''' Add.
+
+{{CodeSelect|code=
+sysfs_whitelist=0
+cpuinfo_whitelist=0
+}}
+
+'''3.''' Save.
+
+'''4.''' Done.
+
+=== Testing ===
+Optional: Users who wish to verify the functionality can perform the instructions in the following box.
+
+{{box|text=
+'''1.''' Install <code>pciutils</code>.
+
+{{Install Package|package=
+pciutils
+}}
+
+'''2.''' Run <code>lspci</code>.
+
+{{CodeSelect|code=
+lspci
+}}
+
+Expected printout:
+
+<pre>
+pcilib: Cannot open /proc/bus/pci
+lspci: Cannot find any working access method.</pre>
+
+'''3.''' Attempt to view contents of virtual file <code>/proc/cpuinfo</code>:
+
+{{CodeSelect|code=
+cat /proc/cpuinfo
+}}
+
+Expected printout:
+
+<pre>
+cat: /proc/cpuinfo: Permission denied
+</pre>
+
+Note: [[CPUID|CPUID is still not hidden]].
+}}
+
+== SUID Disabler and Permission Hardener ==
+See [[SUID Disabler and Permission Hardener]].
+
+== hidepid ==
+[[File:Hidepid-hp-promo.jpg|thumb]]
+The <code>hidepid</code> option in Linux is a feature of the <code>proc</code> filesystem (<code>/proc</code>) that controls the visibility of process information for non-root users. It is particularly useful for enhancing security by restricting access to information about other users' processes.
+
+When hidepid is disabled, for example <code>ps aux</code> shows system processes. When hidepid is enabled, only the user account's own processes are shown.
+
+<u>Warning:</u> This can break many things such as <code>pkexec</code>. This might cause symptoms similar to the ones mentioned in forum discussion [https://forums.whonix.org/t/cannot-use-pkexec/8129 cannot use pkexec].
+
+'''1.''' Enable.
+
+{{CodeSelect|code=
+sudo systemctl enable proc-hidepid.service
+}}
+
+'''2.''' Start.
+
+{{CodeSelect|code=
+sudo systemctl start proc-hidepid.service
+}}
+
+'''3.''' Done.
+
+hidepid has been enabled.
+
+'''4.''' Testing.
+
+<code>pkexec</code> test command (requires X11, will not work in Wayland):
+
+{{CodeSelect|code=
+pkexec featherpad /tmp/testfile
+}}
+
+Error message if broken:
+
+<pre>
+Error checking for authorization org.xfce.mousepad: GDBus.Error:org.gtk.GDBus.UnmappedGError.Quark._g_2dfile_2derror_2dquark.Code4: Failed to open file ?/proc/1423/status?: No such file or directory
+</pre>
+
+Hopefully X11 and Wayland compatible.
+
+{{CodeSelect|code=
+pkexec nano /tmp/testfile
+}}
+
+{{Install Package|package=
+gparted
+}}
+
+{{CodeSelect|code=
+gparted
+}}
+
+= Experimental Features =
+Unreleased. (Developers only.) Will flow into other repositories as per usual.
+
+== Harden Module Loading ==
+<u>Warning:</u> Breaks desktop. <u>Might</u> work on servers.
+
+{{CodeSelect|code=
+sudo systemctl enable harden-module-loading.service
+}}
+
+See also [[kernel module]].
+
+{{anchor|suid}}
+
+== Remount Secure ==
+{{Developers-only}}
+
+See also:
+
+* [[Dev/remount-secure]]
+* [[noexec|Enhanced Security via Mount Options and Compiler Restrictions]]
+
+Design:
+
+* runs at early boot
+* no user freedom restriction
+* can be disabled
+* manual fstab hardening is possible
+* broken applications? tb-starter?
+
+The Remount Secure feature is currently not ready for use.
+
+'''x.''' Maybe enable dracut module.
+
+The following instructions based on kernel command line modification depend on a dracut module that is currently disabled by default.
+
+/usr/lib/dracut/modules.d-disabled would need to be moved to /usr/lib/dracut/modules.d
+
+{{CodeSelect|code=
+sudo mv usr/lib/dracut/modules.d-disabled/20remount-secure /usr/lib/dracut/modules.d/
+}}
+
+{{CodeSelect|code=
+sudo dracut -f
+}}
+
+'''x.''' Maybe enable systemd unit.
+
+Do this only if not using the dracut module
+
+{{CodeSelect|code=
+sudo systemctl enable remount-secure
+}}
+
+{{CodeSelect|code=
+sudo systemctl start remount-secure
+}}
+
+'''1.''' Create a new configuration file.
+
+You'll need to make changes to the kernel boot parameters (see also [[grub]]).
+
+Only useful if using the dracut module.
+
+{{Open_with_root_rights|
+filename=/etc/default/grub.d/50_user.cfg
+}}
+
+'''2.''' Add the required kernel parameters based on the security level you prefer:
+
+* '''Option A (No Security):''' Disable Remount Secure:
+** {{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX remountsecure=0"
+}}
+* '''Option B (Low Security):''' Re-mount with <code>nodev</code>, <code>nosuid</code>:
+** {{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX remountsecure=1"
+}}
+* '''Option C (Medium Security):''' Re-mount with <code>nodev</code>, <code>nosuid</code>, <code>noexec</code> for most mount points, excluding <code>/home</code>.
+** {{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX remountsecure=2"
+}}
+* '''Option D (Highest Security):''' Re-mount with <code>nodev</code>, <code>nosuid</code>, <code>noexec</code> for all mount points including <code>/home</code>.
+** {{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX remountsecure=3"
+}}
+
+'''3.''' Save the configuration file.
+
+'''4.''' Regenerate the grub configuration:
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+'''5.''' Reboot your system.
+
+A reboot is necessary for the kernel parameter changes to take effect.
+
+'''6.''' Completion.
+
+You have successfully enabled the Remount Secure feature.
+
+For more details and developer information, see the following resources:
+<ref>
+* [https://forums.whonix.org/t/re-mount-home-and-other-with-noexec-and-nosuid-among-other-useful-mount-options-for-better-security/7707/27 Forum discussion]
+* {{Github_link|repo=security-misc|path=/blob/master/usr/bin/remount-secure|text=remount-secure script}}
+* [https://github.com/Kicksecure/security-misc/tree/master/usr/lib/dracut/modules.d-disabled/20remount-secure remount-secure dracut module]
+* [[Dev/remount-secure]]
+* {{CodeSelect|code=
+ls -la /var/run/remount-secure
+}}
+</ref>
+
+{{Anchor|install}}
+
+= Installation of security-misc =
+{{mbox
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    =
+This chapter is only required for users which aren't users of {{project_name_long}} or its derivatives (such as {{Whonix}}). That is because security-misc is installed by default in {{project_name_long}} and {{project_name_long}} derivatives.
+}}
+
+Prerequisites:
+
+{{Prerequisites}}
+
+{{Box|text=
+{{Project-APT-Repository-Add Easy}}
+}}
+
+{{Box|text=
+Install <code>security-misc</code>.
+
+{{Install Package|package=
+security-misc
+}}
+}}
+
+= selinux =
+{{Community_Support|scope=chapter}}
+
+* {{Github_link|repo=security-misc|path=/pull/100}}
+* https://forums.whonix.org/t/restrict-hardware-information-to-root/7329/88
+
+= Debugging =
+Should security-misc create issues, the most likely causes might be the following two files.
+
+Option A) option would be [[Grub#Kernel_Boot_Parameter_Change|Kernel Boot Parameter Change]].
+
+Option B)
+
+Delete.
+
+{{CodeSelect|code=
+sudo mv /etc/default/grub.d/40_cpu_mitigations.cfg ~/
+}}
+
+And/or delete.
+
+{{CodeSelect|code=
+sudo mv /etc/default/grub.d/40_kernel_hardening.cfg ~/
+}}
+
+And.
+
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+Then reboot.
+
+If that helps, it means that one or another security hardening is causing issues.
+
+= References =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

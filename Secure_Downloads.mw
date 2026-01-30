@@ -1,0 +1,163 @@
+{{Title|title=Secure Command Line / Scurl}}
+{{Header}}
+{{#seo:
+|description=How to safely download files. How to defeat web encryption stripping attacks (sslstrip).
+|image=Securedownloads.jpg
+}}
+[[File:Securedownloads.jpg|thumb]]
+{{intro|
+Frequently users will want to download files from the Internet. Secure downloading of files is a complex subject and the potential security implications are often poorly understood.
+}}
+= Downloads with scurl - SSL Command Line Downloader =
+
+== Introduction ==
+
+{{mbox
+| type      = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = '''Note:''' This is for advanced users. In all cases avoid downloading files over plain HTTP.
+}}
+
+When using the command line to download files or webpages, resorting to the simple <code>wget</code> command is ill-advised because it is [https://lists.gnu.org/archive/html/bug-wget/2012-07/msg00015.html buggy]. For example, if users do not force a request to use SSL encryption, <code>wget</code> can [https://stackoverflow.com/questions/38292532/is-strict-transport-security-hsts-supported-by-libcurl/38835162#38835162 fail silently]. Even when SSL is enforced with a command line option, this can [https://www.gnu.org/software/wget/manual/html_node/HTTPS-_0028SSL_002fTLS_0029-Options.html break interoperability with some sites] that use self-signed, expired or invalid certificates. Users could potentially ignore certificate verification warnings and proceed with downloads where the site's authenticity is in question.
+
+To provide greater security when downloading, [https://github.com/{{project_name_short}}/usability-misc <code>scurl</code>] comes pre-installed in {{project_name_long}} and provides a simple wrapper around [https://packages.debian.org/{{Stable project version based on Debian codename}}/curl <code>curl</code>]:
+* {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/scurl|text=<code>/usr/bin/scurl</code>}} simply adds <code>{{Curl_Secure}} --proto =https</code> to all <code>curl</code> instances to enforce strong encryption.
+* {{Github_link|repo=usability-misc|path=/blob/master/usr/bin/scurl-download|text=<code>scurl-download</code>}} wraps <code>wcurl</code> and adds <code>--curl-options={{Curl_Secure}}</code>. This enforces strong encryption, follows redirects to extract the file name from the URL, and automatically saves the downloaded data to a file. <ref>
+[https://curl.haxx.se/docs/manpage.html#-O write output to a local file with the same name as the remote file retrieved]. Only the file part of the remote file is used and the path is cut off.
+</ref>
+
+<code>scurl</code> is not vulnerable to [https://security.stackexchange.com/questions/41988/how-does-sslstrip-work SSLstrip]. This is a man-in-the-middle attack which forces a user's browser to communicate with the adversary in plain-text over HTTP (poisoning the download). At present, <code>scurl</code> is available in {{project_name_short}} and the command will generally not work in other distributions.
+
+== How-to: Invoke scurl and scurl-download ==
+Note: In the examples below, the file will be saved in the user's current working directory. If the file should be saved elsewhere, change the current working directory before running scurl.
+
+To invoke scurl-download to download a file, simply run (replace the https:// example with the actual file location).
+
+{{CodeSelect|code=
+scurl-download https://example.com/browser.tar.xz
+}}
+
+This will download <code>browser.tar.xz </code> to the current working directory.
+
+To invoke scurl-download to download a web page, run (replace <code>example.com</code> with the actual webpage).
+
+{{CodeSelect|code=
+scurl-download https://example.com
+}}
+
+All curl/Linux features continue to work with <code>scurl</code>, such as storing the input inside of a file (change <i>index.html</i> to the desired file name).
+
+{{CodeSelect|code=
+scurl https://example.com > index.html
+}}
+
+== scurl Errors ==
+
+As expected, attempting scurl with plain HTTP will fail.
+
+{{CodeSelect|code=
+scurl http://example.com
+}}
+
+This will result in the following output.
+
+<pre>curl: (1) Protocol http not supported or disabled in libcurl</pre>
+
+Similarly, scurl fails with the following attempt.
+
+{{CodeSelect|code=
+scurl example.com
+}}
+
+Returning the following output.
+
+<pre>curl: (1) Protocol http not supported or disabled in libcurl</pre>
+
+Running scurl against a self-signed or invalid SSL certificate also fails.
+
+{{CodeSelect|code=
+scurl https://www.example.com
+}}
+
+This results in an error, for example.
+
+<pre>
+curl: (60) SSL certificate problem: self signed certificate
+More details here: https://curl.se/docs/sslcerts.html
+
+curl performs SSL certificate verification by default, using a "bundle"
+ of Certificate Authority (CA) public keys (CA certs). If the default
+ bundle file is not adequate, you can specify an alternate file
+ using the --cacert option.
+If this HTTPS server uses a certificate signed by a CA represented in
+ the bundle, the certificate verification probably failed due to a
+ problem with the certificate (it might be expired, or the name might
+ not match the domain name in the URL).
+If you'd like to turn off curl's verification of the certificate, use
+ the -k (or --insecure) option.
+</pre>
+
+= Secure Downloads with Web Browsers =
+== Preventing SSLStrip Attacks ==
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = If clicking or pasting a download link, make sure it is <code>http'''s'''://</code>. The <code>s</code> in <code>http'''s'''://</code> stands for "secure".
+}}
+Users often mistakenly believe that a secure, green padlock and a <code>http'''s'''://</code> URL makes any download from that particular website secure. This is not the case because the website might be redirecting to <code>http</code>. In fact, an [https://security.stackexchange.com/questions/41988/how-does-sslstrip-work SSLstrip attack] might succeed if a link is pasted or typed into the address bar without the <code>https://</code> component (e.g. <code>example.com</code> instead of <code>https://example.com</code>). <ref>And that website does not:
+
+* Use [https://en.wikipedia.org/wiki/HTTP_Strict_Transport_Security HTTP Strict Transport Security (HSTS)]. See also: https://security.stackexchange.com/questions/91092/how-does-bypassing-hsts-with-sslstrip-work-exactly. Without HSTS, sites with non-encrypted resources or sub-domains are vulnerable to SSLstrip.
+* Have a [https://www.eff.org/https-everywhere HTTPS Everywhere] rule in effect.
+* Use [https://blog.mozilla.org/security/2012/11/01/preloading-hsts/ HSTS preloading].
+* Use [https://en.wikipedia.org/wiki/HTTP_Public_Key_Pinning HTTP Public Key Pinning]. See also: https://news.netcraft.com/archives/2016/03/22/secure-websites-shun-http-public-key-pinning.html. HPKP limits trust to a handful of Certificate Authorities, but is not used by many websites due to the risk of site breakage if keys are not managed vigilantly.
+</ref>
+
+In this instance, it is impossible to confirm if the file is being downloaded over <code>https://</code>. Potentially, a SSLstrip attack might have made the download take place over plain <code>http</code>. The reason is a padlock is not visible; it just appears empty.
+
+To avoid this risk and similar threats, <u>always explicitly type or paste <code>https://</code> in the URL / address bar</u>. The SSL certificate button or padlock will not appear in this instance, but that is nothing to be concerned about. Unfortunately, few users follow this sage advice; instead most mistakenly believe pasting or typing <code>www.example.com</code> into the address bar is safe.
+
+= Secure Operating System Updates and Software Installation =
+See also:
+
+* [[Onionizing Repositories]]
+* [[Install Software]]
+
+= Other Precautions =
+
+For even greater safety, download files from onion services (<code>.onion</code> addresses) whenever possible. Improved security is provided by [https://www.whonix.org/wiki/Tor_Browser#Onion_Services_Encryption onion service] downloads, since the connection is encrypted end-to-end (with PFS), targeting of individuals is difficult, and adversaries cannot easily determine where the user is connecting to or from.
+
+Also, if files are already available in repositories, then prefer mechanisms which simplify and automate software upgrades and installations (like APT functions), rather than download Internet resources. Avoid installing unsigned software and be sure to always [[Verifying_Software_Signatures|verify key fingerprints and digital signatures of signed software]] from the Internet, <i>before</i> importing keys or completing installations. For more on this topic, see: [[Install_Software#Best_Practices|Installing Software Best Practices]].
+
+Finally, consider using [[Multiple {{project_name_short}}|Multiple {{project_name_short}}]] when downloading and installing additional software, to better compartmentalize user activities and minimize the threat of misbehaving applications.
+
+= Outside of {{project_name_short}} =
+== curl ==
+{{CodeSelect|code=
+curl {{Curl_Secure}} --proto =https
+}}
+
+== curl-download ==
+<u>Note:</u> Replace the <code>url</code> with the actual link to the file to download. <ref>
+* <code>--</code>: See [[Dev/bash#Use_of_End-of-Options_Parameter_.28--.29|Use of End-of-Options Parameter (--)]].
+</ref>
+
+{{CodeSelect|code=
+wcurl --curl-options={{Curl_Secure}} -- "url"
+}}
+
+Example:
+
+<u>Note:</u> Replace the URL with the actual link to the file to download.
+
+{{PreBox|wcurl --curl-options{{=}}{{Curl_Secure}} -- "<nowiki>https://</nowiki>www.kicksecure.com/download/iso/{{VersionNew}}/Kicksecure-LXQt-{{VersionNew}}.Intel_AMD64.iso"}}
+
+= Attribution =
+{{sdebian
+|link=https://www.debian.org/doc/manuals/securing-debian-manual/ch04s16.en.html
+|text=Secure file transfers
+}}
+
+= Footnotes =
+{{reflist|close=1}}
+[[Category:Documentation]]
+{{Footer}}

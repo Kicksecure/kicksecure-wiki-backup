@@ -1,0 +1,261 @@
+{{Header}}
+{{title|title=
+Derivative-Maker - Debian based Linux Bootable Image Builder
+}}
+{{#seo:
+|description=Can build Debian Derivatives such as Kicksecure and Whonix.
+}}
+{{build_mininav}}
+{{intro|
+[https://github.com/derivative-maker/derivative-maker Derivative-Maker] is capable of building Debian Derivatives like Kicksecure and Whonix.
+}}
+= Introduction =
+A Linux distribution is - if done professionally - built by a build script. This means no clicks by mouse and no running of manual commands is permissible.
+
+For example, it would be very much inappropriate to:
+
+* go to [https://extensions.gnome.org/extension/615/appindicator-support/ extensions.gnome.org] and press the 'Install' button.
+* click File Manager -> Settings -> changing any settings.
+
+This is also a requirement for:
+
+* consistent builds (custom rebuilds by third-parties, users, other developers resulting in an image with the same properties);
+* maintenance (it would be tedious to re-create new builds every time by manually installing Debian, then running commands to modify it and clicking)
+* It is also a prerequisite for reproducible builds.
+
+See also:
+
+* [https://www.whonix.org/wiki/Dev/Porting#Porting_Simplicity Learn about porting simplicity]
+* [https://www.whonix.org/wiki/Dev/Virtualization_Platform#Other_Virtualization_Platforms other virtualization platforms]
+
+= Existing Derivative-Maker Features =
+== Essential Derivative-Maker Features ==
+
+* '''Automated Dependencies:''' Install all necessary build dependencies on the host system automatically.
+* '''Build Kicksecure VM Images:''' Create virtual machine images for Kicksecure.
+* '''Build Whonix VM Images:'''
+** '''Whonix-Gateway:''' Generate Whonix-Gateway virtual machine images.
+** '''Whonix-Workstation:''' Generate Whonix-Workstation virtual machine images.
+** '''Unified Images:''' Construct a single OVA that includes both Whonix-Gateway and Whonix-Workstation.
+** '''Whonix Windows Installer:''' Build an installer for Whonix on Windows systems.
+* '''Boot Support:'''
+** Both, <code>grub-pc</code> ("legacy" BIOS) (see also [[Boot_firmware#SeaBIOS_is_not_a_Legacy_BIOS|SeaBIOS is not a Legacy BIOS]]) and <code>grub-efi</code>.
+** [[Secure Boot]] compatibility.
+* '''Package Downloads:''' Fetch newer packages from third-party repositories such as The Tor Project APT repository and the VirtualBox APT repository.
+* '''Tor Browser Integration:''' Include Tor Browser by default in Whonix-Workstation builds.
+* '''APT Cache Support:''' Utilize an APT Cache to accelerate the build process.
+* '''VirtualBox Image Building:''' Use <code>--target virtualbox</code> to build VirtualBox OVA images.
+** '''Custom VirtualBox Settings:''' Adjust VirtualBox VM settings using commands like <code>VBoxManage modifyvm "$VMNAME" --synthcpu on</code>.
+* '''KVM Image Building:''' Employ <code>--target qcow2</code> to construct KVM images.
+** '''Archive Creation:''' Generate <code>xz</code> archives.
+** '''Libvirt XML Integration:''' Include <code>libvirt xml</code> files in the <code>xz</code> archives.
+* '''User Account Setup:''' Establish a default login with username <code>user</code> and no password.
+* '''Strict Error Handling:''' Implement strict error handling with comprehensive exit code checks.
+* '''No Binary Base Boxes Required:''' Avoid the use of non-deterministic binary base boxes (vagrant VirtualBox images) to prevent depending on the base box being non-malicious.
+* '''Signature Verification:''' Ensure all digital software signatures are authenticated.
+* '''Future-Proofing:''' Lay the groundwork for creating deterministic images, preparing for when this becomes an achievable goal.
+* '''Unicode Scan:''' Scans the source code folder (which includes all packages to be built from source code) for unicode to mitigate [[Unicode|Invisible Malicious Unicode Risks]].
+
+== Non-Essential Derivative-Maker Features ==
+
+* '''Development Flexibility''': Build steps can be executed manually to expedite the development process.
+* '''Build Customization''': Integration of custom build steps is possible.
+* '''Environment Customization''': Ability to create VM images without a desktop environment.
+** Kicksecure options: <code>--flavor kicksecure-lxqt</code>, <code>--flavor kicksecure-cli</code>.
+** Whonix equivalents are also available.
+* '''Application Selection''': Build VM images excluding default applications.
+
+== Undecided Priority Derivative-Maker Features ==
+
+* '''Automated Dependency Installation''': Installs all required build dependencies on the host system.
+* '''Architecture Support''': <code>--arch</code> parameter for specifying architecture (e.g., <code>--arch amd64</code>, <code>--arch arm64</code> support).
+* '''Kernel Options''': <code>--kernel</code> and <code>--headers</code> parameters for kernel and headers customization (e.g., <code>--kernel linux-image-amd64 --headers linux-headers-amd64</code>).
+* '''Custom Repository Usage''': Optionally (non-default) install derivative packages from a custom remote repository.
+* '''Interactive Error Handling''': Error handler to repeat commands, open a shell, or ignore errors interactively.
+* '''Target Specification''': <code>--target root</code> option for building with physical isolation in mind.
+* '''Raw Image Creation''': <code>--target raw</code> for building raw disk images.
+* '''ISO Image Building''': <code>--target iso</code> for creating ISO images.
+* '''Package Customization for Virtualization''': Install specific packages for different virtualization platforms, like VirtualBox (<code>virtualbox-guest-x11</code>) and KVM (e.g., <code>spice-vdagent</code>).
+* '''Combined VirtualBox/KVM Builds''': <code>--target virtualbox</code> and <code>--target qcow2</code> can be built at the same time. <ref>
+* Disadvantage is that the resulting image contains both, the VirtualBox (guest additions) and the KVM specific packages (spice).
+* https://forums.whonix.org/t/non-qubes-whonix-13-0-0-1-0-x-issues/2443/4
+</ref>.
+* '''Dual Boot Compatibility''': Build images supporting both legacy BIOS and EFI booting.
+* '''Secure Boot Feature''': Support for Secure Boot during the boot process.
+* '''Build Security''': Build from a local self-built apt repository instead of a binary remote repository for enhanced security.
+* '''Source Code Trust''': During the build process no contents from kicksecure.com (or whonix.org) are used and no binaries created by the Kicksecure (or Whonix) project are used. See [[Trust#Builds_from_Source_Code_versus_Builds_including_Binary_Packages|Builds from Source Code versus Builds including Binary Packages]].
+* '''Verification and Signature''': Image digital software signatures. Creation of hash sum verification and GPG signatures for digital software verification.
+* '''Remote Repository Exclusion''': Build images that never had the derivative's remote/binary repository enabled for security.
+* '''Local Package Installation''': Build and install all derivative packages during the derivative image build process.
+* '''Onion Source Building''': Use onion apt sources for enhanced security during the build.
+* '''Build Stability''': Protection mechanisms against unexpected build issues.
+** '''Uncommitted Changes Check''': Option to break or continue the build when uncommitted changes are detected. This is useful to avoid temporary files and other unexpected changes to leak into the image to be built.
+** '''Tag Compliance''': Enforces to build from a git tag during the build, which optionally can be disabled. This is useful to avoid users from accidentally building from arbitrary commit hashes (git head) and then wondering if the build process is broken or why the resulting image is not the version that the user intended to build.
+* '''Configuration Directory''': <code>--confdir /path/to/config/dir</code> to specify a custom configuration directory.
+* '''Tor Browser Installation Control''': <code>--tb none|closed|open</code> to manage Tor Browser installation behavior.
+** none: Do not install Tor Browser.
+** closed: Fail the build if Tor Browser cannot be installed.
+** open: Continue the build even if Tor Browser cannot be installed.
+* '''Virtual Machine Customization''': Custom VM settings during build, which can be adjusted by the user post-build, such as:
+** <code>--vmram 128</code> for RAM allocation.
+** <code>--vram 12</code> for video memory allocation.
+** <code>--vmsize 200G</code> for virtual disk size.
+* '''Build Process Customization''': Easy implementation for creating other image types (like raw images).
+* '''Build Cleanup Command''': Command to remove temporary files and/or images post-build.
+* '''Build Step Skipping''': Feature to optionally skip certain build steps.
+* '''User Freedom''': All options and checks are optional as much as possible without requiring derivative-maker source code modifications.
+
+= Repository Caching =
+[https://salsa.debian.org/ocaml-team/approx approx], a package caching proxy, is used by default.
+
+* Why? To avoid developers re-downloading packages over and over again.
+* Why not make it optional? It's not easy to design the build script in a way that it does not use approx by default but uses it when using some option. This is because use of approx requires to use syntax <code>http://127.0.0.1:9977/</code> in APT sources used for the build process.
+
+= Repository Caching Debugging =
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = This section is out-of-date. It applies to apt-cacher-ng, which was the package caching proxy used in derivative-maker before approx was integrated.
+}}
+
+'''1.''' AppArmor fix if using Kicksecure or Whonix.
+
+{{CodeSelect|code=
+sudo append-once /etc/apparmor.d/abstractions/base.d/kicksecure "/etc/resolv.conf.whonix r,"
+}}
+
+{{CodeSelect|code=
+sudo aa-enforce /etc/apparmor.d/usr.sbin.apt-cacher-ng
+}}
+
+{{CodeSelect|code=
+sudo systemctl restart apt-cacher-ng
+}}
+
+Fixed in apparmor-profile-dist 3:9.5-1 and above.
+
+'''2.''' If using Whonix-Workstation, disable stream isolation.
+
+{{CodeSelect|code=
+sudo dummy-dependency --yes --purge uwt
+}}
+
+'''3.''' {{Install Package
+|package=apt-cacher-ng
+}}
+
+'''4.''' apt-cacher-ng configuration
+
+{{CodeSelect|code=
+echo "AllowUserPorts: 0" {{!}} sudo tee -a /etc/apt-cacher-ng/acng.conf
+}}
+
+'''5.''' apt-cacher-ng restart
+
+{{CodeSelect|code=
+sudo systemctl restart apt-cacher-ng
+}}
+
+'''6.''' Backup <code>/etc/apt/sources.list.d/debian.sources</code>.
+
+If existing. Existing only in Kicksecure, Whonix.
+
+Copy <code>/etc/apt/sources.list.d/debian.sources</code> to user home folder.
+
+{{CodeSelect|code=
+cp /etc/apt/sources.list.d/debian.sources ~/
+}}
+
+'''7.''' Acquire apt-cacher-ng compatible Debian sources lists files.
+
+From derivative-maker source code folder.
+
+* '''A)''' {{CodeSelect|inline=true|code=build_sources/debian_stable_current_clearnet.sources}}, <u>or</u>
+* '''B)''' {{CodeSelect|inline=true|code=build_sources/debian_stable_current_onion.sources}},
+
+{{CodeSelect|code=
+sudo cp ~/derivative-maker/build_sources/debian_stable_current_clearnet.sources /etc/apt/sources.list.d/debian.sources
+}}
+
+'''8.''' APT update command.
+
+{{CodeSelect|code=
+sudo env REPO_PROXY="http://127.0.0.1:3142" http_proxy=${REPO_PROXY} https_proxy=${REPO_PROXY} ALL_PROXY=${REPO_PROXY} apt-get -o Acquire::http::Proxy=http://127.0.0.1:3142 -o Acquire::https::Proxy=http://127.0.0.1:3142 -o Acquire::tor::Proxy=http://127.0.0.1:3142 -o APT::Update::Error-Mode=any -o Acquire::Languages=none -o Acquire::IndexTargets::deb::Contents-deb::DefaultEnabled=false -o Apt::Install-Recommends=false -o Acquire::Retries=5 update
+}}
+
+'''9.''' Check apt-cacher-ng configuration.
+
+The following command outputs apt-cacher-ng configuration excluding comments and duplicate newlines.
+
+{{CodeSelect|code=
+sudo cat /etc/apt-cacher-ng/* {{!}} grep --invert-match '#\{{!}}^$'
+}}
+
+Expected as of Debian bookworm:
+
+<pre>
+CacheDir: /var/cache/apt-cacher-ng
+LogDir: /var/log/apt-cacher-ng
+SupportDir: /usr/lib/apt-cacher-ng
+Remap-secdeb: security.debian.org security.debian.org/debian-security deb.debian.org/debian-security /debian-security cdn-fastly.deb.debian.org/debian-security ; deb.debian.org/debian-security security.debian.org cdn-fastly.deb.debian.org/debian-security
+ReportPage: acng-report.html
+ExThreshold: 4
+FollowIndexFileRemoval: 1
+LocalDirs: acng-doc /usr/share/doc/apt-cacher-ng
+AllowUserPorts: 0
+http://ftp.debian.org/debian/
+http://distfiles.gentoo.org/
+http://kali.download/kali/
+http://http.kali.org/kali/
+http://archive.ubuntu.com/ubuntu/
+PassThroughPattern: .*
+</pre>
+
+'''10.''' Check apt-cacher-ng log.
+
+{{CodeSelect|code=
+sudo journalctl --boot --output cat -u apt-cacher-ng
+}}
+
+'''11.''' apt-cacher-ng cache folder reset.
+
+{{CodeSelect|code=
+sudo systemctl stop apt-cacher-ng
+
+sudo mkdir --parents /var/cache/apt-cacher-ng
+
+sudo find /var/cache/apt-cacher-ng -mindepth 1 -print0 {{!}} xargs -0 sudo safe-rm --verbose -r -f
+
+sudo chown --recursive apt-cacher-ng:apt-cacher-ng /var/cache/apt-cacher-ng
+
+sudo systemctl restart apt-cacher-ng
+}}
+
+This script has been added as <code>help-steps/apt-cacher-ng-reset</code> to git master: {{Github_link|repo=derivative-maker|path=/blob/master/help-steps/apt-cacher-ng-reset}}
+
+= Custom Packages =
+[[Untested]].
+
+{{Testers-only}}
+
+For example, use the CLI version and
+
+* VM builds: For VM builds, see variable <code>flavor_meta_packages_to_install</code>.
+* ISO builds: In the future, we probably make that variable work for ISO builds too.
+
+Use...
+
+* <code>kicksecure-vm-server</code>, or
+* <code>kicksecure-baremetal-server</code>
+
+Example:
+
+{{CodeSelect|code=
+flavor_meta_packages_to_install=" kicksecure-vm-server pkg1 pkg2 pkg3 "
+}}
+
+Prepend this variable in front of the <code>derivative-maker</code> build command or use add a [[Build_Configuration#Build_Variables_Changes|Build Variables Change]].
+
+= Footnotes =
+<references />
+[[Category:Design]] [[Category:Development]]
+{{Footer}}

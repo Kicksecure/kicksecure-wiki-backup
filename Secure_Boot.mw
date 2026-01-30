@@ -1,0 +1,317 @@
+{{Header}}
+{{title|title=
+Secure Boot
+}}
+{{#seo:
+|description=Information on Secure Boot and DKMS Signing Key (MOK Key) Enrollment to ensure kernel modules can be loaded on systems with Secure Boot enabled.
+|image=Secureboot12312.png
+}}
+{{boot_firmware}}
+[[File:Secureboot12312.png|thumb|50px]]
+{{intro|
+Information on Secure Boot and DKMS Signing Key (MOK Key) Enrollment to ensure kernel modules can be loaded on systems with Secure Boot enabled.
+}}
+= Introduction =
+Secure Boot is a feature designed to help protect your computer by allowing only trusted software to run during startup. It ensures that the system boots with software that hasn't been tampered with. However, in practice, Secure Boot has been criticized for acting as an anti-competitive tool by Microsoft, as it can prevent users from easily switching from Windows to alternative operating systems such as Linux. In practice, until a full [[Verified Boot]] (and perhaps [[Sovereign Boot]]) gets implemented by a Freedom Software Linux desktop distribution, the security advantage is marginal. Technical details can be found on [[Dev/Secure Boot|Secure Boot (developers)]]. [[Miscellaneous_Threats_to_User_Freedom|User freedom restrictions]] are documented in chapter "[[Miscellaneous_Threats_to_User_Freedom#restricted_boot|restricted boot]]".
+
+= {{project_name_short}} Secure Boot Compatibility =
+Platform specific.
+
+* Kicksecure: {{project_name_short}} is compatible with computer hardware provider default (Microsoft) provided keys. Disabling Secure Boot is optional. However, if the user keeps Secure Boot enabled, DKMS key enrollment is recommended, which is documented below.
+* Kicksecure for Qubes: See [[Secure_Boot#Qubes_Specific|Qubes Specific]].
+
+= Rationale for DKMS Signing Key Enrollment =
+Without a DKMS Signing Key Enrollment, the following functionality will be broken:
+
+* [https://www.kicksecure.com/?#explain-tirdad tirdad - CPU Information Leak Protection (TCP ISN)] is implemented through a custom [[kernel module]].
+* VirtualBox host operating system software.
+* Any other kernel modules not acquired from <code>packages.debian.org</code> (signed by Debian).
+
+This is because, when Secure Boot is enabled, custom (non-mainline in Linux) kernel modules are rejected by the Linux kernel.
+
+= Symptoms =
+== module verification failed: signature and/or required key missing - tainting kernel ==
+This message appears in Linux systems when you load a kernel module that is either unsigned or signed with a key the running kernel doesn't recognize. It usually looks like this:
+
+<pre>
+tirdad: module verification failed: signature and/or required key missing - tainting kernel
+</pre>
+
+'''Recommended user action:'''
+
+Choose <u>either</u> option A <u>or</u> B.
+
+* {{IconSet|h2|A}} <u>No action:</u> No user action is necessarily required. <u>Or</u>
+* {{IconSet|h2|B}} <u>Secure Boot compliance:</u> Enable Secure Boot and [[Secure_Boot#Secure_Boot_DKMS_Signing_Key_Enrollment|Secure Boot DKMS Signing Key Enrollment]].
+
+'''What is happening:'''
+
+The kernel loads the module normally and then ''taints'' itself, marking the state as potentially unsafe. This is mainly for diagnostic and support purposes and may matter in enterprise contexts where running a tainted kernel (unsigned kernel modules) is prohibited.
+
+Note that the package that shipped the kernel module was probably signed, but the module as a whole isn't signed with a separate key. This is not an issue for Open Source modules that are compiled using DKMS at build time such as <code>tirdad</code>.
+
+'''Effects of this message:'''
+
+* <u>Only a warning:</u> Not an error. Most of the time, the module still loads and works as intended. The message is a warning indicating your security policy was bypassed.
+* <u>Tainted Kernel:</u> The kernel logs the event, and the running kernel is marked as "tainted." Some modules (especially modules not coming together with the Linux kernel) cause this tainting even if they work normally.
+
+'''Relation to Secure Boot:'''
+
+This message can only happen if Secure Boot is disabled. If Secure Boot were enabled, the kernel module load would be rejected.
+
+== systemd-modules-load - Failed to insert module module name - Key was rejected by service ==
+
+This message appears when a kernel module fails to load because its signature could not be verified under Secure Boot policies. Examples:
+
+<pre>
+systemd-modules-load[PID]: Failed to insert module '[module name]': Key was rejected by service
+</pre>
+
+<pre>
+systemd-modules-load[795]: Failed to insert module 'tirdad': Key was rejected by service
+</pre>
+
+'''Recommended user action:'''
+
+Choose <u>either</u> option A <u>or</u> B.
+
+* {{IconSet|h2|A}} <u>Secure Boot non-compliance:</u> [[Secure_Boot#Disable_Secure_Boot|Disable Secure Boot]]; <u>or</u>
+* {{IconSet|h2|B}} <u>Secure Boot compliance:</u> [[Secure_Boot#Secure_Boot_DKMS_Signing_Key_Enrollment|Secure Boot DKMS Signing Key Enrollment]]
+
+'''What is happening:'''
+
+With Secure Boot enabled, the kernel enforces strict module signing policies. The module in question is likely unsigned, signed with an untrusted key, or otherwise incompatible with the Secure Boot trust chain. As a result, the kernel refuses to load it.
+
+'''Effects of this message:'''
+
+* <u>Module not loaded:</u> The affected module will not function, potentially disabling related functionality (e.g., device drivers or security modules).
+* <u>Security:</u> The recommended kernel module <code>tirdad</code> will fail to load. Also other potentially wanted kernel modules not included with the Linux kernel will fail to load. 
+
+'''Relation to Secure Boot:'''
+
+This message only occurs when Secure Boot is enabled. Secure Boot ensures that only signed and trusted kernel modules are allowed to run. If a module’s key is not enrolled, the kernel will reject it.
+
+= Secure Boot DKMS Signing Key Enrollment =
+
+* <u>context:</u> [[Secure_Boot#Introduction|Secure Boot, Introduction]]
+* <u>purpose:</u> [[Secure_Boot#Rationale_for_DKMS_Signing_Key_Enrollment|Rationale for DKMS Signing Key Enrollment]]
+
+{{IconSet|h1|1}} To import the MOK certificate, make sure <code>mokutil</code> is installed.
+
+It is installed by default in {{project_name_short}}.
+
+{{Install Package
+|package=mokutil
+}}
+
+{{IconSet|h1|2}} Check if Secure Boot is enabled:
+
+{{CodeSelect|code=
+sudo mokutil --sb-state
+}}
+
+Expected output (Secure Boot is enabled):
+
+<pre>
+SecureBoot enabled
+</pre>
+
+Expected output (Secure Boot is disabled):
+
+<pre>
+SecureBoot disabled
+</pre>
+
+'''What this means:'''
+
+* Secure Boot <u>enabled</u> means the system will only load trusted kernel modules. You will likely need to enroll the DKMS signing key for additional kernel modules.
+* Secure Boot <u>disabled</u> means no key enrollment is needed, and you can skip the remaining steps in this chapter.
+
+'''Recommended user action:'''
+
+* {{IconSet|h2|A}} If Secure Boot is disabled:
+** {{IconSet|h3|1}} If you want to enable it, see [[Secure_Boot#Enable_Secure_Boot|Enable Secure Boot]].
+** {{IconSet|h3|2}} If you do not want to enable it, you are done. No further steps from this chapter are required.
+* {{IconSet|h2|B}} If Secure Boot is enabled:
+** {{IconSet|h3|1}} Proceed with the steps below.
+
+{{IconSet|h1|3}} Import the DKMS MOK key.
+
+{{CodeSelect|code=
+sudo mokutil --import /var/lib/dkms/mok.pub
+}}
+
+{{IconSet|h1|4}} Password entry.
+
+You'll be prompted to create a password. Enter it twice.
+
+{{IconSet|h1|5}} Reboot the computer.
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+{{IconSet|h1|6}} MOK Manager EFI interface.
+
+At boot, you'll see the MOK Manager EFI interface:
+
+[[File:mok-key-1.png|SHIM UEFI key management]]
+
+{{IconSet|h1|7}} Press any key to enter it, then select "Enroll MOK":
+
+[[File:mok-key-2.png|Perform MOK management]]
+
+{{IconSet|h1|8}} Then select "Continue":
+
+[[File:mok-key-3.png|Enroll MOK]]
+
+{{IconSet|h1|9}} Confirm with "Yes" when prompted:
+
+[[File:mok-key-4.png|Enroll the key(s)?]]
+
+{{IconSet|h1|10}} After this, enter the password you set up with <code>mokutil --import</code> in the previous step:
+
+[[File:mok-key-5.png|Enroll the key(s)?]]
+
+{{IconSet|h1|11}} At this point, you are done. Select "Reboot" and the computer will reboot, trusting the key for your modules:
+
+[[File:mok-key-6.png|Perform MOK management]]
+
+{{IconSet|h1|12}} After reboot, you can inspect the MOK certificates with the following command:
+
+{{CodeSelect|code=
+sudo mokutil --list-enrolled {{!}} grep DKMS
+}}
+
+Expected output:
+
+<pre>
+        Subject: CN=DKMS module signing key
+</pre>
+
+{{IconSet|h1|13}} To check the signature on a built DKMS module that is installed on a system:
+
+{{CodeSelect|code=
+sudo modinfo dkms_test {{!}} grep ^signer
+}}
+
+<pre>
+signer:         DKMS module signing key
+</pre>
+
+{{IconSet|h1|14}} Done.
+
+The module can now be loaded without issues.
+
+Credits: Based on [https://github.com/dell/dkms?tab=readme-ov-file#secure-boot Dell dkms Secure Boot documentation]
+
+= Enable or Disable Secure Boot =
+== Disable Secure Boot ==
+Choose an option.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= === Disable Secure Boot using update-secureboot-policy ===
+|content=
+Secure Boot can be disabled using <code>update-secureboot-policy</code>.
+
+This tool is available only for Debian-based distributions, such as Kicksecure and Whonix. For other Linux distributions, see the alternative option.
+
+{{IconSet|h1|1}} {{sysmaint_notice}}
+
+{{IconSet|h1|2}} Choose one of these methods:
+
+* '''A)''' Terminal-based graphical user interface: {{CodeSelect|code=
+sudo update-secureboot-policy
+}}
+* '''B)''' Command-line interface: {{CodeSelect|code=
+sudo update-secureboot-policy --disable
+}}
+
+{{IconSet|h1|3}} Reboot your system.
+
+{{IconSet|h1|4}} Done.
+}} <!-- close tab -->
+
+{{Tab
+|title= === Disable Secure Boot in BIOS/UEFI ===
+
+|content=
+Alternatively, Secure Boot can be disabled using the firmware setup (BIOS/UEFI).
+
+{{IconSet|h1|1}} Restart your computer and enter the BIOS/UEFI settings.
+
+{{IconSet|h1|2}} Locate the Secure Boot option and disable it.
+
+{{IconSet|h1|3}} Save changes and exit.
+
+{{IconSet|h1|4}} Done.
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
+
+== Enable Secure Boot ==
+If the user wishes to use Secure Boot, it must be enabled using the firmware setup (BIOS/UEFI).
+
+{{IconSet|h1|1}} Restart your computer and enter the BIOS/UEFI settings.
+
+{{IconSet|h1|2}} Locate the Secure Boot option and enable it.
+
+{{IconSet|h1|3}} Save changes and exit.
+
+{{IconSet|h1|4}} Enable Secure Boot using <code>update-secureboot-policy</code>.
+
+This may or may not be needed. Most likely not needed, unless Secure Boot has been previously disabled using <code>update-secureboot-policy</code>. As per the instructions below.
+
+{{IconSet|h1|5}} {{sysmaint_notice}}
+
+{{IconSet|h1|6}} Choose one of these methods:
+
+* {{IconSet|h2|A}} Terminal-based graphical user interface: {{CodeSelect|code=
+sudo update-secureboot-policy
+}}
+* {{IconSet|h2|B}} Command-line interface: {{CodeSelect|code=
+sudo update-secureboot-policy --enable
+}}
+
+{{IconSet|h1|7}} Reboot your system.
+
+{{IconSet|h1|8}} Done.
+
+= Errors =
+== EFI variables are not supported on this system ==
+If you see the following error message:
+
+<pre>
+EFI variables are not supported on this system
+</pre>
+
+In this case, EFI is not enabled, which by extension means that Secure Boot is not enabled either. Therefore, it is unnecessary for the DKMS MOK key to be imported. No further user action is required.
+
+= Qubes Specific =
+* Qubes feature request: [https://github.com/QubesOS/qubes-issues/issues/5241 enable Linux kernel gpg verification in grub and/or enable EFI Secure Boot for Qubes / Xen guests]
+
+= Development =
+* [https://github.com/dell/dkms/issues/429 automate running "<code>sudo mokutil --import /var/lib/dkms/mok.pub</code>"]
+
+= Other Projects on Secure Boot =
+* [https://www.qubes-os.org/faq/#is-secure-boot-supported Qubes OS FAQ: Is Secure Boot supported?]
+
+= Tools =
+Coming up in the next version.
+
+/usr/bin/secure-boot-enabled-check
+
+/usr/sbin/shim-signed-mok-setup
+
+/usr/sbin/shim-enroll-mok
+
+= See Also =
+{{boot_firmware}}
+
+<references/>
+{{Footer}}
+[[Category: Documentation]]

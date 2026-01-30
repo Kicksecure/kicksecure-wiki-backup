@@ -1,0 +1,106 @@
+{{Header}}
+{{title|title=
+NAT traversal
+}}
+{{#seo:
+|description=todo
+}}
+{{intro|
+todo
+}}
+
+{{stub}}
+
+= pwnat =
+{{Unsupported}}
+
+* https://samy.pl/pwnat
+* https://github.com/samyk/pwnat
+
+To make the client’s browser access <code><nowiki>http://127.0.0.1</nowiki></code> (port <code>80</code>) and get your HTTP server behind NAT, here’s the correct setup:
+
+On Your Server (behind NAT, running the HTTP service on port <code>8080</code>):
+
+{{CodeSelect|code=
+sudo ./pwnat -s 0.0.0.0 2222 127.0.0.1:8080
+}}
+
+This:
+
+* Listens for <code>pwnat</code> clients on UDP port <code>2222</code>
+* Only allows proxy access to your local port <code>8080</code> (your HTTP server)
+
+Make sure your HTTP server is running:
+
+{{CodeSelect|code=
+python3 -m http.server 8080
+}}
+
+On the Client (behind another NAT, allows browser to connect):
+
+<u>Note:</u> Replace <code>your.server.public.ip</code> with the actual IP address of your server.
+
+{{CodeSelect|code=
+sudo ./pwnat -c 0.0.0.0 80 your.server.public.ip 2222 127.0.0.1 8080
+}}
+
+This:
+
+* Binds to port <code>80</code> on the client (accessible via <code><nowiki>http://127.0.0.1</nowiki></code>)
+* Proxies requests through your server’s <code>pwnat</code> to its local <code>8080</code>
+* Now, on the client machine, just open:
+
+{{CodeSelect|code=
+http://127.0.0.1
+}}
+
+Expected result:
+
+Client should see the server’s content.
+
+== Actual Result ==
+
+client:
+
+<pre>
+Listening on TCP 0.0.0.0:80
+</pre>
+
+Then nothing happening.
+
+server:
+
+<pre>
+Listening on UDP 0.0.0.0:2222
+</pre>
+
+Then nothing happening.
+
+Setup:
+
+* server: ISP home router -> notebook -> Qubes -> VM (with direct internet connection)
+* client test 1: ISP home router -> notebook -> Qubes -> different VM (with direct internet connection)
+* client test 1: ISP home router -> notebook -> Qubes -> different VM (with VPN connection)
+
+Functionality tests:
+
+* HTTP server is functional locally on the server: Yes. Command <code>curl 127.0.0.1:8080</code> shows HTML output.
+* Behind normal NAT according to https://tomchen.github.io/symmetric-nat-test/. (Not behind symmetric NAT.)
+* server internet functionality test (visit any website): yes
+* client test 1 internet functionality test (visit any website): yes
+* client test 2 internet functionality test (visit any website): yes
+
+== Debian ==
+* https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=930966
+
+= See Also =
+* https://tomchen.github.io/symmetric-nat-test/
+* GNUnet's Probabilistic NAT Traversal
+* libp2p
+** https://libp2p.io/
+* slipstream
+** https://samy.pl/slipstream/
+** https://github.com/samyk/slipstream
+
+{{Footer}}
+[[Category:Documentation]]

@@ -1,0 +1,285 @@
+{{Header}}
+{{Title|title=
+Stable vs Rolling Distributions - Security Analysis
+}}
+{{#seo:
+|description=An overview of how software and OS release policies affect system security.
+}}
+{{maintainability_mininav}}
+{{intro|
+An overview of how software and OS release policies affect system security.
+}}
+
+= Introduction =
+
+Software release models and the policies surrounding them can have an impact on a system's security in a number of ways. This page focuses primarily on the two most common software release models, "stable release" and "rolling release". Other release models between these two extremes are briefly covered.
+
+= Prerequisite Knowledge =
+* definition: [[Malware_and_Firmware_Trojans#Vulnerability_versus_Malicious_Backdoor|Vulnerability versus Malicious Backdoor]]
+
+= Distribution releases vs software releases =
+
+Linux distributions often have a different release model than the software that they offer. A substantial amount (sometimes all) of the software in a distribution is treated as operating system components. Specific versions of software are integrated into the distribution depending on the distribution's policies and what versions are available when the software is being integrated. This software is then subjected to the operating system's release model; the upstream developers' release model is usually partially or entirely superseded. This is particularly common in stable releases.
+
+= Distribution release models =
+
+== Stable release ==
+
+The stable release model is intended to provide users with a working environment that never (or almost never) has new bugs introduced into it. After a certain period of development, the software that makes up a stable release distribution is "frozen", and no new versions of any applications are introduced into that particular version of the distribution. This "frozen" state is then released, and users install applications from the frozen repository as needed.
+
+If taken to an extreme, the stable release model would imply that no software updates would ever be delivered. However, due to the security dangers and usability issues this would introduce, most stable-release distributions offer software updates in some fashion. Usually, this is because:
+
+* A security issue has been identified in a software package provided by the distribution. In this instance, the code change needed to fix the security issue is taken from upstream in some form, modified to work with the older version of the software already present in the distribution's repositories, then the affected application is rebuilt and delivered to users.
+* A bug that seriously impacts a package's usability or safety is identified. Bug fixes are delivered in a very similar way to security fixes.
+* A new version of an application is available, and that application cannot reasonably have bug fixes and security updates delivered in isolation. In this instance, the new version of the application is taken from upstream and repackaged. This is the approach usually taken for projects like Firefox and Chromium, which are extremely complex and fast-moving.
+
+Various distributions enforce software stability to varying degrees. Debian, the base for {{project_name_short}}, is particularly strict about stability, and oftentimes will refuse to ship fast-moving software (like VirtualBox or standard releases of Firefox) in a stable release at all, opting for alternatives instead. Where there is no choice other than continuous updates of a package (such as is the case for Firefox ESR and Chromium), Debian generally integrates newer software releases on a best-effort basis. These updates can be delayed for a very long time (sometimes a month or longer) if there are challenges building or using the newer software with the older packages present in Debian. <ref>
+Debian bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=998679 firefox-esr freezes shortly after start]
+</ref> Fedora, on the other hand, will often introduce new upstream releases of applications into stable releases if those updates introduce no new features (or are otherwise considered low-risk).
+
+Eventually, users may need newer application features, and newer hardware may not work correctly with older drivers and Linux kernels. For this reason, stable release distributions periodically create new releases, providing newer software, newer features, and whatever bugs or security issues were introduced by the new applications. Debian creates a new stable release approximately every two years.
+
+As software gets older, it generally becomes harder and harder to backport bug and security fixes into it. To prevent having to maintain a release indefinitely, stable releases generally have an end-of-life date, after which point they are frozen permanently and no further software updates are provided. Once a stable release reaches end-of-life, users must upgrade to a newer version to continue receiving security fixes.
+
+{| class="wikitable"
+|+ ''<u>Stable</u> Release Model - Security Analysis''
+
+! Issue
+! Severity
+! Reason
+|-
+
+| Vulnerabilities in slow-moving software
+| style="background-color: {{Green}}"| Less likely
+| Simpler and/or slower-moving applications generally do not have as many vulnerabilities, and those that do exist can usually be patched without too much trouble. Integrating fixes for these applications without adding new features means that the software gradually becomes more secure over time.
+|-
+
+| Vulnerabilities in fast-moving software
+| style="background-color: {{Red}}"| More likely
+| Fast-moving applications often have many vulnerabilities. Backporting fixes for these vulnerabilities may become impractical as upstream's codebase diverges too far from the frozen version in the distribution. If the distribution chooses to integrate new releases on a regular basis, difficulties in getting those new releases integrated can leave software with known vulnerabilities unpatched for a very long time.
+|-
+
+| Ease of intentional, "direct", malicious backdoor introduction
+| style="background-color: {{Green}}"| Difficult
+| Backdoors introduced early on in a release's development have a reasonably long time to be detected before the release is distributed to end users. Backdoors can be very difficult to introduce late in a release's development without being noticed, as stable release distributions usually pay careful attention to software changes being made when a release is imminent. Once a release is made, backdoors can be virtually impossible to introduce due to the frozen nature of the release's software repository. Fast-moving software may be an exception to this rule but is often developed by large entities that would have a higher likelihood of catching a backdoor being introduced into the code.
+|-
+
+| Speed of security fixes
+| Varies
+| Packages with a sufficiently large maintenance team may have security updates available for them within hours of a vulnerability being reported. Packages maintained by a single person or a small team may not have updates available for weeks after a report, even if the vulnerability is considered severe. <ref>
+* Debian bug report: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1108288 CVE-2025-53391: Local privilege escalation via zuluPolkit, caused by Debian patch]
+* [https://nvd.nist.gov/vuln/detail/CVE-2025-53391 NVD entry CVE-2025-53391]
+</ref>
+|-
+
+| Frequency of newly introduced vulnerabilities
+| style="background-color: {{Green}}"| Low
+| Most packages will only have very small changes made to them for the purpose of fixing bugs and security issues. These changes are unlikely to introduce new issues. Even though new stable releases will introduce many new bugs and vulnerabilities, users can usually stay on an older release for some time, allowing the new release to "stabilize" before upgrading to it. Fast-moving packages are an exception to this rule and will usually have new, undiscovered vulnerabilities introduced on a regular basis.
+|-
+
+| Likelihood of system breakage by software updates
+| style="background-color: {{Green}}"| Low
+| Software updates generally will not include substantial changes that could break a user's workflow or a system's stability. This keeps a user's data available to them, and reduces the likelihood that they will run untrusted code in an attempt to fix issues.
+|-
+
+| Upgrade complexity
+| style="background-color: {{Red}}"| High
+| Upgrading is oftentimes somewhat dangerous, as many large changes are applied to the system simultaneously. Oftentimes a full reinstall is advisable to keep problems to a minimum, requiring one to back up their data, wipe the system with a clean installation, and restore their data from backups. This may encourage users (especially less technical users) to stay on an older release until it is end-of-life or past end-of-life, causing exposure to known vulnerabilities.
+|-
+
+|}
+
+== Rolling release ==
+
+The rolling release model is intended to provide users the latest software at all times. As upstream software developers release new versions of applications and libraries, those newer releases will be integrated into the distribution and then almost immediately rolled out to end users. Due to the constantly moving nature of the release, "versions" traditionally do not exist. Systems become outdated very quickly and require very regular software updates to remain up-to-date.
+
+The rolling release model brings a number of advantages and disadvantages with it:
+
+* Advantages:
+** Less upstream maintenance effort. When a new software release is made that fixes vulnerabilities, the entire application or library can be packaged up and integrated into the distribution. This is oftentimes much easier than backporting a single patch.
+** Better package maintenance. Packages are less likely to be abandoned by their maintainers or take an extremely long time to be patched, since the lower maintenance effort makes it easier for maintainers to do their job.
+* Disadvantages:
+** Constant bug and vulnerability introduction. While known security issues are usually patched quickly in a rolling release, exploitable zero-days are much more likely to be present due to the introduction of arbitrary new code from upstream.
+** Feature removal. If a software project removes a feature from their application, the feature will be removed from the distribution in a relatively short amount of time. This can result in difficulties for users who were helped by or relied on those features.
+** System breakage. Software updates to core system components may contain large or dangerous changes, potentially resulting in system malfunctions or inability to boot. Users may have to take manual steps to unbreak their system after a bad update, or wait for an update to be released that fixes the issue.
+** Pre-release software. Rolling releases often make it very easy to integrate beta-quality or otherwise unfinished software into a system. Arch Linux's AUR, for instance, provides a number of user-created packages that offer pre-releases of various applications. Pre-release code is more likely to contain bugs with security implications due to the code's unfinished state, and may even contain publicly known bugs that impact security if upstream does not consider bugs in a pre-release to be security vulnerabilities.
+
+{| class="wikitable"
+|+ ''<u>Rolling</u> Release Model - Security Analysis''
+
+! Issue
+! Severity
+! Reason
+|-
+
+| Vulnerabilities in slow-moving software
+| style="background-color: {{Red}}"| More likely
+| If an upstream developer introduces a vulnerability into an application packaged by a rolling release distribution, that vulnerability will very likely end up in the distribution and remain there until upstream discovers and fixes it. Example: [[SSH]] vulnerability: regreSSHion <ref>
+* [https://en.wikipedia.org/wiki/RegreSSHion Wikipedia: RegreSSHion]
+* [https://blog.qualys.com/vulnerabilities-threat-research/2024/07/01/regresshion-remote-unauthenticated-code-execution-vulnerability-in-openssh-server Qualys blog: RegreSSHion (OpenSSH)]
+* [https://www.qualys.com/2024/07/01/cve-2024-6387/regresshion.txt Qualys advisory: regreSSHion (CVE-2024-6387)]
+</ref>
+|-
+
+| Vulnerabilities in fast-moving software
+| style="background-color: {{Green}}"| Less likely
+| The same difficulties that apply to slow-moving software apply here, since rolling releases make little or no distinction between the two kinds of software. However, known vulnerabilities are often patched promptly, making fast-moving software in a rolling release oftentimes safer than fast-moving software in a stable release.
+|-
+
+| Ease of intentional, "direct", malicious backdoor introduction
+| style="background-color: {{Red}}"| Easier
+| If an attacker successfully implants a backdoor in an upstream project's code, that backdoor will likely be deployed onto the machines of most of a rolling release's users, especially those that update regularly to keep their systems secure. This makes rolling release users more likely to be affected by these kinds of attacks. <ref>
+* [https://archlinux.org/news/the-xz-package-has-been-backdoored/ Arch Linux news: xz package backdoor]
+* [https://bugs.gentoo.org/323691 Gentoo bug report: unrealircd - remote command execution via backdoor (CVE-2010-2075)]
+</ref>
+|-
+
+| Speed of security fixes
+| style="background-color: {{Green}}"| Usually high
+| Packages are usually easy to update when a security vulnerability is announced. Security updates even for packages with smaller maintenance teams may be released within hours or days of the report. Packages that are entirely unmaintained will obviously not be fixed in a timely fashion.
+|-
+
+| Frequency of newly introduced vulnerabilities
+| style="background-color: {{Red}}"| High
+| Unless upstream quickly notices a vulnerability after releasing it and fixes it before the distribution has time to package the application, newly introduced vulnerabilities will almost always end up in rolling releases.
+|-
+
+| Likelihood of system breakage by software updates
+| style="background-color: {{Red}}"| High
+| Software updates will sometimes include substantial changes that could break a user's workflow or a system's stability. This may keep the user from accessing their data in severe circumstances. Even less severe issues may encourage a user to run untrusted code from forums, blog posts, etc. in an attempt to fix the issue.
+|-
+
+| Upgrade complexity
+| style="background-color: {{Green}}"| Usually lower
+| Upgrades are small, incremental, and frequent, theoretically reducing the risk of completely destroying the system during an upgrade. Users who update their software frequently do not have to worry about end-of-life dates. Updating the system after it has not been updated for a long time may come with risks similar to upgrading a stable distribution to a new release.
+|-
+
+|}
+
+== Other release models ==
+
+Some distributions attempt to strike a balance between the stable and rolling release paradigms. Examples:
+
+* Fedora
+** Technically a stable release, but oftentimes integrates new upstream releases into existing stable releases if those releases are bugfix-only or otherwise considered to be low-risk. From a usability perspective, this provides many of the benefits of both stable and rolling releases at the same time. However, this also increases the frequency of newly introduced vulnerabilities and may not provide higher security update speed in some instances.
+* Manjaro
+** Technically a rolling release, but attempts to give newly introduced packages some time to stabilize by offering them to testers in "unstable" and "testing" branches before rolling them out to all users. This is intended to provide many of the benefits of both stable and rolling releases. Unfortunately, the stabilization delay was not slow enough to prevent the xz backdoor from possibly affecting users<ref>[https://forum.manjaro.org/t/xz-package-contains-a-vulnerability/159028 Manjaro forum thread: xz package contains a vulnerability]</ref>, and potentially delays the speed of fixes for less-severe software vulnerabilities. <ref>[https://forum.manjaro.org/t/what-about-stable-security-updates/108245/2 Manjaro forum post: stable security updates]</ref>
+* openSUSE Slowroll
+** An attempt at hybridizing stable release and rolling release paradigms. Major software updates are introduced once a month, while bug and security fixes are backported incrementally like a stable release in between major updates. This essentially acts as a stable release that releases new versions frequently, stops supporting old versions as soon as new ones are released, and is easy to upgrade from release to release. This may provide some level of resistance to backdoor introduction, reduce maintainer workload enough to improve security update speed, and reduce the likelihood of system breakage. It will still introduce new bugs and vulnerabilities fairly often, and does not provide any time for a user to allow a new "release" to "stabilize".
+
+= Software release models =
+
+Individual software projects often have their own release models that differ substantially from distribution release models. Depending on project policies, this can have an effect on the security of downstream distributions and users.
+
+* Rolling, "release when it's ready"
+** Releases are created whenever an application's maintainers deem it "ready for general use". Only the latest version is supported. Security updates are usually provided as a quick release on top of the latest available release. Most software maintained by smaller teams or individuals falls into this category and is usually somewhat slow-moving.
+** It is usually easy to backport security fixes from these kinds of applications due to their slower development pace. This is a benefit for stable releases.
+* Rolling, "eternal beta"
+** True releases are never made; instead, the application's source code is made publicly available via a Git repository or similar. Users are expected to take whatever the most recent code is and use that. Many applications start out with this release model during early development, and even applications with a more formalized release process may be offered in an "eternal beta" format by rolling releases or community-built packages. Software like this is oftentimes maintained by smaller teams.
+** It may be more difficult to backport security fixes from these kinds of applications, depending on the development pace.
+* Stable, multiple branches
+** New major releases are periodically created using code from a development branch, then incremental improvements are made to those releases as appropriate and offered as minor releases. Many major applications such as LibreOffice, KDE Plasma, VirtualBox, and Blender use this release model. Applications developed in this way are frequently fast-moving.
+** Stable releases may initially have fewer problems with these kinds of applications, since fixes can be easily backported from minor releases. However, upstream projects usually will declare a major release end-of-life at some point, requiring more difficult backporting from a newer major release or a substantial upgrade to a newer major release. This can have a negative impact on security in both stable and rolling releases.
+* Rapid-release
+** New major releases are made every few weeks with whatever the latest features are. A new release might be made outside of schedule to rectify security issues. As soon as a newer major release is created, the previous release is end-of-life. Many major applications, especially web browsers, chat clients, IDEs, and games, use this release model.
+** This is one of the worst release models for security, as it is difficult to backport security fixes from, a steady stream of new vulnerabilities has to be accepted if one is to keep pace with upstream, and the quickly changing nature of the codebase is likely to result in many new bugs and vulnerabilities being introduced. Sometimes a "long term support" or "extended service release" branch will exist for those who cannot cope with the change frequency, but this means that once an older branch is declared end-of-life, upgrading to a newer one will come with a whole host of changes, many of which may introduce both security and usability issues.
+
+= Stable release security advice =
+
+Neither stable nor rolling release models are a cure-all for software vulnerabilities. The following practices may help stable release users be more secure than they would be if they blindly trusted the stable release's repositories to be secure.
+
+* Check how well packages are maintained before installing them. With Debian, one can use the [https://tracker.debian.org/ Debian Package Tracker] for this. If a package is regularly updated in the "unstable" and "testing" releases, it is more likely to have security issues fixed in a timely fashion than packages that go a very long time without updates. (Note that just because a package is not frequently updated does not mean it is necessarily unsafe. Upstream might not make new releases very often, or the application might not be particularly security-sensitive.)
+* Check your distribution's security tracker (for instance, [https://security-tracker.debian.org/tracker/status/release/stable Debian security tracker]) to see if the package you want to install has known vulnerabilities present. Some discretion may need to be used. Security trackers can provide false positives. If a very widely used package (such as the Linux kernel) has an assortment of old vulnerabilities listed, it may not actually be vulnerable.
+* For applications that follow a rapid-release model that may also have to process untrusted data, consider installing those applications from upstream rather than relying on your distribution's packages. Firefox has an official Debian repository, for instance, and many major applications have binaries available from the upstream developers.
+* Attempt to use the simplest software possible to handle untrusted data. If you have a choice of what public chat systems you use, consider using IRC due to its lower complexity compared to more modern chat systems. Read and send email using a simple mail reader like Claws Mail rather than using webmail or an email client with built-in web content rendering like Thunderbird.
+* Open complex untrusted data inside a virtual machine rather than using your primary OS for it. This is especially important for video and picture files, office documents, PDFs, and untrusted websites (or websites that may display arbitrary untrusted data). These kinds of data generally use complex internal structures that are easy to parse in an insecure fashion.
+
+= Per-Application Rolling Requirements =
+
+{| class="wikitable"
+|+ Per-Application Rolling Requirements
+|-
+
+! Protocol
+! No Rolling Requirement
+! Reasoning
+|-
+
+| IRC
+| style="background-color: {{Green}}"| Yes (if maintained)
+| IRC is well-established. A non-rolling client is acceptable if the maintainer is active. Even if not, the risk of a security-critical bug is relatively low compared to Matrix clients.
+|-
+
+| Matrix / SimpleX / Delta Chat / Other rich chat systems
+| style="background-color: {{Red}}"| No
+| The ecosystems move too fast and are too complex.
+|-
+
+| [[Gemini]] (Internet protocol)
+| Maybe
+| Gemini's specification is not fully formalized, but it is unlikely to change as quickly as web technologies due to the low speed of development. A well-maintained, simple Gemini client or server is likely to not need constant updates.
+|-
+
+| Modern Web technologies (HTML / CSS / JavaScript / WASM / etc.)
+| style="background-color: {{Red}}"| No
+| The ecosystems move extremely fast, and the specifications are complicated enough that there are many security holes in all modern implementations that need to be regularly patched.
+|-
+
+| Email (Plain-text, HTML disabled)
+| style="background-color: {{Green}}"| Yes
+| Email clients such as Claws Mail do not generally do overly complicated processing on untrusted emails, and are therefore safer to use and easier for distributions to maintain. Most non-advertising emails are very legible in plain text format, and content such as images or videos can still be shared as attachments.
+|-
+
+| Email (HTML enabled)
+| style="background-color: {{Red}}"| No
+| An HTML-enabled email is essentially a web page and can leverage most major web technologies. Email clients capable of rendering these emails come with risks very similar to web browsers.
+|-
+
+| Programming languages (compilers, shells, interpreters, etc.)
+| style="background-color: {{Green}}"| Yes (depending on input data)
+| If compiling trusted code or one's own code, it is very unlikely for a compiler to pose a substantial security threat even if outdated. Compilers and language interpreters are some of the most well-maintained programs in a stable release distribution due to their critical impact on other applications and libraries in the distribution. Compiling untrusted code is a bad idea regardless of how well-maintained a compiler is, due to the danger the produced executable poses.
+|-
+
+| Images and videos
+| Maybe
+| Images and videos are often trusted data, in which case they can safely be viewed even with a vulnerable video player or image viewer. Untrusted images and videos can easily compromise a vulnerable application, and vulnerabilities in image and video viewing software are very common. <ref>
+* [https://www.cve.org/CVERecord/SearchResults?query=vlc CVE search: VLC]
+* [https://www.cve.org/CVERecord/SearchResults?query=imagemagick CVE search: ImageMagick]
+</ref> An up-to-date application must be used to view these kinds of files. Video player complexity is high enough that finding and using a zero-day is sometimes practical, thus untrusted media files should likely be viewed in a properly configured virtual machine. <ref>
+[https://www.schneier.com/blog/archives/2020/06/facebook_helped.html Schneier on Security: Facebook helped us find 0-days]
+</ref>
+|-
+
+|}
+
+= newer does not equate better =
+* [[Dev/About_Computer_(In)Security#Too_Much_Source_Code|Too Much Source Code]]
+* [[Dev/About_Computer_(In)Security#Scattered_Attention|Scattered Attention]]
+* [[Dev/About_Computer_(In)Security#Code_Bloat|Code Bloat]]
+* [[Dev/About_Computer_(In)Security#Lack_of_Minimalism|Lack of Minimalism]]
+* [[Dev/About_Computer_(In)Security#Too_Much_Complexity|Too Much Complexity]]
+* [[Dev/About_Computer_(In)Security#No_Final_Specification|No Final Specification]]
+
+= secure from what =
+
+IRC is:
+
+* A tool to discuss topics with random strangers over the internet.
+
+IRC has:
+
+* An (almost) final specification. The IRC ecosystem does not move anymore (or moves very slowly). The absence of ever-changing millions of lines of source code, and a somewhat minimalist design, are good for security against remote code execution through specifically crafted incoming messages.
+
+IRC is not:
+
+* A tool to have confidential chats with known contacts.
+
+= Forum Discussion =
+[https://forums.kicksecure.com/t/rolling-vs-stable-release-brainstorming/1139 Kicksecure forum discussion: rolling vs stable release]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Design]]

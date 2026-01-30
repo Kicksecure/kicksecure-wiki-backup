@@ -1,0 +1,483 @@
+{{Header}}
+{{title|title=
+/bin/bash - Proper Whitespace Handling - Whitespace Safety - End-of-Options Parameter Security
+}}
+{{#seo:
+|description=Supporting multiple command line parameters with spaces in wrapper scripts and Use of End-of-Options Parameter (--).
+}}
+{{coding_style_mininav}}
+{{intro|
+Supporting multiple command line parameters with spaces in wrapper scripts and End-of-Options Parameter (<code>--</code>) for better security.
+}}
+= Safe ways to print =
+There is no safe usage of <code>echo</code>, use <code>printf '%s'</code> instead.
+
+* {{VideoLink
+|videoid=lq98MM2ogBk
+|text=bash's echo command is broken
+}}
+* {{VideoLink
+|videoid=ft0_cw54qak
+|text=echo is broken: a follow-up video
+}}
+
+<code>shellcheck</code> bug reports:
+
+* [https://github.com/koalaman/shellcheck/issues/2674 Warn on echo "$var" when $var might be -e #2674]
+* [https://github.com/koalaman/shellcheck/issues?q=is%3Aissue+is%3Aopen+echo+in%3Atitle Open shellcheck issues related to echo]
+
+Please note that <code>printf</code> does not have a default format specifier, but treats the first positional parameter as the format. When the format is missing, the data is treated as if the format specifier is <code>%b</code>. It is always recommended to be explicit on the format being used to avoid this mistake.
+
+Normally, there is no need to interpret the escape sequences of a variable, therefore use the <code>printf</code> format specifier <code>%s</code> when the data is not printed to the terminal:
+
+{{CodeSelect|code=
+var="$(printf '%s' "${untrusted_text}")"
+}}
+
+<code>printf '%s\n' "message here"</code> is the equivalent of <code>echo "message here"</code>.
+
+If you require escapes to be interpreted, interpret them on a per-need basis:
+
+{{CodeSelect|code=
+red="$(printf '%b' "\e[31m")"    # red=$'\e[31m'   # printf -v red     '%b' "\e[31m"
+nocolor="$(printf '%b' "\e[m")"  # nocolor=$'\e[m' # printf -v nocolor '%b' "\e[m"
+}}
+
+Escapes that are already interpreted can be printed with <code>%s</code> without making a difference:
+
+{{CodeSelect|code=
+var="$(printf '%s' "${red} ${untrusted_text} ${nocolor}")"
+}}
+
+And this is why you should use <code>stprint</code> when printing to the terminal, as it will sanitize unsafe characters ([[unicode]]) while simply using <code>printf '%s'</code> is not safe when escapes are already interpreted:
+
+{{CodeSelect|code=
+stprint "${red} ${untrusted_text} ${nocolor}"
+printf '%s' "${red} ${untrusted_text} ${nocolor}" {{!}} stprint
+printf '%s' "${red} ${untrusted_text} ${nocolor}" {{!}} stprint {{!}} less -R
+}}
+
+'''Rule of thumb''':
+
+* <code>echo</code>: Never!
+* <code>printf</code>: Whenever the printed data is not used by a terminal.
+** Format <code>%b</code>: Only for trusted data.
+** Format <code>%s</code>: With any data.
+* <code>stecho</code>: Whenever the printed data is used by a terminal.
+** When not using <code>stecho</code>: When <code>stecho</code> cannot reasonably be considered available such as during early build-steps when building Kicksecure from source code using derivative-maker.
+
+Resources:
+
+* https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md#echo--printf
+* https://unix.stackexchange.com/questions/65803/why-is-printf-better-than-echo
+* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/echo.html
+
+= Bash Proper Whitespace Handling =
+
+* Quote variables.
+* Build parameters using arrays.
+* Enforce <code>nounset</code>.
+* Use end-of-options.
+* Style: use long option names.
+
+<pre>
+#!/bin/bash
+
+## https://yakking.branchable.com/posts/whitespace-safety/
+
+#set -x
+set -o errexit
+set -o nounset
+set -o errtrace
+set -o pipefail
+
+lib_dir="/tmp/test/lib/program with space/something spacy"
+main_app_dir="/tmp/test/home/user/folder with space/abc"
+
+mkdir --parents -- "${lib_dir}"
+mkdir --parents -- "${main_app_dir}"
+
+declare -a cmd_list
+
+cmd_list+=("cp")
+cmd_list+=("--recursive")
+cmd_list+=("--")
+cmd_list+=("${lib_dir}")
+cmd_list+=("${main_app_dir}/")
+
+## Execution example.
+## Note: drop 'echo'
+echo "${cmd_list[@]}"
+
+## 'for' loop example.
+for cmd_item in "${cmd_list[@]}"; do
+    printf '%s\n' "cmd_item: '$cmd_item'"
+done
+
+## Alternative.
+cmd_alt_list=(
+    cp               ## program
+    --recursive      ## recursive
+    --               ## stop option parsing (protects against paths that begin with '-')
+    "$lib_dir"       ## source directory
+    "$main_app_dir"  ## destination
+)
+
+## 'for' loop example.
+for cmd_alt_item in "${cmd_alt_list[@]}"; do
+    printf '%s\n' "cmd_alt_item: '$cmd_alt_item'"
+done
+</pre>
+
+= Why <code>nounset</code> =
+
+Because it is better to be explicit if a variable should be empty or not:
+
+<pre>
+rm --force -- "/$UNSET_VAR"
+</pre>
+
+Will return:
+
+<pre>
+rm: cannot remove '/': Is a directory
+</pre>
+
+Setting <code>UNSET_VAR=""</code> would not fix this issue, but that is another problem, checking if every used variable can be empty or not.
+
+= local =
+== Error swallowing ==
+<u>Note:</u>
+
+{{CodeSelect|code=
+local testbar=$(false)
+}}
+
+<u>expected:</u> error
+
+<u>actual:</u> no error
+
+better:
+
+{{CodeSelect|code=
+local testvar
+testvar=$(false)
+}}
+
+== Unexpected scoping with functions ==
+<code>local</code> variables in one function will be accessible within nested function calls.
+
+<u>Example:</u>
+
+{{CodeSelect|code=
+fn_01 () {
+  local myvar
+  myvar='supposedly local'
+  printf '%s\n' "in fn_01, myvar is $myvar"
+  fn_02
+  printf '%s\n' "in fn_01, myvar is now $myvar"
+}
+
+fn_02 () {
+  printf '%s\n' "in fn_02, myvar is $myvar"
+  myvar='not so local after all'
+  printf '%s\n' "in fn_02, myvar is now $myvar"
+}
+
+fn_01
+}}
+
+<u>Output:</u>
+
+<pre>
+in fn_01, myvar is supposedly local
+in fn_02, myvar is supposedly local
+in fn_02, myvar is now not so local after all
+in fn_01, myvar is now not so local after all
+</pre>
+
+To avoid problems from this, it's best to declare all function-local variables as <code>local</code> at the head of a function. For example:
+
+{{CodeSelect|code=
+fn_01 () {
+  local myvar
+  myvar='local to fn_01'
+  printf '%s\n' "in fn_01, myvar is $myvar"
+  fn_02
+  printf '%s\n' "in fn_01, myvar is now $myvar"
+}
+
+fn_02 () {
+  local myvar
+  myvar='local to fn_02'
+  printf '%s\n' "in fn_02, myvar is $myvar"
+}
+
+fn_01
+}}
+
+<u>Output:</u>
+
+<pre>
+in fn_01, myvar is local to fn_01
+in fn_02, myvar is local to fn_02
+in fn_01, myvar is now local to fn_01
+</pre>
+
+= POSIX array =
+
+On a POSIX shell, there is one array, the <code>$@</code>, which have different scopes by function or main script. You can build it with <code>set --</code>:
+
+Add items to an array:
+<pre>
+set -- a b c
+</pre>
+
+Add items to the beginning or end of the array:
+<pre>
+set -- b
+set -- a "$@" c
+</pre>
+
+= Use of End-of-Options Parameter (--) =
+
+The end-of-options parameter "<code>--</code>" is crucial because otherwise inputs might be mistaken for command options. This might even be a security risk. Here are examples using the `sponge` command:
+
+{{CodeSelect|code=
+sponge -a testfilename </dev/null
+}}
+
+Result: OK. This works because "<code>testfilename</code>" doesn't look like an option.
+
+{{CodeSelect|code=
+sponge -a --testfilename </dev/null
+}}
+
+Result: Fail. The command interprets "<code>--testfilename</code>" as a series of options:
+
+<pre>
+sponge: invalid option -- '-'
+sponge: invalid option -- 't'
+sponge: invalid option -- 'e'
+...
+</pre>
+
+{{CodeSelect|code=
+sponge -a -- --testfilename </dev/null
+}}
+
+Result: OK. The `<code>--</code>` signals that "<code>--testfilename</code>" is a filename, not an option.
+
+Conclusion:
+
+* The "<code>--</code>" parameter marks the end of command options.
+* Use "<code>--</code>" at the end of a command to prevent misinterpretation.
+* This technique is applicable to many Unix/Linux commands, not just <code>sponge</code>.
+
+= nounset - Check if Variable Exists  =
+
+<pre>
+#!/bin/bash
+
+set -x
+set -o errexit
+set -o nounset
+set -o errtrace
+set -o pipefail
+
+## Enable for testing.
+#unset HOME
+
+if [ -z "${HOME+x}" ]; then
+    printf '%s\n' "Error: HOME is not set." >&2
+fi
+
+printf '%s' "$HOME"
+</pre>
+
+= Safely Using Find with End-Of-Options =
+
+Example:
+
+<u>Note:</u> Variable could be different. Could be for example <code>--/usr</code>.
+
+{{CodeSelect|code=
+folder_name="/usr"
+}}
+
+{{CodeSelect|code=
+printf '%s' "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
+}}
+
+Of if <code>safe_echo_nonewline</code> is available from helper-scripts.
+
+{{Github_link|repo=helper-scripts|path=/blob/master/usr/libexec/helper-scripts/safe_echo.sh}}
+
+{{CodeSelect|code=
+# shellcheck disable=SC1091
+source /usr/libexec/helper-scripts/safe_echo.sh
+safe_echo_nonewline "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
+}}
+
+use <code>stprint</code> instead?
+
+= loops =
+== magic subshells ==
+Avoid piping data from a command into a loop. This spawns a subshell even without using <code>$()</code> syntax. Bad code example:
+
+<pre>
+str="abc
+def
+ghi"
+line_count=0
+
+printf '%s\n' "${str}" | while read -r line; do
+  ((line_count += 1))
+done
+
+printf '%s\n' "${line_count}"
+
+## Expected result: 3
+## Actual result: 0
+</pre>
+
+Instead, redirect files or command output into the loop. Good code example:
+
+<pre>
+str="abc
+def
+ghi"
+line_count=0
+
+while read -r line; do
+  ((line_count += 1))
+done < <(printf '%s\n' "${str}")
+
+printf '%s\n' "${line_count}"
+
+## Result: 3
+</pre>
+
+== stdin stealing ==
+Commands that read from stdin can swallow data that was supposed to be processed by the <code>read</code> component of a <code>while read</code> loop. <code>qrexec-client-vm</code> is an example, <code>vim</code> is another example. Bad code example:
+
+<pre>
+str="abc
+def
+ghi"
+
+while read -r line; do
+  vim "$line"
+done < <(printf '%s\n' "${str}")
+
+## Output:
+##
+## Vim: Warning: Input is not from a terminal
+## Vim: Error reading input, exiting...
+## Vim: preserving files...
+## Vim: Finished.
+</pre>
+
+Work around this by using alternative file descriptors and redirection. Good code example:
+
+<pre>
+str="abc
+def
+ghi"
+
+while read -r line 0<&3; do
+  vim "$line"
+done 3< <(printf '%s\n' "${str}")
+
+## Result: Opens "abc" in Vim, then "def", then "ghi".
+</pre>
+
+= misc =
+<pre>
+base_name="${file_name##*/}"
+file_extension="${base_name##*.}"
+</pre>
+
+= coding style =
+* use long options rather than short options, for example use <code>grep --invert-match</code> instead of <code>grep -i</code>, when sensible
+* no trailing whitespaces allowed in source code files
+* all source code files must have a newline at the end
+* no git style symlinks ([[Git#git_symlinks|git symlinks]]) (text file without newline at the end) because of past [https://security.snyk.io/vuln/SNYK-UNMANAGED-GITGIT-2372015 git symlink CVE]
+* Avoid [[unicode]] whenever possible. See alsp [[unicode-show]].
+* use:
+** <code>shellcheck</code>
+** avoid <code>rm</code>, prefer  <code>safe-rm</code> <ref>
+* https://github.com/MrMEEE/bumblebee-Old-and-abbandoned/issues/123
+* https://github.com/valvesoftware/steam-for-linux/issues/3671
+</ref>
+** avoid <code>wget</code> and <code>curl</code>, prefer <code>scurl</code> ([[Secure Downloads]])
+** avoid <code>grep</code>, use <code>str_match</code>
+** <code>str_replace</code>
+** <code>append-once</code>
+** <code>overwrite</code>
+* use <code>${variable}</code> style
+* use shell options
+
+<pre>
+set -o errexit
+set -o nounset
+set -o errtrace
+set -o pipefail
+</pre>
+
+* do not use:
+** <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary, which <code>command</code> is a built-in (a bit faster).
+* file name extensions:
+** POSIX sh libraries: <code>.sh</code>
+** Bash libraries: <code>.bsh</code>
+** Executables: no file name extension
+** (executables = scripts that can be run but cannot be sourced, libraries = scripts that can be sourced but may optionally be run as well)
+
+= pipefail echo printf grep quiet =
+This combination can be an issue due to broken pipe.
+
+<pre>
+#!/bin/bash
+
+## problem
+
+set -x
+set -o errexit
+set -o nounset
+set -o errtrace
+set -o pipefail
+
+counter=0
+for i in {1..10000}; do
+  counter=$(( counter + 1 ))
+  #printf "0\n"
+  echo "0\n"
+
+done | grep --quiet "0"
+</pre>
+
+= Improved Error Handler =
+Inspired by https://github.com/pottmi/stringent.sh
+
+{{CodeSelect|code=
+if (( "$BASH_SUBSHELL" >= 1 )); then
+  kill "$$"
+fi
+}}
+
+Actually not needed. When a subshell detects an error (thanks to errexit and errtrace), it returns and the parent shell will also catch the non-zero exit code. The script terminating itself and not running the error handler twice is only useful in rare cases.
+
+= Resources =
+* https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md
+* https://dwheeler.com/essays/fixing-unix-linux-filenames.html
+* use with care: {{VideoLink
+|videoid=DvDu8_A2uhs
+|text=Seat Belts and Airbags for bash
+}}
+** use with care: https://github.com/pottmi/stringent.sh
+
+= See Also =
+* [[Dev/coding style]]
+
+{{Footer}}
+[[Category: Design]]

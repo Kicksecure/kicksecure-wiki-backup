@@ -1,0 +1,146 @@
+{{Header}}
+{{title|title=
+Dev/systemd-resolved
+}}
+{{#seo:
+|description=systemd-resolved: DNS stub resolver and caching service in systemd. Notes on DNSSEC behavior, security considerations, and known issues relevant to Kicksecure.
+}}
+<div class="mininav">
+* [[Networking]]
+* [[DNS]]
+* [[DNS Security]]
+* [[Dev/systemd-resolved]]
+</div>
+{{intro|
+<code>systemd-resolved</code> is systemd's DNS stub resolver and caching service. This page documents DNSSEC-related behavior, security considerations, and selected upstream discussions relevant to Kicksecure.
+}}
+= Introduction =
+DNS resolution is security critical. If an attacker can influence DNS replies, they may be able to redirect traffic, weaken transport security assumptions, or selectively censor access.
+
+This page documents <code>systemd-resolved</code> behavior and upstream discussions relevant to DNSSEC and related security expectations.
+
+[https://github.com/systemd/systemd/issues/28086 local DNSSEC validation]: yes
+
+= systemd-resolved Insecurity =
+{{IntroLike|
+Due to the history described in [[Dev/systemd-resolved#Handling_of_Bug_-_systemd-resolved_DNSSEC_validation_can_be_bypassed_by_MITM|Handling of Bug - systemd-resolved DNSSEC validation can be bypassed by MITM]], <code>systemd-resolved</code> is considered unsuitable for Kicksecure.
+}}
+
+= systemd-resolved DNSSEC Development Priority =
+{{IntroLike|
+DNSSEC is a low priority for systemd-resolved developers.
+}}
+
+{{quotation
+|quote=But yes, DNSSEC issues are not a high priority for us at the moment. Other DNS issues are more relevant.
+|context=July 2023: [https://github.com/systemd/systemd/issues/25676#issuecomment-1634810897 Lennart Poettering, systemd developer]
+}}
+
+= Handling of Bug - systemd-resolved DNSSEC validation can be bypassed by MITM =
+== Summary ==
+{{IntroLike|
+It took the systemd developers at least 1 year to fix the DNSSEC-related security issue [https://github.com/systemd/systemd/issues/25676 resolved DNSSEC validation can be bypassed by MITM] in <code>systemd-resolved</code>.
+}}
+
+* <u>Timeline:</u> Privately reported in October 2022; publicly reported in December 2022; fixed upstream in December 2023.
+* <u>CVE mention and backports:</u> CVE-2023-7008 was mentioned in the public issue discussion on December 22, 2023; stable backport updates were posted on December 24, 2023.
+* <u>References:</u> [https://github.com/systemd/systemd/issues/25676 Upstream bug report] | [https://access.redhat.com/security/cve/cve-2023-7008 CVE page] | [https://bugzilla.redhat.com/show_bug.cgi?id=2222672 Downstream tracking]
+* <u>Status:</u> Fixed.
+
+A closely related (or even duplicate?) security issue [https://github.com/systemd/systemd/issues/15158 systemd-resolved: DNSSEC doesn't prevent MITM] had been reported already in 2020.
+
+== Details ==
+The following are verbatim excerpts from the upstream issue thread and related references, presented to document the timeline and statements made by participants.
+
+<u>October 2022 to November 2022 (attempted private disclosure, as described by the reporter):</u>
+
+{{quotation
+|quote=Please note that I have repeatedly tried to report this issue to the systemd-security mailing list. I sent a mail with the details and reproduction steps to the systemd-security address on Oct 6th, Oct 14th and Oct 22nd. I first received a reply on Oct 24th from Lennart Poettering, asking for some basic system information, which I provided on the same day. Then I received no further reply, so I sent the report one more time to systemd-security on Nov 7th. The next day Poettering replied to my previous mail, asking for a debug log, but not directly acknowledging the issue. I sent debug logs on Nov 10th and haven't heard back from anyone since then.
+|context=https://github.com/systemd/systemd/issues/25676
+}}
+
+<u>December 8, 2022 (issue opened):</u>
+
+{{quotation
+|quote=opened on Dec 8, 2022
+|context=https://github.com/systemd/systemd/issues/25676
+}}
+
+<u>July 12, 2023 (third-party confirmation in-thread):</u>
+
+{{quotation
+|quote=Yes, I confirm this is a serious bug. It allows downgrading to unsigned responses, which are accepted by resolved just fine. Anyone who just strips signatures can forge anything they want.
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1632289169
+}}
+
+<u>July 13, 2023 (upstream maintainer statement about prioritization and status):</u>
+
+{{quotation
+|quote=The DNSSEC support in resolved is off by default for a reason, and it's not complete.
+|context=[https://github.com/systemd/systemd/issues/25676#issuecomment-1634810897 Lennart Poettering, systemd developer]
+}}
+
+<u>July 13, 2023 (upstream maintainer statement about prioritization):</u>
+
+{{quotation
+|quote=But yes, DNSSEC issues are not a high priority for us at the moment. Other DNS issues are more relevant.
+|context=[https://github.com/systemd/systemd/issues/25676#issuecomment-1634810897 Lennart Poettering, systemd developer]
+}}
+
+<u>December 1, 2023 (status inquiry in-thread):</u>
+
+{{quotation
+|quote=any progress fixing this issue? At least some candidate fixes?
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1835842530
+}}
+
+<u>December 20, 2023 (fix work referenced in-thread):</u>
+
+{{quotation
+|quote=resolved: actually check authenticated flag of SOA transaction
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1835842530
+}} [https://github.com/systemd/systemd/pull/30549 systemd pull request #30549]
+
+<u>December 21, 2023 (issue closed as completed):</u>
+
+{{quotation
+|quote=closed this as completed in [https://github.com/systemd/systemd/pull/30549 #30549] on Dec 21, 2023
+|context=https://github.com/systemd/systemd/issues/25676
+}}
+
+<u>December 22, 2023 (downstream CVE triage noted in-thread):</u>
+
+{{quotation
+|quote=Doing some CVE triage in another downstream distribution, I noticed https://bugzilla.redhat.com/show_bug.cgi?id=2222672 which has CVE-2023-7008 and seem to relate to this problem.
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1867335597
+}}
+
+<u>December 22, 2023 (CVE request attribution, as stated in-thread):</u>
+
+{{quotation
+|quote=I did, I requested a review by Red Hat security response team.
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1867901065
+}}
+
+<u>December 22, 2023 (reporter statement about CVE request):</u>
+
+{{quotation
+|quote=(I did however not request this CVE.)
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1867564181
+}}
+
+<u>December 24, 2023 (stable backports listed in-thread):</u>
+
+{{quotation
+|quote=Ok the following backported commits with associated stable tags have been pushed:
+|context=[https://github.com/systemd/systemd/issues/25676#issuecomment-1868497102 @bluca, Luca Boccassi, systemd developer]
+}}
+
+{{quotation
+|quote=FWIW this issue has been known since 2020: [https://github.com/systemd/systemd/issues/15158 #15158]
+|context=https://github.com/systemd/systemd/issues/25676#issuecomment-1633308547
+}}
+
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

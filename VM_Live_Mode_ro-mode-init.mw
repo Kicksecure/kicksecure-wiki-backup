@@ -1,0 +1,120 @@
+{{Header}}
+{{Title|
+title=VM Live Mode: Alternative ro-mode-init Configuration
+}}
+{{#seo:
+|description=VM Live Mode System
+|image=Alternativeremode123123.jpg
+}}
+{{live}}
+{{grub-live}}
+[[File:Alternativeremode123123.jpg|thumb]]
+{{intro|
+The <code>ro-mode-init</code> automatically enables live-mode if it detects that the disk is set to read-only.
+
+This is an alternative to the default [[grub-live]] based method documented on [[VM Live Mode|VM Live Mode]].
+}}
+= Introduction =
+<code>ro-mode-init</code> is currently less tested than <code>grub-live</code> ([[Live Mode]]).
+
+{{developers-only}}
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+* Does not work on newer builds of {{project_name_short}} because these come with [[dracut|<code>dracut</code>]] by default.
+* This is for systems with <code>initramfs-tools</code> only.
+}}
+
+<code>ro-mode-init</code> has not been ported to <code>dracut</code> yet. Theoretically this is probably possible, but it has not happened yet.
+
+= Preliminary Steps =
+{{Box|text=
+{{project_name_Live_Backup}}
+
+'''2.''' Install <code>ro-mode-init</code>.
+{{Box|text=
+{{Install Package
+|package=ro-mode-init
+}}
+}}
+
+'''3.''' Update the initial ramdisk. <ref>
+Required for now but not forever.
+
+* https://forums.whonix.org/t/whonix-live-mode-amnesia-amnesic-non-persistent-anti-forensics/3894/206
+* {{Github_link|repo=derivative-maker|path=/commit/69d0de6222afad9ace440054a0dad7c567d57e50}}
+</ref>
+
+{{CodeSelect|code=
+sudo update-initramfs -u
+}}
+
+'''4.''' Set the VM disk to read-only.
+
+The [[#Read-only_VM_Setting|read-only VM]] setting is necessary (see below), otherwise the VM disk will always boot into persistent mode.
+}}
+
+= Read-only VM Setting =
+
+== VirtualBox ==
+
+=== Read-only disk on VirtualBox ===
+
+To boot into live mode, apply the following steps.
+
+{{VirtualBox_Read_Only_Disk}}
+
+=== Read-write disk on VirtualBox ===
+
+To boot into read-write mode again, simply revert this change.
+
+# Power off the machine.
+# From the command line run:
+
+Use the syntax below.
+
+{{CodeSelect|code=
+VBoxManage setextradata vmname "VBoxInternal/Devices/lsilogicsas/0/LUN#0/AttachedDriver/Config/ReadOnly"
+}}
+
+Replace <code>vmname</code> with the actual VM name.
+
+== KVM ==
+
+=== Read-only disk on KVM ===
+
+To boot into live mode, apply the following steps:
+
+# Power off the machine.
+# Set the hard disk to read-only in the virt-manager GUI.
+# Power on the machine and select to boot into live mode.
+
+=== Read-write disk on KVM ===
+
+To boot into normal mode again, simply revert this change:
+
+# Power off the machine.
+# Set the hard disk to read-write in the virt-manager GUI.
+# Power on the machine and boot into read-write mode.
+
+= Live Mode Indicator Systray =
+{{Github_link|repo=desktop-config-dist|path=/blob/master/usr/share/livecheck/livecheck.sh}}
+
+= Debugging =
+
+An inconsistent filesystem will likely result in errors during booting in live mode. For instance, inconsistencies can arise when the VM is killed instead of performing a normal shutdown in persistent mode. Therefore, to ensure it is consistent, run <code>fsck</code> in persistent mode. Debian automatically does this during boot. VMs running in live mode can be killed without problems.
+
+In the case of non-<code>fsck</code> related errors using <code>ro-mode-init</code> (like dropping to an initramfs shell), add the following to the kernel command line/GRUB menu for easier debugging:
+
+{{CodeSelect|code=
+debug=1 break=init-premount
+}}
+
+= Footnotes =
+
+{{reflist|close=1}}
+
+[[Category:Documentation]]
+
+{{Footer}}

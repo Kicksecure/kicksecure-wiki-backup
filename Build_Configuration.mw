@@ -1,0 +1,246 @@
+{{Header}}
+{{title|title=
+Build Configuration
+}}
+{{#seo:
+|description={{non_q_project_name_long}} Build Configuration. APT Repository, Onion Sources, APT Cache, VM Settings, Skip Steps, Source Code Changes
+|image=Buildconfiguration12354.png
+}}
+{{build_mininav}}
+[[File:Buildconfiguration12354.png|thumb]]
+{{intro|
+{{non_q_project_name_short}} Build Configuration. APT Repository, Onion Sources, APT Cache, VM Settings, Skip Steps, Source Code Changes
+}}
+<u>Note:</u> All of the following build configuration steps are optional.
+
+{{#widget:Expand or Collapse All}}
+
+=Introduction=
+<div class="toccolours mw-collapsible mw-collapsed">
+Usually the build configuration does not need to be changed. {{project_name_long}} built from source code comes with safe defaults. The derivative APT Repository will <b>not</b> be used.
+
+The most interesting build configurations (Terminal-Only, NoDefaultApps etc.) are documented in the following chapters.
+
+If you are interested, click on Expand on the right.
+<div class="mw-collapsible-content">
+If build configurations were used earlier, it might be better to delete the build configuration folder. A few example filenames may have changed since the last build.
+
+<pre>
+sudo rm -r /etc/buildconfig-dist.d
+</pre>
+
+Alternatively, experts can manually examine the {{Code2|/etc/buildconfig-dist.d}} folder and change its contents to suit their preferences.
+
+{{Code2|/etc/buildconfig-dist.d}} is a [[Configuration_Files|modular flexible .d style configuration folder]].
+
+Less popular build configurations are documented in the {{Code2|buildconfig.d}} folder and on the [[Dev/Source_Code_Intro#Build_Configuration]] page, but it is less user-friendly.
+
+To avoid typos, it is best to copy and paste text when creating build configuration files. Take care that editors do not capitalize variable names which are supposed to be lower case during copy and paste procedures.
+</div>
+</div>
+
+=Platforms Choice=
+{{Build_Documentation_64bit}}
+
+{{Anchor|repository}}
+= Project APT Repository =
+<div class="toccolours mw-collapsible mw-collapsed">
+[[{{non_q_project_name_short}}|{{non_q_project_name_short}}]]:<br />
+<u>{{project_name_short}} APT Repository</u> is <u>disabled by default</u> <ref>
+Since {{project_name_short}} <code>7.3.3</code>
+</ref> for <u>builds from source code</u> for reasons of [[Trust]]. Users can decide to update {{project_name_short}} Debian packages by building them from source code (greater security). Alternatively, {{project_name_short}} APT repository can be enabled right after building or after booting the build for the first time (greater convenience) using [[Project-APT-Repository|{{project_name_short}} repository tool]]. To use the latter method which sacrifices security for convenience, click on Expand on the right side.
+<div class="mw-collapsible-content">
+
+Do you want to <u>opt-in</u> <u>{{project_name_short}} APT Repository</u>?
+
+The easy way to add {{project_name_short}} <code>stable</code> repository the following command line option can be used.
+
+{{CodeSelect|code=
+--repo true
+}}
+
+Other settings can be set using an environment variable or [[Dev/Source_Code_Intro#Build_Configuration|build configuration]]. Below are examples using an environment variable.
+
+{{CodeSelect|code=
+DERIVATIVE_APT_REPOSITORY_OPTS='--enable --repository stable'
+}}
+{{CodeSelect|code=
+DERIVATIVE_APT_REPOSITORY_OPTS='--enable --repository testers'
+}}
+{{CodeSelect|code=
+DERIVATIVE_APT_REPOSITORY_OPTS='--enable --repository developers'
+}}
+{{CodeSelect|code=
+DERIVATIVE_APT_REPOSITORY_OPTS='--enable --codename {{Stable_project_version_based_on_Debian_codename}}'
+}}
+
+Add an environment variable as one normally does on that specific Linux platform. For example, to enable the {{project_name_short}} stable repository during build, you could set <code>DERIVATIVE_APT_REPOSITORY_OPTS</code> by interjecting it between <code>sudo</code> and the <code>./derivative-maker</code> command. Below is an example. Do not use <code>[...]</code>. Replace it with other chosen build parameters (such as <code>--build</code>, <code>--target</code> etc.) after <code>./derivative-maker</code>.
+
+{{CodeSelect|code=
+sudo DERIVATIVE_APT_REPOSITORY_OPTS='--enable --repository stable' ./derivative-maker [...]
+}}
+</div>
+</div>
+
+=APT Onion Build Sources=
+<div class="toccolours mw-collapsible mw-collapsed">
+For better build security, you can also use onions apt sources for building {{project_name_short}}.
+
+If you are interested, click on Expand on the right.
+<div class="mw-collapsible-content">
+'''This does not ensure all build process networking will be torified!'''
+
+{{project_name_short}} 14 and above only:
+
+<pre>
+--connection onion
+</pre>
+</div>
+</div>
+
+'''1)''' Also chapter below has to be considered.
+
+'''2)''' See also: https://forums.whonix.org/t/derivative-maker-fails-with-onion-sources/20200
+
+=Torified or Host APT Cache=
+<noinclude>
+{{Header}}
+</noinclude><div class="toccolours mw-collapsible mw-collapsed">
+Using an apt cache will greatly improve build speed when building several times in a row (e.g. when debugging, during development). {{project_name_short}} build script sets up an apt cache by default.
+
+If you are interested in a torified apt-cacher-ng or host apt-cacher-ng, click on Expand on the right.
+<div class="mw-collapsible-content">
+{{Box|text=
+'''torified apt-cacher-ng'''
+
+{{Box|text=
+Notes:
+
+* The following torified apt-cacher-ng setup only has to be applied, if you are building using onion apt sources using <code>--connection onion</code>.
+* When building inside [[Whonix]], this is not required.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+Note, this neither torifies all of the build script's connections nor hides Tor from your ISP! See {{whonix_wiki
+|wikipage=Dev/Build Anonymity
+|text=Build Anonymity
+}}.
+}}
+
+The goal of this is to torify <code>apt-cacher-ng</code> using <code>torsocks</code> so it will be able to connect to onions.
+
+'''Note:''' <u>This is currently broken.</u> No fix available. [[Undocumented]].
+
+'''1.''' Install <code>apt-cacher-ng</code>, <code>torsocks</code> and <code>tor</code>.
+
+<pre>
+sudo apt install apt-cacher-ng torsocks tor
+</pre>
+
+'''2.''' Create folder apt-cacher-ng systemd drop-in folder <code>/lib/systemd/system/apt-cacher-ng.service.d</code>.
+
+<pre>
+sudo mkdir -p /lib/systemd/system/apt-cacher-ng.service.d
+</pre>
+
+'''3.''' {{Open with root rights|
+filename=/lib/systemd/system/apt-cacher-ng.service.d/50_user.conf
+}}
+
+'''4.''' Add. <ref>
+* The first {{CodeSelect|code=ExecStart=|inline=true}} is to disable the default <code>ExecStart</code> in <code>/lib/systemd/system/apt-cacher-ng.service</code>.
+* This is based on {{CodeSelect|code=/lib/systemd/system/apt-cacher-ng.service|inline=true}}.
+* Only {{CodeSelect|code=torsocks|inline=true}} is prepended in front of {{CodeSelect|code=/usr/sbin/apt-cacher-ng|inline=true}}
+* No other changes.
+</ref>
+
+{{CodeSelect|code=
+[Service]
+ExecStart=
+ExecStart=torsocks /usr/sbin/apt-cacher-ng SocketPath=/run/apt-cacher-ng/socket -c /etc/apt-cacher-ng ForeGround=1
+}}
+
+'''5.''' Save.
+
+'''6.''' Reload systemd.
+
+{{CodeSelect|code=
+sudo systemctl daemon-reload
+}}
+
+'''7.''' Restart apt-cacher-ng.
+
+{{CodeSelect|code=
+sudo systemctl restart apt-cacher-ng
+}}
+
+'''8.''' Done.
+
+The process of torification of apt-cacher-ng has been completed.
+
+'''9.''' Broken!
+
+{{CodeSelect|code=/etc/tor/torsocks.conf}} add:
+
+{{CodeSelect|code=
+AllowInbound 1
+AllowOutboundLocalhost 1
+}}
+
+But this is also insufficient.
+
+{{CodeSelect|code=sudo journalctl -f -u apt-cacher-ng}}
+
+shows errors:
+
+<pre>
+WARNING torsocks[17645]: Config file not found: /etc/tor/torsocks.conf. Using default for Tor (in config_file_read() at config-file.c:583)
+Couldn't listen on socket: Operation not permitted
+Error creating socket: Function not implemented
+</pre>
+
+No fix available. Help welcome.
+}}
+}}
+
+{{Box|text=
+'''host apt-cacher-ng'''
+
+This is probably only useful for developers. Most users will not need the complexity of an apt-cacher-ng running outside of the VM which runs derivative-maker or on another computer.
+
+{{Box|text=
+Be sure to have a firewall, so the whole internet cannot use the apt-cacher-ng service.
+
+When building inside a non-Whonix VM, an apt cache can be used on the host. In that case, adjust the IP accordingly and manually test that it is reachable. When building inside a ({{project_name_short}}) VM, just install the apt cache inside the VM and point to a localhost apt cache.
+
+Prepend <code>REPO_PROXY=http://127.0.0.1:3142</code> before the build command.
+
+Replace the IP <code>127.0.0.1</code> with the IP address of your host. For security reasons, this should only be done over LAN and not over the internet.
+
+<pre>
+sudo REPO_PROXY=http://127.0.0.1:3142 ./derivative-maker ...
+</pre>
+}}
+}}
+</div>
+</div>
+
+=VM Settings=
+
+{{Build_Documentation_VM_Settings}}
+
+=Build Variables Changes=
+{{Build_Documentation_Build_Configuration}}
+
+=Skip Steps=
+{{Build_Documentation_Skip_Steps}}
+
+=Source Code Changes=
+{{Build Documentation Source Code Changes}}
+
+= Footnotes =
+{{reflist|close=1}}
+[[Category:Documentation]]
+[[Category:Development]]
+{{Footer}}

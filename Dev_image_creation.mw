@@ -1,0 +1,73 @@
+{{Header}}
+{{title|title=
+Development of System Image Creation and Bootstrapping Tools
+}}
+{{dev_image_mininav}}
+{{#seo:
+|description=Installing GRUB onto a disk image is a bit of a black art.
+}}
+{{intro|
+Installing GRUB onto a disk image is a bit of a black art.
+}}
+{{quotation|quote=
+Installing GRUB onto a disk image is a bit of a black art. I haven't found any good documentation for it. This plugin is written based on de-ciphering the build_openstack_image script. Here is an explanation of what I _THINK_ is happening.
+|context=[https://gitlab.com/larswirzenius/vmdb2/-/blob/main/vmdb/plugins/grub_plugin.py Lars Wirzenius, Debian Developer]
+}}
+
+{{quotation|quote=
+The crucial command is grub-install. It needs a ton of options to work correctly: see below in the code for the list, and the manpage for an explanation of what each of them means. We will be running grub-install in a chroot so that we use the version in the Debian version we're installing, rather than the host system, which might be any Debian version.
+
+To run grub-install in a chroot, we need to set up the chroot in various ways. Firstly, we need to tell grub-install which device file the image has. We can't just give it the image file itself, since it isn't inside the chroot, so instead we arrange to have a loop block device that covers the whole image file, and we bind mount /dev into the chroot so the device is available.
+
+grub-install seems to also require /proc and /sys so we bind mount /sys into the chroot as well. /proc is already mounted otherwise.
+
+We install the UEFI version of GRUB, and for that we additionally bind mount the EFI partition in the image. Oh yeah, you MUST have one.
+
+We also make sure the right GRUB package is installed in the chroot, before we run grub-install.
+
+Further, there's some configuration tweaking we need to do. See the code. Don't ask me why they're necessary.
+
+For cleanliness, we also undo any bind mounts into the chroot. Don't want to leave them in case they cause trouble.
+
+Note that this is currently assuming that UEFI and either the amd64 (a.k.a. x86_64) or arm64 (a.k.a. aarch64) architectures are being used. These should probably not be hardcoded. Patch welcome.
+|context=[https://gitlab.com/larswirzenius/vmdb2/-/blob/main/vmdb/plugins/grub_plugin.py Lars Wirzenius, Debian Developer]
+}}
+
+{{quotation
+|quote=
+Abstract—Booting is hard. Booting in the ARM world is even
+harder. State of the art are a dozen different boot loaders that
+may or may not deserve that name. Each gets configured
+differently and each has its own pros and cons. For a Linux
+distribution this is a nightmare. Configuring each and every one
+of them complicates code that really should be very simple. To
+solve the problem, one can just add another layer of abstraction
+(GRUB2) on top of another layer of abstraction (UEFI) on top of
+another layer of abstraction (U-Boot). Learn how all those layers
+can make life easier for the distribution and how much fun UEFI
+really is. Read how ARM systems boot, what UEFI really means,
+how UEFI binaries interact with firmware, how openSUSE is
+going to move to UEFI based boot on ARM and how UEFI
+enables convergence of the Enterprise and Embedded markets.
+|context=PDF: https://www.bsdforen.de/attachments/uefi-on-top-of-u-boot-pdf.4528/
+}}
+
+Example projects to demonstrate technical challenges:
+
+* Systemd developers did not implement since 2022 [https://github.com/systemd/mkosi/issues/1220 mkosi ISO support] (closed ticket but not implemented, the actual missing ticket to implement is [https://github.com/systemd/systemd/issues/28798 repart: Support booting via CD-ROM]).
+* Nobody answered [https://github.com/systemd/mkosi/discussions/2103 Build a bootable non-UEFI ARM64 image (e.g. Raspbian for RPi 4B) with mkosi?]
+* grml-debootstrap bug [https://github.com/grml/grml-debootstrap/issues/297 UEFI bootloader updates seem broken] was difficult to fix as evidenced in the long discussion of bugfix [https://github.com/grml/grml-debootstrap/pull/299 Make bootloader updates on UEFI-based systems work].
+* grml-debootstrap did not implement [https://github.com/grml/grml-debootstrap/issues/114 Rasberry PI (RPI) support] since 2018. No implementation was attempted from 2018 until 2025.
+** https://github.com/grml/grml-debootstrap/pull/335
+
+See also:
+
+* https://news.opensuse.org/2024/03/05/systemd-boot-integration-in-os/
+
+= System Builds Tools =
+* https://wiki.debian.org/SystemBuildTools
+* https://packages.debian.org/freedom-maker
+
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Development]]

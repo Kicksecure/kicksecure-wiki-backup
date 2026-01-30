@@ -1,0 +1,308 @@
+{{Header}}
+{{title|title=
+Spectre Meltdown
+}}
+{{#seo:
+|description=Spectre/Meltdown security vulnerability caused by flaws in processors and how to patch them
+}}
+{{intro|
+Spectre/Meltdown security vulnerability caused by flaws in processors and how to patch them
+}}
+[[systemcheck|systemcheck]] might have referred you to this page.
+
+'''Note:'''
+
+* systemcheck is a diagnostic tool that automates the display of diagnostic output from other diagnostic tools.
+* {{project_name_long}} is not the cause of the issue. Don't kill the messenger.
+* Spectre/Meltdown is a security vulnerability caused by flaws in hardware, specifically in CPUs (processors).
+* This page explains the current state of affairs and how to protect against this security vulnerability.
+
+= Introduction =
+
+{{quotation
+|quote=A CPU is not just a dumb piece of hardware that can do basic calculations at high speed. Modern CPUs from Intel and AMD have many "software-like" features built-in. To name a few from a plethora of examples:
+|context=[[Open_Source_Hardware#Open_Source_BIOS_and_Firmware_Security_Impact|Open Source BIOS and Firmware Security Impact]]
+}}
+
+Security issues have been discovered in CPUs.
+
+One recent example of a firmware vulnerability is the processor microcode update for modern chips to address [https://security-tracker.debian.org/tracker/CVE-2018-3620 speculative] [https://security-tracker.debian.org/tracker/CVE-2018-3646 execution flaws]. <ref>
+https://www.debian.org/security/2018/dsa-4279
+</ref>
+
+= Platform Specific =
+Platform specific. Select your platform.
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= == Host Operating System ==
+|image=[[File:Gnu_operating_system.png|25px]]
+|addToClass=info-box
+|content=
+If {{project_name_long}} is run as a host operating system, then no further user action is required. This is because microcode packages are already installed by default, and [[security-misc]] applies hardened kernel settings that enable all available mitigations.
+}} <!-- close tab: Host Operating System -->
+
+{{Tab
+|title= == VirtualBox ==
+|image=[[File:Logo-virtualbox.png|25px]]
+|addToClass=info-box
+|content=
+There is no solution for [[VirtualBox]] yet. The bug has been reported to the VirtualBox developers. For bug report tickets and related forum discussions, see footnote. <ref>
+* [https://www.virtualbox.org/ticket/17987 VirtualBox 5.2.18 vulnerable to spectre/meltdown despite microcode being installed (#17987)]
+* [https://www.virtualbox.org/ticket/18477 Request for VBox to pass through Speculative Store Bypass (SSB) mitigations to guest => duplicate of #17987 (#18477)]
+* the associated [https://forums.virtualbox.org/viewtopic.php?f=7&t=89395 VirtualBox forum discussion]
+* a related Whonix forum discussion: [https://forums.whonix.org/t/whonix-vulerable-due-to-missing-processor-microcode-packages/5739/22 Whonix vulnerable due to missing processor microcode packages? spectre / meltdown / retpoline / L1 Terminal Fault (L1TF)]
+* https://security.stackexchange.com/questions/211265/virtualbox-spectre-v4
+</ref> The {{project_name_short}} developers depend on the VirtualBox developers to fix this VirtualBox issue. Users must patiently wait for VirtualBox developers to fix this bug. Nevertheless:
+
+* Apply [[#Processor Microcode Updates|Processor Microcode Updates]] on your host operating system. (Not required if using {{project_name_short}} as the host operating system, as this is already done by default.)
+* Consider the following experimental instructions.
+
+<div class="toccolours mw-collapsible mw-collapsed">
+Testers only! For more information, please click "expand" on the right.
+<div class="mw-collapsible-content">
+These experimental Spectre/Meltdown defenses relate to issues outlined in [[Firmware Security and Updates]]. Due to the significant performance penalty and unclear security benefits of applying these changes, it may not be worth the effort. The reason is that VirtualBox is still likely vulnerable, even after:
+
+# A [[Firmware_Security_and_Updates#Processor_Microcode_Updates|host microcode upgrade]].
+# A host kernel upgrade.
+# A VM kernel upgrade.
+# A "not vulnerable" result from [[Firmware_Security_and_Updates#spectre-meltdown-checker|spectre-meltdown-checker]] run on the host.
+# Installation of a recent VirtualBox version. <ref>
+VirtualBox version <code>5.2.18</code> or above is required, as only that version includes Spectre/Meltdown defenses.
+</ref>
+# All Spectre/Meltdown-related VirtualBox settings are tuned for better security as documented below.
+
+On the host. <ref>
+<blockquote>
+--ibpb-on-vm-[enter|exit] on|off: Enables flushing of the indirect branch prediction buffers on every VM enter or exit respectively. This could be enabled by users overly worried about possible spectre attacks by the VM. Please note that these options may have severe impact on performance.
+<br />
+https://www.virtualbox.org/manual/ch08.html
+</blockquote>
+
+There is a mistake in the VirtualBox manual stating <code>enter</code> which does not work. It is actually <code>entry</code>.
+</ref> <ref>
+https://www.virtualbox.org/manual/ch08.html
+<blockquote>
+--l1d-flush-on-vm-enter on|off: Enables flushing of the level 1 data cache on VM enter. See Section 13.4.1, “CVE-2018-3646”.
+</blockquote>
+</ref> <ref>
+<blockquote>
+--l1d-flush-on-sched on|off: Enables flushing of the level 1 data cache on scheduling EMT for guest execution. See Section 13.4.1, [https://www.virtualbox.org/manual/ch13.html#sec-rec-cve-2018-3646 “CVE-2018-3646”].
+<br />
+https://www.virtualbox.org/manual/ch08.html
+</blockquote>
+</ref> <ref>
+https://www.virtualbox.org/manual/ch13.html#sec-rec-cve-2018-3646
+<blockquote>
+For users not concerned by this security issue, the default mitigation can be disabled using<br />
+<br />
+{{CodeSelect|code=
+VBoxManage modifyvm name --l1d-flush-on-sched off
+}}
+</blockquote>
+Since we want to enable the security feature we set <code>--l1d-flush-on-sched on</code>.
+</ref> <ref>
+<blockquote>
+--spec-ctrl on|off: This setting enables/disables exposing speculation control interfaces to the guest, provided they are available on the host. Depending on the host CPU and workload, enabling speculation control may significantly reduce performance.
+<br />
+https://www.virtualbox.org/manual/ch08.html
+</blockquote>
+</ref> <ref>
+According to this [https://www.virtualbox.org/ticket/17987 VirtualBox ticket] <code>--spec-ctrl</code> should be set to <code>on</code>.
+</ref> <ref>
+<blockquote>
+--nestedpaging on|off: If hardware virtualization is enabled, this additional setting enables or disables the use of the nested paging feature in the processor of your host system; see Section 10.7, “Nested paging and VPIDs” and Section 13.4.1, “CVE-2018-3646”.
+</blockquote>
+</ref>
+
+{{CodeSelect|code=
+VBoxManage modifyvm "{{project_name_gateway_short}}" --ibpb-on-vm-entry on
+VBoxManage modifyvm "{{project_name_gateway_short}}" --ibpb-on-vm-exit on
+VBoxManage modifyvm "{{project_name_gateway_short}}" --l1d-flush-on-vm-entry on
+VBoxManage modifyvm "{{project_name_gateway_short}}" --l1d-flush-on-sched on
+VBoxManage modifyvm "{{project_name_gateway_short}}" --spec-ctrl on
+VBoxManage modifyvm "{{project_name_gateway_short}}" --nestedpaging off
+VBoxManage modifyvm "{{project_name_gateway_short}}" --mds-clear-on-vm-entry on
+VBoxManage modifyvm "{{project_name_gateway_short}}" --mds-clear-on-sched on
+}}
+
+{{mbox
+| type    = notice
+| image   = [[File:Ambox_notice.png|40px|alt=Info]]
+| text    = These steps must be repeated for every VirtualBox VM, including [[Multiple_{{project_name_workstation_short}}|multiple]] and custom VMs.
+}}
+The above instructions only apply to the default VM names {{project_name_gateway_long}} and {{project_name_workstation_long}}. Therefore, if [[Multiple {{project_name_workstation_short}}|Multiple {{project_name_workstation_long}}s]] and/or [[Multiple_{{project_name_workstation_short}}#Multiple_{{project_name_gateway_short}}|Multiple {{project_name_gateway_long}}s]] are configured, then repeat these instructions using the relevant name(s).
+</div>
+</div>
+* Check back later for updated instructions. [[Stay Tuned]].
+
+}} <!-- close tab: VirtualBox -->
+
+{{Tab
+|title= == KVM ==
+|image=[[File:Logo-kvm.png|25px]]
+|addToClass=info-box
+|content=
+'''1.''' Processor Microcode Updates.
+
+Apply [[#Processor Microcode Updates|Processor Microcode Updates]] on your host operating system. (Not required if using {{project_name_short}} as the host operating system, as this is already done by default.)
+
+The updated mitigative host CPU instructions are passed through by default.
+
+'''2.''' Done.
+
+No further action is needed.
+}} <!-- close tab: KVM -->
+
+{{Tab
+|title= = Qubes =
+|image=[[File:Logo-qubes.png|25px]]
+|addToClass=info-box
+|content=
+If Qubes is run as a host operating system, then no further user action is required. This is because microcode packages are already installed by default in Qubes. This is [[Unspecific|unspecific to {{project_name_short}}]]. Therefore, for additional information, check with upstream Qubes directly as per the [[Self Support First Policy]].
+
+Documentation previously stated, see footnote. <ref>
+After [https://www.qubes-os.org/doc/how-to-install-software-in-dom0/ getting all dom0 host upgrades] and rebooting, this should be OK.
+
+{{Qubes_upgrade_dom0}}
+
+'''4.''' Reboot.
+
+{{CodeSelect|code=
+reboot
+}}
+</ref>
+}} <!-- close tab: Qubes -->
+}} <!-- close Controller: Everything -->
+
+= Processor Microcode Updates =
+Processor microcode is unfortunately non-freedom software, therefore only available in the Debian <code>nonfree</code> repository. <ref>
+Relevant Debian packages for processor microcode: [https://packages.debian.org/{{Stable_project_version_based_on_Debian_codename}}/intel-microcode Intel] and [https://packages.debian.org/{{Stable_project_version_based_on_Debian_codename}}/amd64-microcode amd64].
+</ref> <ref>
+Installing these updates by default would require enabling the Debian <code>nonfree</code> repository, which would logically make {{project_name_short}} images non-freedom.
+</ref> {{project_name_short}} recommends to [[Avoid_nonfreedom_software|avoid non-freedom software]], but in this case, idealism would result in insecurity.
+
+It is unnecessary to apply these updates in standard guest VMs, as they do not have the ability to alter the microcode. However, processor microcode updates <u>should</u> always be applied <u>on the host operating system</u> (for processors by Intel or AMD). <ref>
+ARM is less affected than Intel architecture.
+</ref> <ref>
+See: https://forums.whonix.org/t/whonix-vulerable-due-to-missing-processor-microcode-packages/5739
+</ref>
+
+=== Microcode Package Check ===
+
+If there is no output from the following checks, the package is not installed.
+
+To check whether the microcode package is installed:
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= == Debian-based ==
+|image=[[File:Logo-debian.png|25px]]
+|addToClass=info-box
+|active=true
+|content=
+
+On the host, run:
+
+{{CodeSelect|code=
+dpkg -l {{!}} grep microcode
+}}
+
+}} <!-- close tab: Debian-based -->
+
+{{Tab
+|title= == Qubes ==
+|image=[[File:Qubes-logo-icon.png|25px]]
+|addToClass=info-box
+|content=
+
+In dom0, run:
+
+{{CodeSelect|code=
+dnf list {{!}} grep microcode
+}}
+
+The Qubes check should confirm that the <code>microcode_ctl.x86_64</code> package is already installed. <ref>
+This package is installed by default in Qubes to automatically protect users against hardware threats.
+</ref>
+
+}} <!-- close tab: Qubes -->
+}} <!-- close Controller: Debian Based and Qubes -->
+
+=== Install Microcode Package ===
+
+To install the microcode packages: <ref>
+Strictly speaking, installing the microcode package for your specific CPU (Intel or AMD) would suffice. However, {{project_name_long}} installs both packages by default. The other package will not have any effect but is useful to have installed if migrating to another CPU vendor.
+</ref>
+
+Choose either Intel or AMD:
+
+{{Tab
+|type=controller
+|content=
+{{Tab
+|title= == Intel ==
+|image=[[File:Intel_logo_2023.svg.png|25px]]
+|addToClass=info-box
+|content=
+{{Install_Package_Host|package=
+intel-microcode
+}}
+}} <!-- close tab: Intel -->
+{{Tab
+|title= == AMD ==
+|image=[[File:AMD_Logo.svg.png|25px]]
+|addToClass=info-box
+|content=
+{{Install_Package_Host|package=
+amd64-microcode
+}}
+}} <!-- close tab: AMD -->
+}} <!-- close Controller: Intel & AMD -->
+
+= spectre-meltdown-checker =
+It is possible to check if the system is vulnerable to the [https://arstechnica.com/gadgets/2018/01/meltdown-and-spectre-every-modern-processor-has-unfixable-security-flaws/ Spectre] and [https://meltdownattack.com/ Meltdown] attacks, which exploit flaws in modern chip design to bypass system protections.
+
+== Host versus VMs ==
+Is spectre-meltdown-checker useful in VMs? Unreliable. <ref>
+https://github.com/QubesOS/qubes-issues/issues/4262#issuecomment-579388171
+
+<blockquote>
+most automated tests we run are in virtualized environment (Qubes inside KVM) - results there will be even more unreliable.
+</blockquote>
+
+spectre-meltdown-checker bug report: [https://github.com/speed47/spectre-meltdown-checker/issues/343 False positives inside Xen (PVH) domU]
+</ref>
+
+spectre-meltdown-checker should be run on the host operating system.
+
+== Installation ==
+{{Install_Package_Host
+|package_name=Spectre Meltdown Checker
+|package=spectre-meltdown-checker
+}}
+
+== Usage ==
+{{CodeSelect|code=
+sudo spectre-meltdown-checker --paranoid ; echo $?
+}}
+
+== Forum Discussion ==
+See: https://forums.whonix.org/t/whonix-vulerable-due-to-missing-processor-microcode-packages/5739
+
+= Leak Tests =
+
+[https://leaky.page leaky.page] -
+
+Google's PoC is a Spectre V1 gadget that utilizes a JavaScript array speculatively accessed out of bounds. While the V1 gadget can be mitigated at the software level, Chrome's V8 team determined that mitigating other gadgets, such as those for Spectre Variant 4, is "simply infeasible in software." The code is designed for Intel Skylake CPUs but can potentially work on other architectures and browsers with minor modifications to the JavaScript. Google successfully ran this attack on Apple M1 ARM CPUs without any major changes. <ref>
+https://www.phoronix.com/scan.php?page=news_item&px=Google-Leaky.Page-Spectre
+</ref>
+
+= References =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

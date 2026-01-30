@@ -1,0 +1,360 @@
+{{Header}}
+{{title|title=
+Out-of-band Management Technology
+}}
+{{#seo:
+|description=Such as Intel ME / AMT and AMD PSP. Choosing Suitable Hardware.
+|image=Outofbandmanagement.jpg
+}}
+{{boot_firmware}}
+[[File:Outofbandmanagement.jpg|thumb]]
+{{intro|
+Such as Intel ME / AMT and AMD PSP. Choosing Suitable Hardware.
+}}
+= Introduction =
+
+A commonly decried hardware feature on modern platforms is the [https://web.archive.org/web/20120325140013/https://software.intel.com/en-us/blogs/2011/12/14/intelr-amt-and-the-intelr-me/ Intel Management Engine (ME) and Active Management Technology (AMT)].
+
+Intel ME is a non-freedom, complete operating system which runs inside CPU alongside. This is s security-risk. Completely disabling it is extremely difficult, risks bricking the hardware and can only be done on select hardware.
+
+= Design =
+
+Out-of-band management has been around since 1998, when it was dubbed the Intelligent Platform Management Interface (IPMI) framework. <ref>
+https://en.wikipedia.org/wiki/Intelligent_Platform_Management_Interface
+</ref> It consists of a proprietary firmware running on the Baseboard Management Controller (BMC), <ref>
+https://en.wikipedia.org/wiki/Intelligent_Platform_Management_Interface#Baseboard_management_controller
+</ref> which is a dedicated micro-controller in enterprise NICs to allow complete remote control over a machine despite its power state. <ref>
+Facebook has put out OpenBMC, an interesting implementation that theoretically can be placed on BMCs. Problematically, most vendors (HP, Dell, IBM, and so on) will not let users install firmware that is not signed by them. In addition to permission issues, without available low-level drivers and publicly available hardware that will run the firmware, the user is simply out of luck.
+</ref>
+
+Modern Intel ME is firmware running on a dedicated micro-controller in all machines, while Intel AMT is the remote access feature introduced as part of the vPro platform. Most Intel hardware produced in the last ten years supports ME and AMT "features". <ref>
+https://ia800209.us.archive.org/4/items/IntelCentrino2WithVproTechnologyAndIntelCore2Processor/IntelCentrino2WithVproTechnologyAndIntelCore2ProcessorWithVproTechnology.pdf
+</ref> This includes desktops, servers, ultrabooks, tablets, and laptops with the Intel Core vPro processor family (Intel Core i3, i5, i7, and Intel Xeon processor E3-1200 product family). <ref>
+https://en.wikipedia.org/wiki/Intel_Active_Management_Technology
+</ref> Other popular hardware manufacturers also have an analogous feature to ME. For instance, AMD's "Secure Processor" (formerly "Platform Security Processor") is based in turn on ARM TrustZone technology. <ref>
+* https://en.wikipedia.org/wiki/AMD_Platform_Security_Processor
+* https://libreboot.org/faq.html#amd-platform-security-processor-psp
+* https://en.wikipedia.org/wiki/AMD_Platform_Security_Processor#Security_history [contains many footnotes with sources]
+</ref>
+
+= Functionality =
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = If the Intel ME is shipped with an AMT module which is both enabled and provisioned, then <i>potentially</i> any vulnerabilities might allow attackers to bypass password authentication for the module.
+}}
+
+The Electronic Frontier Foundation (EFF) states: <ref name=ME_hazard>
+https://www.eff.org/deeplinks/2017/05/intels-management-engine-security-hazard-and-users-need-way-disable-it
+</ref>
+
+<blockquote>The ME is a largely undocumented master controller for your CPU: it works with system firmware during boot and has direct access to system memory, the screen, keyboard, and network.</blockquote>
+
+Attackers who bypass password authentication can: <ref name=ME_hazard />
+
+* Interact with the screen or console in a fashion identical to a user.
+* Boot arbitrary operating systems or install new operating systems.
+* Steal disk encryption passwords.
+
+If a system is vulnerable, the effect of this Intel technology is administrators (or hackers) can remotely monitor, maintain, update, upgrade, and repair (or sabotage) computers, even while they are sleeping. This activity is distinct from software-based (in-band) management, since hardware-based management uses TCP/IP stack communication channels (bypassing any firewalls present) and the presence of an OS or locally installed management agent is not required. <ref>
+https://en.wikipedia.org/wiki/Intel_Active_Management_Technology#Security
+</ref>
+
+TODO: Depending on the system, it might be possible to interact with Intel AMT to some degree even if it is not enabled? Need to find a source that verifies this concern, I read about it once but cannot find the source now.
+
+= Exploitation Risk =
+
+Unfortunately, Intel ME and AMT have created serious security risks, because faults in the design potentially allow remote attackers to access the user's computer secretly and have full control and awareness. <ref name=Intel_remote_exploit>
+https://semiaccurate.com/2017/05/01/remote-security-exploit-2008-intel-platforms/
+</ref> On 1 May 2017, these fears were realized when Intel confirmed and patched a remote [https://www.intel.com/content/www/us/en/security-center/advisory/intel-sa-00075.html Elevation of Privilege bug (CVE-2017-5689)] in the ME technology.
+
+[https://www.theregister.com/2022/06/02/conti_rasomware_intel_firmware/ "Conti" ransomware spotted working on exploits for Intel Management Engine flaws]
+
+Not every machine is susceptible to this attack, even though every Intel platform with either Intel Standard Manageability, Active Management Technology, or Small Business Technology, from Nehalem in 2008 to Kaby Lake in 2017 has a potentially remotely exploitable security hole. In many cases, AMT is enabled but <i>not</i> provisioned by default for the 1<sup>st</sup> to 7<sup>th</sup> generation processors. Nevertheless, if a system is vulnerable (unpatched) the risks include: <ref name=Intel_remote_exploit />
+
+* An unprivileged network attacker gaining system privileges to provisioned Intel management engines.
+* An unprivileged local attacker could provision manageability features to gain unprivileged network or local system privileges.
+
+The safest course of action is for users to disable the AMT module if possible in BIOS and to make sure that LMS is not installed. Failing that, the Intel firmware image should be updated to remove the security vulnerability. <ref name=ME_hazard /> It should also be noted it is impossible to completely disable ME and have a functional system: <ref name=ME_disablingME>
+https://web.archive.org/web/20210802184931/http://blog.ptsecurity.com/2017/08/disabling-intel-me.html
+</ref>
+<blockquote>The disappointing fact is that on modern computers, it is impossible to completely disable ME. This is primarily due to the fact that this technology is responsible for initialization, power management, and launch of the main processor. Another complication lies in the fact that some data is hard-coded inside the PCH chip functioning as the southbridge on modern motherboards. The main method used by enthusiasts trying to disable ME is to remove everything "redundant" from the image while maintaining the computer's operability. But this is not so easy, because if built-in PCH code does not find ME modules in the flash memory or detects that they are damaged, the system will not start.</blockquote>
+
+= Privacy and Security Concerns =
+
+The concerns posed by Intel (and partially AMD) firmware are comparable to any other proprietary firmware blob running on a user's system or all its peripherals. Almost every component in a modern computer has firmware running on auxiliary processors of varying architectures, all of which have privileged machine access. The inner workings of firmware binaries can still be investigated and examined for malware via reverse engineering. <ref>
+https://web.archive.org/web/20220327082940/xvilka.me/h2hc2014-reversing-firmware-radare-slides.pdf
+</ref> <ref>
+https://recon.cx/2014/slides/Recon%202014%20Skochinsky.pdf
+</ref>
+
+Manufacturers are unlikely to insert a malicious backdoor intentionally into every product. The reason is if/when the backdoor was discovered, its intent would be undeniable and it would destroy the reputation of the business and severely impact revenue. Recent disclosures indicate that some adversaries instead favor targeted attacks (product interdiction and implants) to avoid detection for as long as possible. <ref>
+https://theintercept.com/2014/10/10/core-secrets/
+</ref> <ref>
+https://www.spiegel.de/international/world/the-nsa-uses-powerful-toolbox-in-effort-to-spy-on-global-networks-a-940969.html
+</ref> "Zero day" exploits are another preferred method of access by adversaries. <ref>
+Significant and previously unknown vulnerabilities are used as a way into all systems without leaving any ''a priori'' discoverable traces of the infection until they are used. Zero days are typically used selectively to extend their shelf-life. Another similar but more common method is compromising targets via serious bugs that users often fail to patch. See [https://theintercept.com/2017/04/14/leaked-nsa-malware-threatens-windows-users-around-the-world/ here] and [https://www.eff.org/deeplinks/2016/09/nsas-failure-report-shadow-broker-vulnerabilities-underscores-need-oversight here] for examples.
+</ref>
+
+The problem with out-of-band management is exemplified by the recent Intel security advisory. Exposing proprietary, hard-to-patch blobs which contain bugs to the network can lead to remote exploitation by advanced adversaries, including common criminals. The "Nobody But Us" (NOBUS) concept promoted by adversaries is simply a fallacy as evidenced by recent worldwide security incidents, including the leaking of the adversary toolkit used for hacking targets. According to prominent Intel ME researchers and reverse-engineers, only corporate AMT firmware includes the networking stack, but the safest action is for users to avoid computers with this feature entirely. <ref>
+https://www.coreboot.org/pipermail/coreboot/2016-December/082748.html
+</ref> <ref>
+There were some mobile variants which had access to the wireless 3G chip (for anti-theft), but this functionality has been dropped.
+</ref>
+
+In principle, the concept of out-of-band management has its place in data centers, not on personal home computers. Even in the former case, without Libre software the owner of the machine(s) cannot be sure they are the only person with remote access control, in order to patch security vulnerabilities on demand. <ref>
+Libre software can also contain bugs, but it at least gives users the freedom to fix them.
+</ref> While the functionality is not secret, running a network-facing, bug-ridden proprietary OS and giving hardware privileged access to a machine has proven a [http://fish2.com/ipmi/itrain.pdf horrible] [https://en.wikipedia.org/wiki/Intel_AMT#Known_vulnerabilities_and_exploits idea].
+
+= Recommendations =
+
+== Avoid Other Out-of-band Features ==
+
+The commonly deployed PXE boot <ref>
+https://en.wikipedia.org/wiki/Preboot_Execution_Environment#Acceptance
+</ref> and Wake-on-Lan (WoL) "features" should be avoided or disabled. PXE is implemented either as a Network Interface Card (NIC) BIOS extension or as UEFI code in modern devices (where it can be easily disabled). <ref>
+https://www.techwalla.com/articles/how-to-disable-pxe
+</ref> <ref>
+https://en.wikipedia.org/wiki/Preboot_Execution_Environment#Overview
+</ref> On most systems, WoL hardware functionality is usually blocked by default and explicitly needs to be enabled using the system BIOS or UEFI. <ref>
+https://en.wikipedia.org/wiki/Wake-on-LAN#Respond_to_the_Magic_Packet_and_restore_full_power
+</ref> <ref>
+https://en.wikipedia.org/wiki/Wake-on-LAN#Hardware_implementations
+</ref>
+
+Though rare nowadays, also avoid machines with the LoJack anti-theft feature since it is a persistent BIOS/UEFI firmware module that shares features with trojans or rootkits. If enabled, laptops can be remotely locked, have files deleted, or disclose their exact location. Further, an activated LoJack module will "phone home" daily to a monitoring center, providing location, user, software, and hardware information. <ref>
+https://en.wikipedia.org/wiki/Absolute_Home_%26_Office
+</ref> Users do have options for mitigation. <ref>
+https://nsfocusglobal.com/tracking-and-analysis-of-the-lojackcomputrace-incident/
+</ref>
+
+Without reason, LoJack has been found pre-activated on computers that were bought new. <ref>
+https://securelist.com/absolute-computrace-revisited/58278/
+</ref> The technology has also been exploited by the "Lojax" malware, commonly found in the Balkans and Central and Eastern Europe. <ref>
+https://nsfocusglobal.com/tracking-and-analysis-of-the-lojackcomputrace-incident/
+</ref> Fortunately, LoJack has become so disliked that some manufacturers have removed it in firmware updates made during the response to Meltdown and Spectre.
+
+The same sort of technology used by LoJack is frequently included in enterprise hardware under the name "Computrace" or "Absolute Home & Office". It has very similar security concerns and should be avoided. Notably, used enterprise systems (such as Thinkpads, but also including other devices such as Microsoft Surface tablets) oftentimes have Computrace enabled and active, as the original owner may fail to disable it before selling the systems. <ref>
+* https://www.reddit.com/r/thinkpad/comments/148ik2h/cant_disable_computrace/
+* https://www.reddit.com/r/thinkpad/comments/u55hgd/how_do_i_disable_computrace_on_a_t430/
+* https://www.youtube.com/watch?v=er9sAereb30
+</ref> Disabling Computrace is not possible without cooperation from the original device owner and Absolute Software. Systems with Computrace left enabled in this way should be treated as permanently backdoored.
+
+== Hardware ==
+
+When buying new hardware, it is recommended to avoid Intel hardware that has Intel ME. Unfortunately, that rules out most modern Intel hardware produced in the last ten years.
+
+Avoid hardware with Intel vPRO / AMT.
+
+AMD chipsets do not contain Intel ME but AMD PSP.
+
+Avoid hardware with AMD PRO.
+
+However, there are other comparable problems (from a freedom perspective) with hardware produced by both Intel and AMD. <ref>
+https://www.fsf.org/blogs/community/active-management-technology
+</ref>
+
+It has been recently discovered that ME can be disabled and mostly erased with a simple Python script. The functionality of systems running both Libre and proprietary BIOS firmwares were unaffected, including recent CPU generations. Only experts should attempt this procedure, since the computer may become "bricked" (unusable) if the procedure is completed incorrectly. <ref>
+* https://www.phoronix.com/news/Intel-ME-Cleaning
+* https://github.com/corna/me_cleaner/wiki/me_cleaner-status
+* https://github.com/corna/me_cleaner
+</ref>
+
+Another alternative for advanced users is attempting to set Intel ME's "High-Assurance Platform" mode (HAP): <ref>
+https://en.wikipedia.org/wiki/Intel_Management_Engine#%22High_Assurance_Platform%22_mode
+</ref> <ref>
+Although manipulation of the HAP bit has already been incorporated into the <code>me_cleaner</code> project.
+</ref>
+
+<blockquote>
+As Intel has confirmed the ME contains a switch to enable government authorities such as the NSA to make the ME go into High-Assurance Platform (HAP) mode after boot. This mode disables most of ME's functions and was intended to be available only in machines produced for specific purchasers like the US government; however, most machines sold on the retail market can be made to activate the switch.
+</blockquote>
+
+For details on this procedure, refer to "Setting the HAP bit" instructions [https://web.archive.org/web/20210802184931/http://blog.ptsecurity.com/2017/08/disabling-intel-me.html here]. The researchers found that by removing some ME modules and enabling HAP mode, Intel ME did not crash (suggesting it is disabled at an early stage). Notably, Intel confirmed with the researchers that the disabling/modification of certain features (via HAP) was made available to government agencies, presumably to reduce the threat of side-channel leaks. <ref>
+It is remarkable this Intel feature is not advertised nor made easily accessible to the wider public in order to reduce potential security threats.
+</ref>
+
+= Intel ME Cleaner =
+The issue is, that Intel isn't supportive. Intel makes changes irrespective of Intel ME cleaner which has broken Intel ME cleaner in the past and can break Intel ME cleaner in the future.
+
+Intel ME cleaner has been deprecated. No git commits since ~ 6 years. Github issues are not being replied to.
+
+Intel ME cannot be removed completely.
+
+{{quotation
+|quote=We cannot remove it completely, otherwise the machine will shut itself off after 30 minutes. We can, however, reduce it to the bare minimum necessary to keep it running, but without any malicious code in it (or so we hope, depending of what the ROMP and BUP modules really do…).
+|https://osresearch.net/Clean-the-ME-firmware/
+}}
+
+{{quotation
+|quote=Researchers believe Intel has added the ME disabling bit at the behest of the NSA, who needed a method of disabling ME as a security measure for computers running in highly sensitive environments.
+|context=[https://www.bleepingcomputer.com/news/hardware/researchers-find-a-way-to-disable-much-hated-intel-me-component-courtesy-of-the-nsa/ Researchers Find a Way to Disable Much-Hated Intel ME Component Courtesy of the NSA]
+}}
+
+* https://global.ptsecurity.com/analytics/disabling-intel-me-11-via-undocumented-mode
+
+{{quotation
+|quote=Linux-specific OEMs System76 and Purism and top-tier PC builder Dell -- have decided to offer computers with disabled ME.
+|context=https://www.zdnet.com/article/computer-vendors-start-disabling-intel-management-engine/
+}}
+
+* https://puri.sm/posts/deep-dive-into-intel-me-disablement/
+* https://puri.sm/wp-content/uploads/2017/10/intel-me-status-eye-1024x223.png
+
+OEM (original equipment manufacturer)
+
+Simpler for OEMs due to Intel ME Manufacturing Mode.
+
+* https://hub.packtpub.com/intel-me-has-a-manufacturing-mode-vulnerability-and-even-giant-manufacturers-like-apple-are-not-immune-say-researchers/
+* https://conference.hitb.org/hitbsecconf2018dxb/materials/D1T1%20-%20The%20Phantom%20Menace-%20Intel%20ME%20Manufacturing%20Mode%20-%20Maxim%20Goryachy%20and%20Mark%20Ermolov.pdf
+
+{{quotation
+|quote=Purism receives Intel processors with manufacturing mode enabled, which lets us test various configurations and set various options allowing us to have a future where users control their device.
+|context=https://puri.sm/learn/intel-me/
+}}
+
+{{quotation
+|quote=
+Why Purism has the uncommon ability to run a freed ME
+
+The reason the Intel ME is so impenetrable is that you have to combine hardware selection, hardware configuration, hardware fuses, and firmware, which requires to push into the manufacturing and fabrication process. There is no other way to do it consistently over time. This is one of the many reasons Purism started as an organization: to solve really hard problems by manufacturing hardware that can fully respect users freedoms in the future. As mentioned in Purism Business Model and Vision, the model of “buy hardware, install free software” is aging, due primarily to the fact that there is a growing cryptographic bond between proprietary non-free signed binaries and the hardware that they run on. This bond renders it mathematically impossible to give each user control. Cryptography is superb when in the hands and control of each user, but it is nasty when it strips the users’ control.
+
+Purism learned through the supply chain (and the provided manufacturing documentation) that we, as the motherboard fabricator, have a lot more control than the end-user does with regard to the [http://www.anandtech.com/show/5078/intel-haswell-info-single-chip-for-ultrabooks-gt3-gpu-for-mobile-lga1150-for-desktop Multichip Package (MCP)]. Choosing Purism as the manufacturer gives each user freedom, privacy, and security because Purism believes in giving users freedom, privacy, and security. These options would probably never see the light of day otherwise.
+|context=https://puri.sm/learn/intel-me/
+}}
+
+[https://github.com/corna/me_cleaner/wiki/How-to-apply-me_cleaner Intel ME cleaner is hardware specific. And difficult to use for users.]
+
+Bricking is possible.
+
+Cleaning existing, old Intel ME infested hardware might be difficult, impossible and users are on their own.
+
+Intel ME removal is realistically in the realm of OEMs (original equipment manufacturer).
+
+Hardware vendors with (some?) Intel ME disabled, neutered or removed notebooks, computers:
+
+TODO
+
+= Intel ME Disabling Disadvantages =
+
+{{quotation
+|quote=Limitations Intel ME disabling
+
+Disabling the Intel Management Engine (ME) results in the following features no longer being available:
+
+* Remote Management
+* fTPM (the hardware TPM is still available)
+* Thunderbolt<code>*</code>. USB-C, Display Alt Mode (for video signals) and USB-C charging (PowerDelivery) are still supported.
+
+In addition, modern standby (S0ix) is affected: suspend mode consumes about 3 times more energy than with ME enabled. You can workaround this issue by setting up a [https://novacustom.com/prevent-battery-draining-while-suspending-with-me-disabled-linux/ suspend-then-hibernate] policy.
+
+<code>*</code> We are testing Thunderbolt support in combination with ME disabling.
+
+You can easily [https://docs.dasharo.com/dasharo-menu-docs/dasharo-system-features/#intel-management-engine-options switch ME disabling on and off in the UEFI firmware settings] (UEFI only, not for Heads).
+
+[ ] I understand the consequences of Intel ME disabling
+|context=https://novacustom.com/product/nv41-series/
+}}
+
+For a further reference, see also [https://novacustom.com/prevent-battery-draining-while-suspending-with-me-disabled-linux/ Prevent battery draining while suspending with ME disabled (Linux)].
+
+= Intel ME Kernel Modules =
+
+Disabling or blacklisting the Intel ME-related kernel modules doesn't disable the Intel Management Engine itself, which operates at a lower level directly inside the CPU.
+
+{{Github_link|repo=security-misc|path=/issues/239}}
+
+<code>mei</code>:
+
+* <code>/dev/mei</code>
+* https://www.kernel.org/doc/Documentation/misc-devices/mei/mei.txt
+* <blockquote>The Intel Management Engine Interface (Intel MEI, previously known as HECI) is the interface between the Host and Intel ME.</blockquote>
+
+<code>mei-gsc</code> / <code>mei_gsc_proxy</code>:
+
+* GSC (Graphics System Controller)
+* Discrete graphics devices (dGFX)
+* DRM?
+* https://github.com/intel/igsc/blob/master/doc/introduction.rst
+** <blockquote>exposes a required API to perform a firmware update of a particular Intel discrete graphics device</blockquote>
+*** Not necessarily related to this kernel module.
+* https://cateee.net/lkddb/web-lkddb/INTEL_MEI_GSC.html
+** <blockquote>An MEI device here called GSC can be embedded in an Intel graphics devices, to support a range of chassis tasks such as graphics card firmware update and security tasks.</blockquote>
+
+<code>mei_hdcp</code>:
+
+* High-bandwidth Digital Content Protection (HDCP)
+* DRM?
+
+<code>mei-me</code>:
+
+* <code>/dev/meiX</code>
+
+<code>mei_phy</code>:
+
+* NFC
+
+<code>mei_pxp</code>:
+
+* Protected-Xe-Path (PXP)
+* https://www.phoronix.com/news/Intel-PXP-Protected-Xe-Path
+* <blockquote>PXP allows for real-time decryption and hardware-accelerated video decoding.</blockquote>
+* DRM?
+
+<code>mei-txe</code>:
+
+* <blockquote>Intel® Trusted Execution Engine (Intel® TXE) is a trusted execution environment that provides a trusted foundation and extends Intel's security technologies.</blockquote>
+* DRM?
+
+<code>mei-vsc</code>:
+
+* Virtual Serial Controller (VSC)
+
+<code>mei-vsc-hw</code>:
+* Similar to above.
+
+<code>mei_wdt</code>:
+
+* Intel Active Management Technology (iAMT) watchdog
+* <blockquote>Intel® Active Management Technology (Intel® AMT) is a feature of Intel® Core™ processors with Intel® vPro™ technology and workstation platforms that allows IT or managed service providers to better discover, repair, and protect their networked computing assets.</blockquote>
+
+<code>microread_mei</code>:
+
+* NFC
+
+<ref>
+https://github.com/QubesOS/qubes-linux-kernel/blob/main/config-base
+
+<pre>
+CONFIG_INTEL_MEI=m
+CONFIG_INTEL_MEI_ME=m
+CONFIG_INTEL_MEI_TXE=m
+CONFIG_INTEL_MEI_GSC=m
+# CONFIG_INTEL_MEI_VSC_HW is not set
+CONFIG_INTEL_MEI_HDCP=m
+CONFIG_INTEL_MEI_PXP=m
+CONFIG_INTEL_MEI_GSC_PROXY=m
+</pre>
+</ref>
+
+= AMD PSP =
+* https://github.com/PSPReverse
+* https://dayzerosec.com/blog/2023/04/17/reversing-the-amd-secure-processor-psp.html
+* https://dayzerosec.com/blog/2023/04/22/reversing-the-amd-secure-processor-psp-part-2-cryptographic-co-processor-ccp.html
+
+= Firmware Choice =
+Some hardware comes with firmware which has an option to disable Intel ME.
+
+* https://docs.dasharo.com/dasharo-menu-docs/dasharo-system-features/#dasharo-security-options
+
+See also:
+
+* [https://docs.dasharo.com/variants/msi_z790/openness_score/ Dasharo Openness Score]
+* [https://github.com/Dasharo/Openness-Score Dasharo Openness Score measuring utility]
+* https://hardwear.io/
+* https://hardwear.io/netherlands-2024/training/mastering-uefi-secure-boot-and-intel-root-of-trust-technologies.php
+
+= Footnotes =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

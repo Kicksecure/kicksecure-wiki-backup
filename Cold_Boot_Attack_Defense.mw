@@ -1,0 +1,180 @@
+{{Header}}
+{{Title|
+title=Cold Boot Attack Defense
+}}
+{{#seo:
+|description=Preventing Cold Boot Attacks. Wipe RAM to prevent information extraction from memory.
+|image=Coldbootattack12312421.png
+}}
+{{fde-mininav}}
+[[File:Coldbootattack12312421.png|thumb]]
+{{intro|
+A cold boot attack is a type of computer security attack that involves accessing sensitive information from a computer's random access memory (RAM) after the computer has been turned off or restarted. Normally, when a computer is turned off or restarted, the data in the RAM is erased. However, with a cold boot attack, the attacker can quickly freeze the RAM before it loses its contents, and then remove the RAM and transfer it to another computer to read its contents. This allows the attacker to access sensitive information, such as encryption keys or login credentials, that were stored in the RAM.
+
+This wiki page outlines measures taken to defend against cold boot attacks.
+}}
+= Introduction =
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = Due to the design of modern computers, nearly all the data manipulated during a session is temporarily written to RAM. This can include texts, saved files, passwords, and encryption keys! Data from more recent activities has a greater likelihood of still residing in RAM. <ref>https://tails.boum.org/doc/advanced_topics/cold_boot_attacks/index.en.html</ref>
+}}
+
+Modern computer architecture poses a significant risk to computer users. Adversaries with physical access to a computer running any operating system may be able to recover all session activities, even if [[Full Disk Encryption|{{fde}}]] is enabled.
+
+Even when a computer is powered off, the data in RAM does not immediately disappear. Depending on the circumstances, data can survive for up to several minutes. For example, this occurs when a computer loses power abruptly and does not go through the normal shutdown cycle. <ref>
+https://archive.li/NNvkO
+</ref> If an adversary has immediate physical access to a computer, a [https://en.wikipedia.org/wiki/Cold_boot_attack cold boot attack] can be mounted.
+
+Forensic experts have two main methods of extracting data from RAM: <ref name=coldboot_attack>
+https://en.wikipedia.org/wiki/Cold_boot_attack
+</ref>
+
+* The running computer is cold-booted and a lightweight operating system is booted from a removable disk. A tool is used to dump pre-boot physical memory contents to a file.
+* The memory modules are quickly removed from the original system and placed in another computer under the adversary's control. The machine is then booted to access the memory contents.
+
+In both cases, the RAM contents can be analyzed in a computer forensics laboratory. Depending on what is found, the user may be in serious peril. Notably, cold boot attacks have proven effective against [https://en.wikipedia.org/wiki/Trusted_Platform_Module Trusted Platform Modules (TPMs)], as well as full disk encryption regardless of the vendor or operating system. For certain memory modules, the time window for an attack can be extended to several hours by cooling them with a refrigerant. <ref name=coldboot_attack />
+
+Using TPM transparent encryption opens the risk for "Warm" Cold Boot Attacks, see chapter [[Full_Disk_Encryption#TPM|TPM]].
+
+Cold boot attacks are thought to be a very uncommon method of recovering data, but high-risk users should be prepared for such a contingency to stay on the safe side. So long as a cold boot attack is not mounted directly after shutdown, then contents of RAM should be emptied within minutes. <ref>
+https://tails.boum.org/doc/advanced_topics/cold_boot_attacks/index.en.html
+</ref>
+
+= Attack Definition =
+
+A cold boot attack is: <ref>https://en.wikipedia.org/wiki/Cold_boot_attack</ref> <blockquote>... a type of [https://en.wikipedia.org/wiki/Side_channel_attack side channel attack] in which an attacker with [https://en.wikipedia.org/wiki/Physical_access physical access] to a computer performs a [https://en.wikipedia.org/wiki/Core_dump memory dump] of a computer's [https://en.wikipedia.org/wiki/Random-access_memory random-access memory (RAM)] by performing a hard reset of the target machine. Typically, cold boot attacks are used to retrieve encryption [https://en.wikipedia.org/wiki/Key_(cryptography) keys] from a running [https://en.wikipedia.org/wiki/Operating_system operating system] for malicious and/or criminal investigative reasons. The attack relies on the [https://en.wikipedia.org/wiki/Data_remanence data remanence] property of [https://en.wikipedia.org/wiki/Dynamic_random-access_memory DRAM] and [https://en.wikipedia.org/wiki/Static_random-access_memory SRAM] to retrieve memory contents that [https://en.wikipedia.org/wiki/Data_remanence#RAM remain readable] in the seconds to minutes after power has been removed.</blockquote>
+
+There are two primary methods of performing the attack: <ref>https://doc.lagout.org/security/DFRWS-EU-2016-7.pdf</ref>
+# The target computer is reset and booted from an alternative medium like a USB with a minimal operating system. RAM contents are recovered, except for those that have been already overwritten. BIOS passwords can trivially defeat this method.
+# Ram modules are physically transplanted from the target computer into another which performs image extraction. Most of the content is retained if properly cooled using certain sprays that increase the data remanence.
+
+= Research Findings =
+
+The [https://www.usenix.org/legacy/event/sec08/tech/full_papers/halderman/halderman.pdf original 2008 cold boot attack research] found:
+
+*  Dynamic random access memory (DRAM) in most computers retain their contents for seconds to minutes after power is lost, even when removed from the motherboard. <ref>
+https://tails.boum.org/doc/advanced_topics/cold_boot_attacks/index.en.html
+</ref>
+* This persistence allows for forensic or malicious access to system memory images.
+* Attackers with physical access can potentially cold boot the machine and use an operating system on a removable disk to write the contents of physical memory to a file.
+* This file can be analyzed for sensitive data like cryptographic (encryption) keys.
+* This technique was able to defeat disk encryption schemes like BitLocker, TrueCrypt and FileVault.
+
+More recent research in 2018 has identified that mechanisms that overwrite RAM contents when power is restored can be bypassed by rewriting the non-volatile memory chip (firmware) that contains these settings.
+<ref name=f_secure>https://blog.f-secure.com/cold-boot-attacks/</ref> <ref name=wired_coldboot>
+https://www.wired.com/story/cold-boot-break-pc-encryption/
+</ref> At the time of writing DDR3/4 RAM appears to protect against cold boot attacks (see next section).
+
+Further research in late 2024 to early 2025 done by 3MDEB <ref name=3mdeb>
+* [https://blog.3mdeb.com/2024/2024-12-13-ram-data-decay-research/ Research of RAM data remanence times]
+* [https://blog.3mdeb.com/2025/2025-01-24-ram-data-decay-research-part2/ Research of RAM data remanence times, part 2]
+* [https://blog.3mdeb.com/2025/2025-02-20-conclusions-from-ram-data-remanence-tests/ Conclusions from RAM data remanence tests]
+</ref> shows that cold boot attacks are still a potential problem even with modern DDR4 and DDR5 memory. Memory contents are sometimes entirely lost upon shutdown or power loss, but oftentimes memory contents can persist for anywhere from a split second to multiple minutes after power loss.
+
+= Possible Countermeasures =
+
+== Literature Summary ==
+
+The literature suggests the following possible countermeasures against cold boot attacks.
+
+{| class="wikitable"
+|+ ''Cold Boot Attack Countermeasures''
+
+|-
+
+! '''Category'''
+! '''Description'''
+|-
+
+! Scrubbing memory
+| Software should try to avoid storing keys in memory. For example, software should overwrite keys when unneeded, keys should be prevented from being paged to disk, and memory cleared at boot time. <ref>The last measure cannot prevent the physical removal of memory chips to another computer for analysis.</ref> Unfortunately this cannot protect against keys that remain in memory while in active use, such as encrypted disk keys. Further, researchers demonstrated in 2018 that mechanisms that overwrite RAM contents when power is restored can be bypassed by rewriting the non-volatile memory chip (firmware) that contains these settings. <ref name=f_secure /> <ref name=wired_coldboot /> <ref>In summary, researchers were able to disable memory overwriting and enable booting from external devices. This allowed cold boot attacks via a special program on a USB stick.</ref>
+|-
+
+! Limiting booting from network or removable media
+| Administrative passwords can be configured in order to boot from these sources. This is an imperfect defense because the drive can still be swapped out or the computer's NVRAM can be reset to allow for booting from removable media.
+|-
+
+! Safe system suspension
+| Usually locking the computer screen or suspending a laptop's state is ineffective, because the computer can be awakened, power-cycled, and then have its memory extracted. It is far safer to just completely power off systems when they are not in use, with the computer guarded for a few minutes afterward. Suspension is made safer by necessitating a strong password or external secret to awaken the computer, with memory contents encrypted by a key related to the password.
+|-
+
+! Avoiding precomputation
+| Although precomputation speeds up cryptographic operations, it makes keys more vulnerable because there is redundant storage of key information.
+|-
+
+! Key expansion
+| Theoretically the application of a transform to keys when it is stored in memory can make it more difficult to reconstruct. Operating systems could also identify memory locations that decay more quickly, and utilize those to store key material.
+|-
+
+! Physical defenses
+| Since some cold boot attacks rely on access to DRAM chips/modules, the physical memory can be protected by locking them inside the machine, soldering memory to the motherboard or encasing chips in epoxy so they cannot be removed/accessed.
+|-
+
+! Future architectural changes
+| DRAM can be designed that loses their state more quickly or future hardware might have key-store hardware that erases the state during power-up, reset and shutdown. Another possibility is the routine encryption of memory contents, so long as they are destroyed after a reset or power loss.
+|-
+
+! Disk controller encryption
+| Data in the hard disk controller hardware can be encrypted. Unlike normal disk encryption systems, both encryption and decryption are performed by the disk controller which store the main encryption keys. This means encryption/decryption is not performed by software in the main CPU, along with the main encryption keys stored in DRAM.
+|-
+
+! DDR3, DDR4, DDR5 RAM
+| Older literature generally suggests that a proper solution to cold boot attacks may be later generation DDR3 and DDR4 RAM which utilizes [https://en.wikipedia.org/wiki/Memory_controller#Security memory scrambling] via the memory controllers. This also retains memory for a shorter period of time than DDR1 and DDR2 RAM. In summary, there does not appear to be any way to perform real-world cold boot attacks on scrambled DDR3 and DDR4 memory, however it should be noted that researchers have shown it ''is'' possible to [https://doc.lagout.org/security/DFRWS-EU-2016-7.pdf descramble DDR3 memory in laboratory conditions]. <ref>While the scrambling algorithm could be broken, researchers previously only found DDR3 memory retention for around 10 seconds before it totally decayed.</ref> Further, "warm reset attacks" where power is not cut ''are'' effective against DDR3 systems. <ref>https://web.archive.org/web/20220715140715/https://cyberside.planet.ee/docs/fares_coldboot.pdf</ref> <ref>The researchers also concluded that cold boot attacks were not possible against modern DDR3 (and later) RAM chips.</ref>
+
+3MDEB's research <ref name=3mdeb /> shows that data retention can sometimes persist for as much as two minutes with at least one DDR4 module, and oftentimes persists for a few seconds on both DDR4 and DDR5 modules, even without the use of cooling. One should generally not assume that memory is immune to cold-boot attacks, regardless of RAM generation.
+|-
+
+|}
+
+It should be noted that [https://en.wikipedia.org/wiki/Trusted_Platform_Module Trusted Platform Modules] (TPMs) are ineffective against cold boot attacks. The reason is TPMs can prevent keys from being loaded into memory for use, but cannot prevent their capture once they are in memory.
+
+== Recommendations ==
+'''1.''' Use [[ram-wipe]].
+
+While software-based RAM wiping (like <code>ram-wipe</code>) has limitations — it only works if the system shuts down properly — it cannot prevent a type of attack called a "cold boot attack," where someone suddenly cuts power, physically removes the RAM, and freezes it to preserve the data for analysis. At the very least, it wipes RAM during proper reboot and shutdown.
+
+'''2.''' Complementary mitigations include:
+
+* Configuring a computer to automatically shut down after a set period of inactivity.
+* [https://en.wikipedia.org/wiki/Cold_boot_attack#Dismounting_encrypted_disks Dismounting encrypted disks].
+* Not leaving the computer unattended immediately after shutdown.
+* Soldering memory modules onto the motherboard.
+* Using [https://en.wikipedia.org/wiki/Cold_boot_attack#Secure_erasure_of_memory TCG-compliant] computer hardware.
+* Using the [https://en.wikipedia.org/wiki/TRESOR TRESOR Linux kernel patch] so CPU registers store encryption keys. <ref>
+https://en.wikipedia.org/wiki/Cold_boot_attack#Register-based_key_storage
+</ref>
+* [[Dev/confidential_computing#RAM_Encryption|RAM Encryption]] / [https://en.wikipedia.org/wiki/Cold_boot_attack#Full_memory_encryption full memory encryption].
+* After shutdown, it is safer to completely remove the machine from any power source by removing the power plug.
+* In the case of notebooks, the battery should be removed after powering off.
+* Cold boot attacks are a clear and present danger for high-risk users due to the limited countermeasures available. In the purely hypothetical situation where an adversary is knocking earnestly on the door, safest would be pressing a panic button on the host, leading to the contents of RAM being quickly wiped. Failing that, the computer should be immediately shut down and access to the computer delayed as long as possible.
+* Based on the research findings, practical countermeasures for the majority of users involves never leaving the computer unattended and always ensuring the computer is completely shut down when not in use or when in high-risk situations like traveling. <ref>
+So the Linux kernel's memory erasing features (<code>page_poison</code>, <code>slub_debug</code> or <code>init_on_free</code>) and/or your firmware reset attack mitigations are instituted.
+</ref>
+* A final simple recommendation is to rely on later computer hardware that holds encryption keys in hardware separate from the HDD/SSD and utilizing systems that have DDR3 or newer RAM installed. Note that newer RAM can still be susceptible to cold boot attacks. See the footnote for how to determine the RAM type. <ref>
+* In Linux, launch a terminal and run. {{CodeSelect|code=
+sudo dmidecode --type memory
+}}
+* In Windows, select the PC Task Manager after pressing <code>Ctrl</code> + <code>Alt</code> + <code>Delete</code>. Click "more details" and navigate to the performance tab. Then select the memory option.
+* In macOS, click the Apple logo and select "About This Mac". For additional information, click the "More Info..." button and navigate to the "Memory" tab.
+</ref>
+
+= See Also =
+
+* [https://en.wikipedia.org/wiki/Cold_boot_attack Wikipedia: Cold boot attack]
+* [https://www.usenix.org/legacy/event/sec08/tech/full_papers/halderman/halderman.pdf Lest We Remember: Cold Boot Attacks on Encryption Keys]
+* [https://www.forensicfocus.com/stable/wp-content/uploads/2011/08/cold_boot_attack_for_forensiscs1.pdf An in-depth analysis of the cold boot attack: Can it be used for sound forensic memory acquisition?]
+* [https://blog.f-secure.com/cold-boot-attacks/ The Chilling Reality of Cold Boot Attacks]
+* [https://web.archive.org/web/20220715140715/https://cyberside.planet.ee/docs/fares_coldboot.pdf On the Practicability of Cold Boot Attacks]
+* [https://www.wired.com/story/cold-boot-break-pc-encryption/ A Decade-Old Attack Can Break the Encryption of Most PCs]
+* [https://www.youtube.com/watch?v=JDaicPIgn9U YouTube: Lest We Remember: Cold Boot Attacks on Encryption Keys]
+* [https://web.archive.org/web/20120905142231/http://brainstorm.ubuntu.com/idea/30076/ Idea #30076: Enhancy Privacy/Security, Wipe RAM on shut down, reboot and trigger]
+
+{{physical-mininav}}
+
+= Footnotes =
+
+{{reflist|close=1}}
+
+[[Category:Documentation]]
+
+{{Footer}}

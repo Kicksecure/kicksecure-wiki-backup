@@ -1,0 +1,75 @@
+{{Header}}
+{{title|title=
+Dev/Metapackages
+}}
+{{#seo:
+|description=Development Notes / Design Documentation about {{project_name_long}} Metapackages
+}}
+{{intro|
+Development Notes / Design Documentation about {{project_name_short}} Metapackages
+}}
+
+= Goals =
+
+* Categorize packages such that Kicksecure can be built for a number of different environments (physical hardware, KVM, VirtualBox, Qubes) by installing one or more metapackages.
+* Allow [[Distribution_Morphing]].
+
+= Design Update Ideas for Trixie =
+
+The current naming scheme for metapackages seems rather inconsistent. There's no clear rules to the naming, and while there are some conventions, they aren't followed reliably. Plotting a graph of the dependency tree using graphviz resulted in a very messy graph (sometimes it was difficult or impossible to figure out which lines went where). To make things easier to understand and maintain over time, a system somewhat like the following might work:
+
+* Each metapackage has a name structured somewhat like a directory path. Each component of the name is called a 'node'. Each node describes which category or subcategory the package falls under. The node separator character is the dash (-). Note that some nodes contain dashes in their names, so you cannot split a package name using dashes as the delimiter and get a list of nodes.
+* Each node is either independent, shared, or partially shared. An independent node is one that does not enforce any dependency rules on the metapackage that node is a part of. A shared node is one that requires that any package containing a sibling node must depend on the corresponding package from the shared node. A partially shared node behaves like a shared node, but only enforces a dependency with certain sibling nodes. Examples of this are shown below.
+* Not every single possible combination of nodes is expected to exist. If a package is mandated as "to be depended on" based on the below rules, but it doesn't actually exist, it may be ignored.
+* Node 1: OS
+** <code>kicksecure</code> - Independent node. For Kicksecure-specific packages.
+** <code>whonix-gateway</code> - Independent node. For Whonix Gateway specific packages.
+** <code>whonix-workstation</code> - Independent node. For Whonix Workstation specific packages.
+** <code>whonix</code> - Partially shared node, connected to <code>whonix-gateway</code> and <code>whonix-workstation</code>. For Whonix packages shared between all Whonix variants but not with Kicksecure.
+** <code>dist</code> - Shared node. For packages that are shared between Kicksecure and both Whonix variants.
+* Node 2: Hardware platform
+** <code>general</code> - Shared node. For packages that provide functionality that should be present regardless of the hardware platform.
+** <code>nonqubes</code> - Partially shared node, connected to <code>vm</code> and <code>baremetal</code>. For packages that should be installed only when not running in a Qubes OS template or AppVM.
+** <code>qubes</code> - Independent node. For packages that should be installed when the system is running as a Qubes OS template or AppVM.
+** <code>baremetal</code> - Independent node. For packages that should be installed when the system is not running under a VM.
+** <code>vm</code> - Independent node. For packages that should be installed when the system is running under a VM.
+* Node 3: Persona
+** <code>server</code> - Independent node. For packages that are specific to a server use case.
+** <code>cli</code> - Shared node. For packages that should be present on all Kicksecure systems. A system consisting only of CLI packages may be useful as a minimal text-only machine.
+** <code>gui</code> - Independent node. For packages that should be present on GUI-enabled systems.
+* Node 3a: GUI Environment
+** NOTE! Only present when the persona node is 'gui'!
+** <code>xfce</code> - Independent node. For packages specific to an XFCE desktop. Does not exist currently.
+** <code>lxqt</code> - Independent node. For packages specific to an LXQt desktop.
+** etc... (fill in the same for gnome, kde, whatever)
+** <code>all</code> - Shared node. For packages that should be present on all GUI systems.
+* <s>Node 4: Priority</s>
+** <s><code>essential</code> - Shared node. For packages that absolutely must be present for the particular OS, hardware platform, persona, and GUI environment (if applicable) to be considered complete.</s>
+** <s><code>recommended</code> - Independent node. For packages that should usually be present on this specific OS/hardware/persona/GUI environment combination.</s>
+*** The priority node has been deprecated, it was of very limited use, and the <code>dummy-dependency</code> tool allows users to remove unwanted packages without system breakage.
+* Examples:
+** <code>kicksecure-general-server</code>: Packages which should be present on all Kicksecure servers.
+*** Shared nodes involved are <code>dist</code> for node 1 and <code>cli</code> for node 3, thus this package must depend on <code>dist-general-server</code>, <code>kicksecure-general-cli</code>, and <code>dist-general-cli</code>.
+** <code>whonix-workstation-nonqubes-cli</code>: Packages which should exist on all Whonix Workstation systems that are not running under Qubes OS.
+*** Shared nodes involved are <code>whonix</code> on node 1, <code>dist</code> for node 1, and <code>general</code> for node 2, thus this package must depend on <code>whonix-workstation-nonqubes-cli</code>, <code>whonix-workstation-general-cli</code>, <code>whonix-nonqubes-cli</code>, <code>whonix-general-cli</code>, <code>dist-nonqubes-cli</code>, and <code>dist-general-cli</code>.
+* Observations:
+** Every single thing will end up depending on <code>dist-general-cli</code>.
+** <s>Everything recommended will end up depending on <code>dist-general-cli-recommended</code>.</s>
+** You can install a full Kicksecure GUI system on your physical machine by installing <code>kicksecure-baremetal-gui-lxqt</code>.
+** Dummy packages aren't described in the above, they're pretty straightforward though.
+* Questions
+** Is this whole thing overkill? I feel like it will make the system easier to maintain over time, but it's a radical departure from how things work now and would probably mandate full reinstalls or a substantial amount of package fiddling on upgrade in order to transition from the old way to this way. Definitely if we want to go with this scheme, it will have to wait until Trixie because it will be very difficult (probably impossible) to switch to this in a totally safe way during the Bookworm release. If we wait until Trixie to do it though we can just say that upgrades are unsupported, you have to reinstall.
+*** There's also a release-upgrade script at {{Github_link|repo=legacy-dist|path=/blob/master/usr/sbin/release-upgrade}} could this be used to bridge the gap?
+** Should there be another node type under "Priority", for packages that are suggested but strictly optional?
+** Is there any way that we can do <code>--no-install-recommends</code> for packages in general but then ''do'' install direct recommends of our packages? Right now we're duplicating Debian's Depends/Recommends/Suggests system to some degree, and this proposed scheme does the same thing but potentially even more "strongly". It would be great if we could just have a <code>kicksecure-baremetal-gui-lxqt</code> package that had essential, recommended, and supported packages broken up as Depends/Recommends/Suggests.
+
+This scheme has been implemented in {{project_name_short}} 18.
+
+= Auditing Tools =
+
+* <code>visualize-metapackage</code> - A script for visualizing the package dependency interactions in a Debian metapackage. https://gist.github.com/ArrayBolt3/7f2bf1edd8550fb3f23768255ec2ba22
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}

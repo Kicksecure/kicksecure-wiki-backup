@@ -1,0 +1,383 @@
+{{Header}}
+{{title|title=
+Network Time Synchronization
+}}
+{{#seo:
+|description=A reasonably accurate host clock is required for many general security properties. An inaccurate clock can lead to broken internet connectivity and time related security issues.
+|image=TineSynchronization2134234.jpg
+}}
+{{time_mininav}}
+[[File:TineSynchronization2134234.jpg|thumb]]
+{{intro|
+A reasonably accurate host clock is required for many general security properties. An inaccurate clock can lead to broken internet connectivity and time related security issues.
+}}
+= Introduction =
+
+It is recommended to have a host clock with an accuracy of up to ± 30 minutes. Clocks that are hours, days, weeks, months or even years slow or fast can lead to many issues such as:
+
+* '''A)''' <u>Connectivity problems with Tor:</u> If the host clock is more than 1 hour in the past or more than 3 hours in the future, Tor cannot connect.
+* '''B)''' <u>Inability to download operating system upgrades:</u> APT (<code>apt-get</code>) and other tools can break and show errors until the clock is set correctly. <ref>
+Due to invalid (not yet or no longer valid) TLS certificates.
+</ref>
+
+Follow the recommendations below to avoid Tor connectivity problems and upgrade issues, and to limit possible adverse security impacts.
+
+= System Clock Check =
+* Linux-based operating systems: See below.
+* Non-Linux operating systems (Windows; Mac): [[Undocumented]]. Only in the case of using Kicksecure as a VM. In this case, refer to the documentation of your operating system on how to check and fix the clock.
+
+'''1.''' '''Find out the current system time.'''
+
+Run the following command to show the current system time in the UTC timezone.
+
+{{CodeSelect|code=
+date --utc
+}}
+
+The output should be similar to the following.
+
+{{PreBox|
+{{CURRENTMONTHABBREV}} {{CURRENTDAY2}} {{CURRENTTIME}}:44 UTC {{CURRENTYEAR}}
+}}
+
+'''2.''' '''Compare with the actual time.'''
+
+Use another clock. Preferably a simple, non-networked clock such as a quartz clock or atomic clock. Network-based clocks (other computers, mobile devices) should ideally be avoided as these are vulnerable to [[Time Attacks]].
+
+<u>Note:</u> Your clocks are probably using a timezone different from UTC. So it might appear a few hours slow or fast due to timezone differences.
+
+= Clock Issues =
+
+In case the system clock is too slow or too fast.
+
+Are the clock issues occurring on the host {{os}} or inside a {{VM}}? Select below.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= == Host OS ==
+|content=
+'''1.''' '''Check the current system time.'''
+
+See [[Network_Time_Synchronization#System_Clock_Check|System Clock Check]].
+
+'''2.''' '''Fix the clock.'''
+
+See [[Network_Time_Synchronization#Manually_Set_Clock_Time_and_Date|Manually Set Clock Time and Date]].
+
+'''3.''' '''Restart Tor and sdwdate.'''
+
+* Easiest: Reboot.
+* Alternatively: See footnote. <ref>
+{{CodeSelect|code=
+sudo systemctl restart tor
+}}
+{{CodeSelect|code=
+sudo systemctl restart sdwdate
+}}
+</ref>
+}} <!-- close tab -->
+
+{{Tab
+|title= == VM ==
+|content=
+If using a {{project_name_long}} {{VM}}:
+
+Easiest:
+
+'''1.''' '''Power off all VMs.'''
+
+Really power off. Not only reboot.
+
+This is required because the virtual hardware clock inside the VM only gets set based on the host clock in case of a VM power on and not in case of a VM reboot.
+
+'''2.''' '''Check your host clock.'''
+
+Fix your host clock in case it is too slow or too fast. In case the host clock is wrong, the wrong time will be inherited by the VMs which can lead to issues.
+
+'''3.''' '''Power on {{project_name_gateway_long}}.'''
+
+Tor should be able to reconnect and sdwdate should be able to synchronize the VM clock.
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
+
+= Frequent Clock Issues =
+<u>In case of re-occurring clock issues:</u>
+
+Check for an empty computer battery. If the battery is empty, your computers hardware clock might be reset to its production date and time. See also [[Network_Time_Synchronization#Hardware_Clock|Hardware Clock]].
+
+= Pause / Suspend / Save / Hibernate Usage =
+
+Select easy instructions or advanced instructions below.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|active=true
+|title= == Easy Instructions ==
+|content=
+'''{{non_q_project_name_short}} in VMs or as a host operating system:'''
+
+It is strongly discouraged to use the pause / suspend / save / hibernate features.
+
+'''{{q_project_name_long}} VMs:'''
+
+It is strongly discouraged to use the pause feature of Qube Manager, but it is is safe to use the suspend or hibernate feature of dom0.
+}} <!-- close tab -->
+
+{{Tab
+|title= == Advanced Instructions ==
+|content=
+'''<u>{{project_name_workstation_long}} as a host operating system or VM</u>''':
+
+* It is strongly discouraged to pause / suspend / save / hibernate {{project_name_short}}. If this advice is ignored, [[#Restart sdwdate|restart sdwdate]] after resume. <ref>
+Similarly, if users suspend or save the {{project_name_workstation_short}} state, the clock will again lag behind the correct value. This can be manually fixed by running: <code>Start Menu</code> &rarr; <code>Applications</code> &rarr; <code>System</code> &rarr; <code>Time Synchronization Monitor (sdwdate-gui)</code> &rarr; <code>restart sdwdate</code>.
+</ref>
+
+'''<u>{{q_project_name_short}}</u>''':
+
+* <u>VM</u>: It is strongly discouraged to pause {{project_name_workstation_short}} VMs using the pause feature of Qube Manager. If this advice is ignored, [[#Restart sdwdate|restart sdwdate]] after resume. <ref>
+Qubes does not dispatch the <code>/etc/qubes/suspend-post.d</code> / <code>/etc/qubes/suspend-pre.d</code> hooks upon pause / resume using Qube Manager.
+</ref>
+* <u>dom0 suspend / hibernate</u>: It is safe to use the suspend or hibernate feature of dom0 and a manual restart of sdwdate is unnecessary. <ref>
+https://github.com/QubesOS/qubes-issues/issues/1764
+</ref>
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
+
+= Restart sdwdate =
+To restart <code>sdwdate</code>.
+
+<code>Start Menu</code> &rarr; <code>Applications</code> &rarr; <code>System</code> &rarr; <code>Time Synchronization Monitor (sdwdate-gui)</code> &rarr; <code>restart sdwdate</code>
+
+Or in a terminal.
+
+{{CodeSelect|code=
+sudo sdwdate-clock-jump
+}}
+
+= Manually Set Clock Time and Date =
+Usually not required. This should only be required if the clock is too fast, because at time of writing sdwdate can only fix clocks that are too slow but not yet clocks that are too fast.
+
+{{Box|text=
+'''1.''' '''Check the system clock.'''
+
+The first step should be completed on the host to ensure the host clock is set to the correct time.
+
+See [[Network_Time_Synchronization#System_Clock_Check|System Clock Check]].
+
+'''2.''' {{sysmaint_notice}}
+
+'''3.''' '''Set the correct time.'''
+
+Run the following command with the correct date and time parameters. <ref>
+A non-zero exit codes signifies an error, while <code>0</code> means it succeeded.
+</ref> <ref>
+Also see:
+
+{{CodeSelect|code=
+man clock-random-manual-gui
+}}
+
+{{CodeSelect|code=
+man clock-random-manual-cli
+}}
+</ref>
+
+Choose {{gui}} or {{cli}}.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= == GUI ==
+|content=
+Use <code>clock-random-manual-gui</code>. Enter time in UTC via GUI.
+
+{{CodeSelect|code=
+clock-random-manual-gui
+}}
+}} <!-- close tab -->
+
+{{Tab
+|title= == CLI ==
+|content=
+<code>clock-random-manual-cli</code>: a randomized clock setting (in UTC) is entered on the command line. For example <ref>
+{{CodeSelect|code=
+echo "Sat Oct 26 07:18:25 UTC 2019" {{!}} /usr/bin/clock-random-manual-cli
+}}
+</ref>:
+
+{{CodeSelect|code=
+echo "{{CURRENTMONTHABBREV}} {{CURRENTDAY2}} {{CURRENTTIME}}:44 UTC {{CURRENTYEAR}}" {{!}} sudo clock-random-manual-cli
+}}
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
+
+'''4.''' '''Restart sdwdate.'''
+
+See [[Network_Time_Synchronization#Restart_sdwdate|Restart sdwdate]].
+
+'''5.''' '''Restart Tor.'''
+
+If Tor is still not functional, try restarting Tor.
+
+{{CodeSelect|code=
+sudo service tor restart
+}}
+
+Tor should work once correct clock values are set, but that can be manually tested with [[systemcheck]].
+
+'''6.''' '''Set the hardware clock.'''
+
+See [[Network_Time_Synchronization#Set_Hardware_Clock_Time|Set Hardware Clock Time]].
+}}
+
+= Hardware Clock =
+== Set Hardware Clock Time ==
+
+Most systems have a Real-Time Clock (RTC) on the motherboard that keeps track of time while the system is powered down. On boot, the RTC is read and used to set the system clock to a sensible value. If a system is powered down for any length of time, it is important that it have a functional, up-to-date hardware clock.
+
+{{project_name_short}} does not currently synchronize the hardware clock to the system clock on shutdown. As a result, if the hardware clock is drifting out of date, it will continue to drift further and further out of date until problems result. To correct this:
+
+'''1.''' {{sysmaint_notice}}
+
+'''2.''' '''[[#Manually_Set_Clock_Time_and_Date|Set the system clock]].'''
+
+If not done yet. <u>Either</u> set the manually set the clock <u>or</u> using sdwdate.
+
+'''3.''' '''Set the hardware clock.'''
+
+Run:
+
+{{CodeSelect|code=
+sudo hwclock --systohc
+}}
+
+'''4.''' '''Done.'''
+
+The hardware clock has now been updated.
+
+'''5.''' '''Notice.'''
+
+The procedure of setting the hardware clock will no longer be needed when setting the clock using <code>sdwdate</code>, <code>clock-random-manual-cli</code>, or <code>clock-random-manual-gui</code> once {{project_name_short}} version <code>17.4.2.4</code> or above has been released, as these tools will perform this automatically.
+
+== Broken / Missing Hardware Clocks ==
+
+Many single-board computers do not have a hardware clock. Many systems also have a broken, drained, or missing BIOS battery, which will result in the hardware clock pausing or becoming corrupted if power is removed from the system even briefly. Usually these systems will need to have their clock [[#Manually_Set_Clock_Time_and_Date|manually set]] on every boot.
+
+There are a number of things that can be done to fix or mitigate this problem:
+
+* Replace the system's [https://en.wikipedia.org/wiki/Nonvolatile_BIOS_memory BIOS battery], if it has one. This is usually a CR2032 coin-cell battery located in a socket on the motherboard, but some laptops may enclose the battery in plastic and connect it to the motherboard with a short electrical cable.
+* Install the [https://packages.debian.org/bookworm/fake-hwclock fake-hwclock] package. This will save the system clock to disk periodically (including before shutdown) and restore it on boot, so that your system's time is frozen while powered off. This may make it easier to update the system clock to a sufficiently accurate time for Tor and sdwdate to function.
+* Install the [https://packages.debian.org/bookworm/ntpsec-ntpdate ntpsec-ntpdate] package. This provides the <code>ntpdate</code> command, which can be used to update the system clock from an NTP server. '''Note that NTP time synchronization may be vulnerable to man-in-the-middle attacks if the date and time are not double-checked against a known-good clock.'''
+** Do NOT install the <code>ntpsec</code> package. It conflicts with sdwdate and will uninstall it (along with many {{project_name_short}}-related metapackages).
+
+To update the system clock using <code>ntpdate</code>:
+
+'''1.''' Run <code>ntpdate -q pool.ntp.org</code> to display the time and date from pool.ntp.org.
+
+'''2.''' Double-check the displayed date and time against a clock you know is accurate.
+
+'''3.''' Use <code>sudo ntpdate pool.ntp.org</code> to update the clock and display the time that the clock has updated to.
+
+'''4.''' Ensure that the date displayed after setting the clock is close to the date displayed when querying the server.
+
+'''5.''' Done.
+
+The process of setting the system time using NTP is complete.
+
+= sdwdate =
+* Can set the time if the clock is very slow. This is true even if Tor fails to bootstrap due to a very slow clock. <ref>
+sdwdate can set the clock using [[anondate]] from Tor consensus. 
+</ref>
+* sdwdate never sets the time backwards. Only forwards. This is a security feature. Slow clocks can be a security issue because old, expired keys appear to be valid. Fast clocks however are only a functionality (and privacy) issue.
+
+= Block Networking until sdwdate Finishes =
+
+[[Sdwdate|sdwdate]] is a Tor-friendly replacement for rdate and ntpdate that sets the system's clock by communicating via end-to-end encrypted TCP with Tor onion webservers. Since timekeeping is crucial for security, blocking network access until sdwdate succeeds is sensible. <ref>
+https://forums.whonix.org/t/blocking-networking-until-sdwdate-finished/5372
+</ref>
+
+Note: When using this feature, there will be no internet connectivity until sdwdate succeeded which could take approximately 2 minutes.
+
+How to enable this feature? [[Unsupported]]. This feature is has not been implemented yet for {{project_name_short}}. Developers are welcome to contribute to {{project_name_short}}.
+
+<u>If Tor failed or took too long to connect:</u>
+
+'''1.''' You need to fix Tor connection first.
+
+'''2.''' Restart sdwdate.
+
+{{CodeSelect|code=
+sudo systemctl restart sdwdate
+}}
+
+= Summary =
+
+{| class="wikitable"
+|+ ''Network Time Synchonization Summary''
+
+|-
+! '''Platform'''
+! '''Recommendations'''
+|-
+! All Platforms
+|
+* Tor cannot connect if the host clock is grossly inaccurate. In this case, users should manually fix the host clock before powering the {{project_name_gateway_short}} off and on again.
+* Periodically check the host clock to ensure that it is accurate or approximately so.
+* For greater security, [[#Block_Networking_until_sdwdate_Finishes|block networking until sdwdate finishes]].
+|-
+! {{non_q_project_name_short}}
+|
+* It is strongly discouraged to use the pause / suspend / save / hibernate features.
+|-
+! {{q_project_name_short}}
+|
+* It is strongly discouraged to use the pause feature of Qube Manager.
+* it is is safe to use the suspend or hibernate feature of dom0.
+|}
+
+= Appendix =
+
+== Deactivate Automatic TimeSync ==
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+'''Warning:''' This action is recommended against and is usually not required. In all cases, first check with the {{project_name_short}} developers.
+}}
+
+To deactivate sdwdate, run.
+
+{{CodeSelect|code=
+sudo service sdwdate stop
+}}
+
+{{CodeSelect|code=
+sudo systemctl mask sdwdate
+}}
+
+= Related =
+* [[Timezone]]
+* [[sdwdate]]
+* [[sdwdate-gui]]
+* [[Boot Clock Randomization]]
+* [[Time Attacks]]
+* [[Dev/sdwdate]]
+* [[Dev/TimeSync]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]

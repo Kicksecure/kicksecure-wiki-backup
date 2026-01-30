@@ -1,0 +1,79 @@
+{{Header}}
+{{Title
+|title=umask
+}}
+{{#seo:
+|description=This article explains how umask hardening can cause file permission issues when copying files, with step-by-step instructions to reproduce and resolve the problem.
+|image=Umask-clipart.svg
+}}
+[[File:Umask-clipart.svg|thumb]]
+{{intro|
+Due to the [[Dev/Strong_Linux_User_Account_Isolation#umask_hardening|umask hardening]] security feature, a usability issue may arise where file permissions are more restrictive than expected.
+
+This guide demonstrates how to reproduce the issue and provides solutions to mitigate it.
+}}
+
+= Steps to reproduce =
+
+'''1.''' Create the file <code>testfile</code>.
+
+{{CodeSelect|code=
+touch -- testfile
+}}
+
+'''2.''' Copy the file using <code>cp</code>.
+
+{{CodeSelect|code=
+sudo -- cp -- testfile /etc/testfile
+}}
+
+'''3.''' View file permissions.
+
+* A) <code>ls</code>
+** {{CodeSelect|code=
+ls -la -- /etc/testfile
+}}
+* B) [[chmod-calc]]:
+** {{CodeSelect|code=
+chmod-calc /etc/testfile
+}}
+
+= Expected <code>ls</code> result =
+
+Readable by "others" ("public")
+
+<pre>
+-rw-r--r-- 1 root root 0 May 11 10:54 /etc/testfile
+</pre>
+
+= Actual <code>ls</code> result =
+Unreadable by "others"
+
+<pre>
+-rw-r----- 1 root root 0 May 11 10:54 /etc/testfile
+</pre>
+
+= Explanation =
+This behavior occurs because the file <code>testfile</code> was initially created with restrictive permissions, making it unreadable by "others". When the file is copied, those permissions are preserved by default.
+
+The <code>cp</code> command retains the original file's mode (permissions) unless otherwise instructed. To prevent this, use the <code>--no-preserve=mode</code> option.
+
+= Solutions =
+
+Use <code>cp</code> with the <code>--no-preserve=mode</code> option to avoid inheriting the original permissions.
+
+{{CodeSelect|code=
+sudo -- cp --no-preserve=mode -- testfile /etc/testfile
+}}
+
+Or, if the file has already been copied, adjust its permissions manually using <code>chmod</code>:
+
+{{CodeSelect|code=
+sudo -- chmod o+r -- /etc/testfile
+}}
+
+This grants read (<code>r</code>) permission to others (<code>o</code>) using the enable (<code>+</code>) operator.
+
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Design]]

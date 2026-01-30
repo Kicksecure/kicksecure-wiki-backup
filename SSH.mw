@@ -1,0 +1,600 @@
+{{Header}}
+{{Title|title=
+Secure Shell (SSH)
+}}
+{{#seo:
+|description=SSH Hardening Tips; Recommended Client and Server Settings for better Security
+|image=Sshlogo.png
+}}
+[[File:Sshlogo.png|SSH Logo|thumb]]
+{{intro|
+SSH Hardening Tips; Recommended Client and Server Settings for better Security
+}}
+= Introduction =
+
+Secure Shell (SSH) is a core tool in a sysadmin's arsenal and provides a secure and encrypted connection and method of communication between a client user and a server. It is mainly used to remotely control a machine. In the Linux landscape, the package OpenSSH is one of the most popular and complete choices to enable communication via SSH. Newcomers to SSH should first consult the [https://wiki.debian.org/SSH Debian SSH wiki] to learn the basics.
+
+The Secure Shell server, <code>openssh-server</code>, is not installed on any version of Kicksecure by default.
+
+'''Figure:''' ''Example SSH Login'' <ref>https://devconnected.com/how-to-install-and-enable-ssh-server-on-debian-10/</ref>
+
+[[File:Sshlogin.png|border]]
+
+= General Hardening Tips =
+
+{| class="wikitable"
+|+ ''SSH Hardening Recommendations''
+
+|-
+
+! '''Recommendation'''
+! '''Description'''
+|-
+
+! Mobile Shell Roaming and Echo
+| [https://packages.debian.org/{{Stable project version based on Debian codename}}/mosh mosh] might be a useful addition. (Requires UDP.)
+|-
+
+! SSH Breaks
+|
+* <u>Scope:</u> Any references to SSH breaks in the Snowden archives applied to some outdated ciphers.
+* <u>Status:</u> This has since been addressed by hardened OpenSSH settings and upstream disabling vulnerable algorithms. <ref>
+https://security.stackexchange.com/questions/112802/why-openssh-deprecated-dsa-keys
+</ref> <ref>
+https://stribika.github.io/2015/01/04/secure-secure-shell.html
+</ref>
+|-
+
+! SSH Keys
+| <u>Key strength:</u> To generate stronger SSH keys, see [[#Key Generation|Key Generation]].
+|-
+
+! SSH Ports
+| <u>Noise reduction:</u> Configuring SSH servers to listen on non-default ports reduces noise (automated hacking attempts) and may also increase security from less skilled attackers.
+|-
+
+! SSH Servers
+|
+* <u>Preferred transport:</u> Prefer SSH servers available through a [[Onion Services|Tor Onion Service]] for stronger encryption and authentication.
+* <u>Optional feature:</u> Consider using [[Onion_Services#Step_3:_Configure_Onion_Services_Authentication|Onion Services Authentication]] but also note [[#Onion_Services#Onion_Services_Reliability_Issues|Onion Services Reliability Issues]].
+* <u>NAT traversal:</u> Tor also provides [https://en.wikipedia.org/wiki/Hole_punching_%28networking%29 NAT hole-punching] so it is unnecessary to register with a DNS service or open up the LAN to outside access.
+* <u>Non-hidden servers:</u> If the server is known to the public (non-hidden), single Tor hops can be used for the server, see: [[Non Anonymous Onion Encryption and NAT Traversal]].
+|-
+
+! Two-factor Authentication
+| <u>Availability:</u> SSH can be combined with [[Two-factor authentication 2FA|Two-factor Authentication (2FA)]], but this and its threat model is [[undocumented]] at present.
+|-
+
+! Miscellaneous
+| <u>Further reading:</u> For additional tips, refer to the {{project_name_long}} forum discussion: [https://forums.whonix.org/t/locking-down-your-ssh-server-and-client/7896 Locking down your SSH client].
+|-
+
+|}
+
+= Secure SSH Client and Server Settings =
+
+There is a client package and a server package, <code>openssh-client</code> and <code>openssh-server</code>. Covered topics include:
+
+# Key generation for authentication/sign-in purposes.
+# Suggested secure settings for both the client and server configurations.
+# A sample set of iptables rules to allow communication between client and server.
+
+== Key Generation ==
+
+Before you can connect to a server (or host) through SSH using public key authentication, a keypair is required. This consists of a public key, which you share with the server, and a private key which is used to verify that you are actually signing in. A passphrase (strongly recommended) can be added to your key which will be asked each time you sign into a server.
+
+Once the server has your public key, it is placed into an <code>authorized_keys</code> file. The private key is not shared with anyone and should be kept in a safe place. It typically resides at <code>/home/user/.ssh/id_ed25519</code> on the client's machine with root permissions (0600). The private key is how the server authenticates your username.
+
+{{Box|text=
+{{IconSet|h1|1}} Generate the SSH keypair.
+
+Use a tool called <code>ssh-keygen</code>. On the command line, type.
+
+{{CodeSelect|code=
+ssh-keygen -o -a 75 -t ed25519
+}}
+
+* <u><code>-o</code>:</u> Produces a key that is compatible with OpenSSH instead of the older style <code>.pem</code>.
+* <code>-a</code> refers to the number of rounds of KDF (key derivation function). This strengthens the key against a brute force attack to break the passphrase if the (private) key were to be stolen. A value of 75 to 100 is more than adequate. Remember that the more rounds that are specified, the longer it takes to authenticate (sign in). This depends on your CPU, your workload at the time of sign in, the amount of cores, and available memory among other factors.
+* <code>-t</code> specifies what type of key to generate. The choices are: <code>rsa</code>, <code>ecdsa</code> and <code>ed25519</code>. RSA and ECDSA are older keys, and OpenSSH recommends <code>ed25519</code> as the best choice.
+
+{{IconSet|h1|2}} Store the SSH keypair.
+
+Upon generation of your keypair, OpenSSH will ask if the keys should be stored at: <code>/home/user/.ssh</code>. Reply <code>yes</code>. Permissions will be automatically set in Debian. <ref>
+There have been reports of wrong permissions on certain other distributions. For reference, the correct permissions are as follows:
+
+* <u>Public key:</u> <code>0644</code>
+* <u>Private key:</u> <code>0600</code> (root)
+
+Having overly permissive permissions will prevent logins and cause unwanted errors.
+</ref>
+
+{{IconSet|h1|3}} Done.
+
+The keypair generation procedure is now complete. You have successfully generated a keypair.
+}}
+
+== Key Installation ==
+Copy the key to the server you want to sign into.
+
+Notes:
+
+* <u>Once:</u> This only needs to be done once per server. The <code>ssh-copy-id</code> command works for this task.
+* <u>IP:</u> Replace <code>127.0.0.1</code> with the actual IP address of the server.
+* <u>User account name:</u> The example user name below is <code>root</code>, which is the default first time login user name for many server providers.
+* <u>Credentials:</u> If this is a first time login and/or password-based login, enter the SSH login password. This password should be provided by the server provider. No password might be provided if the server provider already pre-installed an SSH key.
+
+{{CodeSelect|code=
+ssh-copy-id -i ~/.ssh/id_ed25519.pub root@127.0.0.1
+}}
+
+The <code>ssh-copy-id</code> utility will check for the correct permissions before it allows the key to be transferred.
+
+In the following example the SSH server fingerprint is <code>zBAIUzWnW+Y9cS+5cND/XWw0XFIhtSnxCEIbNUcCd8c</code>.
+
+<pre>
+/usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/home/user/.ssh/id_ed25519.pub"
+The authenticity of host '127.0.0.1 (127.0.0.1)' can't be established.
+ECDSA key fingerprint is SHA256:zBAIUzWnW+Y9cS+5cND/XWw0XFIhtSnxCEIbNUcCd8c.
+Are you sure you want to continue connecting (yes/no/[fingerprint])?
+</pre>
+
+The SSH server fingerprint should be provided by the server provider.
+
+Key installation is now complete.
+
+== Server Login ==
+Once the SSH public key was copied to the server, the user can log in any time.
+
+Log in to the server.
+
+Notes:
+
+* <u>IP:</u> Replace <code>127.0.0.1</code> with the actual IP address of the server.
+* <u>User name:</u> Replace user name <code>root</code> in case using a different account name.
+
+{{CodeSelect|code=
+ssh root@127.0.0.1
+}}
+
+A password prompt for the key will be shown if a passphrase has been previously set.
+
+If the SSH login was successful, the shell prompt will be different from the usual {{project_name_short}} shell prompt <code>user@host</code>. For example <code>root@server</code>.
+
+'''Figure:''' ''Example SSH Login'' <ref>https://devconnected.com/how-to-install-and-enable-ssh-server-on-debian-10/</ref>
+
+[[File:Sshlogin.png|border]]
+
+== Client and Server Configuration File Settings ==
+
+The next step is to set up secure settings for the client and server configuration files. Examples will be given for both client and server. The relevant files are: <code>/etc/ssh/ssh_config</code> and <code>/etc/ssh/sshd_config</code>.
+
+=== Client Configuration File ===
+
+View the default configuration file for informational purposes only.
+
+{{CodeSelect|code=
+featherpad /etc/ssh/ssh_config.d/30_security-misc.conf
+}}
+
+See also:
+
+* {{Github_link
+|gituser=Kicksecure
+|repo=security-misc
+|path=/blob/master/etc/ssh/ssh_config.d/30_security-misc.conf%23security-misc-shared
+|text=<code>/etc/ssh/ssh_config.d/30_security-misc.conf</code>
+}}
+* https://manpages.debian.org/ssh_config
+
+==== Rationale on recommended encryption algorithms ====
+
+The above client configuration sets a number of cryptography-related algorithms as preferred over others and disables several others. The rationale for these choices is described below. Algorithms are sorted by order of preference.
+
+* '''Ciphers'''
+** <u>Description:</u> Symmetric encryption ciphers used to secure data in real time as it is passed between the SSH client and server.
+** <u>Algorithms:</u>
+*** <code>chacha20-poly1305@openssh.com</code>: Has a higher security margin than any other algorithm provided in Debian Bookworm.<ref>
+https://crypto.stackexchange.com/a/101056
+</ref> <ref>
+https://eprint.iacr.org/2019/1492.pdf
+</ref> This mode provides authenticated encryption, which prevents malleability attacks.<ref>
+https://andrea.corbellini.name/2023/03/09/authenticated-encryption/
+</ref>
+*** <code>aes256-gcm@openssh.com</code>: An AES mode that provides authenticated encryption.<ref>
+https://crypto.stackexchange.com/questions/103242/why-gcm-is-used-more-often-than-ctr
+</ref> This algorithm is ranked below <code>chacha20-poly1305@openssh.com</code> because of potential safety concerns with nonce handling and poorly designed implementations.<ref>
+https://crypto.stackexchange.com/questions/42982/safety-of-random-nonce-with-aes-gcm
+</ref> <ref>
+https://eprint.iacr.org/2016/475.pdf
+</ref>
+*** <code>aes256-ctr</code>: Does not provide authenticated encryption and should be combined with an encrypt-then-MAC algorithm (as described in the MACs section below). <ref>
+https://manpages.debian.org/bookworm/openssh-client/ssh_config.5.en.html#MACs
+</ref> This encryption method is likely safe even when using a MAC algorithm that verifies integrity after decryption, due to SSH's implementation of MAC verification. <ref>
+https://crypto.stackexchange.com/a/44028
+</ref> Still, verification after decryption is generally dangerous, so this method is ranked lower than the others.
+*** Other algorithms are not recommended; all cipher block chaining (CBC) algorithms in OpenSSH have been disabled by default since OpenSSH 7.6. <ref>
+https://www.openssh.com/txt/release-7.6
+</ref> Variants of AES with 128 bits of security are believed to be quantum-safe but may not be, depending on the speed at which quantum computers develop. <ref>
+https://crypto.stackexchange.com/a/102672/133564
+</ref> There is little reason to use 192-bit AES keys when 256-bit keys are available.
+
+* '''MACs'''
+** <u>Description:</u> Message Authentication Codes used to ensure the integrity of data passed between the client and server.
+** <u>Algorithms:</u>
+*** <code>umac-128-etm@openssh.com</code>: UMAC has strong, proven security guarantees. UMAC is essentially only as breakable as the cipher or hash it uses. <ref>
+https://datatracker.ietf.org/doc/html/rfc4418#section-6.1
+</ref> OpenSSH's UMAC implementation uses AES with 128-bit keys, <ref>
+https://github.com/openssh/openssh-portable/blob/eddd1d2daa64a6ab1a915ca88436fa41aede44d4/umac.c#L104
+</ref> which is post-quantum secure in this context since the keys are only used to generate authentication codes for SSH packets. Once the SSH session ends, the keys lose all value. Even a quantum computer capable of a practical attack against 128-bit AES keys would likely not operate fast enough to pose any threat here.
+*** <code>hmac-sha2-512-etm@openssh.com</code>: HMAC's security is uncertain. There are no public known attacks yet, but it could happen.<ref>
+https://crypto.stackexchange.com/a/67350/133564
+</ref> Therefore, this is not as good as UMAC but still decent. This is the "least bad" choice after UMAC.
+*** <code>hmac-sha2-256-etm@openssh.com</code>: Same as the previous algorithm but with a shorter tag length.
+*** Other algorithms are not recommended; MAC tag lengths shorter than 128 bits are sometimes considered insecure. <ref>
+https://www.virtuesecurity.com/kb/ssh-weak-mac-algorithms-enabled/
+</ref> SHA1- and md5-based algorithms are potentially insecure due to known vulnerabilities in their hash functions. SHA2 without HMAC is potentially dangerous due to length extension attacks. <ref>
+https://crypto.stackexchange.com/a/50881/133564, search answer for "length extension"
+</ref> Generating the MAC first, then encrypting, is generally a bad idea, as mentioned in the <code>aes256-ctr</code> rationale above.
+
+* '''KexAlgorithms'''
+** <u>Description:</u> Encryption algorithms used for exchanging the symmetric encryption keys that will secure the connection.
+** <u>Algorithms:</u>
+*** <code>sntrup761x25519-sha512</code>: Believed to be at least equivalent in security to Curve25519, which is the best non-quantum-secure algorithm provided. <ref>
+https://www.ietf.org/archive/id/draft-josefsson-ntruprime-ssh-02.html
+</ref> This algorithm combines Curve25519 with NTRU Prime, which is currently believed to be post-quantum secure. <ref>
+https://eprint.iacr.org/2016/461
+</ref>
+*** <code>mlkem768x25519-sha256</code>: Proven to be at least equivalent to Curve25519 in security.<ref>
+https://www.ietf.org/archive/id/draft-ietf-sshm-mlkem-hybrid-kex-02.html#name-security-considerations
+</ref> Ranked below NTRU Prime because it is possible, or even likely, that ML-KEM is intentionally weakened. Cryptographer [https://en.wikipedia.org/wiki/Daniel_J._Bernstein Daniel J. Bernstein] has raised serious concerns about ML-KEM (a.k.a. Kyber) and the trustworthiness of NIST in standardizing it. <ref>
+https://blog.cr.yp.to/20231003-countcorrectly.html
+</ref> <ref>
+https://blog.cr.yp.to/20231125-kyber.html
+</ref> It is therefore recommended to assume ML-KEM is not post-quantum secure and offers no additional protection over Curve25519.
+**** Note: In the recommended configuration above, <code>mlkem768x25519-sha256</code> is not included because it is not supported in Debian 12 and, thus, not supported in {{project_name_short}} 17. It will be added when Debian 13 is released and Kicksecure is ported to it.
+*** <code>curve25519-sha256</code>: Not post-quantum-secure. Widely used and believed to be secure against classical computers.
+*** Other algorithms are not recommended; nistp-based algorithms are likely intentionally broken <ref>
+https://credelius.com/credelius/?p=97
+</ref> and are difficult to implement correctly. <ref>
+https://cr.yp.to/talks/2013.05.31/slides-dan+tanja-20130531-4x3.pdf
+</ref> Diffie-Hellman algorithms are rarely used, computationally expensive, and offer no security advantages over Curve25519. <ref>
+https://www.openssh.com/txt/release-10.0
+</ref>
+
+* '''HostKeyAlgorithms'''
+** <u>Description:</u> Signature algorithms used for verifying the SSH server's identity.
+** <u>Algorithms:</u>
+*** <code>sk-ssh-ed25519@openssh.com</code>: Closely related to Curve25519. <ref>
+https://crypto.stackexchange.com/a/43058/133564
+</ref> The <code>sk</code> variant is designed specifically for use with FIDO/U2F tokens, which may be useful in some setups. <ref>
+https://www.openssh.com/txt/release-8.2
+</ref>
+*** <code>ssh-ed25519</code>: Same as above, but a standalone key with no hardware token involved.
+*** Both <code>sk-ssh-ed25519@openssh.com</code> and <code>ssh-ed25519</code> have corresponding certificate authority based modes that may be useful in some scenarios, namely <code>sk-ssh-ed25519-cert-v01@openssh.com</code> and <code>ssh-ed25519-cert-v01@openssh.com</code>. <ref>
+https://superuser.com/a/1225476/1734781
+</ref> These modes are not enabled by default, but should be safe to enable if you need them.
+*** Other algorithms are not recommended; nistp-based algorithms are likely intentionally broken. RSA can be dangerous due to difficulties in correct implementation. <ref>
+https://blog.trailofbits.com/2019/07/08/fuck-rsa/
+</ref> DSS is intentionally disabled by OpenSSH by default. <ref>
+https://www.openssh.com/legacy.html, search for "dsa"
+</ref> 
+*** There appear to be no post-quantum-secure signature algorithms supported by OpenSSH at this time. In a post-quantum world, anyone with a sufficiently powerful quantum computer could forge a host key and perform a MITM attack on the SSH connection. <ref>
+https://crypto.stackexchange.com/a/56197/133564
+</ref> There is currently no way to address this with OpenSSH client configuration. Some experiments have been done with adding post-quantum-secure signatures to OpenSSH. <ref>
+https://lists.mindrot.org/pipermail/openssh-unix-dev/2025-July/041979.html
+</ref>
+
+* '''PubkeyAcceptedAlgorithms'''
+** <u>Description:</u> Signature algorithms used for the client to authenticate itself to the server.
+** <u>Algorithms:</u> Identical to those available for HostKeyAlgorithms; thus, the advice given for HostKeyAlgorithms applies here as well.
+
+=== Server Configuration File ===
+See also [https://manpages.debian.org/sshd_config <code>sshd</code> configuration file man page].
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+<u>Warnings</u>:
+
+* <u>Risk:</u> Changing the <code>sshd</code> configuration can prevent future successful SSH connections to your servers.
+* <u>Suggested approach:</u> It is probably best to only set this up for new servers or if you do not mind re-installing the server should you lock yourself out.
+* <u>Lower-risk option:</u> If a server console interface (ability to run repair commands from the server host web administrator interface) is available, it is far less risky to make major changes to the SSH configuration.
+* <u>Backup:</u> Do not proceed without a backup of the server and knowledge of how to restore the server should anything go wrong.
+}}
+
+{{Box|text=
+<u>Prerequisite knowledge</u>:
+
+* <u>Terminal:</u> How to open a terminal (emulator) such as qterminal.
+* <u>Multiple sessions:</u> How to open two terminal emulators or multiple terminal emulator tabs at the same time.
+* <u>Text editing:</u> Using command-line text editors such as <code>nano</code>.
+}}
+
+{{Box|text=
+<u>Instructions</u>:
+
+{{IconSet|h1|1}} Open at least two SSH connections to the server in two different terminal tabs.
+
+One is used as a backup should the SSH connection be accidentally closed in the middle of the setup.
+
+{{IconSet|h1|2}} View the fingerprint of the server's ed25519 public key.
+
+Fine hosting providers will also show the server fingerprint in the server web interface.
+
+{{CodeSelect|code=
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+}}
+
+Example output:
+
+<pre>
+256 SHA256:1Ri62BbzONwKbRau92UcyA1K4vu+mctfeddDTUu04ao root@nc-ph-1401-50 (ED25519)
+</pre>
+
+{{IconSet|h1|3}} Restart the <code>sshd</code> daemon.
+
+{{CodeSelect|code=
+sudo systemctl restart sshd
+}}
+
+Existing SSH connections should not be interrupted by Debian default.
+
+{{IconSet|h1|4}} Open a new terminal tab and see if you can still SSH to the server.
+
+If yes, proceed.
+
+{{IconSet|h1|5}} Notes.
+
+''Note:'' When using the configuration file below, the following warning might appear. The IP address and SHA256 hash will be different.
+
+<pre>
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+IT IS POSSIBLE THAT SOMEONE IS DOING SOMETHING NASTY!
+Someone could be eavesdropping on you right now (man-in-the-middle attack)!
+It is also possible that a host key has just been changed.
+The fingerprint for the ED25519 key sent by the remote host is
+SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649.
+Please contact your system administrator.
+Add correct host key in /home/user/.ssh/known_hosts to get rid of this message.
+Offending ECDSA key in /home/user/.ssh/known_hosts:35
+  remove with:
+  ssh-keygen -f "/home/user/.ssh/known_hosts" -R "xxx.xxx.xxx.xxx"
+ED25519 host key for xxx.xxx.xxx.xxx has changed and you have requested strict checking.
+Host key verification failed.
+</pre>
+
+It will look similar to the following.
+
+<pre>
+256 SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649 root@node (ED25519)
+</pre>
+
+{{IconSet|h1|6}} Notice.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=warning]]
+| text    =
+'''Warning:'''
+
+The following configuration file no longer allows root or any other user to log in with a password. Make sure that you can do maintenance tasks physically, via another user, or configure a privileged user to have another authentication method such as public key before finishing this setup.
+}}
+
+{{IconSet|h1|7}} View the default configuration file for informational purposes only.
+
+* {{CodeSelect|inline=true|code=
+featherpad /etc/ssh/sshd_config.d/30_security-misc.conf
+}}
+* {{Github_link
+|gituser=Kicksecure
+|repo=security-misc
+|path=/blob/master/etc/ssh/sshd_config.d/30_security-misc.conf%23security-misc-shared
+|text=<code>/etc/ssh/sshd_config.d/30_security-misc.conf</code>
+}}
+
+{{IconSet|h1|8}} Create the SSH group and add your SSH user (in this example, the user <code>user</code>) to the SSH group.
+
+{{CodeSelect|code=
+sudo groupadd -f ssh
+sudo usermod -aG ssh user
+}}
+
+If you want to allow <code>root</code> login, also add <code>root</code> to the <code>ssh</code> group and [[SSH#Key_Installation|copy the client's public key to <code>root</code>'s authorized key file]].
+
+{{IconSet|h1|9}} {{Open with root rights|filename=
+/etc/ssh/sshd_config.d/50_user.conf
+}}
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px|alt=Whonix first time users warning]]
+| text    =
+'''Warning:'''
+
+The following configuration file no longer allows non-members of the <code>ssh</code> group to log in. Make sure that at least one user in the <code>ssh</code> group has rights to edit this configuration and restart the systemd service in case of any failure.
+}}
+
+{{IconSet|h1|10}} The file will be empty. Paste the following content:
+
+{{CodeSelect|code=
+## Only members of this group are allowed to attempt login.
+AllowGroups ssh
+}}
+
+{{IconSet|h1|11}} Restart the <code>sshd</code> daemon. All existing SSH connections will remain open.
+
+{{CodeSelect|code=
+sudo systemctl restart sshd
+}}
+
+Keep the SSH connection open.
+
+{{IconSet|h1|12}} Open another terminal tab and try to SSH to the server.
+
+* <u>Success:</u> If it works, the process is complete.
+* <u>Troubleshooting:</u> If it does not work, use your still open terminal to check for configuration errors before trying again.
+}}
+
+=== Notes ===
+
+These are the completed SSH configuration files. Please note that the entries preceded by a <code>#</code> are not necessary for functional use; they are included only as examples of what is possible in SSH. If you do not have a specific use for any of the commented-out options in either configuration file, do not use them at all.
+
+The Ciphers, MACs, and Kex algorithms are all the strongest available at the time of writing with OpenSSH 9.2p1 on Debian Bookworm. The entries in the configuration files above are the most important and will establish a functional and well-guarded setup. Use ed25519 keys only. RSA and ECDSA are outdated. Use the <code>ssh-keygen</code> command to generate the keys.
+
+The <code>VisualHostKey yes</code> entry in the <code>/etc/ssh/ssh_config.d/30_security-misc.conf</code> file ensures that when you log in, OpenSSH shows you an ASCII-generated picture of what the key looks like. In addition to all other verifications, this is one last line of defense to alert you to a changed or incorrect key.
+
+Generally, newer OpenSSH versions will choose the strongest cipher on their own when negotiating a connection, but the configuration files establish the order in which they are parsed. Both sides need to have the same or compatible OpenSSH versions and <code>Ciphers</code>, <code>MACs</code>, <code>KexAlgorithms</code>, <code>HostKeyAlgorithms</code>, and <code>PubkeyAcceptedAlgorithms</code> options.
+
+== Firewall Settings and Rules ==
+{{Testers-only}}
+
+It is necessary to make specific firewall rules for your intended SSH activity. For example, if you wanted to connect to a server at <code>123.45.678.910</code> and both your configuration and the server's configuration specify port <code>4675</code> to communicate over:
+
+{{CodeSelect|code=
+sudo iptables -A OUTPUT -p tcp -o [interface-name] -s [your client ssh ip] -d [ssh server ip] --dport 4675 --j ACCEPT
+}}
+
+Then to let them respond:
+
+{{CodeSelect|code=
+sudo iptables -A INPUT -p tcp -i [interface-name] -s [ssh server ip] -d [your client ip] --dport 4675 --j ACCEPT
+}}
+
+This assumes a default-deny policy for INPUT and OUTPUT. If you have a default-allow for OUTPUT, then the following rule must be added as the last one in the OUTPUT chain:
+
+{{CodeSelect|code=
+sudo iptables -A OUTPUT --j DROP
+}}
+
+This ensures the outgoing rules you have are the only ones that allow traffic. Iptables parses in order, so when it does not see a rule matching a packet not on your list, it checks each one in the chain until it finds a match with the last rule and drops the packet. Also, SSH only uses the TCP protocol, so no UDP rules are explicitly needed.
+
+This should complete the SSH setup. Some people also recommend re-generating the moduli file that comes in <code>/etc/ssh</code>. If you use the settings above, look at the kex algorithms. Since no Diffie-Hellman group exchange kex algorithms are used to exchange keys, it is unnecessary to regenerate the moduli. The chosen kex algo is curve25519.
+
+= SSH Login Comparison Table =
+
+'''Note''': <code>/etc/shadow</code> password symbol evaluation is done left to right. If a password is locked or disabled and a plain-text or encrypted password is set, the password can't be used for password-based logins. Please consult [[User#Meanings_of_Special_Characters_in_the_Password_Field_of_.2Fetc.2Fshadow_File|the User page]] for more information.
+
+'''Disclaimer''': This information is provided as-is without any guarantees or warranties of any kind, including but not limited to correctness, completeness, or fitness for a particular purpose. Users are responsible for testing and verifying their specific configurations to ensure security and functionality. Our [[Terms of Service]] apply.
+
+Quote from the manual <u>sshd_config.5</u>: ''Note that each authentication method listed should also be explicitly enabled in the configuration.''
+
+{| class="wikitable"
+|+ ''SSH Login Related Options per Authentication''
+|-
+
+! <code>{{nowrap|AuthenticationMethod}}</code> Option <!-- Authentication method -->
+! Option required for authentication method to be used <!-- Authentication specific option -->
+! Explanation <!-- Explanation -->
+|-
+
+| <!-- Authentication method --> <code>none</code>
+| <!-- Authentication specific option --> <code>PasswordAuthentication yes</code> and <code>PermitEmptyPasswords yes</code>
+| <!-- Explanation --> Allows login to an account with an empty password string.
+|-
+
+| <!-- Authentication method --> <code>password</code>
+| <!-- Authentication specific option --> <code>PasswordAuthentication yes</code>
+| <!-- Explanation --> Allows password authentication.
+|-
+
+| <!-- Authentication method --> <code>publickey</code>
+| <!-- Authentication specific option --> <code>PubkeyAuthentication yes</code>
+| <!-- Explanation --> Allows public key authentication.
+|-
+
+| <!-- Authentication method --> <code>hostbased</code>
+| <!-- Authentication specific option --> <code>HostbasedAuthentication yes</code> and <code>UseDNS yes</code>
+| <!-- Explanation --> Allows client domain name (hostname) authentication.
+|-
+
+| <!-- Authentication method --> <code>gssapi-with-mic</code>
+| <!-- Authentication specific option --> <code>GSSAPIAuthentication yes</code> and optionally <code>KerberosAuthentication yes</code>
+| <!-- Explanation --> Allows Generic Security Service Application Programming Interface authentication.
+|-
+
+| <!-- Authentication method --> <code>keyboard-interactive</code>
+| <!-- Authentication specific option --> <code>KbdInteractiveAuthentication yes</code>
+| <!-- Explanation --> Allows keyboard-interactive authentication.
+|-
+
+|}
+
+'''Note''': The following table is very complex. There is a huge amount of ways to configure SSH logins. The user should verify their particular setup.
+
+{| class="wikitable"
+|+ SSH Login Comparison Table - Effects of Password State and PAM on User Login
+|-
+
+! {{nowrap|Password}} State <!-- Password state -->
+! <code>{{nowrap|Authentication}}<wbr>Method</code> <wbr>Options <!-- Authentication method -->
+! {{nowrap|<code>UsePAM</code>}} <wbr>Option <!-- PAM setting -->
+! Login Outcome <!-- Login result -->
+! Explanation <!-- Why -->
+|-
+
+| <!-- Password state --> Password set
+| <!-- Authentication method --> <code>any</code>
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
+| <!-- Login result --> {{Yes}}
+| <!-- Why --> SSHD or PAM checks the shadow file and an unlocked password allows any type of login.
+|-
+
+| <!-- Password state --> Empty
+| <!-- Authentication method --> <code>none</code>
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
+| <!-- Login result --> {{Yes}}
+| <!-- Why --> SSHD or PAM checks the shadow file and an empty password allows <code>none</code> type login.
+|-
+
+| <!-- Password state --> Disabled
+| <!-- Authentication method --> <code>password</code>
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
+| <!-- Login result --> {{No}}
+| <!-- Why --> SSHD or PAM checks the shadow file and a disabled password prohibits password-based login.
+|-
+
+| <!-- Password state --> Disabled
+| <!-- Authentication method --> '''Except''' with <code>password</code>
+| style="background-color: {{Gray}}" | <!-- PAM setting --> Irrelevant
+| <!-- Login result --> {{Yes}}
+| <!-- Why --> SSHD or PAM checks the shadow file and ignores disabled password as it is non password-based login.
+|-
+
+| <!-- Password state --> Locked
+| <!-- Authentication method --> <code>password</code>
+| <!-- PAM setting --> {{Yes}}
+| <!-- Login result --> {{No}}
+| <!-- Why --> PAM checks the shadow file and locked password prohibits password-based login.
+|-
+
+| <!-- Password state --> Locked
+| <!-- Authentication method --> '''Except''' with <code>password</code>
+| <!-- PAM setting --> {{Yes}}
+| <!-- Login result --> {{Yes}}
+| <!-- Why --> PAM checks the shadow file and ignores locked password as it is non password-based login.
+|-
+
+| <!-- Password state --> Locked
+| <!-- Authentication method --> <code>any</code>
+| <!-- PAM setting --> {{No}}
+| <!-- Login result --> {{No}}
+| <!-- Why --> SSHD checks the shadow file and a locked password prohibits any type of login. <ref>
+sshd journal log:
+<pre>
+sshd[7740]: User user not allowed because account is locked
+</pre>
+</ref>
+|-
+
+|}
+
+= See Also =
+
+* [[Remote Administration]]
+
+= Footnotes =
+<references />
+
+[[Category:Documentation]]
+{{Footer}}

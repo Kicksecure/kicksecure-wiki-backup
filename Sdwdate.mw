@@ -1,0 +1,442 @@
+{{Header}}
+{{Title|
+title=sdwdate: Secure Distributed Web Date
+}}
+{{#seo:
+|description=sdwdate - Secure Distributed Web Date - Homepage
+|image=sdwdate2.png
+}}
+{{time_mininav}}
+[[File:sdwdate2.png|[[sdwdate-gui]] Control Panel|thumb]]
+{{intro|
+sdwdate - Secure Distributed Web Date - Homepage
+}}
+= Introduction =
+
+Time keeping is crucial for security and privacy. sdwdate is a Tor-friendly replacement for [https://en.wikipedia.org/wiki/Rdate rdate] and [https://en.wikipedia.org/wiki/ntpdate ntpdate] that sets the system's clock by communicating via end-to-end encrypted TCP with Tor onion webservers. Chosen time providers are exclusively reputable sources (whistle-blowing and privacy-friendly onion sites) that are highly likely to be hosted on different hardware.
+
+At random intervals, sdwdate connects to a variety of webservers and extracts the time stamps from http headers (see: [https://www.rfc-editor.org/rfc/rfc2616 RFC 2616]).
+
+= Sdwdate vs NTP =
+
+{| class="wikitable"
+|+ ''Sdwdate vs NTP comparison''
+
+
+! '''Feature'''
+! '''[https://github.com/{{project_name_short}}/sdwdate sdwdate]'''
+! '''NTP'''
+|-
+
+! Written in memory-safe language
+| {{Yes}}
+| {{No}}
+|-
+
+! Distributed trust
+| {{Yes}}
+| {{No}}
+|-
+
+! Secure connection by default (authentication and encryption)
+| {{Yes}}
+| {{No}}
+|-
+
+! Gradual clock adjustments
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Daemon
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Functional over [https://www.torproject.org Tor]
+| {{Yes}}
+| {{No}} <ref>Requires UDP, which is unsupported by Tor. See [[Tor#UDP]].</ref>
+|-
+
+! Tor not required
+| {{No}}
+| {{Yes}}
+|-
+
+! Client, time fetcher
+| {{Yes}}
+| {{Yes}}
+|-
+
+! Server, time provider
+| {{No}}, not yet
+| {{Yes}}
+|-
+
+! AppArmor profile
+| {{Yes}}
+| {{Yes}}
+|-
+
+! systemd security hardening, seccomp
+| {{Yes}}
+| ?
+|-
+
+! Drop-in config folder
+| {{Yes}}
+| {{No}}
+|-
+
+! Proxy support
+| {{Yes}}
+| {{No}} <ref>https://web.archive.org/web/20210619175502/https://lists.ntp.org/pipermail/questions/2007-October/015754.html</ref> <ref>https://web.archive.org/web/20080226171005/http://linux.derkeiler.com/Mailing-Lists/Debian/2003-07/0361.html</ref>
+|-
+
+! Possible to secure by default on GNU/Linux distribution level
+| {{Yes}}
+| {{No}} <ref>[https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=%23687166 NTP security vulnerability because not using authentication by default]</ref>
+|-
+
+! Secure
+| {{Yes}}
+| {{No}} <ref>See [[Dev/TimeSync#NTP]].</ref>
+|-
+
+! Optional GUI
+| {{Yes}}, [[sdwdate-gui]] (systray icon)
+| {{No}}
+|-
+
+|}
+
+See also:
+
+* Installation on headless systems; see footnote. <ref>If replacing ntp with sdwdate, run the following command to avoid installing 160+ recommended packages: {{CodeSelect|code=
+sudo apt --no-install-recommends install sdwdate
+}} </ref> <ref>https://forums.whonix.org/t/sdwdate-and-headless-system/8491</ref>
+* [[Time_Attacks|Time Attacks]]
+* [[Dev/TimeSync|Dev/TimeSync]]
+* [[sdwdate-gui]]
+
+TODO:
+
+* Server, time provider
+* Sdwdate issue tracker: [https://phabricator.whonix.org/project/view/6/ Phabricator]
+
+{{Anchor|Disable}}
+
+= Disable Autostart =
+
+Usually not required. Highly discouraged. May be useful for offline (vault) VMs.
+
+'''1.''' Platform specific notice.
+
+* {{q_project_name_long}}: In Template.
+* {{non_q_project_name_long}}: No extra steps required.
+
+'''2.''' {{Open a product ws terminal}}
+
+'''3.''' Disable sdwdate.
+
+Run the following command.
+
+{{CodeSelect|code=
+sudo systemctl mask sdwdate
+}}
+
+'''4.''' Done.
+
+Autostart of sdwdate has been disabled. Sdwdate will not be started after reboot.
+
+'''5.''' Optional. Consider [[Sdwdate-gui#Disable_Autostart|disabling sdwdate-gui autostart]].
+
+Perhaps at a later time, perhaps after a test reboot, the user might consider disabling [[sdwdate-gui]].
+
+'''6.''' Optional. Consider disabling Boot Clock Randomization.
+
+Perhaps at a later time, perhaps after a test reboot, the user might consider disabling [[Boot Clock Randomization]]: How-To: [[Boot_Clock_Randomization#Disable|Disable Boot Clock Randomization]].
+
+= sdwdate vs Tor =
+
+''sdwdate'' is reliant on a functioning Tor because it utilizes onions, which necessitates a Tor connection.
+
+* '''Tor Connectivity''': If Tor isn't operational, it's highly probable that the issue doesn't lie with sdwdate.
+* '''Timezone''': The [[timezone]] configuration (host or VM) isn't critical as long as the time is accurate. A significantly incorrect time can prevent Tor from connecting, but this isn't a direct concern of sdwdate. Can the timezone be fictitious, differing from the actual geographical location? Absolutely, this isn't an issue.
+* '''VPNs''': Virtual Private Networks (VPNs) don't have any direct relation to timezones, time, or sdwdate.
+
+= Qubes Specific =
+
+== Qubes Template ==
+
+'''Information for advanced users:'''
+
+<u>Laymen users can skip this wiki chapter.</u>
+
+In Qubes Kicksecure Template, <code>sdwdate</code> systemd unit is disabled by default because Qubes Templates are non-networked as per Qubes default. This is [[unspecific|unspecific to Kicksecure]]. Other time synchronization daemons, such as NTP, would also be dysfunctional in Qubes Templates due to these being non-networked by default. Instead, time in Qubes Templates synchronizes by using Qubes ClockVM.
+
+For instructions on how to use sdwdate inside ClockVM, see [[Qubes|Kicksecure for Qubes]] wiki chapter [[Qubes#ClockVM|ClockVM]].
+
+Technical references:
+
+* <code>/lib/systemd/system/qubes-sync-time.timer</code>
+* <code>/lib/systemd/system/qubes-sync-time.service</code>
+* <code>/usr/bin/qvm-sync-clock</code>
+* <code>/usr/lib/qubes/qubes-sync-clock</code>
+* {{whonix_wiki
+|wikipage=Dev/TimeSync#Qubes_Time_Synchronization_Features
+|text=Qubes Time Synchronization Features
+}}
+* [https://github.com/QubesOS/qubes-issues/issues/9294 Create sys-ops-whonix VM for Enhanced Security and Isolation in Qubes-Whonix #9294]
+* [https://forums.whonix.org/t/qubes-whonix-gateway-as-clockvm/19015 Qubes-Whonix-Gateway as ClockVM]
+
+= sdwdate Design =
+
+== Server Authentication ==
+[https://github.com/{{project_name_short}}/sdwdate sdwdate] only connects to Tor onion services, which are encrypted by default and do not rely on SSL certificate authorities (CAs). Three different pools are used for time sources so that if too many connections fail for any given pool, <ref>For example, due to being unreachable or replying with invalid data.</ref> the pool is considered as potentially compromised and sdwdate aborts.
+
+== sdwdate Source Pools ==
+Determining what sources should be trusted is an important issue; this is also a problem with NTP.
+
+The sdwdate pools used by {{project_name_long}} are based on stable and reliable Tor onion service web servers. The pools are listed in {{Github_link|repo=sdwdate|path=/blob/master/etc/sdwdate.d/30_default.conf|text=/etc/sdwdate.d/30_default.conf}}.
+
+The various onion services are categorized into three different pools. Any member in one pool should be unlikely to share logs (or other identifying data), or agree to send fake time information, with a member from the other pools. In basic terms, sdwdate picks three random servers - one from each pool - and then builds the mediate (middle position) of the three advertised dates.
+
+sdwdate is only using 'pal' pools and not relying on 'neutral' and 'foe' pools as per tails_htp, because a good rationale for that approach has not yet been provided. <ref>
+https://web.archive.org/web/20200209085217/https://github.com/whonix/whonix/issues/310
+</ref> <ref>
+https://gitlab.tails.boum.org/tails/tails/-/issues/8283
+</ref>
+
+== sdwdate Time Sources Criteria ==
+=== Current Implementation 1.0 ===
+Prerequisite knowledge: [[Sdwdate#sdwdate_Source_Pools|sdwdate time source pool design]]
+
+These criteria are meant to be fitting the dynamic trust of the internet and to be as close as possible to the highest trustable level.
+
+==== Time Source Inclusion Criteria ====
+
+* Trustworthy. This criteria probably means many different things for many different people. To clarify, it needs to be compatible with the [[Policy of Website and Chat#{{project_name_short}}_Platform_Goals|{{project_name_short}} Platform Goals]]. Trustworthy as far as infrastructure goes, for example as in unlikely to be using cloud and/or insecure hosting for receiving confidential documents.
+* Hosted by non-anonymous organizations or persons.
+* Reachable over an <code>.onion</code> domain. <ref>
+<nowiki>https://phabricator.whonix.org/T131</nowiki>
+</ref>
+* If there is a forced redirection from (non-TLS) http onion to TLS http'''s''' onion, the TLS certificate must be valid. <ref>
+For now, this is for technical reasons only. url_to_unixtime refuses websites that redirect from (onion) http to (onion) http'''s''' which at the same time have an invalid TLS certificate. Adding extra code to ignore invalid TLS certificates hasn't been done yet. It might also be argued in future, that if an onion provides a valid TLS certificate, that onion should be fetched over TLS and certificate errors should not be ignored. See [[Onion_Services#Notes_about_End-to-end_Security_of_Onion_Services|Notes about End-to-end Security of Onion Services]]. Onion services reachable over non-TLS http which do not redirect to TLS https are acceptable.
+</ref>
+* Highly likely to be hosted on different hardware than other sdwdate time source pool members.
+* Onion v3.
+* Must be a "real" onion service. Must not redirect to clearnet.
+
+Details:
+
+It is required that each sdwdate time source pool member has both, a clearnet domain name and an onion domain name. An example of a clearnet domain name is <code>{{project_clearnet}}</code>. An example of a onion domain name is <code>{{project_onion}}</code>. The clearnet domain must be reachable [[SSL|TLS]] with a valid TLS certificate. This is because when a website is reachable over <code>.onion</code> which has a corresponding clearnet domain name with the same contents, hosted by the same author, its easier to verify the identity of the website author, when the website was created, where the website or its maintainers are located.
+
+There needs to be evidence that that onion domain is hosted by the same author as the clearnet domain. This can be a mention of the onion domain on the clearnet domain or the [https://community.torproject.org/onion-services/advanced/onion-location/ <code>Onion-Location</code> HTTP header]. The latter can be conveniently noticed by visiting the website using Tor Browser and then showing <code>onion available</code> and seen by using services such as <code>securityheaders.com</code> or using the curl command line tool, i.e. <code><nowiki>curl --head https://clearnet.domain</nowiki></code>.
+
+Onion services likely hosted on the same hardware or by the same author will be grouped together and act as one. I.e. these will be considered mirrors of the same onion. sdwdate picks one mirror from the group randomly. Any onion from that author will not be used more than other pool members. The load among these grouped pool members will therefore be load balanced.
+
+Reasons:
+
+This provides higher certainty of having trustworthy time source members because these websites and services services have a reputation to maintain. This includes for example e-mail services such as protonmail or big news network like The Guardian and so on. Note: Just because these are known organizations and very hard to make them operate maliciously that doesn't mean there are guarantees whether by mistake, hacks or by outside pressure.
+
+==== Unrealistic Time Source Criteria ====
+
+* The onion service being popular or receiving great amount of traffic. This is very hard to verify, compare as outsider and reason about. Also (very) high traffic onion services might be less reliable.
+
+==== Suggestions for sdwdate time sources ====
+* [[#Time Source Inclusion Criteria|Time Source Inclusion Criteria]]
+* New sdwdate pool member additions must be proposed in public in {{project_name_short}} development forum thread [https://forums.whonix.org/t/suggest-trustworthy-tor-hidden-services-as-time-sources-for-sdwdate/856 Suggest Trustworthy Tor Hidden Services as Time Sources for sdwdate] to allow anyone to comment on it.
+* Please check the suggested onion was already previously suggested by searching the forum thread.
+* Please try to avoid suggesting onions which are already included in {{Github_link|repo=sdwdate|path=/blob/master/etc/sdwdate.d/30_default.conf|text=<code>/etc/sdwdate.d/30_default.conf</code> git master}}.
+
+==== Rules for sdwdate time source related git pull requests ====
+* [[#Suggestions for sdwdate time sources|Suggestions for sdwdate time sources]]
+* the following type of changes need to be proposed separately using separate pull requests
+** removal of sdwdate pool members because these are offline, unreliable, their clock is too much off or otherwise no longer comply with the requirements
+** updates to already existing sdwdate pool members
+*** such as updated onion domain names in case the onion domain name change
+** additions of new sdwdate time sources (if there where no objections in previous forum discussion)
+
+==== Time Sources Exclusion Criteria ====
+
+The rationale for the following exclusion criteria is to avoid likely insecure websites and also to avoid any mention whatsoever of controversial content within sdwdate source code.
+
+The following categories must be avoided and deleted if turning out later so:
+
+* onion v2 since deprecated.
+* Unstable Website: It is not useful to add a service which is periodically unavailable.
+* Sold Out Website: It is better to remove websites there recently sold out with major content changes to be expected.
+* Website Went Offline: If the website went offline then it should removed.
+* Contain Any Form of Pornographic Content.
+* Contain or Encourage on Damaging Human Health: like drugs, alcohol, smoke, etc.
+* Contain Any Form of gore, gangs, terrorist, assassination Content.
+* Contain Deanonymization or Cracking Services or Spying Agencies: like [https://wikileaks.org/hackingteam/emails/ HackingTeam] or [https://www.cellebrite.com/ Cellebrite] or the NSA, GCHQ, etc.
+* Contain or Related to Any Form of Governmental Website: like ministries or military websites or anything similar. (Specially those which end with <code>.gov</code>.)
+* Draw highly controversial attention to {{project_name_short}} or sdwdate due to their on-site or off-site activities.
+* Websites which {{project_name_short}} as default software sources (such as Debian) or potential other purposes. This is because, should there be any issues with these services (such as being down for maintenance or other issues such as being under a denial of service attack) this should not break multiple things in {{project_name_short}} such as sdwdate and APT upgrading at the same time.
+
+==== Comment Field Rules ====
+The sdwdate configuration format for onion sources is:
+
+<code>onion.onion # web.archive.org-link-with-evidence-onion-belong-to-corresponding-clearnet-domain optional-clearnet-link optional other comments</code>
+
+Or:
+
+<code>onion.onion # archived-link-with-evidence-onion-belong-to-corresponding-clearnet-domain mandatory-clearnet-link optional other comments</code>
+
+The part of the the hash ("<code>#</code>") for each pool member is shown in sdwdate logs as comment.
+
+The first part of the comment must be an archived link that confirms that the onion link belongs to the organization. I.e. is not an anonymous mirror, impersonating link, fake or scam. If using web.archive.org nothing else is required. Clearnet domain in the comment field is optional since for links that are archived on archive.org it is trivial to extract the unarchived link from the web.archive.org archived link.
+
+If links are archived with archivers other than web.archive.org then after the archived links there must be a space and the unarchived clearnet link.
+
+After that there can be another space and additional comments.
+
+In doubt just look at the many existing examples in {{Github_link|repo=sdwdate|path=/blob/master/etc/sdwdate.d/30_default.conf|text=<code>/etc/sdwdate.d/30_default.conf</code>}} and imitate new entries.
+
+This is useful so users, reviewers can more easily see in sdwdate logs which organizations where used during sdwdate time fetching since it is hard to remember and/or cumbersume to look up that xxx.onion belongs to or cumbersome to manually look up every time.
+
+Confirmation that onions belong or at least did belong to a specific organisation is possible can be done either manually by opening the archived link and looking if it mentions the corresponding onion or assisted with the {{Github_link|repo=sdwdate|path=/blob/master/usr/share/sdwdate/onion-test-confirm|text=<code>/usr/share/sdwdate/onion_test_confirm</code>}} script.
+
+{{CodeSelect|code=
+/usr/share/sdwdate/onion_test_confirm
+}}
+
+=== Contributor Proposed Version 2.0 ===
+It is being proposed to drop the requirement <code>hosted by non-anonymous organizations or persons</code>. I.e. onion's hosted by anonymous organizations or persons should also be permitted under the following conditions.
+
+* Here things are little bit more trickier as we cannot know much except what the website claiming to be so we cannot know who, where, how long etc. this website was running. So we need verification mechanism to check:
+** Consensus or Aggregation of Testimonies: We try to collect users opinions on this website and thus clearnet will be heavily involved into this specially in social media and blogs. So we can verify this website is really doing what it claims to be doing. For example, an e-mail service claiming to not spam their users should not spam their users.
+** Seniority: The older a website becomes, the more trustworthy it will be considered if there have not been any (deliberate or by mistake?) public verifiable breaches of its promises. Recently established websites cannot be with reasonable certainty considered well tested, established, being scam, fraud, deception or not.
+
+Discussion here: https://forums.whonix.org/t/sdwdate-time-sources-criteria/11035/2
+
+== Tor Consensus Time Sanity Check ==
+sdwdate checks if dates/times from remote servers (onions) are within Tor <code>consensus/valid-after</code> and <code>consensus/valid-until</code> date/time, otherwise rejects those. An example from sdwdate log.
+
+<pre>
+2021-01-09 14:47:17 - sdwdate - INFO - * consensus/valid-after: 2021-01-09 13:00:00
+2021-01-09 14:47:17 - sdwdate - INFO - * remote_time          : 2021-01-09 14:49:38
+2021-01-09 14:47:17 - sdwdate - INFO - * consensus/valid-until: 2021-01-09 16:00:00
+2021-01-09 14:47:17 - sdwdate - INFO - * time_consensus_sanity_check: sane
+</pre>
+
+== sdwdate Time Replay Protection ==
+Done in testers repository master. Will flow to stable as per usual.
+
+sdwdate internally uses {{Github_link|repo=helper-scripts|path=/blob/master/usr/bin/minimum-unixtime-show|text=<code>minimum-unixtime-show</code>}}.
+
+Effectively, sdwdate looks at file <code>/usr/share/timesanitycheck/minimum_unixtime</code> which contains a minimum unixtime timestamp which was created by developers during development and file <code>/var/lib/sdwdate/time-replay-protection-utc-unixtime</code> which will be created every time after sdwdate has successfully set the time. sdwdate will not set time earlier than the time in these files. The purpose of this is to implement Time Replay Protection. No matter if sdwdate onion servers later give false time information due to a bug or an attack to users, the clock would never be set to a much earlier date such as year 1980 or an earlier date than the release date.
+
+File <code>/usr/share/timesanitycheck/minimum_unixtime</code> will be occasionally updated by developers. It is planned to update that file at least for every release. Whenever <code>/usr/share/timesanitycheck/minimum_unixtime</code> was updated. [[Time Attacks]] thorough false time source replies against sdwdate with times before that time will not be possible.
+
+Most users users it should not be required however users are free to create a custom extra file <code>/etc/minimum-unixtime</code> or <code>/usr/local/etc/minimum-unixtime</code> which sdwdate would also honor and never set the clock earlier than that time. All minimum unixtime files would be considered.
+
+sdwdate could optionally also be instructed to ignore vendor provided file <code>/usr/share/timesanitycheck/minimum_unixtime</code>, sdwdate auto generated file <code>/var/lib/sdwdate/time-replay-protection-utc-unixtime</code> and above mentioned user custom extra file by by creating a custom override file <code>/etc/minimum-unixtime.override</code> (lower priority) or <code>/usr/local/etc/minimum-unixtime.override</code> (higher priority) which take absolute priority and result in ignoring all other minimum unixtime files. Valid values in any minimum unixtime files are only integer values. Must be [https://en.wikipedia.org/wiki/Unix_time unixtime]. Example: <code>1611651349</code>. Minimum value is <code>0</code> which however does not make sense except for testing purposes. That would effectively disable time replay protection. For testing purposes it might be useful to set a far future date such as <code>2611651349</code> which could be temporarily enabled to test if sdwdate's time replay protection would be functional.
+
+== sdwdate Clock Randomization ==
+Log example.
+
+<pre>
+End fetching remote times.
+pool differences, sorted: [-35, 5, 5]
+median time difference: +5.000000000
+randomize             : -0.976225329
+new time difference   : +4.023774671
+</pre>
+
+The rationale for that is that an onion time source could try to tag specific users. sdwdate uses the median time (not average) fetch result. (Average time of the 3 pools would not be safe. To explain, suppose one pool returning a result of -1000 seconds time difference would overpower the time pools with a more realistic time difference of for example -1 and -2 seconds.)
+
+Let's say the normal distribution for most users would be <code>pool differences, sorted: [7, 5, 3]</code>. Then and onion time source could experiment with saying <code>4, 5, 6</code> to split users into different groups. This is assuming that not too many users ask the same server at the very same time. A realistic assumption given that the total number of Tor users is not that high. By adding up to <code>±</code> <code>1</code> second it gets harder to tag specific users.
+
+After boot, sdwdate sets the time using the <code>date</code> after fetching times from remote.
+
+* Without clock randomization: The command executed from sdwdate could be <code>sudo date --set "Tue 12 Jan 2021 06:48:55 AM UTC"</code>. This allows for more opportunities to tag user because nanoseconds are to <code>0</code> without any randomization. The full command to be run could be guessed by the sdwdate time source. Or might change from
+** <code>old unixttime: 1610866967.519335985</code> to
+** <code>new unixtime : 1610866966.519335985</code>.
+* With clock randomization: The command executed from sdwdate could be <code>sudo date --set "Tue 12 Jan 2021 06:48:55:976225329 AM UTC"</code>. Only the first part of the date/time <code>Tue 12 Jan 2021 06:48:55 AM UTC</code> can be guessed but an an extra random clock skew is introduced. The random nanoseconds part <code>976225329</code> being unpredictable by remote time sources.
+
+(These are just examples. sdwdate internally actually uses unixtime since that is easier in the program. Just to illustrate the mode of operation.)
+
+If nanoseconds are randomized and later leaked to for example remote web servers, it won't be possible for the remote web server know if clock is just skewed normally or if it was set using sdwdate with randomization. Rationale of randomization is making it look more like a naturally skewed clock.
+
+Accuracy of sdwdate is far outside of <code>±</code> <code>1</code> second anyhow. Due after asking a remote onion web servers for the time and the result being relayed back through the slow Tor network to the user with hard to predict latency, nanoseconds might not matter anyhow. By the time sdwdate running <code>date</code>, nanoseconds might already be randomized without extra randomization required.
+
+When supposing for the sake of threat modeling that a web server can observe clock jumps from remote because of lets say browser, javascript or something leaks it is better to jump to a randomized number of nanoseconds <code>976225329</code> than <code>000000000</code>.
+
+This feature, sdwdate clock randomization, is unrelated to Boot Clock Randomization. sdwdate Clock Randomization happens only after sdwdate has fetched the time from onion time sources before setting the time. Boot Clock Randomization happens at boot time only. See also [[Boot Clock Randomization]].
+
+No clock randomization is planed when temporarily setting time based on Tor certificate lifetime or Tor consensus time middle range. This is because these times are so far off from the the real world time and so few users are using it that randomization could not help or even make users more trackable.
+
+== Onion Time Sources Candidates List ==
+The links below are listed to keep track of pool candidates:
+
+* https://en.wikipedia.org/wiki/SecureDrop
+* https://securedrop.org/directory/
+* https://www.globaleaks.org/usecases/
+* {{Twitter_link|hashtag/MoreOnionsPorFavor|MoreOnionsPorFavor}}
+* https://blog.torproject.org/more-onions-end-of-campaign/
+* {{Twitter_link|SecureTheNews|SecureTheNews}}
+* https://freedom.press/news/five-years-of-secure-the-news/
+
+= Screenshots =
+
+'''Figure:''' ''sdwdate GUI Control Panel''
+
+[[File:sdwdate2.png|470px|border]]
+
+'''Figure:''' ''sdwdate GUI Successful Check''
+
+[[File:sdwdate3.png|470px|border]]
+
+= Clock Fixing =
+== Demonstration ==
+<pre>
+sudo date --set "Fri 24 Sep 2011 06:51:24 PM UTC"
+</pre>
+
+<pre>
+Sat 24 Sep 2011 06:51:24 PM UTC
+</pre>
+
+<pre>
+sudo systemctl stop tor
+</pre>
+
+<pre>
+sudo bash -x anon-consensus-del-files
+</pre>
+
+<pre>
+++ id -u
++ '[' 0 = 0 ']'
++ rm -f /var/lib/tor/cached-certs
++ rm -f /var/lib/tor/cached-microdesc-consensus
++ rm -f /var/lib/tor/cached-microdescs
++ rm -f /var/lib/tor/cached-microdescs.new
+</pre>
+
+<pre>
+sudo systemctl restart sdwdate
+</pre>
+
+<pre>
+TODO
+</pre>
+
+= Related =
+* [[Network_Time_Synchronization#Manually_Set_Clock_Time_and_Date|Manually Clock Fix]]
+* [[Timezone]]
+* [[Time Attacks]]
+* [[Dev/sdwdate]]
+* [[Dev/TimeSync]]
+* [[sdwdate-gui]]
+* [[Boot Clock Randomization]]
+
+= Footnotes =
+{{reflist|close=1}}
+
+{{Footer}}
+
+[[Category:Documentation]]
