@@ -20,6 +20,59 @@ TODO
 ** https://github.com/curl/curl/discussions/11125
 ** if using <code>--onion</code>, fix by setting CURL_PROXY similar to how it's done inside Whonix?
 
+== implement sudo wrappers - gsudo-wl gsudo-x ==
+* add to helper-scripts (probably) or usability-misc?
+* based on https://www.kicksecure.com/wiki/Root#Miscellaneous_Applications_with_Root_Rights
+* just to simplify users do not have to write by hand the following:
+
+<pre>
+sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
+sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR QT_QPA_PLATFORM=wayland application-name
+</pre>
+
+* usability-misc already comes with /usr/bin/gsudoedit. Probably ok and probably can stay there.
+* Aaron: Implemented (though both scripts ended up being substantially more complicated than the one-liners above). Commit pushed to helper-scripts.
+* Patrick:
+** made minor changes
+** <code>mkdir --parents -- "${root_wayland_lock_dir}"</code> - umask dependent, useful to use install instead?
+* Aaron:
+** Reviewed, adjusted the cleanup routine to check that all variables it uses are set.
+** Switched to <code>install</code> after verifying that it worked as intended. Commits pushed to helper-scripts.
+* Patrick: Merged.
+* Patrick
+** 1) bug: gsudo-x non-functional in non-Qubes (Wayland)
+** 2) bug: bash -x gsudo-x/gsudo-wl should be possible
+** 3) question/bug: Does it work with applications that are symlinks?
+** 4) See this [https://www.kicksecure.com/w/index.php?title=Root&oldid=98397#Wayland old wiki revision of yours]. relevant quote
+
+<pre>
+The following command should work to run Wayland applications as root in most instances. Replace application-name as appropriate:
+
+sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
+
+Qt applications may try to use X11 by default, in which case this technique will fail. To override this and make Qt attempt to use Wayland instead, use:
+
+sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR QT_QPA_PLATFORM=wayland application-name
+</pre>
+
+Which application needs <code>QT_QPA_PLATFORM=wayland</code>?
+
+The purpose of gsudo-x or a similar gsudo wrapper is to cover applications that need <code>QT_QPA_PLATFORM=wayland</code>.
+
+** 5) If there are 3 wrappers, is it worth to have a shared library?
+** 6) Do we need the ability to have X11 native applications to start as root? For example - inside non-Qubes - under Wayland: <code>gsudo-x xeyes</code>
+*** xeyes is illustrative for testing. But do we need a wrapper that supports actual X11 only applications as root?
+* 7) bug: Missing stderr output and non-zero exit code.
+** For comparison only: Command <code>sudo --set-home pcmanfm-qt</code> fails, shows stderr(?) output and exits non-zero.
+** bug: Command <code>gsudo-wl pcmanfm-qt</code> also fails but shows no output and exits 0 without doing anything.
+* 8) Can we reasonably support <code>gsudo-wl|x|... ENV_VAR=content application-name</code>? <code>sudo</code> supports that too. Minor. Telling users to use <code>env</code> in these cases would be okay too. Only good to implement if possible with a simple wrapper instead of lots of custom complex parsing code.
+* 9) Test cases:
+** gsudo-[...] application-name that requires XDG_RUNTIME_DIR only
+** gsudo-[...] application-name that requires XDG_RUNTIME_DIR and QT_QPA_PLATFORM=wayland application
+** gsudo-[...] xeyes (maybe)
+** gsudo-[...] pcmanfm-qt (maybe)
+* non-goal: gsudo-x doesn't necessarily need to support Qubes/X11. Qubes users can stay with lxsudo. No need to reinvent lxsudo.
+
 == forward port Debian trixie /etc/grub.d changes to Kicksecure ==
 * our /etc/grub.d scripts are still based on bookworm
 * merge useful changes introduce since Debian trixie
@@ -1093,6 +1146,39 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
+
+* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
+** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
+* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+
+= ARCHIVED =
 == packaging bug - main package depends on non-free package ==
 * https://forums.kicksecure.com/t/guide-for-morphing-debian-13-xfce/1525
 * bug: a main package having a dependency on a non-free package
@@ -1103,26 +1189,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Aaron:
 ** The same fix that caused the autologin issue also resulted in some "Permission denied" messages in systemcheck due to missing apparmor rules.
 ** Fixed, commit pushed to systemcheck.
-* Patrick: Merged.
-
-== implement sudo wrappers - gsudo-wl gsudo-x ==
-* add to helper-scripts (probably) or usability-misc?
-* based on https://www.kicksecure.com/wiki/Root#Miscellaneous_Applications_with_Root_Rights
-* just to simplify users do not have to write by hand the following:
-
-<pre>
-sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR application-name
-sudo --set-home XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR QT_QPA_PLATFORM=wayland application-name
-</pre>
-
-* usability-misc already comes with /usr/bin/gsudoedit. Probably ok and probably can stay there.
-* Aaron: Implemented (though both scripts ended up being substantially more complicated than the one-liners above). Commit pushed to helper-scripts.
-* Patrick:
-** made minor changes
-** <code>mkdir --parents -- "${root_wayland_lock_dir}"</code> - umask dependent, useful to use install instead?
-* Aaron:
-** Reviewed, adjusted the cleanup routine to check that all variables it uses are set.
-** Switched to <code>install</code> after verifying that it worked as intended. Commits pushed to helper-scripts.
 * Patrick: Merged.
 
 == use lockfile.sh in update-torbrowser ==
@@ -1158,39 +1224,6 @@ user = "user"
 * Aaron: Found and fixed issue, commits pushed to helper-scripts and user-sysmaint-split.
 * Patrick: Merged.
 
-== grub dpkg-new ==
-* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
-
-<pre>
-dpkg -S /etc/grub.d/*
-grub-common: /etc/grub.d/00_header
-grub-common: /etc/grub.d/05_debian_theme
-dist-base-files: /etc/grub.d/10_00_linux_dist
-dist-base-files: /etc/grub.d/10_05_linux_main
-dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
-dist-base-files: /etc/grub.d/10_55_linux_main_advanced
-dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
-grub-common: /etc/grub.d/20_linux_xen
-grub-common: /etc/grub.d/25_bli
-grub-common: /etc/grub.d/30_os-prober
-grub-common: /etc/grub.d/30_uefi-firmware
-grub-common: /etc/grub.d/40_custom
-grub-common: /etc/grub.d/41_custom
-usability-misc: /etc/grub.d/44_kb_layout
-grub-common: /etc/grub.d/README
-zsh: exit 1     dpkg -S /etc/grub.d/*
-</pre>
-
-* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
-** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
-
-== trixie-port - suspend bug ==
-* user reported
-* Bug: suspend results in black screen with no recovery (unless hard reboot)
-* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
-* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
-
-= ARCHIVED =
 == immutability wiki review ==
 * please review, improve
 * https://www.kicksecure.com/wiki/Dev/immutable
