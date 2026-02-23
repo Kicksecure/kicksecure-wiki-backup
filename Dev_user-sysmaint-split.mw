@@ -141,14 +141,20 @@ This is documented on the [[unrestricted admin mode]] wiki page.
 
 == Implementation ==
 
-* '''Systemd target:''' <code>sysmaint-boot.target</code>, a systemd target similar to single user mode (kernel parameter <code>single</code>).
+* '''Systemd target:''' {{Github_link|repo=user-sysmaint-split|path=/blob/master/usr/lib/systemd/system/sysmaint-boot.target|text=<code>sysmaint-boot.target</code>}}, a systemd target similar to single user mode (kernel parameter <code>single</code>).
 * '''Minimal services:''' Start only [[#Minimal services|minimal services]] when booting into sysmaint session (<code>sysmaint-boot.target</code>).
 * '''Systemd unit:''' [https://github.com/Kicksecure/user-sysmaint-split/blob/master/usr/lib/systemd/system/sysmaint-boot.service sysmaint-boot.service], handles system reconfiguration when switching between modes.
 * {{Github_link|repo=user-sysmaint-split|path=}}
 * {{Github_link|repo=sysmaint-panel|path=}}
 
 === Minimal Services ===
-Start only [[#Minimal services|minimal services]] when booting into sysmaint session (<code>sysmaint-boot.target</code>).
+When booting into sysmaint session, only minimal, hand-picked services will be started. In other words, far fewer systemd units (long-running background processes also called [https://en.wikipedia.org/wiki/Daemon_(computing) daemons]) will be started. This is because when booting into sysmaint session, only {{Github_link|repo=user-sysmaint-split|path=/blob/master/usr/lib/systemd/system/sysmaint-boot.target|text=<code>sysmaint-boot.target</code>}} will be started. This is similar to systemd target single user mode (kernel parameter <code>single</code>).
+
+Potentially vulnerable daemons (automatically started as systemd units) such as the past [[Dev/GNOME#1-Click_RCE_on_GNOME_(CVE-2023-43641)_in_file_indexing_service|1-Click Remote Code Execution (RCE) on GNOME (CVE-2023-43641) in file indexing service]] would not automatically start in sysmaint session, hence reducing the attack surface of sysmaint session.
+
+As per systemd/Debian upstream default, as usual, only <code>Wants=</code> for services that are actually installed will be started. For example, <code>Wants=qubes-rootfs-resize.service</code> is irrelevant in non-Qubes because the <code>qubes-rootfs-resize.service</code> systemd unit is not installed.
+
+As opposed when booting into user session, <code>multi-user.target</code> will be started, where all enabled systemd units are started as per systemd/Debian upstream default.
 
 === No SUID Security Risk originating from Privilege Escalation Tools ===
 Privilege Escalation Tools are SUID applications, which can be a security risk for local privilege escalation (such as from account <code>user</code> to <code>root</code>).
@@ -271,7 +277,7 @@ By default, Qubes Templates with <code>user-sysmaint-split</code> installed will
 
 = Remaining Issues =
 == Fast User Switching ==
-[[Sysmaint|sysmaint - System Maintenance User]] documentation chapter [[Sysmaint#Fast_User_Switching|Fast User Switching]] explains, that
+[[Sysmaint|sysmaint - System Maintenance User]] documentation chapter [[Sysmaint#Fast_User_Switching|Fast User Switching]] explains that
 
 {{quotation|
 |quote=
@@ -281,27 +287,27 @@ It is not possible to switch from account <code>user</code> to <code>sysmaint</c
 * Start Menu &rarr; switch user
 }}
 
-This is a security feature. This is to mitigate [[login spoofing]] attacks and to prevent [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|<code>sudo</code> password sniffing]].
+This is a security feature. This mitigates [[login spoofing]] attacks and prevents [[Dev/Strong_Linux_User_Account_Isolation#sudo_password_sniffing|<code>sudo</code> password sniffing]].
 
 The best-case potentially realistic scenario for fast user switching from account <code>user</code> to <code>sysmaint</code> - in theory - would be:
 
-'''1.''' Learn about [[SysRq]].
+{{IconSet|h1|1}} Learn about [[SysRq]].
 
-'''2.''' Logout with "save session" as <code>user</code>. This means saving the session to disk and allowing it to be resumed, but no processes must continue to run.
+{{IconSet|h1|2}} Logout with "save session" as <code>user</code>. This means saving the session to disk and allowing it to be resumed, but no processes must continue to run.
 
-'''3.''' Use {{IconSet|keyboard|Alt}} + {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (Secure Access Key).
+{{IconSet|h1|3}} Use {{IconSet|keyboard|Alt}} + {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (Secure Access Key).
 
-'''4.''' Login into <code>sysmaint</code>.
+{{IconSet|h1|4}} Log in to <code>sysmaint</code>.
 
-'''5.''' Perform system administration.
+{{IconSet|h1|5}} Perform system administration.
 
-'''6.''' Logout of <code>sysmaint</code>.
+{{IconSet|h1|6}} Log out of <code>sysmaint</code>.
 
-'''7.''' Use {{IconSet|keyboard|Alt}} + {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (optional, just to establish the habit).
+{{IconSet|h1|7}} Use {{IconSet|keyboard|Alt}} + {{IconSet|keyboard|SysRq}} + {{IconSet|keyboard|k}} (optional, just to establish the habit).
 
-'''8.''' Resume the <code>user</code> session.
+{{IconSet|h1|8}} Resume the <code>user</code> session.
 
-However, even using SysRq to switch from account <code>user</code> to <code>sysmaint</code> or vice versa would be less secure, because when booting into sysmaint session (<code>sysmaint-boot.target</code>), only a minimal number of services are started.
+However, even using SysRq to switch from account <code>user</code> to <code>sysmaint</code> or vice versa would be less secure because when booting into sysmaint session (<code>sysmaint-boot.target</code>), only [[Dev/user-sysmaint-split#Minimal_Services|Minimal Services]] are started.
 
 == Server Support ==
 

@@ -1,0 +1,359 @@
+{{Header}}
+{{title|title=
+NVIDIA
+}}
+{{#seo:
+|description=NVIDIA - Troubleshooting and Driver Choice in {{project_name_short}}.
+}}
+{{intro|
+NVIDIA - Troubleshooting and Driver Choice in {{project_name_short}}.
+}}
+= Introduction =
+
+[https://en.wikipedia.org/wiki/Nvidia Nvidia] <ref>
+NVIDIA history: [https://www.nvidia.com/en-us/about-nvidia/corporate-timeline/ NVIDIA corporate timeline]
+</ref> is one of the world's leading manufacturers of graphics processing units (GPUs), used in many areas, especially those involving graphics and visual workloads such as video games and video rendering.
+
+= NVIDIA Card Drivers =
+== Introduction ==
+{{IntroLike|
+Three NVIDIA driver options are available. Nouveau is the default freedom software driver. Software rendering (Pixman) disables hardware acceleration to prioritize stability. The proprietary NVIDIA driver is non-freedom software and may offer better performance and feature support on some hardware.
+}}
+
+{{sysmaint_notice}}
+
+Select an NVIDIA driver option.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= ====NVIDIA Freedom Software Nouveau Driver====
+|type=section
+|content=
+{{IntroLike|
+Pronounced [nuvo], which means new in French, <ref>
+https://nouveau.freedesktop.org/
+</ref> Nouveau is freedom software: a reverse engineered driver for NVIDIA GPUs.
+
+It is installed and activated by default in {{project_name_short}}. This is [[unspecific|unspecific to {{project_name_short}}]]. This default is inherited from Debian and [[Linux]] because [[Based on Debian|{{project_name_short}} is based on Debian]].
+
+Stability and performance Issues: Since Nouveau is fully reverse engineered for proprietary hardware, missing features such as CUDA <ref>
+https://en.wikipedia.org/wiki/Nouveau_(software)#CUDA
+</ref> or reduced performance <ref>
+https://en.wikipedia.org/wiki/Nouveau_(software)#Re-clocking
+</ref> can be expected. For these reasons, some users prefer to use the proprietary driver.
+}}
+}}
+
+{{Tab
+|title= ====Software Rendering (Pixman)====
+|type=section
+|content=
+{{IntroLike|
+This chapter forces software rendering (Pixman) and disables Nouveau acceleration. This can improve stability on some NVIDIA systems at the cost of performance. Software rendering is not a separate driver. It simply disables hardware acceleration. It is listed together with other drivers since this can be an alternative to the non-freedom NVIDIA driver.
+}}
+
+{{IconSet|h1|1}} Ensure the proprietary NVIDIA driver is not installed.
+
+The proprietary NVIDIA driver must be absent before continuing (for example, packages such as <code>nvidia-driver</code> or <code>cuda-drivers</code>).
+
+{{IconSet|h1|2}} Force software rendering in <code>wlroots</code>.
+
+{{Open with root rights|filename=
+/etc/profile.d/15_desktop-config-dist.sh
+}}
+
+Make sure <code>WLR_RENDERER</code> is always set to <code>pixman</code>.
+
+Append the following at the very bottom of the file.
+
+{{CodeSelect|code=
+export WLR_RENDERER='pixman'
+}}
+
+{{IconSet|h1|3}} Reboot.
+
+{{IconSet|h1|4}} Verify <code>WLR_RENDERER</code> setting.
+
+{{CodeSelect|code=
+echo "$WLR_RENDERER"
+}}
+
+Expected output:
+
+{{CodeSelect|code=
+pixman
+}}
+
+{{IconSet|h1|5}} Boot with Nouveau acceleration disabled.
+
+Follow the instructions in [[Grub#Temporary_Kernel_Boot_Parameter_Change|Temporary Kernel Boot Parameter Change]] and add the following kernel parameter:
+
+{{CodeSelect|code=
+nouveau.noaccel=1
+}}
+
+{{IconSet|h1|6}} Verify the kernel parameter was applied
+
+{{anchor|show=true|verify the kernel parameter}}
+
+[[Grub#Inspect_Kernel_Command_Line|Inspect Kernel Command Line]].
+
+{{CodeSelect|code=
+cat /proc/cmdline {{!}} grep --color nouveau
+}}
+
+Expected output:
+
+{{CodeSelect|code=
+nouveau.noaccel=1
+}}
+
+{{IconSet|h1|7}} Test session stability.
+
+Use the system normally and check whether the session is stable. This approach keeps high display resolutions while enforcing software rendering, which can work around driver related rendering issues.
+
+{{IconSet|h1|8}} If successful, apply the kernel parameter permanently.
+
+{{box|text=
+[[Grub#Permanent_Configuration_Changes|GRUB Permanent Configuration Changes]]
+
+{{IconSet|h2|1}} Open the GRUB user configuration file.
+
+{{Open with root rights|
+filename=/etc/default/grub.d/50_user.cfg
+}}
+
+{{IconSet|h2|2}} Add the kernel parameter.
+
+{{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX nouveau.noaccel=1"
+}}
+
+{{IconSet|h2|3}} Save.
+
+{{IconSet|h2|4}} Regenerate GRUB configuration.
+
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+{{IconSet|h2|5}} Reboot.
+
+{{IconSet|h2|6}} Verify the kernel parameter was applied.
+
+Same as step 6 above, see [[#verify_the_kernel_parameter|verify the kernel parameter]].
+
+{{IconSet|h2|7}} Done.
+
+The permanent kernel parameter change has been applied.
+}}
+
+{{IconSet|h1|9}} Done.
+
+Software rendering has been enabled.
+}}
+
+{{Tab
+|title= ====NVIDIA Non-Freedom Software Proprietary Driver====
+|type=section
+|content=
+{{IntroLike|
+The proprietary NVIDIA driver can provide better performance and feature support on some hardware, but it is non-freedom software.
+
+You can obtain the NVIDIA driver either from the Debian repositories or from NVIDIA's own repository.
+}}
+
+{{Non-freedom-software}}
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= ====Debian Repository====
+|type=section
+|content=
+{{Install_Package|package=
+firmware-nvidia-gsp nvidia-smi nvidia-driver nvidia-kernel-dkms
+}}
+
+More details can be found on the Debian wiki page [https://wiki.debian.org/NvidiaGraphicsDrivers NvidiaGraphicsDrivers].
+
+* '''Secure Boot''': To make the NVIDIA driver work after installation, Secure Boot keys must be re-enrolled. See [[Secure_Boot#Secure_Boot_DKMS_Signing_Key_Enrollment|Secure Boot DKMS Signing Key Enrollment]].
+
+}}
+
+{{Tab
+|title= ====NVIDIA Repository====
+|type=section
+|content=
+{{Third_Party_Repository}}
+
+{{IconSet|h1|1}} Add the NVIDIA signing key. <ref>
+https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/debian.html
+</ref>
+
+{{apt_key_add_derivative
+|download_command=scurl-download https://developer.download.nvidia.com/compute/cuda/repos/debian{{Stable_project_version_based_on_Debian_version_short}}/x86_64/8793F200.pub
+|source_filename=8793F200.pub
+|target_filename=/usr/share/keyrings/cuda-archive-keyring.gpg
+|download_command_qubes_templatevm=http_proxy=http://127.0.0.1:8082 https_proxy=http://127.0.0.1:8082 scurl-download https://developer.download.nvidia.com/compute/cuda/repos/debian{{Stable_project_version_based_on_Debian_version_short}}/x86_64/8793F200.pub
+|gpg_fingerprint=0218 2E60 104F CDC2 6EAE  1B85 97A5 D4CB 8793 F200
+}}
+
+{{IconSet|h1|2}} Add the NVIDIA repository entry.
+
+{{CodeSelect|code=
+sudo overwrite /etc/apt/sources.list.d/nvidia.sources "Types: deb
+URIs: tor+https://developer.download.nvidia.com/compute/cuda/repos/debian{{Stable_project_version_based_on_Debian_version_short}}/x86_64/
+Suites: /
+Enabled: yes
+Signed-By: /usr/share/keyrings/cuda-archive-keyring.gpg"
+}}
+
+{{IconSet|h1|3}} Install the NVIDIA driver:
+
+{{Install_Package_Host|package=
+cuda-drivers
+}}
+
+{{IconSet|h1|4}} Secure Boot.
+
+To make the NVIDIA driver work after installation, Secure Boot keys must be re-enrolled. See [[Secure_Boot#Secure_Boot_DKMS_Signing_Key_Enrollment|Secure Boot DKMS Signing Key Enrollment]].
+}}
+}}
+
+=== Check NVIDIA Functionality ===
+
+To check whether the NVIDIA driver is functional, run:
+
+{{CodeSelect|code=
+sudo nvidia-smi
+}}
+}}
+}}
+
+= Issues =
+
+== Common Issues ==
+=== Security ===
+
+Whether you use the freedom software driver or the proprietary one, both add a large attack surface. Make sure you truly need a GPU for the work you are doing.
+
+== Specific Issues ==
+=== Sudden logout ===
+
+Because Nouveau runs by default in {{project_name_short}} (the Debian default), issues may occur at any time. A recent example is a sudden black login screen caused by Nouveau GSP crashing and terminating labwc, which is used in lxqt-wayland <ref>https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556
+</ref>.
+
+==== Symptoms ====
+
+If you check your [[Troubleshooting#Check_Systemd_Journal_Log_of_Previous_Boot|journalctl log of your previous boot]], has the following entries:
+
+<pre>
+localhost kernel: nouveau 0000:01:00.0: gsp: mmu fault queued
+localhost kernel: nouveau 0000:01:00.0: gsp: rc engn:00000001 chid:16 type:31 scope:1 part:233
+localhost kernel: nouveau 0000:01:00.0: fifo:c00000:0002:0010:[labwc[2244]] errored - disabling channel
+localhost kernel: nouveau 0000:01:00.0: labwc[2244]: channel 16 killed!
+</pre>
+
+==== Solutions ====
+* <u>Driver choice:</u> Choose one of the following solutions depending on whether you want to keep using Nouveau, switch to the proprietary driver, or disable Nouveau entirely.
+* <u>Hardware dependent:</u> Available solutions depend on hardware configuration.
+* <u>Prerequisite knowledge:</u>
+** <u>What is an iGPU:</u> An [https://en.wikipedia.org/wiki/Graphics_processing_unit#Integrated_graphics_processing_unit integrated GPU (iGPU)] is a graphics processor integrated into the CPU package or chipset. It often provides basic display output and power efficient graphics without requiring a separate graphics card.
+** <u>What is a dGPU:</u> A [https://en.wikipedia.org/wiki/Graphics_processing_unit#Discrete_graphics_processing_unit discrete GPU (dGPU)] is a separate graphics processor, such as a dedicated NVIDIA graphics card. Some systems use both (hybrid graphics): the iGPU can drive the laptop's internal display while the dGPU is used for higher performance rendering, or the dGPU may directly drive some or all display outputs.
+
+{{Tab
+|type=controller
+|content=
+
+{{Tab
+|title= =====Force software rendering (Pixman)=====
+|type=section
+|content=
+{{IntroLike|
+Follow the instructions in the chapter [[#Software_Rendering_(Pixman)|Software Rendering (Pixman)]]. This disables Nouveau acceleration and forces software rendering, which can work around Nouveau related rendering issues while keeping high display resolutions.
+}}
+
+{{box|text=
+'''Notes and limitations:'''
+
+Software rendering can be significantly slower than hardware acceleration. Expect increased CPU usage and reduced responsiveness, especially for high resolution displays, video playback, games, or 3D workloads.
+
+Some applications and desktop features may not work or may be degraded when hardware acceleration is disabled. If this option resolves the crash but causes unacceptable performance issues, consider the proprietary NVIDIA driver instead.
+
+In addition, some systems have an [https://en.wikipedia.org/wiki/Graphics_processing_unit#Integrated_graphics_processing_unit integrated GPU (iGPU)] and a [https://en.wikipedia.org/wiki/Graphics_processing_unit#Discrete_graphics_processing_unit discrete GPU (dGPU)]. On such systems, disabling acceleration or disabling drivers can affect which GPU is used for rendering and display output.
+}}
+}}
+
+{{Tab
+|title= =====Install NVIDIA Proprietary=====
+|type=section
+|content=
+{{IntroLike|
+You can install the proprietary NVIDIA driver as described above. This will disable Nouveau by default and use the proprietary driver instead, which does not suffer from this issue.
+}}
+}}
+
+{{Tab
+|title= =====Disable Nouveau=====
+|type=section
+|content=
+{{IntroLike|
+If you know you will not use your graphics card, then disabling Nouveau from running is the best option for stability (and also for security and software freedom, if the only alternative to make it work is a proprietary driver).
+}}
+
+{{box|text=
+'''Warning:''' Disabling Nouveau can result in no graphical output on some systems.
+
+This risk is higher on systems where the display outputs are wired to the NVIDIA GPU, or on systems without a working integrated GPU (for example, no iGPU, or the iGPU is disabled in firmware, or otherwise non-functioning).
+
+If the system's display output is provided by the NVIDIA dGPU, then disabling Nouveau (without installing the proprietary NVIDIA driver) can leave the system without a working graphics driver, resulting in a black screen or only a text console.
+
+See forum discussion:
+[https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/14 NVIDIA as the only graphics output]
+[https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/17 CPUs without integrated graphics are common]
+
+If you are unsure, prefer [[#Software_Rendering_(Pixman)|Software Rendering (Pixman)]] or the proprietary NVIDIA driver first. Ensure you have a recovery method available (for example, access to a TTY) before proceeding.
+}}
+
+{{IconSet|h2|1}} Block Nouveau from loading.
+
+{{CodeSelect|code=
+sudo overwrite /etc/modprobe.d/blacklist-nouveau.conf "blacklist nouveau
+options nouveau modeset=0"
+}}
+
+{{IconSet|h2|2}} Regenerate [[dracut]] initramfs.
+
+{{CodeSelect|code=
+sudo dracut -f
+}}
+
+{{IconSet|h2|3}} Reboot.
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+{{IconSet|h2|4}} Done.
+
+Nouveau has been blacklisted and will no longer load.
+}}
+}}
+
+= NVIDIA and Freedom Software =
+
+* {{IconSet|h1|A}} <u>Freedom software:</u> There is a freedom software driver for many NVIDIA GPUs: [[#NVIDIA_Freedom_Software_Nouveau_Driver|Nouveau]]. Nouveau is a reverse engineered driver because NVIDIA provides limited public hardware documentation. This lack of documentation makes it harder for the freedom software community to implement and maintain full feature support and performance (compared to vendors with more public documentation). <ref>
+https://en.wikipedia.org/wiki/Nouveau_(software)#Tools
+</ref>
+* {{IconSet|h1|B}} <u>Non-freedom:</u> NVIDIA hardware is proprietary (non-freedom). NVIDIA's official driver and much of its user space stack are also proprietary (non-freedom). This is often viewed as unfriendly to free/open-source software, and has led to public criticism. Linus Torvalds cursed NVIDIA in a well known talk at Aalto University ({{VideoLink|videoid=MShbP3OpASA|text=Aalto Talk with Linus Torvalds [Full-length]}}).
+
+= Footnotes =
+<references />
+{{Footer}}
+[[Category:Documentation]]

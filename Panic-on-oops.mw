@@ -1,0 +1,186 @@
+{{Header}}
+{{title|title=
+panic-on-oops
+}}
+{{#seo:
+|description=Configure kernel panic behavior on oopses and warnings using panic-on-oops.service.
+}}
+{{kernel_mininav}}
+{{intro|
+<code>panic-on-oops</code> configures kernel behavior to panic on both kernel oopses and kernel warnings (WARN() path) by setting sysctl values late in the boot process using <code>panic-on-oops.service</code>.
+}}
+
+= Introduction =
+
+* <u>What it does:</u> <code>panic-on-oops</code> is a security feature that forces a reboot when the system’s kernel reports a serious problem, instead of letting it keep running in an unknown state.
+* <u>What triggers it:</u> When enabled, the kernel is configured to immediately trigger a kernel panic when a kernel "oops" or certain kernel warnings occur.
+* <u>What you will see:</u> A kernel panic in this configuration results in a sudden, forced, unexpected reboot.
+* <u>Why it is useful:</u> This is usually helpful because it avoids running in a potentially unsafe or unreliable state.
+* <u>Possible issues:</u> In some cases, it can cause problems, such as reboots triggered by buggy drivers or hardware issues.
+* <u>Testing:</u> For troubleshooting or testing, you can temporarily disable <code>panic-on-oops</code>. After testing, it is recommended to re-enable it.
+
+= Usage =
+Select {{gui}} or {{cli}}.
+
+{{Tab
+|type=controller
+|linkid=panic-on-oops-usage
+|content=
+
+{{Tab
+|title= == GUI ==
+|content=
+[[System Maintenance Panel]] provides a button <code>Toggle Panic-on-Oops</code>. <ref>
+It launches:
+
+* <code>/usr/libexec/sysmaint-panel/toggle-panic-on-oops</code>
+
+This toggle script checks:
+
+* <code>systemctl is-enabled panic-on-oops.service</code>
+</ref>
+* <u>If enabled:</u> Disables and stops <code>panic-on-oops.service</code>.
+* <u>If disabled:</u> Enables and starts <code>panic-on-oops.service</code>.
+
+A visual confirmation about the <u>If enabled:</u> status (on or off) will be shown.
+
+TODO: add a screenshot for off
+
+TODO: add a screenshot for on
+}} <!-- close tab: GUI -->
+
+{{Tab
+|title= == CLI ==
+|content=
+=== Check status ===
+
+{{IconSet|h1|1}} Check whether the service is enabled.
+
+{{CodeSelect|code=
+systemctl is-enabled panic-on-oops.service
+}}
+
+{{IconSet|h1|2}} Check whether the service is active.
+
+{{CodeSelect|code=
+systemctl is-active panic-on-oops.service
+}}
+
+{{IconSet|h1|3}} Done.
+
+Service enablement and runtime status have been checked.
+
+=== Enable or disable using systemd ===
+
+{{IconSet|h1|1}} Enable and start the service.
+
+{{CodeSelect|code=
+sudo systemctl enable panic-on-oops.service
+sudo systemctl start panic-on-oops.service
+}}
+
+{{IconSet|h1|2}} Disable and stop the service.
+
+{{CodeSelect|code=
+sudo systemctl disable panic-on-oops.service
+sudo systemctl stop panic-on-oops.service
+}}
+
+{{IconSet|h1|3}} Done.
+
+The service has been enabled or disabled using systemd.
+}} <!-- close tab: CLI -->
+
+}} <!-- close tab controller: panic-on-oops-usage -->
+
+= Development =
+<div class="toccolours mw-collapsible mw-collapsed">
+Click "Learn More" on the right to show Development details.
+<div class="mw-collapsible-content">
+== Overview ==
+Kernel sysctl documentation for <code>oops_limit</code> and <code>warn_limit</code>: [https://docs.kernel.org/admin-guide/sysctl/kernel.html#oops-limit docs.kernel.org: kernel sysctl oops-limit] and [https://docs.kernel.org/admin-guide/sysctl/kernel.html#warn-limit docs.kernel.org: kernel sysctl warn-limit]
+
+The <code>security-misc-shared</code> package ships:
+
+* A helper script: <code>/usr/libexec/security-misc/panic-on-oops</code>
+* A systemd unit: <code>/usr/lib/systemd/system/panic-on-oops.service</code>
+* GRUB hardening configuration referencing <code>panic-on-oops</code>: <code>/etc/default/grub.d/40_kernel_hardening.cfg</code>
+
+When enabled and started, <code>panic-on-oops.service</code> runs the helper script to apply sysctl settings:
+
+* <code>kernel.oops_limit=1</code>
+* <code>kernel.warn_limit=1</code>
+
+These settings make the kernel panic on the first occurrence of an oops and on the first kernel warning (WARN() path). This can improve security in some threat models, but can also increase denial-of-service risk and may panic due to buggy drivers.
+
+In addition, <code>security-misc-shared</code> enables:
+
+* <code>kernel.panic=-1</code> (from <code>/usr/lib/sysctl.d/990-security-misc.conf</code>)
+
+This causes an immediate reboot after a kernel panic.
+
+== Helper script ==
+
+<code>/usr/libexec/security-misc/panic-on-oops</code> supports two actions:
+
+* <code>enable</code>
+* <code>disable</code>
+
+On <code>enable</code> it sets:
+
+* <code>kernel.oops_limit=1</code>
+* <code>kernel.warn_limit=1</code>
+
+On <code>disable</code> it sets:
+
+* <code>kernel.oops_limit=0</code>
+* <code>kernel.warn_limit=0</code>
+
+The script sources <code>/usr/libexec/helper-scripts/pre.bsh</code> if available, which can source configuration snippets from:
+
+* <code>/etc/panic-on-oops_pre.d/*.conf</code>
+* <code>/usr/local/etc/panic-on-oops_pre.d/*.conf</code>
+
+For example, <code>debug-misc</code> ships a config snippet:
+
+<code>/etc/panic-on-oops_pre.d/40_debug-misc.conf</code>
+
+with the contents:
+
+<pre>
+## Disable panic-on-oops by package security-misc-shared.
+exit 0
+</pre>
+
+This causes the helper script to exit successfully before applying sysctl settings, effectively disabling the behavior while leaving the service unit itself unchanged.
+
+== systemd service ==
+
+<code>/usr/lib/systemd/system/panic-on-oops.service</code>:
+
+* Is a <code>Type=oneshot</code> service with <code>RemainAfterExit=yes</code>
+* Applies settings at start:
+** <code>ExecStart=/usr/libexec/security-misc/panic-on-oops enable</code>
+* Reverts settings at stop:
+** <code>ExecStop=/usr/libexec/security-misc/panic-on-oops disable</code>
+
+It also includes:
+
+<code>ConditionKernelCommandLine=!panic-on-oops=0</code>
+
+Meaning: if the kernel command line contains <code>panic-on-oops=0</code>, the service will be skipped.
+
+== sysmaint-boot.target ==
+
+The sysmaint session target file contains a commented line:
+
+<code>#Wants=panic-on-oops.service</code>
+
+This indicates that <code>panic-on-oops.service</code> could be started as part of sysmaint sessions, but it is intentionally commented out in the shipped configuration.
+</div>
+</div>
+
+= References =
+{{reflist|close=1}}
+{{Footer}}
+[[Category:Documentation]]

@@ -3,16 +3,63 @@
 dracut
 }}
 {{#seo:
-|description=dracut, an initrd generator
+|description=dracut is an initial ramdisk (also called "initrd" or "initramfs") generator for Linux systems.
 |image=Dracut.svg
 }}
 {{troubleshooting_mininav}}
 [[File:Dracut.svg|thumb|100px|dracut logo]]
 {{intro|
-dracut, an initrd generator
+<code>dracut</code> is an initial ramdisk (also called <code>initrd</code> or <code>initramfs</code>) generator. It assembles the early userspace image used during boot.
 }}
 = Introduction =
-{{stub}}
+This page documents <code>dracut</code> usage, terminology, and common tasks such as checking which initrd generator is installed, installing <code>dracut</code>, and re-generating the initrd. It also highlights important warnings, typical pitfalls, and where to look for upstream development and bug reports.
+
+= Initial Ramdisk Based Encryption Password Prompt =
+{{quotation
+|quote=Please enter passphrase for disk ... (press TAB for no echo)
+}}
+
+'''Figure:''' ''initramfs (initramfs-tools or dracut) Based Encryption Password [[Full_Disk_Encryption#Pre-Boot_Authentication|Pre-Boot Authentication]] Prompt - Example (cropped)''
+
+[[File:Dracutpass-cropped.png|frameless|1200px|alt={{project_name_short}} GRUB|initramfs (dracut) Based Encryption Password Prompt]]
+
+'''Figure:''' ''initramfs (initramfs-tools or dracut) Based Encryption Password Prompt - Example (full)''
+
+[[File:dracutpass.png|600px]]
+
+This is related to [[Full Disk Encryption|{{fde}}]].
+
+= Terminology =
+{{anchor|show=true|initrd}}
+
+<code>initrd</code> is the <code>initial ramdisk</code>. It is a small filesystem used as part of the boot process to provide an early userspace environment, so the system can load drivers and mount the real {{os}} root filesystem. A common synonym is <code>initramfs</code>. <ref>
+[https://docs.kernel.org/filesystems/ramfs-rootfs-initramfs.html Linux kernel documentation: Ramfs, rootfs and initramfs]
+</ref> <ref>
+{{quotation
+|quote=Initramfs images are also called "initrd".
+|context=dracut man page
+}}
+</ref>
+
+In modern Linux systems, the <code>initramfs</code> is typically a compressed <code>cpio</code> archive that the kernel unpacks into RAM and then runs <code>/init</code> from. Older systems used an <code>initrd</code> image as a RAM disk style filesystem image. <ref>
+[https://docs.kernel.org/filesystems/ramfs-rootfs-initramfs.html Linux kernel documentation: Ramfs, rootfs and initramfs]
+</ref>
+
+{{anchor|show=true|exitrd}}
+
+<code>exitrd</code> <ref>
+[https://man.archlinux.org/man/bootup.7.en#THE_EXITRD Arch Linux bootup(7): THE_EXITRD]
+</ref> is the <code>shutdown ramdisk</code> (also called a <code>shutdown initramfs</code>). It is conceptually symmetrical to <code>initrd</code>, but it is not a standalone kernel feature: it is implemented in user space (most commonly by <code>systemd</code>). During late shutdown, if <code>/run/initramfs/shutdown</code> exists, <code>systemd</code> can switch root into <code>/run/initramfs</code> and execute <code>/shutdown</code> from there, so the old root filesystem can be unmounted cleanly and complex storage stacks can be dismantled. <ref>
+[https://man7.org/linux/man-pages/man7/bootup.7.html man7.org bootup(7): THE EXITRD]
+</ref> <ref>
+[https://www.freedesktop.org/wiki/Software/systemd/InitrdInterface/ systemd Initrd Interface: shutdown hook via /run/initramfs/shutdown]
+</ref>
+
+On systems using <code>dracut</code>, this commonly involves restoring (unpacking) an initramfs into <code>/run/initramfs</code> during shutdown, so it is available for the <code>exitrd</code> switch-root step. <ref>
+[https://man.archlinux.org/man/extra/dracut/dracut-shutdown.service.8.en dracut-shutdown.service(8): restore /run/initramfs on shutdown]
+</ref>
+
+A synonym is <code>initramfs-shutdown</code>.
 
 = Find out which initrd Generator is installed =
 
@@ -30,7 +77,7 @@ dpkg -l {{!}} grep initramfs-tools
 
 = Installation =
 
-'''1.''' Notices.
+{{IconSet|h1|1}} Notices.
 
 {{mbox
 | type    = notice
@@ -43,7 +90,7 @@ dpkg -l {{!}} grep initramfs-tools
 
 To check your currently installed initrd generator, see [[Dracut#Find_out_which_initrd_Generator_is_installed|Find out which initrd Generator is installed]].
 
-'''2.''' Warning.
+{{IconSet|h1|2}} Warning.
 
 {{mbox
 | image   = [[File:Ambox_warning_pn.svg.png|40px|warning]]
@@ -55,39 +102,53 @@ There is a risk of the system becoming unbootable due to changes in the initrd c
 * '''Dracut bug reports:''' If issues with <code>dracut</code> occur, do not report them here, as they are [[unspecific|unrelated to {{project_name_short}}]].
 }}
 
-'''3.''' Create folder <code>/etc/dracut.conf.d</code>.
+{{IconSet|h1|3}} Create folder <code>/etc/dracut.conf.d</code>.
 
 {{CodeSelect|code=
 sudo mkdir --parents /etc/dracut.conf.d
 }}
 
-'''4.''' {{Open with root rights|filename=
-/etc/dracut.conf.d/fix.conf
+{{IconSet|h1|4}} Create a new configuration file. <ref>
+File name '60_user.conf' is important to override the configuration file 50-generic.conf by package 'dracut-config-generic', if installed.
+</ref>
+
+{{Open with root rights|filename=
+/etc/dracut.conf.d/60_user.conf
 }}
 
-'''5.''' Paste.
+{{IconSet|h1|5}} Paste.
 
 {{CodeSelect|code=
 hostonly=yes
 hostonly_mode=sloppy
 }}
 
-'''6.''' Save.
+{{IconSet|h1|6}} Save.
 
-'''7.''' Install <code>dracut</code> <u>and</u> systemd-cryptsetup.
+{{IconSet|h1|7}} Install <code>dracut</code> <u>and</u> systemd-cryptsetup.
 
 {{CodeSelect|code=
 sudo apt install --no-install-recommends dracut systemd-cryptsetup
 }}
 
-'''8.''' Done.
+{{IconSet|h1|8}} Done.
 
 Installation of <code>dracut</code> has been completed.
 
 = Re-Generate dracut Initrd =
+
+{{IconSet|h1|1}} Run.
+
 {{CodeSelect|code=
 sudo dracut -f
 }}
+
+{{IconSet|h1|2}} Done.
+
+The dracut initrd has been re-generated.
+
+= Development =
+* [https://systemd.io/INITRD_INTERFACE/ The initrd Interface of systemd]
 
 = Bugs =
 * '''Specific risk:''' Issues may occur during migration to <code>dracut</code> if full disk encryption is used.
@@ -99,7 +160,7 @@ sudo dracut -f
 * <u><code>dracut</code> (abandoned)</u>
 ** [https://github.com/dracutdevs/dracut/pull/2520 fix(crypt): Encrypted root FS handling with generic initrd #2520] (abandoned pull request for dracut)
 ** [https://github.com/dracutdevs/dracut/issues/2437 Generic initrd does not work with encrypted root FS without further configuration]
-* <code>dracut-ng</code> upstream bug reports and pull requests:
+* <u><code>dracut-ng</code> (maintained)</u> upstream bug reports and pull requests:
 ** [https://github.com/dracut-ng/dracut-ng/issues/684 With encrypted root + unencrypted boot + systemd, dracut may generate an initrd incapable of decrypting the root disk without showing any warnings or errors #684]
 ** [https://github.com/dracut-ng/dracut-ng/pull/319 fix(systemd-crypt): add potentially needed modules to generic initrd #319]
 ** [https://github.com/dracut-ng/dracut-ng/pull/320 fix(crypt): unlock encrypted devices by default during boot #320]

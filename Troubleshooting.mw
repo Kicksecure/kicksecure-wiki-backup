@@ -36,6 +36,12 @@ broken:
 
 == Live ISO Known Issues ==
 === balenaEtcher ===
+Privacy issue:
+
+User report [https://forums.kicksecure.com/t/balenaetcher-shares-sensitive-information-to-the-balena-company/1558 balenaEtcher shares sensitive information to the Balena company] and [[Download Security]] wiki chapter [[Download_Security#balanaEtcher|balanaEtcher]].
+
+Technical issue:
+
 Platform specific.
 
 * '''A)''' <u>Non-Windows</u> host operating systems such as macOS or Linux: No special notice.
@@ -522,19 +528,608 @@ If <code>memtest86+</code> identified any issues, these can manifest in various 
 }}
 
 == Hard Drive Health Check ==
-TODO: document this.
+=== S.M.A.R.T ===
+S.M.A.R.T. is a monitoring system built directly into the firmware of almost every modern hard disk drive. When you run a tool like smartctl or GSmartControl, you are asking the drive to report these internal logs.
 
-also known as S.M.A.R.T
+* Note (1): Most tools require <code>sudo</code> to run, so execute these commands on sysmaint.
 
-* smartmontools
-* gsmartcontrol
-* smart-notifier
-* nvme-cli
-* package: gnome-disk-utility run: gnome-disks
-* https://packages.debian.org/bookworm/lm-sensors
-* https://packages.debian.org/bookworm/plasma-disks
-* https://packages.debian.org/bookworm/psensor
-* https://wiki.debian.org/SystemMonitoring
+* Note (2): In rare cases, older hard disk firmware may not report these logs, or S.M.A.R.T. cannot read the data.
+
+==== smartmontools ====
+
+Package name in the command line: <code>smartctl</code>
+
+List your block devices:
+
+If your hard drive is an SSD (not NVMe), you will see <code>/dev/sda</code> reading:
+
+{{CodeSelect|code=
+lsblk
+}}
+
+<pre>
+[sysmaint ~]% lsblk 
+NAME        MAJ:MIN RM   SIZE RO TYPE MOUNTPOINTS
+sda           8:0    0 476.9G  0 disk 
+├─sda1        8:1    0   4G  0 part /boot
+├─sda2        8:2    0 472.9G  0 part /
+</pre>
+
+If your hard drive is NVMe you will see <code>nvme0</code>:
+
+<pre>
+nvme0n1     259:0    0 953.9G  0 disk 
+└─nvme0n1p1 259:1    0 953.9G  0 part 
+nvme1n1     259:2    0 953.9G  0 disk 
+├─nvme1n1p1 259:3    0   200M  0 part 
+├─nvme1n1p2 259:4    0    16M  0 part 
+├─nvme1n1p3 259:5    0 952.9G  0 part 
+└─nvme1n1p4 259:6    0   735M  0 part
+</pre>
+
+So, depending on your hard drive type, you will use the appropriate argument with the tool:
+
+{{CodeSelect|code=
+sudo smartctl -a /dev/nvme0
+}}
+
+<pre>
+[sysmaint ~]% sudo smartctl -a /dev/nvme0
+smartctl 7.5 2025-04-30 r5714 [x86_64-linux-6.18.5+deb14-amd64] (local build)
+Copyright (C) 2002-25, Bruce Allen, Christian Franke, www.smartmontools.org
+                                                                                                                                                                                                                  
+=== START OF INFORMATION SECTION ===                                                                                                                                                                              
+Model Number:                       SAMSUNG MZVL81T0HELB-00BH1                                                                                                                                                    
+Serial Number:                      S79UNX0XA46408                                                                                                                                                                
+Firmware Version:                   HPS3NKXM                                                                                                                                                                      
+PCI Vendor/Subsystem ID:            0x144d                                                                                                                                                                        
+IEEE OUI Identifier:                0x002538                                                                                                                                                                      
+Total NVM Capacity:                 1,024,209,543,168 [1.02 TB]                                                                                                                                                   
+Unallocated NVM Capacity:           0                                                                                                                                                                             
+Controller ID:                      1                                                                                                                                                                             
+NVMe Version:                       2.0                                                                                                                                                                           
+Number of Namespaces:               1                                                                                                                                                                             
+Namespace 1 Size/Capacity:          1,024,209,543,168 [1.02 TB]
+Namespace 1 Utilization:            129,641,730,048 [129 GB]
+Namespace 1 Formatted LBA Size:     512
+Namespace 1 IEEE EUI-64:            002538 4a41b15fca
+Local Time is:                      Sun Feb  1 19:51:07 2026 EST
+Firmware Updates (0x16):            3 Slots, no Reset required
+Optional Admin Commands (0x0057):   Security Format Frmw_DL Self_Test MI_Snd/Rec
+Optional NVM Commands (0x00df):     Comp Wr_Unc DS_Mngmt Wr_Zero Sav/Sel_Feat Timestmp Verify
+Log Page Attributes (0x2f):         S/H_per_NS Cmd_Eff_Lg Ext_Get_Lg Telmtry_Lg Log0_FISE_MI
+Maximum Data Transfer Size:         128 Pages
+Warning  Comp. Temp. Threshold:     85 Celsius
+Critical Comp. Temp. Threshold:     85 Celsius
+
+Supported Power States
+St Op     Max   Active     Idle   RL RT WL WT  Ent_Lat  Ex_Lat
+ 0 +     5.05W       -        -    0  0  0  0        0       0
+ 1 +     2.93W       -        -    1  1  1  1        0       0
+ 2 +     1.54W       -        -    2  2  2  2        0       0
+ 3 -   0.0700W       -        -    3  3  3  3     3000    8500
+ 4 -   0.0050W       -        -    4  4  4  4     3500   46000
+
+Supported LBA Sizes (NSID 0x1)
+Id Fmt  Data  Metadt  Rel_Perf
+ 0 +     512       0         0
+ 1 -    4096       0         0
+
+=== START OF SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+
+SMART/Health Information (NVMe Log 0x02, NSID 0xffffffff)
+Critical Warning:                   0x00
+Temperature:                        37 Celsius
+Available Spare:                    100%
+Available Spare Threshold:          5%
+Percentage Used:                    0%
+Data Units Read:                    4,164,393 [2.13 TB]
+Data Units Written:                 6,451,885 [3.30 TB]
+Host Read Commands:                 42,873,546
+Host Write Commands:                46,909,935
+Controller Busy Time:               191
+Power Cycles:                       189
+Power On Hours:                     211
+Unsafe Shutdowns:                   31
+Media and Data Integrity Errors:    0
+Error Information Log Entries:      0
+Warning  Comp. Temperature Time:    0
+Critical Comp. Temperature Time:    0
+Temperature Sensor 1:               37 Celsius
+Temperature Sensor 2:               37 Celsius
+
+Error Information (NVMe Log 0x01, 16 of 64 entries)
+No Errors Logged
+
+Self-test Log (NVMe Log 0x06, NSID 0xffffffff)
+Self-test status: No self-test in progress
+No Self-tests Logged
+</pre>
+
+* Note: If your operating system is installed on an external hard drive connected via a USB port, the tool will not be able to read the USB device on which the operating system is installed <ref>https://www.smartmontools.org/wiki/SAT-with-UAS-Linux</ref>.
+
+It will show something like this reading:
+
+<pre>
+[sysmaint ~]% sudo smartctl -a /dev/sda
+smartctl 7.5 2025-04-30 r5714 [x86_64-linux-6.18.5+deb14-amd64] (local build)
+Copyright (C) 2002-25, Bruce Allen, Christian Franke, www.smartmontools.org
+
+Read Device Identity failed: scsi error unsupported field in scsi command
+
+If this is a USB connected device, look at the various --device=TYPE variants
+A mandatory SMART command failed: exiting. To continue, add one or more '-T permissive' options.
+</pre>
+
+There are several tests you can run with the tool (short, long, offline, etc). We will use the short test argument:
+
+{{CodeSelect|code=
+sudo smartctl -t short /dev/nvme0
+}}
+
+<pre>
+[sysmaint ~]% sudo smartctl -t short /dev/nvme0
+smartctl 7.5 2025-04-30 r5714 [x86_64-linux-6.18.5+deb14-amd64] (local build)
+Copyright (C) 2002-25, Bruce Allen, Christian Franke, www.smartmontools.org
+
+Self-test has begun (NSID 0xffffffff)
+Use smartctl -X to abort test
+</pre>
+
+This will take approximately 2 minutes. After that, you will be able to view the results:
+
+{{CodeSelect|code=
+sudo smartctl -l selftest /dev/nvme0
+}}
+
+<pre>
+[sysmaint ~]% sudo smartctl -l selftest /dev/nvme0
+smartctl 7.5 2025-04-30 r5714 [x86_64-linux-6.18.5+deb14-amd64] (local build)
+Copyright (C) 2002-25, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF SMART DATA SECTION ===
+Self-test Log (NVMe Log 0x06, NSID 0xffffffff)
+Self-test status: No self-test in progress
+Num  Test_Description  Status                       Power_on_Hours  Failing_LBA  NSID Seg SCT Code
+ 0   Short             Completed without error                 211            -     -   -   -    -
+
+</pre>
+
+It can also be seen at the end of the report generated by <code>smartctl -a</code>.
+
+<pre>
+[sysmaint ~]% sudo smartctl -a /dev/nvme0
+smartctl 7.5 2025-04-30 r5714 [x86_64-linux-6.18.5+deb14-amd64] (local build)
+Copyright (C) 2002-25, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Model Number:                       SAMSUNG MZVL81T0HELB-00BH1
+Serial Number:                      S79UNX0XA46408
+Firmware Version:                   HPS3NKXM
+PCI Vendor/Subsystem ID:            0x144d
+IEEE OUI Identifier:                0x002538
+Total NVM Capacity:                 1,024,209,543,168 [1.02 TB]
+Unallocated NVM Capacity:           0
+Controller ID:                      1
+NVMe Version:                       2.0
+Number of Namespaces:               1
+Namespace 1 Size/Capacity:          1,024,209,543,168 [1.02 TB]
+Namespace 1 Utilization:            129,641,730,048 [129 GB]
+Namespace 1 Formatted LBA Size:     512
+Namespace 1 IEEE EUI-64:            002538 4a41b15fca
+Local Time is:                      Sun Feb  1 20:08:24 2026 EST
+Firmware Updates (0x16):            3 Slots, no Reset required
+Optional Admin Commands (0x0057):   Security Format Frmw_DL Self_Test MI_Snd/Rec
+Optional NVM Commands (0x00df):     Comp Wr_Unc DS_Mngmt Wr_Zero Sav/Sel_Feat Timestmp Verify
+Log Page Attributes (0x2f):         S/H_per_NS Cmd_Eff_Lg Ext_Get_Lg Telmtry_Lg Log0_FISE_MI
+Maximum Data Transfer Size:         128 Pages
+Warning  Comp. Temp. Threshold:     85 Celsius
+Critical Comp. Temp. Threshold:     85 Celsius
+
+Supported Power States
+St Op     Max   Active     Idle   RL RT WL WT  Ent_Lat  Ex_Lat
+ 0 +     5.05W       -        -    0  0  0  0        0       0
+ 1 +     2.93W       -        -    1  1  1  1        0       0
+ 2 +     1.54W       -        -    2  2  2  2        0       0
+ 3 -   0.0700W       -        -    3  3  3  3     3000    8500
+ 4 -   0.0050W       -        -    4  4  4  4     3500   46000
+
+Supported LBA Sizes (NSID 0x1)
+Id Fmt  Data  Metadt  Rel_Perf
+ 0 +     512       0         0
+ 1 -    4096       0         0                                                                                                                                                                                    
+                                                                                                                                                                                                                  
+=== START OF SMART DATA SECTION ===                                                                                                                                                                               
+SMART overall-health self-assessment test result: PASSED                                                                                                                                                          
+                                                                                                                                                                                                                  
+SMART/Health Information (NVMe Log 0x02, NSID 0xffffffff)                                                                                                                                                         
+Critical Warning:                   0x00                                                                                                                                                                          
+Temperature:                        38 Celsius                                                                                                                                                                    
+Available Spare:                    100%                                                                                                                                                                          
+Available Spare Threshold:          5%                                                                                                                                                                            
+Percentage Used:                    0%                                                                                                                                                                            
+Data Units Read:                    4,164,393 [2.13 TB]                                                                                                                                                           
+Data Units Written:                 6,451,885 [3.30 TB]
+Host Read Commands:                 42,873,546
+Host Write Commands:                46,909,935
+Controller Busy Time:               191
+Power Cycles:                       189
+Power On Hours:                     211
+Unsafe Shutdowns:                   31
+Media and Data Integrity Errors:    0
+Error Information Log Entries:      0
+Warning  Comp. Temperature Time:    0
+Critical Comp. Temperature Time:    0
+Temperature Sensor 1:               38 Celsius
+Temperature Sensor 2:               38 Celsius
+
+Error Information (NVMe Log 0x01, 16 of 64 entries)
+No Errors Logged
+
+Self-test Log (NVMe Log 0x06, NSID 0xffffffff)
+Self-test status: No self-test in progress
+Num  Test_Description  Status                       Power_on_Hours  Failing_LBA  NSID Seg SCT Code
+ 0   Short             Completed without error                 211            -     -   -   -    -
+</pre>
+
+==== gsmartcontrol ====
+Graphical Interface for <code>smartctl</code>.
+
+Package name in the command line: <code>gsmartcontrol-root</code>
+
+Broken in Kicksecure at the moment of writing.
+
+Packages that show the same results (but more desktop environment linked):
+
+* [https://packages.debian.org/stable/plasma-disks Plasma Disks]
+
+* [https://packages.debian.org/trixie/gnome-disk-utility GNOME Disks]
+
+==== smart-notifier ====
+
+Broken in Kicksecure at the time of writing.
+
+=== Not S.M.A.R.T But useful ===
+
+==== nvme-cli ====
+
+Package name in the command line: <code>nvme</code>
+
+{{CodeSelect|code=
+sudo nvme smart-log /dev/nvme0
+}}
+
+<pre>
+user@host:~$ sudo nvme smart-log /dev/nvme0
+Smart Log for NVME device:nvme0 namespace-id:ffffffff
+critical_warning                        : 0
+temperature                             : 34 °C (307 K, 93 °F)
+available_spare                         : 100%
+available_spare_threshold               : 5%
+percentage_used                         : 0%
+endurance group critical warning summary: 0
+Data Units Read                         : 4185714 (2.14 TB)
+Data Units Written                      : 6459962 (3.31 TB)
+host_read_commands                      : 43074574
+host_write_commands                     : 47025980
+controller_busy_time                    : 191
+power_cycles                            : 191
+power_on_hours                          : 213
+unsafe_shutdowns                        : 31
+media_errors                            : 0
+num_err_log_entries                     : 0
+Warning Temperature Time                : 0
+Critical Composite Temperature Time     : 0
+Temperature Sensor 1                    : 34 °C (307 K, 93 °F)
+Temperature Sensor 2                    : 34 °C (307 K, 93 °F)
+Thermal Management T1 Trans Count       : 0
+Thermal Management T2 Trans Count       : 0
+Thermal Management T1 Total Time        : 0
+Thermal Management T2 Total Time        : 0
+</pre>
+
+==== Linux monitoring sensors (lm-sensors) ====
+
+Package name in the command line: <code>sensors-detect</code> and <code>sensors</code>
+
+First, let the tool scan and detect the hardware sensors:
+
+{{CodeSelect|code=
+sudo sensors-detect
+}}
+
+Then answer all of the questions with '''YES''':
+
+<pre>
+[sysmaint ~]% sudo sensors-detect      
+# sensors-detect version 3.6.2
+# System: LENOVO 7458WX3 [ThinkPad X200] (laptop)
+# Kernel: 6.12.63+deb13-amd64 x86_64
+# Processor: Intel(R) Core(TM)2 Duo CPU P8400 @ 2.26GHz (6/23/10)
+
+This program will help you determine which kernel modules you need
+to load to use lm_sensors most effectively. It is generally safe
+and recommended to accept the default answers to all questions,
+unless you know what you're doing.
+
+Some south bridges, CPUs or memory controllers contain embedded sensors.
+Do you want to scan for them? This is totally safe. (YES/no): yes
+Module cpuid loaded successfully.
+Silicon Integrated Systems SIS5595...                       No
+VIA VT82C686 Integrated Sensors...                          No
+VIA VT8231 Integrated Sensors...                            No
+AMD K8 thermal sensors...                                   No
+AMD Family 10h thermal sensors...                           No
+AMD Family 11h thermal sensors...                           No
+AMD Family 12h and 14h thermal sensors...                   No
+AMD Family 15h thermal sensors...                           No
+AMD Family 16h thermal sensors...                           No
+AMD Family 17h thermal sensors...                           No
+AMD Family 15h power sensors...                             No
+AMD Family 16h power sensors...                             No
+Hygon Family 18h thermal sensors...                         No
+AMD Family 19h thermal sensors...                           No
+Intel digital thermal sensor...                             Success!
+    (driver `coretemp')
+Intel AMB FB-DIMM thermal sensor...                         No
+Intel 5500/5520/X58 thermal sensor...                       No
+VIA C7 thermal sensor...                                    No
+VIA Nano thermal sensor...                                  No
+
+Some Super I/O chips contain embedded sensors. We have to write to
+standard I/O ports to probe them. This is usually safe.
+Do you want to scan for Super I/O sensors? (YES/no): yes
+Probing for Super-I/O at 0x2e/0x2f
+Trying family `National Semiconductor/ITE'...               No
+Trying family `SMSC'...                                     No
+Trying family `VIA/Winbond/Nuvoton/Fintek'...               No
+Trying family `ITE'...                                      No
+Probing for Super-I/O at 0x4e/0x4f
+Trying family `National Semiconductor/ITE'...               No
+Trying family `SMSC'...                                     No
+Trying family `VIA/Winbond/Nuvoton/Fintek'...               No
+Trying family `ITE'...                                      No
+
+Some hardware monitoring chips are accessible through the ISA I/O ports.
+We have to write to arbitrary I/O ports to probe them. This is usually
+safe though. Yes, you do have ISA I/O ports even if you do not have any
+ISA slots! Do you want to scan the ISA I/O ports? (YES/no): yes
+Probing for `National Semiconductor LM78' at 0x290...       No
+Probing for `National Semiconductor LM79' at 0x290...       No
+Probing for `Winbond W83781D' at 0x290...                   No
+Probing for `Winbond W83782D' at 0x290...                   No
+
+Lastly, we can probe the I2C/SMBus adapters for connected hardware
+monitoring devices. This is the most risky part, and while it works
+reasonably well on most systems, it has been reported to cause trouble
+on some systems.
+Do you want to probe the I2C/SMBus adapters now? (YES/no): yes
+Using driver `i2c-i801' for device 0000:00:1f.3: Intel ICH9
+Module i2c-dev loaded successfully.
+
+Next adapter: SMBus I801 adapter at 1c60 (i2c-0)
+Do you want to scan it? (YES/no/selectively): yes
+Client found at address 0x5c
+Probing for `Analog Devices ADT7462'...                     No
+Probing for `SMSC EMC1072'...                               No
+Probing for `SMSC EMC1073'...                               No
+Probing for `SMSC EMC1074'...                               No
+
+Next adapter: i915 gmbus ssc (i2c-1)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: i915 gmbus vga (i2c-2)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: i915 gmbus panel (i2c-3)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: i915 gmbus dpc (i2c-4)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: i915 gmbus dpb (i2c-5)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: i915 gmbus dpd (i2c-6)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: AUX B/DP B (i2c-7)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: AUX C/DP C (i2c-8)
+Do you want to scan it? (yes/NO/selectively): yes
+
+Next adapter: AUX D/DP D (i2c-9)
+Do you want to scan it? (yes/NO/selectively): yes
+
+
+Now follows a summary of the probes I have just done.
+Just press ENTER to continue: 
+
+Driver `coretemp':
+  * Chip `Intel digital thermal sensor' (confidence: 9)
+
+To load everything that is needed, add this to /etc/modules:
+#----cut here----
+# Chip drivers
+coretemp
+#----cut here----
+If you have some drivers built into your kernel, the list above will
+contain too many modules. Skip the appropriate ones!
+
+Do you want to add these lines automatically to /etc/modules? (yes/NO)yes
+Successful!
+
+Monitoring programs won't work until the needed modules are
+loaded. You may want to run '/etc/init.d/kmod start'
+to load them.
+
+Unloading i2c-dev... OK
+Unloading cpuid... OK
+</pre>
+
+Load the module that was created (in this case, coretemp):
+
+{{CodeSelect|code=
+sudo modprobe coretemp
+}}
+
+Then regenerate dracut initramfs:
+
+{{CodeSelect|code=
+sudo dracut -f
+}}
+
+<pre>
+[sysmaint ~]% sudo modprobe coretemp
+[sysmaint ~]% sudo dracut -f        
+dracut[I]: Executing: /usr/bin/dracut -f
+dracut[I]: 62bluetooth: Could not find any command of '/usr/lib/bluetooth/bluetoothd /usr/libexec/bluetooth/bluetoothd'!
+dracut[I]: 62bluetooth: Could not find any command of '/usr/lib/bluetooth/bluetoothd /usr/libexec/bluetooth/bluetoothd'!
+dracut[I]: *** Including module: dash ***
+dracut[I]: *** Including module: systemd ***
+dracut[I]: *** Including module: systemd-ask-password ***
+dracut[I]: *** Including module: systemd-battery-check ***
+dracut[I]: *** Including module: systemd-initrd ***
+dracut[I]: *** Including module: systemd-journald ***
+dracut[I]: *** Including module: systemd-modules-load ***
+dracut[I]: *** Including module: systemd-pcrphase ***
+dracut[I]: *** Including module: systemd-sysctl ***
+dracut[I]: *** Including module: systemd-tmpfiles ***
+dracut[I]: *** Including module: systemd-udevd ***
+dracut[I]: *** Including module: console-setup ***
+dracut[I]: *** Including module: i18n ***
+dracut[I]: *** Including module: ram-wipe ***
+dracut[I]: *** Including module: systemd-sysusers ***
+Creating group 'tty' with GID 5.
+Creating group 'disk' with GID 6.
+Creating group 'man' with GID 12.
+Creating group 'kmem' with GID 15.
+Creating group 'dialout' with GID 20.
+Creating group 'fax' with GID 21.
+Creating group 'voice' with GID 22.
+Creating group 'cdrom' with GID 24.
+Creating group 'floppy' with GID 25.
+Creating group 'tape' with GID 26.
+Creating group 'sudo' with GID 27.
+Creating group 'audio' with GID 29.
+Creating group 'dip' with GID 30.
+Creating group 'operator' with GID 37.
+Creating group 'src' with GID 40.
+Creating group 'shadow' with GID 42.
+Creating group 'video' with GID 44.
+Creating group 'sasl' with GID 45.
+Creating group 'plugdev' with GID 46.
+Creating group 'staff' with GID 50.
+Creating group 'games' with GID 60.
+Creating group 'users' with GID 100.
+Creating group 'nogroup' with GID 65534.
+Creating group 'systemd-journal' with GID 999.
+Creating user 'root' (n/a) with UID 0 and GID 0.
+Creating group 'daemon' with GID 1.
+Creating user 'daemon' (n/a) with UID 1 and GID 1.
+Creating group 'bin' with GID 2.
+Creating user 'bin' (n/a) with UID 2 and GID 2.
+Creating group 'sys' with GID 3.
+Creating user 'sys' (n/a) with UID 3 and GID 3.
+Creating user 'sync' (n/a) with UID 4 and GID 65534.
+Creating user 'games' (n/a) with UID 5 and GID 60.
+Creating user 'man' (n/a) with UID 6 and GID 12.
+Creating group 'lp' with GID 7.
+Creating user 'lp' (n/a) with UID 7 and GID 7.
+Creating group 'mail' with GID 8.
+Creating user 'mail' (n/a) with UID 8 and GID 8.
+Creating group 'news' with GID 9.
+Creating user 'news' (n/a) with UID 9 and GID 9.
+Creating group 'uucp' with GID 10.
+Creating user 'uucp' (n/a) with UID 10 and GID 10.
+Creating group 'proxy' with GID 13.
+Creating user 'proxy' (n/a) with UID 13 and GID 13.
+Creating group 'www-data' with GID 33.
+Creating user 'www-data' (n/a) with UID 33 and GID 33.
+Creating group 'backup' with GID 34.
+Creating user 'backup' (n/a) with UID 34 and GID 34.
+Creating group 'list' with GID 38.
+Creating user 'list' (n/a) with UID 38 and GID 38.
+Creating group 'irc' with GID 39.
+Creating user 'irc' (n/a) with UID 39 and GID 39.
+Creating user '_apt' (n/a) with UID 42 and GID 65534.
+Creating user 'nobody' (n/a) with UID 65534 and GID 65534.
+dracut[I]: *** Including module: kernel-modules ***
+dracut[I]: *** Including module: kernel-modules-extra ***
+dracut[I]: *** Including module: overlay-root ***
+dracut[I]: *** Including module: rootfs-block ***
+dracut[I]: *** Including module: terminfo ***
+dracut[I]: *** Including module: udev-rules ***
+dracut[I]: *** Including module: dracut-systemd ***
+dracut[I]: *** Including module: usrmount ***
+dracut[I]: *** Including module: base ***
+dracut[I]: *** Including module: fs-lib ***
+dracut[I]: *** Including module: shell-interpreter ***
+dracut[I]: *** Including module: shutdown ***
+dracut[I]: *** Including modules done ***
+dracut[I]: *** Installing kernel module dependencies ***
+dracut[I]: *** Installing kernel module dependencies done ***
+dracut[I]: *** Resolving executable dependencies ***
+dracut[I]: *** Resolving executable dependencies done ***
+dracut[I]: *** Hardlinking files ***
+dracut[I]: *** Hardlinking files done ***
+dracut[I]: *** Generating early-microcode cpio image ***
+dracut[I]: *** Constructing GenuineIntel.bin ***
+dracut[I]: *** Store current command line parameters ***
+dracut[I]: Stored kernel commandline:
+dracut[I]:  root=UUID=269616d0-0d6e-429c-8ce7-d0049d026330 rootfstype=overlay rootflags=rw,noatime,lowerdir=/live/image,upperdir=/cow/rw,workdir=/cow/work,default_permissions,uuid=on
+dracut[I]: *** Stripping files ***
+dracut[I]: *** Stripping files done ***
+dracut[I]: *** Creating image file '/boot/initrd.img-6.12.63+deb13-amd64' ***
+dracut[I]: *** Creating initramfs image file '/boot/initrd.img-6.12.63+deb13-amd64' done ***
+dracut[W]: Could not fsfreeze /boot
+</pre>
+
+run <code>sensors</code>:
+
+{{CodeSelect|code=
+sensors
+}}
+
+<pre>
+[sysmaint ~]% sensors 
+thinkpad-isa-0000
+Adapter: ISA adapter
+fan1:        3405 RPM
+fan2:        3405 RPM
+CPU:          +43.0°C  
+GPU:          +42.0°C  
+temp3:            N/A  
+temp4:        +46.0°C  
+temp5:            N/A  
+temp6:            N/A  
+temp7:            N/A  
+temp8:            N/A  
+pwm1:            128%
+
+acpitz-acpi-0
+Adapter: ACPI interface
+temp1:        +43.0°C  
+temp2:        +44.0°C  
+
+coretemp-isa-0000
+Adapter: ISA adapter
+Core 0:       +44.0°C  (crit = +105.0°C)
+</pre>
+
+==== Psensor ====
+
+Graphical interface for temperature sensors.
+
+[[File:psensor1.png|400px]]
+
+[[File:psensor2.png|800px]]
+
+=== More tools ===
+
+More tools can be viewed on Debian [https://wiki.debian.org/SystemMonitoring system monitoring page].
 
 = See Also =
 

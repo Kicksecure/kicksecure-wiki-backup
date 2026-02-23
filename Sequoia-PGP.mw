@@ -1,0 +1,192 @@
+{{header}}
+{{intro|
+todo
+}}
+{{stub}}
+
+= Information =
+* machine readable sq already exists: sqop
+
+= Qubes =
+== Qubes split-gpg-1 removal ==
+If you never used split-gpg-1, just make sure to package qubes-gpg-split (split-gpg-1) is not installing by attempting to purge it using APT.
+
+{{CodeSelect|code=
+sudo apt purge qubes-gpg-split
+}}
+
+If you used split-gpg-1 before, make sure the following envronment variables are no longer set.
+
+* {{CodeSelect|inline=true|code=
+QUBES_GPG_DOMAIN
+}}
+* {{CodeSelect|inline=true|code=
+QUBES_GPG_AUTOACCEPT
+}}
+
+Note, that split-gpg-1 is no longer using <code>qubes-gpg-client-wrapper</code> since split-gpg-2 is nowadays based on <code>gpg-agent</code>. Therefore if any applications such as Thunderbird or any configuration files such as <code>~/.gitconfig</code> are still using <code>qubes-gpg-client-wrapper</code>, this setting needs to be reverted.
+
+== non-existing gpg-g10-code gnupg home folder ==
+A completely non-existing <code>~/.gnupg</code> folder is probably causing breakage.
+
+Command.
+
+{{CodeSelect|code=
+sq sign --signature-notation testvar testcontent --signer 916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA --signature-file=/home/sysmaint/derivative-binary/test_sign_file.asc -- /home/sysmaint/derivative-binary/test_sign_file
+}}
+
+Symptom.
+
+<pre>
+  Error: 916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA was not considered because
+         it is: missing the secret key
+         6E979B28A6F37C43BE30AFA1CB8D50BB77BB3C48 was not considered because
+         it is: missing the secret key
+because: Found no suitable key on 916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA
+</pre>
+
+Workaround:
+
+{{CodeSelect|code=
+gpg-g10code --import /usr/share/keyrings/derivative.asc
+}}
+
+== subkey has no binding to main key ==
+
+{{CodeSelect|code=
+sq cert list 6E979B28A6F37C43BE30AFA1CB8D50BB77BB3C48
+}}
+
+<pre>
+No bindings matching "6E979B28A6F37C43BE30AFA1CB8D50BB77BB3C48" could be
+authenticated.
+  - Warning: 6E979B28A6F37C43BE30AFA1CB8D50BB77BB3C48 appears to be a subkey of
+    916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA
+1 binding found.
+Skipped 1 binding, which is unusable.
+
+  Error: No bindings matching the query could be authenticated.
+zsh: exit 1     sq cert list 6E979B28A6F37C43BE30AFA1CB8D50BB77BB3C48
+</pre>
+
+Is this even an issue?
+
+== git merge ==
+{{CodeSelect|code=
+git merge branch [redacted]
+}}
+
+Symptom:
+
+<pre>
+fatal: Commit [redacted] has an untrusted GPG signature, allegedly by [redacted]
+</pre>
+
+Cause:
+
+sq pki link add is insufficient. Import into gpg(sq) trust store is required.
+
+Note: Replace keyfingerprint with the actual key fingerprint.
+
+{{CodeSelect|code=
+echo "keyfingerprint:6:" | gpg --import-ownertrust
+}}
+
+== key was not considered because it is: missing the secret key ==
+
+{{CodeSelect|code=
+sq sign --signature-notation testvar testcontent --signer 916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA --signature-file=/home/user/derivative-binary/test_sign_file.asc -- /home/user/derivative-binary/test_sign_file
+}}
+
+<pre>
+  Error: 916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA was not considered because
+         it is: missing the secret key
+         6E979B28A6F37C43BE30AFA1CB8D50BB77BB3C48 was not considered because
+         it is: missing the secret key
+because: Found no suitable key on 916B8D99C38EAF5E8ADC7A2A8D66066A2EEACCDA
+</pre>
+
+<code>killall gpg-agent</code> in split-gpg-2 server VM and deletion of folder <code>~/.gnupg/qubes-auto-keyring</code> in split-gpg-2 server VM fixed this.
+
+'''1.''' In split-gpg-2 server VM.
+
+'''2.''' Kill gpg-agent.
+
+{{CodeSelect|code=
+killall gpg-agent
+}}
+
+'''3.''' Delete folder <code>~/.gnupg/qubes-auto-keyring</code>.
+
+{{CodeSelect|code=
+safe-rm -r -- ~/.gnupg/qubes-auto-keyring
+}}
+
+'''4.''' Done.
+
+== no output from <code>gpg -K</code> in client ==
+* Seems to occur when <code>/usr/bin/gpg</code> is <code>gpg-sq</code>, but not when it is <code>gpg-g10code</code>
+* when running <code>gpg -K</code> in a client, if <code>~/.gnupg/qubes-auto-keyring</code> does not exist, it is created by something (most likely split-gpg2)
+* the contents this directory is populated with differ depending on which <code>gpg</code> is in use on the server when the client calls <code>gpg -K</code>:
+
+<pre>
+[user ~]% cd ~/auto-keyring-old # this is a qubes-auto-keyring generated when gpg is gpg-sq
+[user ~/auto-keyring-old]% find
+.
+./pubring.cert.d
+./pubring.cert.d/_sequoia_signature_verification_cache_v1_on_vault.sqlite
+./pubring.cert.d/_sequoia_cert_store_index_v1_on_vault.sqlite
+./private-keys-v1.d
+[user ~/auto-keyring-old]% cd ~/auto-keyring-new # this is a qubes-auto-keyring generated when gpg is gpg-g10code
+[user ~/auto-keyring-new]% find
+.
+./trustdb.gpg
+./pubring.kbx~
+./pubring.kbx
+./private-keys-v1.d
+./private-keys-v1.d/REDACTED1.key
+./private-keys-v1.d/REDACTED2.key
+</pre>
+
+* if "gpg-g10code's version" of qubes-auto-keyring is in place, split-gpg2 works (<code>gpg -K</code> functions correctly in clients) even when both client and server's gpg is gpg-sq.
+* if "gpg-sq's version" of qubes-auto-keyring is in place, split-gpg2 breaks (<code>gpg -K</code> returns nothing in clients) even when both client and server's gpg is gpg-g10code.
+* Caused by missing <code>--export-secret-subkeys</code> feature in gpg-sq: https://gitlab.com/sequoia-pgp/sequoia-chameleon-gnupg/-/issues/158
+
+== bugs ==
+* one time empty password prompt in split-gpg-2 client VM but then OK. Might be a gpg-agent or split-gpg-2 bug. Might not be a sequoia bug.
+* sequoia-chameleon-gnupg bug report: [https://gitlab.com/sequoia-pgp/sequoia-chameleon-gnupg/-/issues/158 gpg --export-secret-subkeys not implemented]
+** This is the reason why split-gpg2 and gpg-sq cannot to work together out of the box.
+
+== Qubes ==
+* [https://github.com/QubesOS/qubes-issues/issues/8241 port Qubes Split GPG to Sequoia-PGP #8241]
+
+== unconfirmed bugs ==
+* potentially only: problem with account sysmaint vs account user?
+
+== E-Mail ==
+=== Thunderbird ===
+{{CodeSelect|code=
+sudo apt install libsequoia-octopus-librnp
+}}
+
+https://doc.qubes-os.org/en/latest/user/security-in-qubes/split-gpg-2.html#server-options
+
+= Debugging =
+{{CodeSelect|code=
+gpg-agent --daemon -vv --debug-level guru --log-file ./mylog
+}}
+
+{{CodeSelect|code=
+tail -f ./mylog
+}}
+
+when things are "working", the agent will output some log lines immediately after running gpg -K in a client.
+
+when things are broken, no logging occurs in response to gpg -K in the client.
+
+= Forum Discussion =
+* https://forums.kicksecure.com/t/sequoia-pgp-gpg-replacement-openpgp/260
+
+{{footer}}
+[[Category:Documentation]]
+[[Category:Development]]
