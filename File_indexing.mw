@@ -1,0 +1,47 @@
+{{Header}}
+{{Title|title=
+File Indexing
+}}
+{{#seo:
+|description=Mitigate file parsing attack surface by not installing a file indexing service.
+}}
+{{intro|
+Mitigate file parsing attack surface by not installing a file indexing service.
+}}
+
+* <u>Indexing services parse content:</u> A file indexing service does not only index file names, which is relatively simple. It typically also supports opening a large number of [https://en.wikipedia.org/wiki/File_format file formats] (such as [https://en.wikipedia.org/wiki/Cue_sheet_(computing) <code>.cue</code>] (cue sheet metadata file), [https://en.wikipedia.org/wiki/PDF <code>.pdf</code>] (Portable Document Format document), [https://en.wikipedia.org/wiki/EPUB <code>.epub</code>] (e-book file format), [https://en.wikipedia.org/wiki/Office_Open_XML <code>.docx</code>] (Microsoft Word document), [https://en.wikipedia.org/wiki/OpenDocument <code>.odt</code>] (OpenDocument text document)) and parses their content.
+* <u>No indexing daemon:</u> Not running an indexing service means that no daemon (long running process) keeps monitoring for new or changed files. <ref>
+Technically, most indexing services try to avoid polling. On Linux, they will usually subscribe to filesystem change notifications (for example using <code>inotify</code>, often through higher level file monitor APIs) and do event based processing. Some configurations may still fall back to periodic scanning if event notifications are unavailable or unreliable.
+</ref>
+* <u>Parses, does not execute:</u> The indexing does not execute files, but it parses files.
+* <u>Attack surface removed:</u> By not installing an indexing service, the file parsing attack surface of that indexing service is removed.
+* <u>Fewer background parsers:</u> Also, in many cases, fewer background components will parse files automatically. Depending on the setup, other parsers may still exist.
+** <u>Exception:</u> One exception might be [[Thumbnails]] but these are also disabled by default in {{project_name_short}}.
+* <u>Manual search is lower risk:</u> Searching for files with tools such as <code>find</code> generally has a lower attack surface. <code>find</code> searches file names and filesystem metadata (such as paths, timestamps, sizes, and permissions). <code>find</code> does not parse file contents. <code>find</code> by default also does not execute files. If you use actions such as <code>-exec</code>, <code>find</code> will run a command that you explicitly specify. See footnote for further information. <ref>
+* <u>What <code>-exec</code> does:</u> <code>find</code> <code>-exec</code> runs a command that the user explicitly specifies and passes the found path(s) as arguments. This is useful for batch operations without any indexing daemon.
+* <u>Fix permissions:</u> Batch-adjust permissions on matching files, for example: <code>find . -type f -name '*.sh' -exec chmod 0700 -- {} +</code>.
+* <u>Integrity checking:</u> Generate hashes for matching files, for example: <code>find . -type f -name '*.iso' -exec sha256sum -- {} +</code>.
+* <u>Other maintenance tasks:</u> Apply explicit user chosen operations such as changing ownership (<code>chown</code>), moving files (<code>mv</code>), or printing detailed listings (<code>ls -ld</code>) in a controlled way.
+* <u>What <code>-exec</code> does not do:</u> <code>-exec</code> does not automatically execute the found files. The found files are treated as data, not as programs, unless the user explicitly chooses to run them as a program (for example <code>-exec {} \;</code>).
+* <u>Safety note:</u> <code>find</code> <code>-exec</code> is powerful and can be dangerous if used incorrectly. This is a standard shell scripting feature, similar to programming, and for [[Advanced Users]] only.
+* <u>Safe usage guides:</u> For safe instructions using <code>find</code> see [https://mywiki.wooledge.org/UsingFind Wooledge: Using find]. See also [[Dev/bash#Safely_Using_Find_with_End-Of-Options|Safely Using Find with End-Of-Options]].
+* <u>Conclusion:</u> <code>find</code> does not introduce the same attack surface as a file indexing service.
+</ref>
+* <u>Real world example:</u> For example, in case of [[Dev/GNOME#1-Click_Remote_Code_Execution_(RCE)_on_GNOME_(CVE-2023-43641)_in_file_indexing_service|1-Click Remote Code Execution (RCE) on GNOME (CVE-2023-43641) in file indexing service]], {{project_name_short}} was unaffected by this specific attack chain.
+** <u>Same malicious file did not work:</u> The same malicious file used to accomplish RCE in file indexing service GNOME tracker-miner, which used libcue to parse cue files, could not trigger that same attack chain in {{project_name_short}} when the indexing service was not installed.
+** <u>Attack chain:</u> What happened in case of [https://github.blog/security/vulnerability-research/coordinated-disclosure-1-click-rce-on-gnome-cve-2023-43641/ GitHub Security Lab: Coordinated disclosure - 1-click RCE on GNOME (CVE-2023-43641)] was: GNOME file indexing service -> saw a [https://en.wikipedia.org/wiki/Cue_sheet_(computing) <code>.cue</code>] file -> parsed it -> parser exploit -> RCE.
+* <u>What libcue is:</u>
+{{quotation 
+|quote=libcue is a library used for parsing cue sheets, a metadata format for describing the layout of the tracks on a CD.
+}}
+* <u>Low practical value:</u> For most users today, indexing <code>.cue</code> "track layout" metadata is a niche feature. Cue sheets are mainly used for full-disc audio rips (for example a single large audio file plus a cue sheet), optical disc images (BIN/CUE), and some media players or emulators that want track level navigation or CD-Text style metadata. For typical desktop file search, this functionality is rarely essential. <ref>
+See [https://en.wikipedia.org/wiki/Cue_sheet_(computing) Wikipedia: Cue sheet (computing)] (track layout metadata, audio playback use cases, BIN/CUE disc images), [https://kodi.wiki/view/Cue_sheets Kodi Wiki: Cue sheets] (playlist and index information for large audio files), and [https://github.com/OpenEmu/OpenEmu/wiki/User-guide%3A-CD-based-games OpenEmu Wiki: Cue Sheets] (disc layout metadata for CD based images used by emulators).
+</ref>
+* <u>Mitigation summary:</u> By not installing a file indexing service, this parsing attack surface is mitigated.
+* <u>Not comparable to auto-execution:</u> A file indexing service may parse files automatically in the background. By contrast, opening a file manually requires user action, and only the chosen application parses it. If no default handler is installed, opening a file may require choosing an application first.
+* <u>Conclusion:</u> Not installing a file indexing service removes a large file parsing attack surface. Manual tools such as <code>find</code> are generally safer because they operate on file names and metadata rather than parsing file contents.
+
+= Footnotes =
+<references />
+{{Footer}}
+[[Category:Documentation]]
