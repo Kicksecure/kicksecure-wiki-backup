@@ -11,27 +11,12 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 {{Developers-only}} [[Development_Discussion_Policy|Development Discussion Policy]] and [[First_Time_Source_Code_Contributor_Policy|Source Code Contributor Policy]] applies.
 = TODO DEV =
-== qubes versus mokutil bug ==
-* https://forums.whonix.org/t/getting-mok-pop-up-every-boot-of-appvm/22907
-* bug: no mokutil -> no status file
-* caused by user making /etc persistent
-* make two changes to systemcheck:
-** check if leaprun actions can be run before attempting to run them, show an error in systemcheck's output if it fails
-** check if /etc is persistent on Qubes OS, show an error if so
-
-== qubes-core-admin-addon-whonix - set anon-timezone feature on templates by default ==
-* https://github.com/QubesOS/qubes-issues/issues/8381
-* https://forums.whonix.org/t/dom0-timezone-leak-whonix-17-qubes-r4-2/22889
-
-== catfish - disable thumbnails ==
-* disable thumbnails in catfish, if possible
-* context [[thumbnails]], [[file indexing]]
-
 == privleap robustness improvements ==
 * Aaron:
 ** If for some reason a control session takes longer 5 seconds or longer to process, it may result in privleap being killed by the watchdog. This seems very unlikely, and isn't a security issue since the control socket is only available to the root account, but it may be possible anyway. Add an additional watchdog ping to make this less likely to happen (or possibly better yet, create a dedicated worker thread for control sessions so that the main thread's only job is accepting connections and dispatching threads).
 ** When a user socket is destroyed, forcibly terminate all running actions triggered by that user socket and disconnect clients connected to it. This is good for "principle of least astonishment", and may reduce unneeded resource consumption a bit.
 ** Allow a user to check multiple actions at once when checking if actions can be run or not.
+** Implement GitHub Actions CI: https://github.com/ArrayBolt3/privleap/issues/22
 
 == dist-installer-cli - Ubuntu + Secure Boot support ==
 * currently looks for the MOK key in the wrong location, see https://forums.whonix.org/t/mok-key-error-when-using-installer-on-ubuntu/22877
@@ -703,6 +688,11 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 ** https://github.com/Whonix/anon-apps-config/blob/master/etc/skel/.config/vlc/vlcrc
 
 = WAITING ON =
+== qubes-core-admin-addon-whonix - set anon-timezone feature on templates by default ==
+* https://github.com/QubesOS/qubes-issues/issues/8381
+* https://forums.whonix.org/t/dom0-timezone-leak-whonix-17-qubes-r4-2/22889
+* Aaron: PR filed for the Qubes side of this, will implement the Whonix side once this is merged.
+
 == qps crash on some systems with hyperthreading disabled ==
 * https://forums.kicksecure.com/t/qps-crashing-on-some-hardware-hyperthreading-related/1588
 * Report to LXQt if this is a problem with the latest version
@@ -1148,6 +1138,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== catfish - disable thumbnails ==
+* disable thumbnails in catfish, if possible
+* context [[thumbnails]], [[file indexing]]
+* Aaron: There does not appear to be a way to tell Catfish to disable thumbnails regardless of the view mode you choose in the hamburger menu. The "large" view is the thumbnail view, and according to the code clicking the "large" view button will enable thumbnails immediately and keep them enabled by default for subsequent starts of Catfish, until such a time as you set it back to "compact list" view.
+** "Compact list" view appears to be the default view, and thumbnailing is disabled in this view as far as I can tell, so explicitly disabling thumbnails is probably not necessary.
+
+== qubes versus mokutil bug ==
+* https://forums.whonix.org/t/getting-mok-pop-up-every-boot-of-appvm/22907
+* bug: no mokutil -> no status file
+* caused by user making /etc persistent
+* make two changes to systemcheck:
+** check if leaprun actions can be run before attempting to run them, show an error in systemcheck's output if it fails
+** check if /etc is persistent on Qubes OS, show an error if so
+* Aaron: Mostly done, managed to add a dependency on mokutil to kicksecure-meta-packages and added a systemcheck test for unexpected persistent mounts. Still need to add a check for leaprun actions not working, but that is being dealt with in a separate task. Commits pushed to systemcheck, genmkfile, developer-meta-files, kicksecure-meta-packages, helper-scripts, and derivative-maker.
+
 == disable sdwdate, sdwdate-gui, bootclockrandomization in non-networked VMs ==
 * Will prevent bad UX for those using airgapped systems, especially under Qubes
 * May help TOTP in KeePassXC work as intended
