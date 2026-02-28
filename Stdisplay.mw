@@ -1,0 +1,323 @@
+{{Header}} __FORCETOC__
+{{#seo:
+|description=Tools to sanitize untrusted text before printing it to a terminal, reducing risk from malicious Unicode and dangerous ANSI escape sequences.
+}}
+{{title|title=
+stdisplay
+}}
+{{unicode_mininav}}
+{{intro|
+This wiki page documents <code>stdisplay</code> and its related command line tools. These tools help to safely print untrusted text to a terminal by sanitizing non-ASCII characters, dangerous ANSI escape sequences and [[unicode]].
+}}
+= Introduction =
+
+<code>stdisplay</code> is a set of {{cli}} tools designed to make it safer to display untrusted text in a terminal. This helps defend against:
+
+* Invisible or confusing characters in text (non-ASCII Unicode).
+* Dangerous terminal control codes (ANSI escape sequences) that can change what you see, hide text, alter the prompt, or otherwise mislead you.
+
+If you ever copy text from the Internet, print logs from untrusted programs, or inspect files that might contain strange characters, using <code>stdisplay</code>-based tools can reduce risk.
+
+= What gets cleaned up? =
+
+The tools sanitize (clean) untrusted output before it is shown in the terminal.
+
+* <u>Non-ASCII characters:</u> are sanitized so unexpected characters do not silently appear in terminal output.
+* <u>ANSI escape sequences:</u> dangerous sequences are removed. Only a strict subset of harmless color formatting (SGR) may be allowed, plus newlines (<code>\n</code>) and horizontal tabs (<code>\t</code>).
+
+= Limitations =
+* <u>Terminal display only:</u> <code>stdisplay</code> tools only sanitize what you ''see'' in the terminal. They do not make other uses of untrusted text safe.
+* <u>Copy and paste remains risky:</u> Copying and pasting shell commands from untrusted sources and executing them is still unsafe. If you paste commands you do not fully understand, you can still execute harmful actions. See also [[Shell|Hidden Text Attacks]].
+* <u>Not a shell scripting protection:</u> [[Shell_scripting|Shell Scripting]] is still a risk. <code>stdisplay</code> tools do not sanitize shell code and do not prevent command execution when untrusted text is used in scripts.
+* <u>Out of scope:</u> This is not a bug in <code>stdisplay</code>. Preventing shell scripting mistakes and command injection is outside the scope of <code>stdisplay</code> tools.
+
+= stdisplay Tools =
+=== Overview ===
+
+These tools intentionally have no option parameters. Everything you pass is treated as either text or a file, depending on the tool.
+
+<u>Important:</u> <code>--</code> is treated as normal text, not as "end of options".
+
+{| class="wikitable"
+|+ stdisplay tools and what they replace
+|-
+
+! <!-- sanitizer --> Sanitizer command
+! <!-- similar to --> Similar to
+! <!-- purpose --> What it is for
+|-
+
+| <code>stprint</code>
+| <code>printf</code>
+| Print text exactly as given (no extra newline).
+|-
+
+| <code>stecho</code>
+| <code>echo</code>
+| Print text with spaces between arguments and a newline at the end.
+|-
+
+| <code>stcat</code>
+| <code>cat</code>
+| Safely display file contents or piped input.
+|-
+
+| <code>stcatn</code>
+| (like <code>cat</code> plus cleanup)
+| Like <code>stcat</code>, but also normalizes line endings and trims trailing whitespace.
+|-
+
+| <code>sttee</code>
+| <code>tee</code>
+| Safely show output and optionally save a sanitized copy to a file.
+|-
+
+| <code>stsponge</code>
+| <code>sponge</code>
+| Collect input first, then write (supports safe in-place sanitize when used carefully).
+|-
+
+|}
+
+=== Safely viewing untrusted output (stcat / stcatn) ===
+
+Use <code>stcat</code> when you would normally use <code>cat</code> for untrusted content.
+
+{{IconSet|h1|1}} Display piped output safely.
+
+{{CodeSelect|code=
+untrusted-cmd 2>&1 {{!}} stcat
+}}
+
+{{IconSet|h1|2}} Display a file safely.
+
+{{CodeSelect|code=
+stcat /untrusted/file
+}}
+
+{{IconSet|h1|3}} Done.
+
+Untrusted output has been sanitized before being printed to the terminal.
+
+<u>More examples:</u>
+
+From a variable:
+
+{{CodeSelect|code=
+printf '%s' "${untrusted_string}" {{!}} stcat
+}}
+
+From redirected input:
+
+{{CodeSelect|code=
+stcat < /untrusted/file
+}}
+
+Concatenate multiple files:
+
+{{CodeSelect|code=
+stcat /untrusted/file /untrusted/log
+}}
+
+==== Using a pager (less) ====
+
+If output is long, you can still use a pager.
+
+{{CodeSelect|code=
+data {{!}} stcat {{!}} less
+}}
+
+Sanitize git output before paging:
+
+{{CodeSelect|code=
+GIT_PAGER="stcat {{!}} less -R" git log
+}}
+
+==== When you need elevated permissions ====
+
+If a log file requires administrative permissions to read, you can combine with <code>sudo</code>.
+
+{{CodeSelect|code=
+sudo -- stcat /untrusted/log
+}}
+
+==== What is different about stcatn? ====
+
+<code>stcatn</code> is like <code>stcat</code>, plus additional cleanup:
+
+* Adds a newline at the end of each file if it is not empty and does not already end in a newline.
+* Trims trailing whitespace.
+
+This can be useful when inspecting logs that have messy formatting.
+
+=== Safely copying output to a file (sttee / stsponge) ===
+
+Use <code>sttee</code> if you want to see output in the terminal and optionally write a sanitized copy to a file.
+
+{{IconSet|h1|1}} Show sanitized output.
+
+{{CodeSelect|code=
+printf '%s' "${untrusted_string}" {{!}} sttee
+}}
+
+{{IconSet|h1|2}} Show sanitized output and save it to a file.
+
+{{CodeSelect|code=
+printf '%s' "${untrusted_string}" {{!}} sttee /trusted/file
+}}
+
+{{IconSet|h1|3}} Done.
+
+Sanitized output has been printed and (if selected) saved to a file.
+
+==== In-place sanitizing (stsponge) ====
+
+<code>stsponge</code> can be used to rewrite a file with a sanitized version.
+
+<u>Warning:</u> Ensure you have a backup or are confident about rewriting the file.
+
+{{CodeSelect|code=
+stsponge /untrusted/file < /untrusted/file
+}}
+
+=== Safely printing text (stprint / stecho) ===
+
+Use <code>stprint</code> to print text exactly as provided (no newline automatically). Use <code>stecho</code> for a more familiar "echo-like" behavior (spaces between arguments and a newline).
+
+{{IconSet|h1|1}} Print a variable safely.
+
+{{CodeSelect|code=
+stprint "${untrusted_string}"
+}}
+
+{{IconSet|h1|2}} Print multiple values.
+
+No automatic space is inserted:
+
+{{CodeSelect|code=
+stprint "${untrusted_string}" "${another_untrusted_string}"
+}}
+
+To include a space, include it yourself:
+
+{{CodeSelect|code=
+stprint "${untrusted_string} ${another_untrusted_string}"
+}}
+
+Alternative way to include a space:
+
+{{CodeSelect|code=
+stprint "${untrusted_string}" " ${another_untrusted_string}"
+}}
+
+{{IconSet|h1|3}} Done.
+
+Text has been sanitized and printed safely.
+
+==== Avoid quoting problems (heredoc) ====
+
+A heredoc can make it easier to pass multi-line text without complex quoting.
+
+{{CodeSelect|code=
+stprint <<EOF
+${untrusted_string}
+EOF
+}}
+
+= Common mistakes to avoid =
+
+<code>stprint</code> returns text that is safe to print. It is unsafe to reinterpret it as escape sequences later.
+
+<u>Warning:</u> Avoid printing sanitized output using commands or formats that interpret escapes (for example <code>%b</code> or <code>echo -e</code>). This can cause hidden sequences to be evaluated later.
+
+{{IconSet|h1|1}} <u>Safe</u>: store sanitized output normally.
+
+This assignment is safe:
+
+{{CodeSelect|code=
+var="$(stprint "${untrusted_string}")"
+}}
+
+Print the variable without interpreting escapes:
+
+{{CodeSelect|code=
+printf '%s' "${var}"
+}}
+
+{{IconSet|h1|2}} <u>Unsafe</u>: do not reinterpret escapes.
+
+This assignment is safe by itself:
+
+{{CodeSelect|code=
+var="$(stprint "${untrusted_string}")"
+}}
+
+The following examples are <u>dangerous</u> because they may interpret escapes and can re-enable terminal control sequences:
+
+{{CodeSelect|code=
+printf -v var "$(stprint "${untrusted_string}")"
+}}
+
+{{CodeSelect|code=
+printf -v var '%b' "$(stprint "${untrusted_string}")"
+}}
+
+{{CodeSelect|code=
+printf "${var}"
+}}
+
+{{CodeSelect|code=
+printf '%b' "${var}"
+}}
+
+{{CodeSelect|code=
+echo -e "${var}"
+}}
+
+{{CodeSelect|code=
+echo "${var}"
+}}
+
+{{CodeSelect|code=
+echo -E "${var}"
+}}
+
+{{IconSet|h1|3}} Done.
+
+Common unsafe patterns have been identified so sanitized output stays safe when displayed later.
+
+= Color output control (SGR) =
+
+Some terminals support colored output. <code>stdisplay</code> will only allow safe coloring, and it automatically decides how much color support to enable:
+
+{{IconSet|h1|1}} If <code>$NO_COLOR</code> is set (non-empty), color is disabled.
+
+{{IconSet|h1|2}} If <code>$COLORTERM</code> is <code>truecolor</code>, 24-bit color is enabled.
+
+{{IconSet|h1|3}} Otherwise, the terminal described by <code>$TERM</code> is checked for its color capability.
+
+<u>Tip:</u> If you want to ensure there is no color at all, set <code>NO_COLOR=1</code> or use <code>TERM=dumb</code> for the command.
+
+'''Examples:'''
+
+Enable 24-bit color (useful if the terminal database is outdated):
+
+{{CodeSelect|code=
+COLORTERM=truecolor stprint "$(printf '%b' "\033[38;2;0;0;255mSome color\033[m")"
+}}
+
+Disable color using <code>NO_COLOR</code>:
+
+{{CodeSelect|code=
+NO_COLOR=1 stprint "$(printf '%b' "\033[31mNo color\033[m")"
+}}
+
+Disable color using <code>TERM=dumb</code>:
+
+{{CodeSelect|code=
+TERM=dumb stprint "$(printf '%b' "\033[31mNo color\033[m")"
+}}
+
+
+{{Footer}}
+[[Category:Documentation]]
