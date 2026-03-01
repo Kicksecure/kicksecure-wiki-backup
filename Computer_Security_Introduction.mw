@@ -239,6 +239,102 @@ Another reason is that some commands such as <code>sudo rm -rf /var/lib/apt/list
 Because deleting folders requires <code>rm -r</code>.
 </ref>
 
+= Untrusted Input and Attack Surface =
+
+* <u>Untrusted input:</u> Untrusted input is any data that an attacker can influence, directly or indirectly. This includes files and device contents from the internet, removable media, and data received over the network.
+* <u>Code meets input:</u> If software processes untrusted input, unexpected behavior can occur. In the worst case, a bug can be exploited for unwanted code execution, leading to system compromise.
+* <u>Not only "running":</u> Risk is not limited to explicitly "running" something. Many routine actions cause software to parse, interpret, or walk through untrusted structures, sometimes automatically.
+* <u>Any relationship adds risk:</u> Wherever code touches untrusted input in any way, there is potential attack surface.
+
+== What counts as untrusted input ==
+
+Untrusted input includes, but is not limited to:
+
+* <u>Internet downloads:</u> Files downloaded from the internet.
+* <u>Attachments:</u> Email attachments and chat attachments.
+* <u>Archives and images:</u> Archives (for example ZIP, 7z, tar) and disk images.
+* <u>Removable media:</u> Removable media (USB drives, SD cards) and external disks.
+* <u>Network files:</u> Network provided files (SMB, NFS, WebDAV) and content from untrusted servers.
+* <u>Device supplied data:</u> Device supplied data (USB descriptors, storage metadata, filesystem metadata).
+
+== Why "just handling a file" matters ==
+
+Many components interact with a file or device before you explicitly "open" it in an application:
+
+* <u>Operating system parsing:</u> The operating system and [[kernel]] may parse device, partition, and filesystem structures.
+* <u>File manager helpers:</u> File managers may generate previews ([[thumbnails]]), and extract {{whonix_wiki
+|wikipage=metadata
+|text=metadata
+}}.
+* <u>Indexing scans:</u> [[File_indexing|File Indexing]] may scan content for search.
+* <u>Security scanners:</u> Antivirus or content scanners may parse file formats. See also [[Malware and Firmware Trojans]] and [[Malware_and_Firmware_Trojans#The_Utility_of_Antivirus_Tools|The Utility of Antivirus Tools]].
+* <u>Display and logging:</u> Terminals and logging tools may display untrusted filenames and metadata, including unusual or confusing characters.
+* <u>Complex parsing logic:</u> Any of these steps can trigger complex parsing logic.
+* <u>Bug density:</u> Complex parsers tend to have more bugs, and some bugs can be exploited.
+* <u>Even "simple" utilities:</u> In theory, even small and ubiquitous command line tools such as <code>grep</code> and <code>find</code> could be vulnerable, because they still process attacker-influenced strings, filenames, directory structures, and file contents. However, their attack surface is often smaller than complex format parsers, so public vulnerability reports may be rarer. For example, at the time of writing CVE Details lists no vulnerabilities created in the last 10 years for [https://www.cvedetails.com/product/23804/GNU-Grep.html?vendor_id=72 GNU Grep] and [https://www.cvedetails.com/product/1521/GNU-Findutils.html?vendor_id=72 GNU Findutils]:
+** <blockquote>We don't have any vulnerabilities for this product, created in the last 10 years</blockquote>
+* <u>No CVEs ≠ no risk:</u> A lack of reported CVEs can also reflect lower scrutiny, different reporting practices, or bugs that have not been found or disclosed yet.
+
+== Common high risk interaction points ==
+
+* <u>Mounting an untrusted filesystem:</u> Mounting a specially crafted filesystem image can exercise kernel filesystem drivers. This is high impact because it runs in kernel space. Crafted structures can target parsing of superblocks, directory entries, extended attributes, compression layers, and journaling metadata.
+* <u>Connecting untrusted devices:</u> Plugging in a crafted device can trigger kernel drivers before any file is accessed. For example, a USB device can present descriptors or behave as multiple device types, which can reach complex driver code paths.
+* <u>Opening crafted files:</u> Opening files such as PDFs, images, documents, and media formats uses user space parsers. These parsers are frequently targeted because file formats can be complicated and widely supported.
+* <u>Automatic parsing by desktop services:</u> Browsing a folder can trigger thumbnail generation, preview extraction, and indexing. This can happen without user intent, simply because a graphical environment is trying to be helpful.
+* <u>Rendering untrusted filenames:</u> Even displaying filenames can be risky in some contexts. Filenames can include unusual characters. Some terminals and tools may interpret control sequences, which can cause misleading output or unsafe copy and paste behavior.
+
+== Risk factors that increase the chance of compromise ==
+
+The likelihood and impact of exploitation depend on several factors:
+
+* <u>Privilege level:</u> Kernel space code and privileged services are higher impact targets than a sandboxed user space application.
+* <u>Parser complexity:</u> The more complicated the format and the more features supported, the larger the attack surface tends to be.
+* <u>Automatic processing:</u> Any feature that processes content without explicit user action increases exposure, because it can run unexpectedly and repeatedly.
+* <u>Exposure history:</u> Code that is widely targeted or historically bug prone may carry higher practical risk.
+
+== Defensive strategies ==
+
+The goal is to reduce how much privileged code touches untrusted input, and to move risky parsing into disposable or isolated environments.
+
+* <u>Prefer isolation for untrusted content:</u> Handle unknown files and devices in an isolated VM (see [[Multiple Kicksecure]]) or other disposable environment. Treat that environment as expendable.
+* <u>Minimize kernel exposure:</u> Avoid mounting unknown filesystem images on your main system. If mounting is required, do it in an isolated environment and prefer read only access.
+* <u>Disable or reduce automatic parsing:</u> Consider disabling (or keep disabled if disabled by default) automount, thumbnail generation, and indexing for untrusted locations. Automatic helpers increase exposure.
+* <u>Use restrictive mount options:</u> When mounting untrusted media, use restrictive options such as <code>ro</code>, <code>nosuid</code>, <code>nodev</code>, and <code>noexec</code> where applicable. These options can reduce the impact of some attacks, but they do not prevent exploitation of filesystem parser bugs. Related: [[Dev/remount-secure]]
+* <u>Treat filenames as untrusted strings:</u> Do not assume filenames are safe to print, log, or pass to commands without proper quoting and escaping. Prefer tools and settings that avoid interpreting control sequences. See also [[Shell|Hidden Text Attacks]]; [[Unicode|Invisible Malicious Unicode Risks]]; [[Shell_scripting|Shell Scripting]].
+* <u>Keep systems updated:</u> Many real world attacks rely on already fixed vulnerabilities. Apply security [[update|updates]] promptly, especially for kernels, browsers, document viewers, archive tools, and media codecs.
+
+== Recommended workflow for unknown files ==
+
+{{IconSet|h1|1}} Move the file into an isolated environment.
+
+Handle unknown files inside a disposable VM or other isolated workspace rather than your primary environment.
+
+{{IconSet|h1|2}} Prevent automatic parsing.
+
+Disable previews, thumbnails, and indexing (or keep disabled if already disabled by default) for the location where the file will be inspected, if possible.
+
+{{IconSet|h1|3}} Inspect before opening.
+
+Prefer simple inspection methods first, such as checking file type and metadata using minimal tools.
+
+{{IconSet|h1|4}} Open with the least privilege possible.
+
+Use sandboxed viewers and avoid running content with elevated privileges.
+
+{{IconSet|h1|5}} If mounting is required, mount read only with restrictive options.
+
+Use <code>ro</code>, <code>nosuid</code>, <code>nodev</code>, and <code>noexec</code> where applicable, and do this inside an isolated environment.
+
+{{IconSet|h1|6}} Done.
+
+Untrusted content has been handled in an isolated environment with reduced automatic parsing and reduced privilege.
+
+== Notes and limitations ==
+
+* <u>Sandboxing is not perfect:</u> Sandboxing reduces the impact of many exploits, but it is not perfect. Defense in depth is still required. See also: [[AppArmor]]. Related: [[sandbox-app-launcher]]; [[vm-app-manager]].
+* <u>"Safe" is relative:</u> "Safe" actions are relative. The aim is to choose lower risk actions and to perform higher risk actions only in isolation.
+* <u>Technical details:</u> See also [[Dev/About_Computer_(In)Security|About Computer (In)Security]].
+
 = Known Bugs =
 
 To learn about known bugs affecting all platforms, see [[Known_Issues|here]]. Refer to the [[Reporting_Bugs#Issue_Tracker|issue tracker]] for a list of all all open issues affecting {{project_name_short}}.
