@@ -6,11 +6,26 @@ ToDo for Developers
 |description=Developer task list and work queue. This page summarizes short-term development and maintenance priorities.
 }}
 {{devwiki}}
+<div class="mininav">
+Quick Navigation
+
+* [[Dev/todo#TODO_DEV|TODO DEV]]
+* [[Dev/todo#WAITING_ON|WAITING ON]]
+* [[Dev/todo#REVIEW_PLEASE|REVIEW PLEASE]]
+* [[Dev/todo#ARCHIVED|ARCHIVED (RECENT)]]
+* [[Dev/todo/archived|archived (archive)]]
+</div>
 {{intro|
 Developer task list and work queue. This page summarizes short-term development and maintenance priorities. Developers-only discussion.
-}}
+
 {{Developers-only}} [[Development_Discussion_Policy|Development Discussion Policy]] and [[First_Time_Source_Code_Contributor_Policy|Source Code Contributor Policy]] applies.
+}}
 = TODO DEV =
+== wiki review misc ==
+* please review, fix if anything is wrong
+* [[Computer_Security_Introduction#Untrusted_Input_and_Attack_Surface|Untrusted Input and Attack Surface]]
+* [[stdisplay]]
+
 == privleap robustness improvements ==
 * Aaron:
 ** If for some reason a control session takes longer 5 seconds or longer to process, it may result in privleap being killed by the watchdog. This seems very unlikely, and isn't a security issue since the control socket is only available to the root account, but it may be possible anyway. Add an additional watchdog ping to make this less likely to happen (or possibly better yet, create a dedicated worker thread for control sessions so that the main thread's only job is accepting connections and dispatching threads).
@@ -18,6 +33,81 @@ Developer task list and work queue. This page summarizes short-term development 
 ** When a user socket is destroyed, forcibly terminate all running actions triggered by that user socket and disconnect clients connected to it. This is good for "principle of least astonishment", and may reduce unneeded resource consumption a bit.
 ** Allow a user to check multiple actions at once when checking if actions can be run or not.
 ** Implement GitHub Actions CI: https://github.com/ArrayBolt3/privleap/issues/22
+
+== Age API ==
+* This is not legal advice. As per [[Terms of Service]] wiki chapter, there is [[Terms_of_Service#No_Legal_Advice|No Legal Advice]].
+* Related wiki page: [[age-api]]
+* https://github.com/Kicksecure/age-api
+* Ask for age only: Do not ask for day of birth, as it is unnecessary.
+* Requirements:
+** No preselected option.
+** The account holder cannot proceed until they actively enter an age.
+* 1) Create a Python GUI <code>age-api-gui</code> that asks:
+
+<pre>
+What is the age (in years) of the primary user of this device?
+
+[ age input box ]
+
+Computed age bracket (not selectable): [ Under 13 | 13 to under 16 | 16 to under 18 | 18 or older ]
+
+Note: To support age-bracket signaling for applications (for legal compliance in some jurisdictions), this interface asks for an age in years rather than an age bracket.
+
+Privacy: The entered age is used only to compute the bracket and is not stored. Only the computed bracket is stored locally in the file <code>~/.age-api/age-bracket</code>.
+
+<u>Note:</u> [https://www.kicksecure.com/wiki/Terms_of_Service#No_Legal_Advice This is <u>not</u> legal advice.]
+
+For further information, see [[age-api]].
+</pre>
+
+* Store information in the file <code>~/.age-api/age-bracket</code>
+** Write only the age bracket integer (1, 2, 3, 4) into the file? Why? Because then <code>read_integer_file</code> can be used. Brackets:
+<pre>
+(1) Whether a user is under 13 years of age.
+-lt 13
+(2) Whether the user is at least 13 years of age and under 16 years of age.
+-ge 13 && -lt 16
+(3) Whether the user is at least 16 years of age and under 18 years of age.
+-ge 16 && -lt 18
+(4) Whether the user is at least 18 years of age.
+-ge 18
+</pre>
+** It may be useful if the GUI uses the CLI as a backend.
+* 2) Create a simple Bash application <code>age-api-cli</code> that does the same.
+* 3) Create <code>age-api-query</code>
+** Output the age bracket number on stdout.
+** Explain the human readable age bracket on stderr.
+* 4) ISO: Create a Calamares module to live-config-dist.
+* 5) CLI version?
+* 6) Integrate with setup-dist; setup-wizard-dist?
+* 7) Synthesis with terms of service, age.
+
+{{quotation
+|quote=The Services are not for use by anyone under the age of 18.
+|context=[[Terms of Service]] chapter [[Terms_of_Service#Minimum_Age|Minimum Age]]
+}}
+
+setup-wizard-dist has something similar.
+
+/usr/lib/python3/dist-packages/setup_wizard_dist/setup_wizard_dist.py
+
+<pre>
+msg.setText("Because the agreements have been declined, you are prohibited from using this software.")
+</pre>
+
+So if the age bracket is lower than 18, also show a similar popup?
+
+<pre>
+Because the Terms of Service prohibit use by anyone under the age of 18, you are prohibited from using this software.
+</pre>
+
+* 8) Separate age API from terms of service.
+** age-api: collect age → compute bracket → store bracket → provide query API
+** setup-wizard-dist: read bracket → enforce project policy (18+ only)
+
+== sdwdate-gui-client 100% CPU usage bug ==
+* reported by saka414 on Matrix
+** "sdwdate-gui-client is stuck using 100% of one CPU core, not the first time this happens. I set <code>disabled=true</code> in the sdwdate-gui config on my gateway if that matters. It's stuck on 100% in a workstation. I will have to close the VM now (it's a disposable) but let me know if there's anything I should do next time I encounter it to make a proper bug report."
 
 == dist-installer-cli - Ubuntu + Secure Boot support ==
 * currently looks for the MOK key in the wrong location, see https://forums.whonix.org/t/mok-key-error-when-using-installer-on-ubuntu/22877
@@ -1139,82 +1229,48 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== efi_weak_recommended_packages_list versus 2800_create-lb-iso ==
-* Some packages listed in efi_weak_recommended_packages_list such as efibootmgr keyutils shim-signed-common fwupd are missing in 2800_create-lb-iso.
-
-<pre>
-   efi_weak_recommended_packages_list="sbsigntool efibootmgr keyutils shim-signed-common efivar fwupd fwupd-signed"
-</pre>
-
-* Might not be actually missing but good to fix for consistency?
-* Aaron: Yes. Done, commits pushed to kicksecure-meta-packages and derivative-maker.
-
-== catfish - disable thumbnails ==
-* disable thumbnails in catfish, if possible
-* context [[thumbnails]], [[file indexing]]
-* Aaron: There does not appear to be a way to tell Catfish to disable thumbnails regardless of the view mode you choose in the hamburger menu. The "large" view is the thumbnail view, and according to the code clicking the "large" view button will enable thumbnails immediately and keep them enabled by default for subsequent starts of Catfish, until such a time as you set it back to "compact list" view.
-** "Compact list" view appears to be the default view, and thumbnailing is disabled in this view as far as I can tell, so explicitly disabling thumbnails is probably not necessary.
-
-== qubes versus mokutil bug ==
-* https://forums.whonix.org/t/getting-mok-pop-up-every-boot-of-appvm/22907
-* bug: no mokutil -> no status file
-* caused by user making /etc persistent
-* make two changes to systemcheck:
-** check if leaprun actions can be run before attempting to run them, show an error in systemcheck's output if it fails
-** check if /etc is persistent on Qubes OS, show an error if so
-* Aaron: Mostly done, managed to add a dependency on mokutil to kicksecure-meta-packages and added a systemcheck test for unexpected persistent mounts. Still need to add a check for leaprun actions not working, but that is being dealt with in a separate task. Commits pushed to systemcheck, genmkfile, developer-meta-files, kicksecure-meta-packages, helper-scripts, and derivative-maker.
-
-== disable sdwdate, sdwdate-gui, bootclockrandomization in non-networked VMs ==
-* Will prevent bad UX for those using airgapped systems, especially under Qubes
-* May help TOTP in KeePassXC work as intended
-* Aaron: Implemented, commits pushed to helper-scripts, sdwdate-gui, sdwdate, and bootclockrandomization.
-
-== smaller QTerminal by default ==
-* https://forums.whonix.org/t/issue-request-smaller-default-qterminal/22928
-** Aaron: Implemented, commit pushed to desktop-config-dist.
-
-== review and improve tb-updater - sq ==
-* updated in git (no new tag yet)
-* todo
-* Aaron: Reviewed, made minor changes. Commit pushed to tb-updater.
-
 == Whonix-Starter for Windows Improvements ==
 * prettify a bit (start button is much too big)
 * fix (currently fails to start VMs)
 * Aaron: Done, commits pushed to whonix-starter.
 
-== systemcheck - offline support ==
-* use a Qubes vault (meaning no NetVM)
-* systemcheck --debug hangs at:
-
-<pre>
-++ leaprun log-checker-check_service_logs_this_boot
-</pre>
-
-* Aaron: The hang on leaprun looks like a red herring, the command does return, it just takes some time to finish. The reason for the breakage appears to have been that <code>cleanup "1"</code> was being called at incorrect times in check_qubes.sh
-** Fixed, commit pushed to systemcheck.
-* Patrick: Merged.
-
-== kloak failing to start after Whonix-Workstation 17 release upgrade ==
-* https://forums.whonix.org/t/kloak-broken-after-release-upgrade/22863
-** Aaron: Hopefully fixed, commit pushed to legacy-dist. Should only require a change to Whonix 18.
-* Patrick: Merged.
-
-== Whonix-Gateway 17 release upgrade failure related to policy-rc.d ==
-* Aaron:
-** policy-rc.d stops existing when it's needed during an upgrade of x11-common. Add a policy-rc.d file to Whonix 17's legacy-dist and make use of it in the release-upgrade script to fix
-** Aaron: Commit pushed to legacy-dist, however this will need backported to the Bookworm repository to work.
-* Patrick: Merged.
-
-== dm-tor-update-repository - port to sequoia-pgp ==
-* port to sequoia-pgp as parsing gpg command line is notoriously complicated
-* better use chroot and APT since more secure?
-** Aaron: Discussed in chat, reimplemented to use chroot and APT. Commit pushed to developer-meta-files. Also pushed commits to derivative-maker to fix Sequoia-PGP-related issues.
-
 == bdev_allow_write_mounted=0 vs fwupd ==
 * https://github.com/Kicksecure/security-misc/pull/334#issuecomment-3904448654
 ** Aaron: Researched, replied.
 
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
+
+* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
+** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
+* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+
+= ARCHIVED =
 == add account sysmaint and account user to group privleap ==
 * good idea?
 * during build only?
@@ -1340,6 +1396,7 @@ localhost kernel: nouveau 0000:01:00.0: labwc[2244]: channel 16 killed!
 * the nvidia issue is currently only detected when using --verbose
 * the critical output check (<code>critical_output="$(leaprun log-checker-check_critical_logs)" || true</code>) should also catch the nvidia issue (because it does not require --verbose)
 ** Aaron: Implemented, commit pushed to systemcheck.
+* Patrick: Merged.
 
 == Whonix-Workstation - CLI - kloak fails to start ==
 * kloak
@@ -1348,40 +1405,82 @@ localhost kernel: nouveau 0000:01:00.0: labwc[2244]: channel 16 killed!
 * kloak systemd unit fails to start as expected
 * fix: Do not install kloak on Whonix-Workstation CLI?
 ** Aaron: Fixed, commits pushed to anon-meta-packages and developer-meta-files.
+* Patrick: Merged.
 
-== grub dpkg-new ==
-* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+== systemcheck - offline support ==
+* use a Qubes vault (meaning no NetVM)
+* systemcheck --debug hangs at:
 
 <pre>
-dpkg -S /etc/grub.d/*
-grub-common: /etc/grub.d/00_header
-grub-common: /etc/grub.d/05_debian_theme
-dist-base-files: /etc/grub.d/10_00_linux_dist
-dist-base-files: /etc/grub.d/10_05_linux_main
-dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
-dist-base-files: /etc/grub.d/10_55_linux_main_advanced
-dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
-grub-common: /etc/grub.d/20_linux_xen
-grub-common: /etc/grub.d/25_bli
-grub-common: /etc/grub.d/30_os-prober
-grub-common: /etc/grub.d/30_uefi-firmware
-grub-common: /etc/grub.d/40_custom
-grub-common: /etc/grub.d/41_custom
-usability-misc: /etc/grub.d/44_kb_layout
-grub-common: /etc/grub.d/README
-zsh: exit 1     dpkg -S /etc/grub.d/*
+++ leaprun log-checker-check_service_logs_this_boot
 </pre>
 
-* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
-** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+* Aaron: The hang on leaprun looks like a red herring, the command does return, it just takes some time to finish. The reason for the breakage appears to have been that <code>cleanup "1"</code> was being called at incorrect times in check_qubes.sh
+** Fixed, commit pushed to systemcheck.
+* Patrick: Merged.
 
-== trixie-port - suspend bug ==
-* user reported
-* Bug: suspend results in black screen with no recovery (unless hard reboot)
-* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
-* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+== kloak failing to start after Whonix-Workstation 17 release upgrade ==
+* https://forums.whonix.org/t/kloak-broken-after-release-upgrade/22863
+** Aaron: Hopefully fixed, commit pushed to legacy-dist. Should only require a change to Whonix 18.
+* Patrick: Merged.
 
-= ARCHIVED =
+== Whonix-Gateway 17 release upgrade failure related to policy-rc.d ==
+* Aaron:
+** policy-rc.d stops existing when it's needed during an upgrade of x11-common. Add a policy-rc.d file to Whonix 17's legacy-dist and make use of it in the release-upgrade script to fix
+** Aaron: Commit pushed to legacy-dist, however this will need backported to the Bookworm repository to work.
+* Patrick: Merged.
+
+== dm-tor-update-repository - port to sequoia-pgp ==
+* port to sequoia-pgp as parsing gpg command line is notoriously complicated
+* better use chroot and APT since more secure?
+** Aaron: Discussed in chat, reimplemented to use chroot and APT. Commit pushed to developer-meta-files. Also pushed commits to derivative-maker to fix Sequoia-PGP-related issues.
+* Patrick: Merged.
+
+== catfish - disable thumbnails ==
+* disable thumbnails in catfish, if possible
+* context [[thumbnails]], [[file indexing]]
+* Aaron: There does not appear to be a way to tell Catfish to disable thumbnails regardless of the view mode you choose in the hamburger menu. The "large" view is the thumbnail view, and according to the code clicking the "large" view button will enable thumbnails immediately and keep them enabled by default for subsequent starts of Catfish, until such a time as you set it back to "compact list" view.
+** "Compact list" view appears to be the default view, and thumbnailing is disabled in this view as far as I can tell, so explicitly disabling thumbnails is probably not necessary.
+* Patrick: documented here: [[Thumbnails#Catfish|Catfish]]
+
+== qubes versus mokutil bug ==
+* https://forums.whonix.org/t/getting-mok-pop-up-every-boot-of-appvm/22907
+* bug: no mokutil -> no status file
+* caused by user making /etc persistent
+* make two changes to systemcheck:
+** check if leaprun actions can be run before attempting to run them, show an error in systemcheck's output if it fails
+** check if /etc is persistent on Qubes OS, show an error if so
+* Aaron: Mostly done, managed to add a dependency on mokutil to kicksecure-meta-packages and added a systemcheck test for unexpected persistent mounts. Still need to add a check for leaprun actions not working, but that is being dealt with in a separate task. Commits pushed to systemcheck, genmkfile, developer-meta-files, kicksecure-meta-packages, helper-scripts, and derivative-maker.
+* Patrick: Merged.
+
+== disable sdwdate, sdwdate-gui, bootclockrandomization in non-networked VMs ==
+* Will prevent bad UX for those using airgapped systems, especially under Qubes
+* May help TOTP in KeePassXC work as intended
+* Aaron: Implemented, commits pushed to helper-scripts, sdwdate-gui, sdwdate, and bootclockrandomization.
+* Patrick: Merged.
+
+== smaller QTerminal by default ==
+* https://forums.whonix.org/t/issue-request-smaller-default-qterminal/22928
+** Aaron: Implemented, commit pushed to desktop-config-dist.
+* Patrick: Merged.
+
+== review and improve tb-updater - sq ==
+* updated in git (no new tag yet)
+* todo
+* Aaron: Reviewed, made minor changes. Commit pushed to tb-updater.
+* Patrick: Merged.
+
+== efi_weak_recommended_packages_list versus 2800_create-lb-iso ==
+* Some packages listed in efi_weak_recommended_packages_list such as efibootmgr keyutils shim-signed-common fwupd are missing in 2800_create-lb-iso.
+
+<pre>
+   efi_weak_recommended_packages_list="sbsigntool efibootmgr keyutils shim-signed-common efivar fwupd fwupd-signed"
+</pre>
+
+* Might not be actually missing but good to fix for consistency?
+* Aaron: Yes. Done, commits pushed to kicksecure-meta-packages and derivative-maker.
+* Patrick: Merged.
+
 == bug report for split-gpg2 + sequoia-pgp ==
 * as discussed
 * Aaron: Root cause likely found, reported:
