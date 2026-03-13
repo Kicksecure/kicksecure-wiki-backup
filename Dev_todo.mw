@@ -21,84 +21,30 @@ Developer task list and work queue. This page summarizes short-term development 
 {{Developers-only}} [[Development_Discussion_Policy|Development Discussion Policy]] and [[First_Time_Source_Code_Contributor_Policy|Source Code Contributor Policy]] applies.
 }}
 = TODO DEV =
-== Age API ==
-* This is not legal advice. As per [[Terms of Service]] wiki chapter, there is [[Terms_of_Service#No_Legal_Advice|No Legal Advice]].
-* '''status:''' <u>On hold, pending further discussion.</u>
-** '''Related wiki page:''' <u>[[age-api]]</u>
-* https://github.com/Kicksecure/age-api
-* Ask for age only: Do not ask for day of birth, as it is unnecessary.
-* Requirements:
-** No preselected option.
-** The account holder cannot proceed until they actively enter an age.
-* 1) Create a Python GUI <code>age-api-gui</code> as per [[Age-api#Interface_Design_Draft|Interface Design Draft]].
-* Store information in the file <code>~/.age-api/age-bracket</code>
-** Write only the age bracket integer (1, 2, 3, 4) into the file? Why? Because then <code>read_integer_file</code> can be used. Brackets:
-<pre>
-(1) Whether a user is under 13 years of age.
--lt 13
-(2) Whether the user is at least 13 years of age and under 16 years of age.
--ge 13 && -lt 16
-(3) Whether the user is at least 16 years of age and under 18 years of age.
--ge 16 && -lt 18
-(4) Whether the user is at least 18 years of age.
--ge 18
-</pre>
-** It may be useful if the GUI uses the CLI as a backend.
-** Jurisdiction and API version may be needed.
-* 2) Create a simple Bash application <code>age-api-cli</code> that does the same.
-* 3) Create <code>age-api-query</code>
-** Output the age bracket number on stdout.
-** Explain the human readable age bracket on stderr.
-* 4) ISO: Create a Calamares module to live-config-dist.
-* 5) CLI version?
-* 6) Integrate with setup-dist; setup-wizard-dist?
-* 7) Synthesis with terms of service, age.
-
-{{quotation
-|quote=The Services are not for use by anyone under the age of 18.
-|context=[[Terms of Service]] chapter [[Terms_of_Service#Minimum_Age|Minimum Age]]
-}}
-
-setup-wizard-dist has something similar.
-
-/usr/lib/python3/dist-packages/setup_wizard_dist/setup_wizard_dist.py
-
-<pre>
-msg.setText("Because the agreements have been declined, you are prohibited from using this software.")
-</pre>
-
-So if the age bracket is lower than 18, also show a similar popup?
-
-<pre>
-Because the Terms of Service prohibit use by anyone under the age of 18, you are prohibited from using this software.
-</pre>
-
-* 8) Separate age API from terms of service.
-** age-api: collect age → compute bracket → store bracket → provide query API
-** setup-wizard-dist: read bracket → enforce project policy (18+ only)
-* new ideas:
-** should have a versioned age bracket file
-** should have a versioned age bracket query tool
-** $HOME might be the wrong storage location
-** set age once only, either in sysmaint session at first boot or in user session at first boot
-** allow initial set of age in user session, but require changes to be done using sudo/root (in sysmaint session if user-sysmaint-split is installed) (may not legally required but may help to comply in spirit rather than only formal compliance)
-* notepad (future tickets):
-** multi-layered defense (future separate ticket): 18+ TOS/setup + excluded territories TOS/setup + age api
-** other laws regarding app stores: https://www.kicksecure.com/wiki/Age-api#Related
-* 9) grub-pwchange improvements
-** add a feature to grub-pwchange to set up a password required for kernel parameter changes and recovery mode restriction only (to avoid trivial bypass of age bracket)
-** update [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
-
-== dist-installer-cli - Ubuntu + Secure Boot support ==
-* currently looks for the MOK key in the wrong location, see https://forums.whonix.org/t/mok-key-error-when-using-installer-on-ubuntu/22877
-** Aaron: Fix created but not tested. Commit pushed to usability-misc. Still needs a rebuild of dist-installer-cli-standalone.
-*** Attempted to test the fix, however a Secure Boot configuration prompt (presumably from debconf) prevented me from finishing the installation (for some reason I was not able to select the "OK" button in the prompt, possibly a terminal output redirection issue?), and VirtualBox's kernel modules wouldn't even compile on Ubuntu due to https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/2136499.
-
 == /tmp/user/100{0,1} sometimes owned by UID 0 on Qubes ==
 * not easily reproducible, happens rarely and sporadically in Qubes infrastructure
 * no clear reason why Whonix triggers this
 * investigate if this can be reproduced in a vanilla Debian 13 TemplateVM , this may be an upstream Qubes issue
 ** Aaron: Reproduced on Qubes with debian-13-xfce! Currently attempting to reproduce on KVM with Debian 13 and no GUI.
+** Aaron: Unable to reproduce under KVM, filed Qubes bug report: https://github.com/QubesOS/qubes-issues/issues/10769
+
+== grub-pwchange improvements ==
+* add a feature to grub-pwchange (already existing script) to set up a password required for kernel parameter changes and recovery mode restriction only
+* or maybe a separate tool is better if these do not share much code
+* normal boot: allowed without a GRUB bootloader password
+* sysmaint boot: requires password
+* recovery boot: requires password
+* kernel parameter change: requires password
+* update documentation: [[Protection_Against_Physical_Attacks#How_to_set_a_bootloader_password|How to set a bootloader password]]
+* might need feasibility discussion beforehand
+* use cases: towards kiosk mode (low priority), optional feature: enforce boot into user session if GRUB bootloader password is unknown
+* Aaron: Difficult, because (quoting info page for GRUB):
+
+<blockquote>The ‘grub-mkconfig’ program does not yet have built-in support for generating configuration files with authentication.  You can use ‘/etc/grub.d/40_custom’ to add simple superuser authentication, by adding ‘set superusers=’ and ‘password’ or ‘password_pbkdf2’ commands.</blockquote>
+
+* That is, while one can write boot entries that allow only specific users to run them, this requires building the grub.cfg file by hand, <code>grub-mkconfig</code> and <code>/etc/grub.d</code> cannot be used at all if going this route.
+** Might be possible to contribute upstream support for restricting boot entries?
+** Might be possible to write a custom grub.cfg builder, then divert update-grub and grub-mkconfig to use it instead?
 
 == RPi GRUB - contribute to Debian ==
 * Start a discussion and contribute to https://raspi.debian.net/ if accepted by upstream.
@@ -1130,6 +1076,22 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== legacy-dist bookworm branch ==
+* please backport required changes from master to bookworm
+** https://github.com/Kicksecure/legacy-dist/commit/563f8f57b5ff405d8aaf6eec7e9c550f8b4a7487
+** https://github.com/Kicksecure/legacy-dist/commit/037a89c000c327d2199a6e38a9a513633b6ee8f3
+** in case anything else comes to mind
+* check the <code>diffoscope</code> based diff of the current bookworm version with the new backport
+* test
+* Aaron: Backporting done, commits pushed to legacy-dist branches arraybolt3/trixie and arraybolt3/bookworm. Tested release upgrades of Whonix-Gateway, Whonix-Workstation, and Kicksecure, all on VirtualBox. All tests passed.
+** Minor issue noticed, autologin was not enabled via greetd even though it was already enabled on lightdm, so the user has to enter their username to sign in after upgrade. Unsure if this is worth fixing or not.
+
+== dist-installer-cli - Ubuntu + Secure Boot support ==
+* currently looks for the MOK key in the wrong location, see https://forums.whonix.org/t/mok-key-error-when-using-installer-on-ubuntu/22877
+** Aaron: Fix created but not tested. Commit pushed to usability-misc. Still needs a rebuild of dist-installer-cli-standalone.
+*** Attempted to test the fix, however a Secure Boot configuration prompt (presumably from debconf) prevented me from finishing the installation (for some reason I was not able to select the "OK" button in the prompt, possibly a terminal output redirection issue?), and VirtualBox's kernel modules wouldn't even compile on Ubuntu due to https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/2136499.
+*** Created a second fix, to use Oracle's VirtualBox repo instead, and to move the Secure Boot checks earlier. Commits pushed to usability-misc.
+
 == autologinchange - improve robustness ==
 * see todos in helper-scripts/usr/sbin/autologinchange
 * make the script impervious to non-standard configuration as much as possible
@@ -1238,6 +1200,72 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== Age API ==
+* This is not legal advice. As per [[Terms of Service]] wiki chapter, there is [[Terms_of_Service#No_Legal_Advice|No Legal Advice]].
+* '''status:''' <u>On hold, pending further discussion.</u>
+** '''Related wiki page:''' <u>[[age-api]]</u>
+* https://github.com/Kicksecure/age-api
+* Ask for age only: Do not ask for day of birth, as it is unnecessary.
+* Requirements:
+** No preselected option.
+** The account holder cannot proceed until they actively enter an age.
+* 1) Create a Python GUI <code>age-api-gui</code> as per [[Age-api#Interface_Design_Draft|Interface Design Draft]].
+* Store information in the file <code>~/.age-api/age-bracket</code>
+** Write only the age bracket integer (1, 2, 3, 4) into the file? Why? Because then <code>read_integer_file</code> can be used. Brackets:
+<pre>
+(1) Whether a user is under 13 years of age.
+-lt 13
+(2) Whether the user is at least 13 years of age and under 16 years of age.
+-ge 13 && -lt 16
+(3) Whether the user is at least 16 years of age and under 18 years of age.
+-ge 16 && -lt 18
+(4) Whether the user is at least 18 years of age.
+-ge 18
+</pre>
+** It may be useful if the GUI uses the CLI as a backend.
+** Jurisdiction and API version may be needed.
+* 2) Create a simple Bash application <code>age-api-cli</code> that does the same.
+* 3) Create <code>age-api-query</code>
+** Output the age bracket number on stdout.
+** Explain the human readable age bracket on stderr.
+* 4) ISO: Create a Calamares module to live-config-dist.
+* 5) CLI version?
+* 6) Integrate with setup-dist; setup-wizard-dist?
+* 7) Synthesis with terms of service, age.
+
+{{quotation
+|quote=The Services are not for use by anyone under the age of 18.
+|context=[[Terms of Service]] chapter [[Terms_of_Service#Minimum_Age|Minimum Age]]
+}}
+
+setup-wizard-dist has something similar.
+
+/usr/lib/python3/dist-packages/setup_wizard_dist/setup_wizard_dist.py
+
+<pre>
+msg.setText("Because the agreements have been declined, you are prohibited from using this software.")
+</pre>
+
+So if the age bracket is lower than 18, also show a similar popup?
+
+<pre>
+Because the Terms of Service prohibit use by anyone under the age of 18, you are prohibited from using this software.
+</pre>
+
+* 8) Separate age API from terms of service.
+** age-api: collect age → compute bracket → store bracket → provide query API
+** setup-wizard-dist: read bracket → enforce project policy (18+ only)
+* new ideas:
+** should have a versioned age bracket file
+** should have a versioned age bracket query tool
+** $HOME might be the wrong storage location
+** set age once only, either in sysmaint session at first boot or in user session at first boot
+** allow initial set of age in user session, but require changes to be done using sudo/root (in sysmaint session if user-sysmaint-split is installed) (may not legally required but may help to comply in spirit rather than only formal compliance)
+* notepad (future tickets):
+** multi-layered defense (future separate ticket): 18+ TOS/setup + excluded territories TOS/setup + age api
+** other laws regarding app stores: https://www.kicksecure.com/wiki/Age-api#Related
+* Patrick: Archiving for now.
+
 == fonts issues ==
 * https://forums.whonix.org/t/font-issues-in-various-applications/22838
 ** Aaron: Cannot reproduce, likely hardware-specific. Waiting for further input from user.
