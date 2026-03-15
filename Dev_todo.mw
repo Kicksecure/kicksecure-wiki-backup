@@ -21,6 +21,27 @@ Developer task list and work queue. This page summarizes short-term development 
 {{Developers-only}} [[Development_Discussion_Policy|Development Discussion Policy]] and [[First_Time_Source_Code_Contributor_Policy|Source Code Contributor Policy]] applies.
 }}
 = TODO DEV =
+== bug: "Open in Folder" button in Tor Browser broken ==
+* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
+* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
+** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-qt/issues/1834
+** We might be able to write a lightweight daemon that listens for a file manager launch request, and starts PCManFM-Qt with the appropriate arguments when requested, prompting for authorization before taking action.
+* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
+* Aaron: Shim implemented, commits pushed to security-misc. However, the current implementation will not work in production until https://github.com/QubesOS/qubes-issues/issues/10759 is fixed or a workaround is implemented for it.
+* Patrick: please see chat and
+** https://github.com/assisted-by-ai/security-misc/pull/2
+** https://github.com/assisted-by-ai/security-misc/pull/3
+
+== autologinchange - improve robustness ==
+* see todos in helper-scripts/usr/sbin/autologinchange
+* make the script impervious to non-standard configuration as much as possible
+* Aaron: Done, commits pushed to helper-scripts.
+* Patrick: As per chat.
+
+== kloak numlock bug ==
+* potential kloak numlock related bug?
+** https://forums.whonix.org/t/numpad-numlock-not-working-on-whonix-18-1-4-2-lxqt/22894/5
+
 == /tmp/user/100{0,1} sometimes owned by UID 0 on Qubes ==
 * not easily reproducible, happens rarely and sporadically in Qubes infrastructure
 * no clear reason why Whonix triggers this
@@ -88,6 +109,7 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 ** Also filed a bug report against raspi-firmware: [https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1102607 Add support for U-Boot + grub-arm64-efi boot flow]
 ** Other plans are still in the works for the Debian RPi images: https://outreach-team.pages.debian.net/gsoc/debian/raspberrypi/2025/06/03/gsoc-2025-introduction-make-debian-for-raspberrypi-again.html We should probably wait for all this to be merged before attempting to continue any further.
 ** These plans may have stalled. Investigate, implement a working solution that uses GRUB + UEFI as the default with other boot flows unsupported, ideally integrating the existing work. Then submit it, try to force it through if necessary, fall back to "non-UEFI as default but UEFI supported" if substantial opposition is met.
+*** Feature request for the cloud image builder (which is now used to build Raspberry Pi images): https://salsa.debian.org/cloud-team/debian-cloud-images/-/issues/95
 
 == keyboard LED brightness controls ==
 * https://forums.kicksecure.com/t/macbook-pro-keyboard-backlight-issue/1462
@@ -1093,22 +1115,9 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 *** Attempted to test the fix, however a Secure Boot configuration prompt (presumably from debconf) prevented me from finishing the installation (for some reason I was not able to select the "OK" button in the prompt, possibly a terminal output redirection issue?), and VirtualBox's kernel modules wouldn't even compile on Ubuntu due to https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/2136499.
 *** Created a second fix, to use Oracle's VirtualBox repo instead, and to move the Secure Boot checks earlier. Commits pushed to usability-misc.
 
-== autologinchange - improve robustness ==
-* see todos in helper-scripts/usr/sbin/autologinchange
-* make the script impervious to non-standard configuration as much as possible
-* Aaron: Done, commits pushed to helper-scripts.
-
 == review and improve - Vulnerability Disclosure Policy ==
 * [[Vulnerability_Disclosure_Policy|Kicksecure Vulnerability Disclosure Policy]]
 ** Aaron: Reviewed, shared notes in chat.
-
-== bug: "Open in Folder" button in Tor Browser broken ==
-* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
-* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
-** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-qt/issues/1834
-** We might be able to write a lightweight daemon that listens for a file manager launch request, and starts PCManFM-Qt with the appropriate arguments when requested, prompting for authorization before taking action.
-* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
-* Aaron: Shim implemented, commits pushed to security-misc. However, the current implementation will not work in production until https://github.com/QubesOS/qubes-issues/issues/10759 is fixed or a workaround is implemented for it.
 
 == nvidia - research raw framebuffer driver ==
 * nouveau is unstable on some NVIDIA hardware
@@ -1135,10 +1144,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * on [[Dev/research]] please add codified (without revealing upstream names before public disclosure) something like "upstream a | status wait until xyz" to have an overview of the various statuses
 * Aaron: Added, also followed up with some upstreams.
 
-== qubes misc ticket replies ==
-* https://github.com/QubesOS/qubes-issues/issues/9512#issuecomment-3861022685
-* Aaron: This is already handled.
-
 == privleap robustness improvements ==
 * Aaron:
 ** If for some reason a control session takes longer 5 seconds or longer to process, it may result in privleap being killed by the watchdog. This seems very unlikely, and isn't a security issue since the control socket is only available to the root account, but it may be possible anyway. Add an additional watchdog ping to make this less likely to happen (or possibly better yet, create a dedicated worker thread for control sessions so that the main thread's only job is accepting connections and dispatching threads).
@@ -1149,15 +1154,6 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 *** Implemented, required a protocol change and a lot of extra tests, but this now works.
 ** Implement GitHub Actions CI: https://github.com/ArrayBolt3/privleap/issues/22
 *** Tried but failed to make this work, autopkgtest + docker + Github Actions does not seem to work well together. Will create a new task for trying a "run the tests directly in Docker" solution later.
-
-== Age API - wiki page review ==
-* please review, improve
-* [[age-api]]
-* Aaron: Done.
-* 1) Patrick: Many changes since. Please re-review.
-** Aaron: Done, made some changes.
-* 2) Patrick: Consider notification of mailing lists: [[Age-api#New_York_State_Senate_Bill_S8102A|New York State Senate Bill S8102A]]
-** Aaron: Done.
 
 == Whonix-Starter for Windows Improvements ==
 * prettify a bit (start button is much too big)
@@ -1201,6 +1197,19 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== qubes misc ticket replies ==
+* https://github.com/QubesOS/qubes-issues/issues/9512#issuecomment-3861022685
+* Aaron: This is already handled.
+
+== Age API - wiki page review ==
+* please review, improve
+* [[age-api]]
+* Aaron: Done.
+* 1) Patrick: Many changes since. Please re-review.
+** Aaron: Done, made some changes.
+* 2) Patrick: Consider notification of mailing lists: [[Age-api#New_York_State_Senate_Bill_S8102A|New York State Senate Bill S8102A]]
+** Aaron: Done.
+
 == Age API ==
 * This is not legal advice. As per [[Terms of Service]] wiki chapter, there is [[Terms_of_Service#No_Legal_Advice|No Legal Advice]].
 * '''status:''' <u>On hold, pending further discussion.</u>
