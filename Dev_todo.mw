@@ -21,17 +21,6 @@ Developer task list and work queue. This page summarizes short-term development 
 {{Developers-only}} [[Development_Discussion_Policy|Development Discussion Policy]] and [[First_Time_Source_Code_Contributor_Policy|Source Code Contributor Policy]] applies.
 }}
 = TODO DEV =
-== bug: "Open in Folder" button in Tor Browser broken ==
-* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
-* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
-** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-qt/issues/1834
-** We might be able to write a lightweight daemon that listens for a file manager launch request, and starts PCManFM-Qt with the appropriate arguments when requested, prompting for authorization before taking action.
-* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
-* Aaron: Shim implemented, commits pushed to security-misc. However, the current implementation will not work in production until https://github.com/QubesOS/qubes-issues/issues/10759 is fixed or a workaround is implemented for it.
-* Patrick: please see chat and
-** https://github.com/assisted-by-ai/security-misc/pull/2
-** https://github.com/assisted-by-ai/security-misc/pull/3
-
 == autologinchange - improve robustness ==
 * see todos in helper-scripts/usr/sbin/autologinchange
 * make the script impervious to non-standard configuration as much as possible
@@ -122,6 +111,20 @@ Obviously, at this point, RPi GRUB support could only be added to Forky and late
 * add gsmartcontrol? Might be incompatible with Wayland. In that case, we could use a different tool.
 * also add smart-notifier, if sensible to task bar?
 ** Aaron: smart-notifier is already present and running on non-Qubes. It does not generate a tray icon, but it does display a graphical popup window if smartd detects that something may be wrong.
+
+== sysmaint-panel - reboot and shutdown buttons need error handling ==
+* reproduced on oldstable Kicksecure 17, not Kicksecure 18, but probably equally applicable
+* I failed to notice that APT is still running. Easy for users to make the same mistake.
+* reboot / shutdown button "yes" did nothing.
+* reason:
+<pre>
+[sysmaint ~]% reboot
+Operation inhibited by "APT" (PID 2614 "apt-get", user root), reason is "APT is installing or removing packages".
+Please retry operation after closing inhibitors and logging out other users.
+Alternatively, ignore inhibitors and users with 'systemctl reboot -i'.
+zsh: exit 1     reboot
+</pre>
+* Please add error handling. How? Open a terminal-wrapper a short timeout (for ctrl + C) or close window which then after 3 seconds or so timeout runs the shutdown action. (poweroff or reboot)
 
 == change program menu icons ==
 * sysmaint-panel and live-indicator: these are currently using the python logo
@@ -1099,6 +1102,18 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== bug: "Open in Folder" button in Tor Browser broken ==
+* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
+* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
+** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-qt/issues/1834
+** We might be able to write a lightweight daemon that listens for a file manager launch request, and starts PCManFM-Qt with the appropriate arguments when requested, prompting for authorization before taking action.
+* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
+* Aaron: Shim implemented, commits pushed to security-misc. However, the current implementation will not work in production until https://github.com/QubesOS/qubes-issues/issues/10759 is fixed or a workaround is implemented for it.
+* Patrick: please see chat and
+** https://github.com/assisted-by-ai/security-misc/pull/2
+** https://github.com/assisted-by-ai/security-misc/pull/3
+* Aaron: Implemented suggested fixes where it made sense, also did further code review with ChatGPT, implementing many fixed and adding hardening measures. Commits pushed to security-misc.
+
 == legacy-dist bookworm branch ==
 * please backport required changes from master to bookworm
 ** https://github.com/Kicksecure/legacy-dist/commit/563f8f57b5ff405d8aaf6eec7e9c550f8b4a7487
