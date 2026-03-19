@@ -20,13 +20,22 @@ Developer task list and work queue. This page summarizes short-term development 
 
 {{Developers-only}} [[Development_Discussion_Policy|Development Discussion Policy]] and [[First_Time_Source_Code_Contributor_Policy|Source Code Contributor Policy]] applies.
 }}
+
 = TODO DEV =
-== kloak numlock bug ==
-* potential kloak numlock related bug?
-** https://forums.whonix.org/t/numpad-numlock-not-working-on-whonix-18-1-4-2-lxqt/22894/5
-* Aaron: Confirmed, can reproduce under VirtualBox.
-** Num Lock itself is not inhibited by kloak on physical hardware, however the Num Lock LED is not responsive for some reason. Likely related to evdev EV_LED events.
-** VirtualBox does not seem to reliably transmit Num Lock keypresses to the guest. Why is unclear. When Kloak is disabled, this doesn't cause problems in practice, but when Kloak is enabled, Num Lock can get "stuck" off. This can be worked around by using the Num Lock button in VirtualBox's "Soft Keyboard", but it is very clunky.
+== kloak sometimes fails to start ==
+* Aaron:
+** Happened a couple times while testing a patched version of Kloak with the numpad issue under VirtualBox fixed. Issue does not appear to be related to the actual numpad issue or the patch.
+** systemctl logs of the failure (manually typed, abridged):
+
+<pre>
+systemd[1]: Starting kloak.service
+find_wl_compositor[1701]: main: ERROR: No Wayland compositors found on active VT!
+systemd[1]: Started kloak.service
+kloak[1895]: error: XDG_RUNTIME_DIR is invalid or not set in the environment.
+kloak[1895]: WARNING: Could not get Wayland display, will await escape key combo to exit.
+</pre>
+
+* This can happen because kloak's systemd unit is configured to allow kloak to attempt to start even if find_wl_compositor fails. This was thought to be safe, but apparently is not. Fix by making find_wl_compositor more robust so that failures can be used to cause a unit failure and thus a unit restart.
 
 == /tmp/user/100{0,1} sometimes owned by UID 0 on Qubes ==
 * not easily reproducible, happens rarely and sporadically in Qubes infrastructure
@@ -1104,6 +1113,14 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== kloak numlock bug ==
+* potential kloak numlock related bug?
+** https://forums.whonix.org/t/numpad-numlock-not-working-on-whonix-18-1-4-2-lxqt/22894/5
+* Aaron: Confirmed, can reproduce under VirtualBox.
+** Num Lock itself is not inhibited by kloak on physical hardware, however the Num Lock LED is not responsive for some reason. Likely related to evdev EV_LED events.
+** VirtualBox does not seem to reliably transmit Num Lock keypresses to the guest. Why is unclear. When Kloak is disabled, this doesn't cause problems in practice, but when Kloak is enabled, Num Lock can get "stuck" off. This can be worked around by using the Num Lock button in VirtualBox's "Soft Keyboard", but it is very clunky.
+** Fix created, commit pushed to kloak.
+
 == autologinchange - improve robustness ==
 * see todos in helper-scripts/usr/sbin/autologinchange
 * make the script impervious to non-standard configuration as much as possible
