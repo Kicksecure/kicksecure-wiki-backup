@@ -498,14 +498,31 @@ zsh: exit 126   sudo nano
 * [[Polkit|Polkit (formally PolicyKit) / <code>pkexec</code>]]
 
 == run0 ==
-{{stub}}
+run0 is a sudo-like utility included with systemd that avoids some of sudo's security pitfalls while allowing authorized users to run arbitrary commands. Whereas sudo uses its own configuration files to specify who is allowed to run what and in what ways, run0 uses Polkit for a roughly equivalent purpose. sudo is also a SUID-root application, while run0 runs as an unprivileged user and uses systemd to run commands as a different user.
 
-A compromised <code>polkitd</code> could result in root compromise using <code>run0</code>. See also [[Dev/Strong_Linux_User_Account_Isolation#Polkit|Polkit]].
-
+While likely more secure than sudo in some ways, run0 has a number of limitations that are not immediately obvious and may make it unsuitable for use in some situations. <ref>
 {{quotation
 |quote=It’s larger than doas. Way larger. run0 (really systemd-run) is 2642 lines long (including newlines and whatnot), and is heavily tied into the systemd codebase, which is about 1.3 million lines of C code. It’s unclear how much of that could be used to exploit run0, but some of it quite possibly can. doas on the other hand is relatively isolated (the only library it uses beyond the C standard library is PAM), and is only 1,850 lines long. Ergo, less attack surface.
 |context=Kicksecure developer, Aaron Rainbolt, [https://forums.whonix.org/t/replace-sudo-with-doas/17482/28 forum post]
 }}
+</ref><ref>
+https://github.com/QubesOS/qubes-issues/issues/10780#issuecomment-4139112072
+</ref>
+
+* sudo allows permitting users to run a limited subset of commands, while not allowing them to run all commands. run0 appears to lack this feature, making the choice of whether to give a user privileges "all or nothing". <ref>
+run0 creates "transient units" for running commands. These units may have any arbitrary name decided by the end user. systemd does expose the name of the unit being managed and the desired action to Polkit (see [https://github.com/systemd/systemd/commit/88ced61bf9673407f4b15bf51b1b408fd78c149d <code>core: pass details to polkit for some unit actions</code>]), which allows writing Polkit rules that only permit certain unit names to be used. However, because run0 can run any command with any unit name, this likely cannot be used for command whitelisting.
+</ref>
+* sudo allows one to configure specific commands as "runnable as root" without a password. run0 doesn't seem to have any equivalent functionality; the only way to allow a user to run anything passwordless is to allow them to run everything passwordless.
+* sudo allows restricting what environment variables may be passed to a command. run0 lacks this feature as well, which means even if one could restrict what commands a user could run, the behavior of those commands could be modified in dangerous ways by malicious environment variables.
+* The size of run0's attack surface is unclear. systemd and Polkit do the majority of the work of authenticating the user and running the desired application. As of 2026-03-26, the latest Git upstream versions of systemd and Polkit together made up about 961,000 lines of code, over seven times larger than sudo at about 129,000 lines. While most of this code is probably not executed when using run0, all of it could theoretically have an effect on run0's attack surface, and it is hard for anyone without a deep understanding of systemd's internals to know what parts of this code are a potential risk and what parts are not.
+* Because run0 uses Polkit for authorization, a SUID binary (<code>/usr/lib/polkit-1/polkit-agent-helper-1</code>) is used as part of the application launch process. This does not directly undo the benefits of run0 being SUID-less, as the SUID code is likely processing much less untrusted data, but many of the issues of SUID binaries in general still apply.
+
+{{quotation
+|quote=Ideally, there should be no SUID binaries reachable from the user account, as otherwise significant extra attack surface inside the VM is exposed (dynamic linker, libc startup, portions of Linux kernel including ELF loader, etc.)
+|context=Solar Designer, [https://github.com/QubesOS/qubes-issues/issues/2695#issuecomment-301320361 GitHub issue comment]
+}}
+
+In {{project_name_short}}, run0 is not usable in user sessions by default, as <code>/usr/lib/polkit-1/polkit-agent-helper-1</code> is inaccessible to accounts other than <code>sysmaint</code> when <code>user-sysmaint-split</code> is installed. run0 is usable when booted into [[Sysmaint]] mode.
 
 == SSH ==
 * todo: document
