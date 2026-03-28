@@ -123,6 +123,17 @@ zsh: exit 1     reboot
 * Short-term use for research: Eventually create a page on the Kicksecure wiki for how to set up local AI safely, create or update a page on the Whonix wiki for anti-stylometry using the local AI setup documentation
 * Long-term goal: Create a framework for an optional "sys-ai" VM and anti-stylometry GUI
 
+== clipboard - upstream shared folder based clipboard sharing script ==
+* Aaron:
+** https://forums.whonix.org/t/i-made-a-fix-for-the-shared-clipboard-issue/22705
+** Original author seems to have vanished
+** Create a Python script that serves the same purpose as the original, possibly based on the original work if it is still accessible, integrate it into usability-misc
+
+== clipboard - automatic Unicode scanning ==
+* Aaron:
+** Quote from Matrix: "random idea I had to assist us in our war on malicious Unicode and ANSI codes; make a clipboard watching service that would scan the contents of the clipboard for anything possibly malicious and pop up a desktop notification if something like that ends up on the clipboard?"
+** Feedback from Patrick was positive, implement
+
 == keyboard LED brightness controls ==
 * https://forums.kicksecure.com/t/macbook-pro-keyboard-backlight-issue/1462
 * Add to backlight-tool-dist
@@ -1100,97 +1111,22 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== run0 ==
-* please edit/update: https://forums.whonix.org/t/replace-sudo-with-doas/17482/29
-* please document: [[Dev/Strong_Linux_User_Account_Isolation#run0|run0]]
-* please comment: https://github.com/QubesOS/qubes-issues/issues/10780
-* Aaron: All of the above have now been done.
-
 == tirdad upstream review ==
 * new commits were pushed upstream in tirdad due to https://github.com/0xsirus/tirdad/issues/31
 * AI review shared
 * please review, fix upstream, if anything
 * https://forums.whonix.org/t/tcp-isn-cpu-information-leak-protection-tirdad/8552/36
 ** Aaron: Reviewed, neither me nor ChatGPT was able to find any true issues. Wrote a tester application to ensure the module functions as intended, tests pass. Test utility shared at https://github.com/0xsirus/tirdad/issues/33.
+* Please merge upstream changes into Kicksecure's Debian packaging fork, if sane.
+** Aaron: Done, tested package installation and retested the module with my tirdad-test code. Tests passed, build works fine, commit pushed to tirdad.
 
-== misc ai code review ==
-* file manager python shim
-* file manager C shim
-* find_wl_compositor
-* autologinchange
-* Aaron: Reviewed notes in chat, gave feedback, fixed issues in autologinchange and kloak.
+== kloak AI review ==
+* as provided in chat
+* Aaron: Fixed bugs, both the ones shared in chat and ones I discovered during testing. Commit pushed to kloak.
 
-== review port to sq ==
-* todo
-* Aaron: Reviewed, fixed a couple of minor things and pushed commits to genmkfile and derivative-maker. Adjusted my key setup to use the new sq-git-based verification system, successfully built an ISO using the new system and installed it in a Qubes HVM.
-* Patrick: Merged.
-* Patrick: More changes. Please re-review.
-* Aaron: Re-reviewed, pushed a small fix to derivative-maker.
-
-== change program menu icons ==
-* sysmaint-panel and live-indicator: these are currently using the python logo
-* please use different icon (not necessarily project logo)
-* Aaron: Notes for implementing this:
-** Set the desired icon in the desktop file using an <code>Icon=...</code> line
-** Use <code>app.setDesktopFileName("...")</code> (where <code>app</code> is a QApplication object) to associate the app with the desktop file
-** The compositor will pick up and assign the correct icon when this is done, though it may require a compositor restart for this to take effect
-** There appear to be some restrictions on what icons will be picked up, haven't figured out the details yet but using arbitrary icons from the Papirus icon theme does NOT seem to work
-*** Solution found, we're missing a config section <code>&lt;theme&gt;&lt;icon&gt;Papirus-Light&lt;/icon&gt;&lt;/theme&gt;</code> in labwc's configuration.
-*** Commits pushed to sysmaint-panel and desktop-config-dist.
-
-== file manager shim AI review ==
-* https://github.com/assisted-by-ai/security-misc/pull/4
-* https://github.com/assisted-by-ai/security-misc/pull/5
-** Aaron: Reviewed, provided rationale for rejecting both. Did not find anything useful to integrate into the code. I did push a commit to security-misc after implementing some things discussed in chat.
-
-== kloak sometimes fails to start ==
-* Aaron:
-** Happened a couple times while testing a patched version of Kloak with the numpad issue under VirtualBox fixed. Issue does not appear to be related to the actual numpad issue or the patch.
-** systemctl logs of the failure (manually typed, abridged):
-
-<pre>
-systemd[1]: Starting kloak.service
-find_wl_compositor[1701]: main: ERROR: No Wayland compositors found on active VT!
-systemd[1]: Started kloak.service
-kloak[1895]: error: XDG_RUNTIME_DIR is invalid or not set in the environment.
-kloak[1895]: WARNING: Could not get Wayland display, will await escape key combo to exit.
-</pre>
-
-* This can happen because kloak's systemd unit is configured to allow kloak to attempt to start even if find_wl_compositor fails. This is necessary to avoid logging endless error messages if the user is using a TTY.
-** Fix created, commits pushed to desktop-config-dist, user-sysmaint-split, and kloak. Rather than the flaky flag-file-based mechanism, a polling routine is now used. This is less hacky, and should be more reliable.
-
-== kloak numlock bug ==
-* potential kloak numlock related bug?
-** https://forums.whonix.org/t/numpad-numlock-not-working-on-whonix-18-1-4-2-lxqt/22894/5
-* Aaron: Confirmed, can reproduce under VirtualBox.
-** Num Lock itself is not inhibited by kloak on physical hardware, however the Num Lock LED is not responsive for some reason. Likely related to evdev EV_LED events.
-** VirtualBox does not seem to reliably transmit Num Lock keypresses to the guest. Why is unclear. When Kloak is disabled, this doesn't cause problems in practice, but when Kloak is enabled, Num Lock can get "stuck" off. This can be worked around by using the Num Lock button in VirtualBox's "Soft Keyboard", but it is very clunky.
-** Fix created, commit pushed to kloak.
-
-== autologinchange - improve robustness ==
-* see todos in helper-scripts/usr/sbin/autologinchange
-* make the script impervious to non-standard configuration as much as possible
-* Aaron: Done, commits pushed to helper-scripts.
-* Patrick: As per chat.
-* Aaron: Reviewed with ChatGPT, reworked architecture somewhat, commit pushed to helper-scripts.
-
-== bug: "Open in Folder" button in Tor Browser broken ==
-* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
-* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
-** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-qt/issues/1834
-** We might be able to write a lightweight daemon that listens for a file manager launch request, and starts PCManFM-Qt with the appropriate arguments when requested, prompting for authorization before taking action.
-* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
-* Aaron: Shim implemented, commits pushed to security-misc. However, the current implementation will not work in production until https://github.com/QubesOS/qubes-issues/issues/10759 is fixed or a workaround is implemented for it.
-* Patrick: please see chat and
-** https://github.com/assisted-by-ai/security-misc/pull/2
-** https://github.com/assisted-by-ai/security-misc/pull/3
-* Aaron: Implemented suggested fixes where it made sense, also did further code review with ChatGPT, implementing many fixed and adding hardening measures. Commits pushed to security-misc.
-
-== dist-installer-cli - Ubuntu + Secure Boot support ==
-* currently looks for the MOK key in the wrong location, see https://forums.whonix.org/t/mok-key-error-when-using-installer-on-ubuntu/22877
-** Aaron: Fix created but not tested. Commit pushed to usability-misc. Still needs a rebuild of dist-installer-cli-standalone.
-*** Attempted to test the fix, however a Secure Boot configuration prompt (presumably from debconf) prevented me from finishing the installation (for some reason I was not able to select the "OK" button in the prompt, possibly a terminal output redirection issue?), and VirtualBox's kernel modules wouldn't even compile on Ubuntu due to https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/2136499.
-*** Created a second fix, to use Oracle's VirtualBox repo instead, and to move the Secure Boot checks earlier. Commits pushed to usability-misc.
+== run0 documentation AI review ==
+* as provided in chat
+** Aaron: Replied.
 
 == nvidia - research raw framebuffer driver ==
 * nouveau is unstable on some NVIDIA hardware
@@ -1206,32 +1142,6 @@ kloak[1895]: WARNING: Could not get Wayland display, will await escape key combo
 * Aaron: Posted initial review. Waiting for reply.
 ** Reply received, waiting for a second iteration. If the original developer goes missing, we may polish their work and integrate it into the codebase ourselves.
 *** Original developer seems to have vanished, good to get an implementation working ourselves?
-
-== one-time popup support for passive popups ==
-* one-time-popup (from msgcollector) currently only works with "invasive" window-style popups.
-* passive popups can have buttons
-* add functionality to one-time-popup that can create a passive popup with a "Don't show again" button
-* Aaron: Rewrote one-time-popup to fix some bugs and shortcomings in the original, added this feature in the process. Commit pushed to msgcollector.
-
-== track upstream security bug reports ==
-* on [[Dev/research]] please add codified (without revealing upstream names before public disclosure) something like "upstream a | status wait until xyz" to have an overview of the various statuses
-* Aaron: Added, also followed up with some upstreams.
-
-== privleap robustness improvements ==
-* Aaron:
-** If for some reason a control session takes longer 5 seconds or longer to process, it may result in privleap being killed by the watchdog. This seems very unlikely, and isn't a security issue since the control socket is only available to the root account, but it may be possible anyway. Add an additional watchdog ping to make this less likely to happen (or possibly better yet, create a dedicated worker thread for control sessions so that the main thread's only job is accepting connections and dispatching threads).
-*** Decided to go with the separate thread solution. Discovered a thread safety bug and a persistent user handling bug in the process and fixed both of them.
-** When a user socket is destroyed, forcibly terminate all running actions triggered by that user socket and disconnect clients connected to it. This is good for "principle of least astonishment", and may reduce unneeded resource consumption a bit.
-*** Implemented, also added more robust tests of the multithreading mechanism after hitting several thread safety issues.
-** Allow a user to check multiple actions at once when checking if actions can be run or not.
-*** Implemented, required a protocol change and a lot of extra tests, but this now works.
-** Implement GitHub Actions CI: https://github.com/ArrayBolt3/privleap/issues/22
-*** Tried but failed to make this work, autopkgtest + docker + Github Actions does not seem to work well together. Will create a new task for trying a "run the tests directly in Docker" solution later.
-
-== Whonix-Starter for Windows Improvements ==
-* prettify a bit (start button is much too big)
-* fix (currently fails to start VMs)
-* Aaron: Done, commits pushed to whonix-starter.
 
 == bdev_allow_write_mounted=0 vs fwupd ==
 * https://github.com/Kicksecure/security-misc/pull/334#issuecomment-3904448654
@@ -1270,6 +1180,127 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== one-time popup support for passive popups ==
+* one-time-popup (from msgcollector) currently only works with "invasive" window-style popups.
+* passive popups can have buttons
+* add functionality to one-time-popup that can create a passive popup with a "Don't show again" button
+* Aaron: Rewrote one-time-popup to fix some bugs and shortcomings in the original, added this feature in the process. Commit pushed to msgcollector.
+* Patrick: Merged.
+
+== track upstream security bug reports ==
+* on [[Dev/research]] please add codified (without revealing upstream names before public disclosure) something like "upstream a | status wait until xyz" to have an overview of the various statuses
+* Aaron: Added, also followed up with some upstreams.
+
+== privleap robustness improvements ==
+* Aaron:
+** If for some reason a control session takes longer 5 seconds or longer to process, it may result in privleap being killed by the watchdog. This seems very unlikely, and isn't a security issue since the control socket is only available to the root account, but it may be possible anyway. Add an additional watchdog ping to make this less likely to happen (or possibly better yet, create a dedicated worker thread for control sessions so that the main thread's only job is accepting connections and dispatching threads).
+*** Decided to go with the separate thread solution. Discovered a thread safety bug and a persistent user handling bug in the process and fixed both of them.
+** When a user socket is destroyed, forcibly terminate all running actions triggered by that user socket and disconnect clients connected to it. This is good for "principle of least astonishment", and may reduce unneeded resource consumption a bit.
+*** Implemented, also added more robust tests of the multithreading mechanism after hitting several thread safety issues.
+** Allow a user to check multiple actions at once when checking if actions can be run or not.
+*** Implemented, required a protocol change and a lot of extra tests, but this now works.
+** Implement GitHub Actions CI: https://github.com/ArrayBolt3/privleap/issues/22
+*** Tried but failed to make this work, autopkgtest + docker + Github Actions does not seem to work well together. Will create a new task for trying a "run the tests directly in Docker" solution later.
+* Patrick: Merged.
+
+== Whonix-Starter for Windows Improvements ==
+* prettify a bit (start button is much too big)
+* fix (currently fails to start VMs)
+* Aaron: Done, commits pushed to whonix-starter.
+* Patrick: Merged.
+
+== kloak sometimes fails to start ==
+* Aaron:
+** Happened a couple times while testing a patched version of Kloak with the numpad issue under VirtualBox fixed. Issue does not appear to be related to the actual numpad issue or the patch.
+** systemctl logs of the failure (manually typed, abridged):
+
+<pre>
+systemd[1]: Starting kloak.service
+find_wl_compositor[1701]: main: ERROR: No Wayland compositors found on active VT!
+systemd[1]: Started kloak.service
+kloak[1895]: error: XDG_RUNTIME_DIR is invalid or not set in the environment.
+kloak[1895]: WARNING: Could not get Wayland display, will await escape key combo to exit.
+</pre>
+
+* This can happen because kloak's systemd unit is configured to allow kloak to attempt to start even if find_wl_compositor fails. This is necessary to avoid logging endless error messages if the user is using a TTY.
+** Fix created, commits pushed to desktop-config-dist, user-sysmaint-split, and kloak. Rather than the flaky flag-file-based mechanism, a polling routine is now used. This is less hacky, and should be more reliable.
+* Patrick: Merged.
+
+== kloak numlock bug ==
+* potential kloak numlock related bug?
+** https://forums.whonix.org/t/numpad-numlock-not-working-on-whonix-18-1-4-2-lxqt/22894/5
+* Aaron: Confirmed, can reproduce under VirtualBox.
+** Num Lock itself is not inhibited by kloak on physical hardware, however the Num Lock LED is not responsive for some reason. Likely related to evdev EV_LED events.
+** VirtualBox does not seem to reliably transmit Num Lock keypresses to the guest. Why is unclear. When Kloak is disabled, this doesn't cause problems in practice, but when Kloak is enabled, Num Lock can get "stuck" off. This can be worked around by using the Num Lock button in VirtualBox's "Soft Keyboard", but it is very clunky.
+** Fix created, commit pushed to kloak.
+* Patrick: Merged.
+
+== autologinchange - improve robustness ==
+* see todos in helper-scripts/usr/sbin/autologinchange
+* make the script impervious to non-standard configuration as much as possible
+* Aaron: Done, commits pushed to helper-scripts.
+* Patrick: As per chat.
+* Aaron: Reviewed with ChatGPT, reworked architecture somewhat, commit pushed to helper-scripts.
+* Patrick: Merged.
+
+== bug: "Open in Folder" button in Tor Browser broken ==
+* https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/22
+* Preferred fix: Get upstream to accept the needed components to allow pcmanfm-qt to be D-Bus activated (if those components aren't already there), add them ourselves for now or fix them if they exist and just aren't working
+** Difficult, not supported yet, see https://github.com/lxqt/pcmanfm-qt/issues/2127#event-21832277851 and https://github.com/lxqt/pcmanfm-qt/issues/1834
+** We might be able to write a lightweight daemon that listens for a file manager launch request, and starts PCManFM-Qt with the appropriate arguments when requested, prompting for authorization before taking action.
+* Alternate fix: Launch pcmanfm-qt in "daemon mode" under Qubes OS, on both Whonix and Kicksecure
+* Aaron: Shim implemented, commits pushed to security-misc. However, the current implementation will not work in production until https://github.com/QubesOS/qubes-issues/issues/10759 is fixed or a workaround is implemented for it.
+* Patrick: please see chat and
+** https://github.com/assisted-by-ai/security-misc/pull/2
+** https://github.com/assisted-by-ai/security-misc/pull/3
+* Aaron: Implemented suggested fixes where it made sense, also did further code review with ChatGPT, implementing many fixed and adding hardening measures. Commits pushed to security-misc.
+* Patrick: Merged.
+
+== dist-installer-cli - Ubuntu + Secure Boot support ==
+* currently looks for the MOK key in the wrong location, see https://forums.whonix.org/t/mok-key-error-when-using-installer-on-ubuntu/22877
+** Aaron: Fix created but not tested. Commit pushed to usability-misc. Still needs a rebuild of dist-installer-cli-standalone.
+*** Attempted to test the fix, however a Secure Boot configuration prompt (presumably from debconf) prevented me from finishing the installation (for some reason I was not able to select the "OK" button in the prompt, possibly a terminal output redirection issue?), and VirtualBox's kernel modules wouldn't even compile on Ubuntu due to https://bugs.launchpad.net/ubuntu/+source/virtualbox/+bug/2136499.
+*** Created a second fix, to use Oracle's VirtualBox repo instead, and to move the Secure Boot checks earlier. Commits pushed to usability-misc.
+* Patrick: Merged.
+
+== file manager shim AI review ==
+* https://github.com/assisted-by-ai/security-misc/pull/4
+* https://github.com/assisted-by-ai/security-misc/pull/5
+** Aaron: Reviewed, provided rationale for rejecting both. Did not find anything useful to integrate into the code. I did push a commit to security-misc after implementing some things discussed in chat.
+
+== change program menu icons ==
+* sysmaint-panel and live-indicator: these are currently using the python logo
+* please use different icon (not necessarily project logo)
+* Aaron: Notes for implementing this:
+** Set the desired icon in the desktop file using an <code>Icon=...</code> line
+** Use <code>app.setDesktopFileName("...")</code> (where <code>app</code> is a QApplication object) to associate the app with the desktop file
+** The compositor will pick up and assign the correct icon when this is done, though it may require a compositor restart for this to take effect
+** There appear to be some restrictions on what icons will be picked up, haven't figured out the details yet but using arbitrary icons from the Papirus icon theme does NOT seem to work
+*** Solution found, we're missing a config section <code>&lt;theme&gt;&lt;icon&gt;Papirus-Light&lt;/icon&gt;&lt;/theme&gt;</code> in labwc's configuration.
+*** Commits pushed to sysmaint-panel and desktop-config-dist.
+* Patrick: Merged.
+
+== review port to sq ==
+* todo
+* Aaron: Reviewed, fixed a couple of minor things and pushed commits to genmkfile and derivative-maker. Adjusted my key setup to use the new sq-git-based verification system, successfully built an ISO using the new system and installed it in a Qubes HVM.
+* Patrick: Merged.
+* Patrick: More changes. Please re-review.
+* Aaron: Re-reviewed, pushed a small fix to derivative-maker.
+* Patrick: Merged.
+
+== misc ai code review ==
+* file manager python shim
+* file manager C shim
+* find_wl_compositor
+* autologinchange
+* Aaron: Reviewed notes in chat, gave feedback, fixed issues in autologinchange and kloak.
+
+== run0 ==
+* please edit/update: https://forums.whonix.org/t/replace-sudo-with-doas/17482/29
+* please document: [[Dev/Strong_Linux_User_Account_Isolation#run0|run0]]
+* please comment: https://github.com/QubesOS/qubes-issues/issues/10780
+* Aaron: All of the above have now been done.
+
 == email forward ==
 * forward email that got lost
 
