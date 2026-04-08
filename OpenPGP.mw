@@ -169,7 +169,53 @@ This might get easier with Sequoia.
 sq
 }}
 
-forum discussion: [https://forums.kicksecure.com/t/sequoia-pgp-gpg-replacement-openpgp/260 Sequoia-PGP (gpg replacement) - OpenPGP]
+forum discussions:
+
+* [https://forums.kicksecure.com/t/sequoia-pgp-gpg-replacement-openpgp/260 Sequoia-PGP (gpg replacement) - OpenPGP]
+* [https://forums.kicksecure.com/t/sequoia-git-sq-git/1638 Sequoia git ("<code>sq-git</code>")]
+
+== Sequoia-PGP automation ==
+=== sqop parsing ===
+<code>sqop</code> is Sequoia-PGP’s implementation of the Stateless OpenPGP (SOP) interface.
+
+The SOP specification says:
+
+{{quotation
+|quote=When sop succeeds, it will return 0 (OK) and emit nothing to Standard Error.
+|context=[https://datatracker.ietf.org/doc/draft-dkg-openpgp-stateless-cli/ Stateless OpenPGP Command Line Interface], “Failure Modes”
+}}
+
+{{quotation
+|quote=When sop fails, it fails with a non-zero return code, and emits one or more warning messages on Standard Error.
+|context=[https://datatracker.ietf.org/doc/draft-dkg-openpgp-stateless-cli/ Stateless OpenPGP Command Line Interface], “Failure Modes”
+}}
+
+The same specification also says that, when <code>--debug</code> is present, <code>sop</code> may emit implementation-specific debugging information to standard error.
+
+Therefore, callers should treat <code>stdout</code> as the output channel to parse, always check the exit status, and treat <code>stderr</code> as diagnostic or debug output rather than structured data.
+
+In normal successful operation, that means <code>sqop</code> should not emit <code>stderr</code>. On failure, <code>stderr</code> is the right place to look for a user-facing error message.
+
+=== sqop vs sq for automations ===
+For automated used in programs or scripts use <code>sqop</code> not <code>sq</code>!
+
+Do '''not''' parse <code>sq verify</code>'s human-readable output.
+
+# Sequoia explicitly warned that <code>sq</code> output is "not machine readable", and recommended JSON output modes to avoid "common security-sensitive bugs" from manual parsing.
+#* Source: [https://sequoia-pgp.org/blog/2021/01/26/202101-sq-release/ Sequoia PGP release notes]
+# <code>sq verify</code> applies authentication rules that depend on OpenPGP data, not on a stable machine-readable text format. In particular:
+#* "If the signature includes a Signer User ID subpacket, then only that User ID is considered."
+#* "Note: the User ID need not be self signed."
+#*: So a parser that tries to scrape signer identity from output may be confused by signature contents and policy decisions.
+#* Source: [https://sequoia-pgp.gitlab.io/sequoia-sq/man/sq.1.html <code>sq</code> manual page]
+# <code>sq sign</code> supports signature notations, and Sequoia documents them as "human readable". Free-text signature metadata is therefore a bad input source for a security-sensitive parser.
+#* Source: [https://sequoia-pgp.gitlab.io/sequoia-sq/man/sq-sign.1.html <code>sq sign</code> manual page]
+
+Therefore,
+
+* Treat <code>sq verify</code> text as diagnostic text for humans only.
+* Use only the process exit status for automation, unless Sequoia provides a documented stable machine-readable format.
+* Do not attempt derive status fields such as <code>keyid</code>, <code>userid</code>, <code>fingerprint</code>, or <code>primary_fpr</code> by parsing <code>sq verify</code> output.
 
 = PGPainless =
 Another potential replacement for GnuPG.

@@ -3,14 +3,32 @@
 /bin/bash - Proper Whitespace Handling - Whitespace Safety - End-of-Options Parameter Security
 }}
 {{#seo:
-|description=Supporting multiple command line parameters with spaces in wrapper scripts and Use of End-of-Options Parameter (--).
+|description=Supporting multiple command line parameters with spaces in wrapper scripts, safe output handling, and use of the end-of-options parameter (--).
 }}
 {{coding_style_mininav}}
 {{intro|
-Supporting multiple command line parameters with spaces in wrapper scripts and the end-of-options parameter (<code>--</code>) for better security.
+Supporting multiple command line parameters with spaces in wrapper scripts, safe output handling, and use of the end-of-options parameter (<code>--</code>) for better safety.
 }}
+
+= Summary =
+* <u>Shell options:</u> Use <code>set -o errexit</code>, <code>set -o nounset</code>, <code>set -o errtrace</code>, and <code>set -o pipefail</code>.
+* <u>Quoted expansions:</u> Quote variable expansions and prefer <code>${variable}</code> style.
+* <u>Array-based command building:</u> Build command lines with arrays. On POSIX <code>sh</code>, use <code>set --</code>.
+* <u>End-of-options marker:</u> Use the end-of-options parameter <code>--</code> where supported, after options and before positional parameters.
+* <u>Long options:</u> Prefer long option names over short flags when sensible.
+* <u>Safe output:</u> Do not use <code>echo</code>. Use <code>printf</code> with an explicit format string, or <code>stecho</code> for terminal output.
+* <u>Safe line input:</u> Use <code>IFS= read -r</code> for line-oriented input.
+* <u>Checking unset variables:</u> Under <code>nounset</code>, check explicitly whether variables exist.
+* <u>Local variable declaration:</u> Declare <code>local</code> variables first, then assign to them on a separate line.
+* <u>Dynamic scoping awareness:</u> Remember that Bash <code>local</code> uses dynamic scoping, and do not <code>local</code>ize <code>BASH_REMATCH</code>.
+* <u>Loop subshell avoidance:</u> Avoid piping into <code>while read</code> loops, because that can create a subshell.
+* <u>Stdin protection:</u> Prevent stdin stealing inside loops by using a separate file descriptor when needed.
+* <u>NUL-delimited input:</u> Use NUL-delimited input where required, for example with <code>find -files0-from</code>.
+* <u>Pipefail caution:</u> Be careful with <code>pipefail</code> when piping into early-exiting consumers such as <code>grep --quiet</code>.
+* <u>Readable project style:</u> Prefer explicit, readable, whitespace-safe code and project helper functions where appropriate.
+
 = Safe ways to print =
-There is no safe usage of <code>echo</code>; use <code>printf '%s'</code> instead.
+For this style guide, do not use <code>echo</code>. Use <code>printf</code> with an explicit format string instead.
 
 * {{VideoLink
 |videoid=lq98MM2ogBk
@@ -26,15 +44,15 @@ There is no safe usage of <code>echo</code>; use <code>printf '%s'</code> instea
 * [https://github.com/koalaman/shellcheck/issues/2674 Warn on echo "$var" when $var might be -e #2674]
 * [https://github.com/koalaman/shellcheck/issues?q=is%3Aissue+is%3Aopen+echo+in%3Atitle Open shellcheck issues related to echo]
 
-Please note that <code>printf</code> does not have a default format specifier, but treats the first positional parameter as the format string. When the format is missing, the data is treated as if the format specifier is <code>%b</code>. It is always recommended to be explicit about the format being used to avoid this mistake.
+Please note that <code>printf</code> does not have a default format specifier. The first positional parameter is always treated as the format string. When the format is omitted, untrusted data can be interpreted as format directives or backslash escapes. It is always recommended to be explicit about the format being used.
 
-Normally, there is no need to interpret the escape sequences of a variable, therefore use the <code>printf</code> format specifier <code>%s</code> when the data is not printed to a terminal:
+Normally, there is no need to interpret escape sequences from a variable. Therefore, use the <code>printf</code> format specifier <code>%s</code> when the data is not printed to a terminal:
 
 {{CodeSelect|code=
 var="$(printf '%s' "${untrusted_text}")"
 }}
 
-<code>printf '%s\n' "message here"</code> is the equivalent of <code>echo "message here"</code>.
+<code>printf '%s\n' "message here"</code> is the usual replacement for <code>echo "message here"</code>.
 
 If you require escapes to be interpreted, interpret them on a per-need basis:
 
@@ -43,13 +61,13 @@ red="$(printf '%b' "\e[31m")"    # red=$'\e[31m'   # printf -v red     '%b' "\e[
 nocolor="$(printf '%b' "\e[m")"  # nocolor=$'\e[m' # printf -v nocolor '%b' "\e[m"
 }}
 
-Escapes that are already interpreted can be printed with <code>%s</code> without making a difference:
+Escapes that are already interpreted can then be printed with <code>%s</code>:
 
 {{CodeSelect|code=
 var="$(printf '%s' "${red} ${untrusted_text} ${nocolor}")"
 }}
 
-And this is why you should use <code>stecho</code> when printing to the terminal, as it will sanitize unsafe characters ([[unicode]]) while simply using <code>printf '%s'</code> is not safe when escapes are already interpreted:
+And this is why you should use <code>stecho</code> when printing to the terminal, because it sanitizes unsafe characters ([[unicode]]). Simply using <code>printf '%s'</code> is not sufficient when escapes are already interpreted:
 
 {{CodeSelect|code=
 stecho "${red} ${untrusted_text} ${nocolor}"
@@ -59,18 +77,18 @@ printf '%s' "${red} ${untrusted_text} ${nocolor}" {{!}} stecho {{!}} less -R
 
 '''Rule of thumb''':
 
-* <code>echo</code>: Never!
+* <code>echo</code>: Never.
 * <code>printf</code>: Whenever the printed data is not used by a terminal.
-** Format <code>%b</code>: Only for trusted data.
+** Format <code>%b</code>: Only for trusted data or fixed literals.
 ** Format <code>%s</code>: With any data.
 * <code>stecho</code>: Whenever the printed data is used by a terminal.
 ** When not using <code>stecho</code>: When <code>stecho</code> cannot reasonably be considered available, such as during early build steps when building Kicksecure from source code using derivative-maker.
 
 Resources:
 
-* https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md#echo--printf
-* https://unix.stackexchange.com/questions/65803/why-is-printf-better-than-echo
-* https://pubs.opengroup.org/onlinepubs/9799919799/utilities/echo.html
+* [https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md#echo--printf shellharden: echo / printf]
+* [https://unix.stackexchange.com/questions/65803/why-is-printf-better-than-echo Unix & Linux Stack Exchange: Why is printf better than echo?]
+* [https://pubs.opengroup.org/onlinepubs/9799919799/utilities/echo.html POSIX <code>echo</code> specification]
 
 = Bash Proper Whitespace Handling =
 
@@ -105,7 +123,7 @@ cmd_list+=("--")
 cmd_list+=("${lib_dir}")
 cmd_list+=("${main_app_dir}/")
 
-printf '%s\n' "cmd_list: '${cmd_list[@]}'"
+printf '%s\n' "cmd_list has ${#cmd_list[@]} items"
 
 ## Execution example.
 "${cmd_list[@]}"
@@ -121,7 +139,7 @@ cmd_alt_list=(
     --recursive      ## recursive
     --               ## stop option parsing (protects against paths that begin with '-')
     "$lib_dir"       ## source directory
-    "$main_app_dir"  ## destination
+    "$main_app_dir/" ## destination
 )
 
 ## 'for' loop example.
@@ -132,31 +150,41 @@ done
 
 = Why <code>nounset</code> =
 
-Because it is better to be explicit about whether a variable should be empty or not:
+Without <code>nounset</code>, an unset variable silently expands to an empty string. That can turn a dangerous path into something unintended.
 
 <pre>
-rm --force -- "/$UNSET_VAR"
+rm -- "/$UNSET_VAR"
 </pre>
 
-Will return:
+If <code>UNSET_VAR</code> is unset and <code>nounset</code> is disabled, this becomes:
+
+<pre>
+rm -- "/"
+</pre>
+
+On many systems that will fail with an error such as:
 
 <pre>
 rm: cannot remove '/': Is a directory
 </pre>
 
-Setting <code>UNSET_VAR=""</code> would not fix this issue, but that is another problem: checking whether every used variable may be empty or not.
+That specific command happens to fail here, but the pattern is still unsafe. With <code>set -o nounset</code>, the shell aborts earlier before running <code>rm</code>.
+
+Setting <code>UNSET_VAR=""</code> would not solve the general problem either. Variables that may intentionally be empty should be handled explicitly.
 
 = local =
 == Error swallowing ==
 <u>Note:</u>
 
 {{CodeSelect|code=
-local testbar=$(false)
+local testvar=$(false)
 }}
 
-<u>expected:</u> error
+<u>Expected:</u> error
 
-<u>actual:</u> no error
+<u>Actual:</u> no error
+
+When declaration and assignment are combined on the same line, <code>local</code> itself returns success and masks the failing command substitution.
 
 Better:
 
@@ -165,8 +193,8 @@ local testvar
 testvar=$(false)
 }}
 
-== Unexpected scoping with functions ==
-<code>local</code> variables in one function will be accessible in nested function calls.
+== Dynamic scoping ==
+<code>local</code> variables in Bash use dynamic scoping. That means nested function calls can still read and modify them unless they declare their own <code>local</code> variable.
 
 <u>Example:</u>
 
@@ -197,7 +225,7 @@ in fn_02, myvar is now not so local after all
 in fn_01, myvar is now not so local after all
 </pre>
 
-To avoid problems from this, it is best to declare all function-local variables as <code>local</code> at the head of a function. For example:
+To avoid problems from this, declare all function-local variables as <code>local</code> at the head of a function. For example:
 
 {{CodeSelect|code=
 fn_01 () {
@@ -230,14 +258,14 @@ Do not <code>local -a BASH_REMATCH</code>!
 
 {{quotation
 |quote=Note specifically: <code>Bash sets BASH_REMATCH in the global scope; declaring it as a local variable will lead to unexpected results.</code>
-|context=https://www.gnu.org/software/bash/manual/bash.html
+|context=[https://www.gnu.org/software/bash/manual/bash.html GNU Bash manual]
 }}
 
 = POSIX array =
 
-On a POSIX shell, there is one array, <code>$@</code>, which has different scope per function or main script. You can build it with <code>set --</code>:
+On a POSIX shell, positional parameters provide the portable array-like container. <code>$@</code> has different scope per function or main script. You can build it with <code>set --</code>:
 
-Add items to an array:
+Add items to the array:
 <pre>
 set -- a b c
 </pre>
@@ -250,7 +278,7 @@ set -- a "$@" c
 
 = Use of End-of-Options Parameter (--) =
 
-The end-of-options parameter "<code>--</code>" is crucial because otherwise inputs might be mistaken for command options. This can even be a security risk. Here are examples using the <code>sponge</code> command:
+The end-of-options parameter "<code>--</code>" is important because otherwise inputs might be mistaken for command options. This can even become a security issue. Here are examples using the <code>sponge</code> command:
 
 {{CodeSelect|code=
 sponge -a testfilename </dev/null
@@ -262,7 +290,7 @@ Result: OK. This works because "<code>testfilename</code>" does not look like an
 sponge -a --testfilename </dev/null
 }}
 
-Result: Fail. The command interprets "<code>--testfilename</code>" as a series of options:
+Result: Fail. The command interprets "<code>--testfilename</code>" as options:
 
 <pre>
 sponge: invalid option -- '-'
@@ -279,16 +307,16 @@ Result: OK. The <code>--</code> signals that "<code>--testfilename</code>" is a 
 
 Conclusion:
 
-* The "<code>--</code>" parameter marks the end of command options.
-* Use "<code>--</code>" at the end of a command to prevent misinterpretation.
+* The <code>--</code> parameter marks the end of command options.
+* Place <code>--</code> after all command options and before filenames or other positional parameters, where the command supports it.
 * This technique is applicable to many Unix/Linux commands, not just <code>sponge</code>.
+* It is especially useful when input may begin with <code>-</code>.
 
 = nounset - Check if Variable Exists =
 
 <pre>
 #!/bin/bash
 
-set -x
 set -o errexit
 set -o nounset
 set -o errtrace
@@ -299,12 +327,13 @@ set -o pipefail
 
 if [ -z "${HOME+x}" ]; then
     printf '%s\n' "Error: HOME is not set." >&2
+    exit 1
 fi
 
-printf '%s' "$HOME"
+printf '%s\n' "$HOME"
 </pre>
 
-= Safely Using Find with End-of-Options =
+= Safely Using Find with NUL-Delimited Input =
 Example:
 
 <u>Note:</u> The variable could be different. It could, for example, be <code>--/usr</code>.
@@ -317,31 +346,20 @@ folder_name="/usr"
 printf '%s\0' "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
 }}
 
-Or if a helper exists that can print without a trailing newline <u>and</u> emit a NUL byte.
-
-{{Github_link|repo=helper-scripts|path=/blob/master/usr/libexec/helper-scripts/safe_echo.sh}}
-
-{{CodeSelect|code=
-# shellcheck disable=SC1091
-## TODO: helper function does not exist yet
-#source /usr/libexec/helper-scripts/safe_echo.sh
-printf '%s\0' "${folder_name}" {{!}} find -files0-from - -perm /u=s,g=s -print0
-}}
-
 Do not use <code>stecho</code> or <code>stprint</code> here, because <code>find -files0-from</code> requires NUL-delimited input.
 
 <code>NUL</code> ("<code>\0</code>") is required because:
 
 {{quotation
 |quote=The starting points in file have to be separated by ASCII NUL characters. Two consecutive NUL characters, i.e., a starting point with a Zero-length file name is not allowed and will lead to an error diagnostic followed by a non-Zero exit code later.
-|context=[https://manpages.debian.org/unstable/findutils/find.1.en.html <code>find</code> man page]
+|context=[https://manpages.debian.org/unstable/findutils/find.1.en.html Debian <code>find</code> man page]
 }}
 
 A single trailing <code>NUL</code> is normal. Two consecutive <code>NUL</code> bytes would mean an empty file name entry, which is invalid.
 
 = loops =
-== magic subshells ==
-Avoid piping data from a command into a loop. This spawns a subshell even without using <code>$()</code> syntax. Bad code example:
+== subshells created by pipelines ==
+Avoid piping data into a loop. This spawns a subshell even without using <code>$()</code> syntax. Bad code example:
 
 <pre>
 str="abc
@@ -349,7 +367,7 @@ def
 ghi"
 line_count=0
 
-printf '%s\n' "${str}" | while read -r line; do
+printf '%s\n' "${str}" | while IFS= read -r line; do
   ((line_count += 1))
 done
 
@@ -359,7 +377,7 @@ printf '%s\n' "${line_count}"
 ## Actual result: 0
 </pre>
 
-Instead, redirect files or command output into the loop. Good code example:
+Instead, redirect command output into the loop. Good code example:
 
 <pre>
 str="abc
@@ -367,7 +385,7 @@ def
 ghi"
 line_count=0
 
-while read -r line; do
+while IFS= read -r line; do
   ((line_count += 1))
 done < <(printf '%s\n' "${str}")
 
@@ -384,8 +402,8 @@ str="abc
 def
 ghi"
 
-while read -r line; do
-  vim "$line"
+while IFS= read -r line; do
+  vim -- "$line"
 done < <(printf '%s\n' "${str}")
 
 ## Output:
@@ -403,11 +421,11 @@ str="abc
 def
 ghi"
 
-while read -r line 0<&3; do
-  vim "$line"
+while IFS= read -r line 0<&3; do
+  vim -- "$line"
 done 3< <(printf '%s\n' "${str}")
 
-## Result: Opens "abc" in Vim, then "def", then "ghi".
+## Result: Opens "abc", then "def", then "ghi" in Vim.
 </pre>
 
 = misc =
@@ -418,19 +436,20 @@ file_extension="${base_name##*.}"
 
 = coding style =
 * no workarounds for older Bash versions. Assume the Bash version of Debian {{Stable project version based on Debian codename}}.
-* use long options rather than short options, for example use <code>grep --invert-match</code> instead of <code>grep -i</code>, when sensible
+* prefer explicit, readable, whitespace-safe code over compact shell tricks
+* use long options rather than short options when sensible, for example use <code>cp --recursive</code> instead of <code>cp -r</code>
 * no trailing whitespaces allowed in source code files
 * all source code files must have a newline at the end
 * no git style symlinks ([[Git#git_symlinks|git symlinks]]) (text file without newline at the end) because of past [https://security.snyk.io/vuln/SNYK-UNMANAGED-GITGIT-2372015 git symlink CVE]
-* Avoid [[unicode]] whenever possible. See also [[unicode-show]].
+* avoid [[unicode]] whenever possible. See also [[unicode-show]].
 * use:
 ** <code>shellcheck</code>
-** avoid <code>rm</code>, prefer <code>safe-rm</code> <ref>
+** avoid <code>rm</code> when <code>safe-rm</code> is appropriate <ref>
 * https://github.com/MrMEEE/bumblebee-Old-and-abbandoned/issues/123
 * https://github.com/valvesoftware/steam-for-linux/issues/3671
 </ref>
-** avoid <code>wget</code> and <code>curl</code>, prefer <code>scurl</code> ([[Secure Downloads]])
-** avoid <code>grep</code>, use <code>str_match</code>
+** avoid <code>wget</code> and <code>curl</code> in project code, prefer <code>scurl</code> ([[Secure Downloads]])
+** avoid <code>grep</code> for simple string matching in project code, use <code>str_match</code>
 ** <code>str_replace</code>
 ** <code>append-once</code>
 ** <code>overwrite</code>
@@ -445,38 +464,40 @@ set -o pipefail
 </pre>
 
 * do not use:
-** <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary, whereas <code>command</code> is a built-in (and a bit faster).
+** <code>which</code>, use <code>command -v</code> instead. This is because <code>which</code> is an external binary, whereas <code>command</code> is a shell built-in.
 * file name extensions:
-** POSIX sh libraries: <code>.sh</code>
+** POSIX <code>sh</code> libraries: <code>.sh</code>
 ** Bash libraries: <code>.bsh</code>
 ** Executables: no file name extension
 ** (executables = scripts that can be run but cannot be sourced, libraries = scripts that can be sourced but may optionally be run as well)
 
-= pipefail echo printf grep quiet =
-This combination can be an issue due to a broken pipe.
+= pipefail and early-exiting consumers =
+This combination can be an issue because the consumer may exit early and the producer may then receive <code>SIGPIPE</code> (broken pipe).
 
 <pre>
 #!/bin/bash
 
-## problem
-
-set -x
 set -o errexit
 set -o nounset
 set -o errtrace
 set -o pipefail
 
-counter=0
 for i in {1..10000}; do
-  counter=$(( counter + 1 ))
-  #printf "0\n"
-  echo "0\n"
-
-done | grep --quiet "0"
+  printf '%s\n' "0"
+done | grep --quiet -- "0"
 </pre>
 
+This can fail even though <code>grep --quiet</code> finds a match. <code>grep --quiet</code> exits as soon as it has enough input, while the producer may still be writing. With <code>pipefail</code> enabled, the producer's non-zero exit status can then make the whole pipeline fail.
+
+Guideline:
+
+* Avoid <code>producer {{!}} grep --quiet -- pattern</code> when <code>pipefail</code> is enabled.
+* Prefer matching directly against a variable or file when possible.
+* In project code, prefer helper functions such as <code>str_match</code> where they fit the use case.
+* If an early-exit consumer is intentional, handle exit statuses explicitly instead of assuming the pipeline is harmless.
+
 = Improved Error Handler =
-Inspired by https://github.com/pottmi/stringent.sh
+Inspired by [https://github.com/pottmi/stringent.sh stringent.sh]
 
 {{CodeSelect|code=
 if (( "$BASH_SUBSHELL" >= 1 )); then
@@ -484,16 +505,16 @@ if (( "$BASH_SUBSHELL" >= 1 )); then
 fi
 }}
 
-Actually not needed. When a subshell detects an error (thanks to errexit and errtrace), it returns and the parent shell will also catch the non-zero exit code. The script terminating itself and not running the error handler twice is only useful in rare cases.
+Usually not needed. When a subshell detects an error due to <code>errexit</code> and <code>errtrace</code>, it returns a non-zero exit status and the parent shell also sees the failure. Preventing the error handler from running twice is only useful in rare cases.
 
 = Resources =
-* https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md
-* https://dwheeler.com/essays/fixing-unix-linux-filenames.html
+* [https://github.com/anordal/shellharden/blob/master/how_to_do_things_safely_in_bash.md shellharden: How to do things safely in bash]
+* [https://dwheeler.com/essays/fixing-unix-linux-filenames.html David A. Wheeler: Fixing Unix/Linux/POSIX filenames]
 * use with care: {{VideoLink
 |videoid=DvDu8_A2uhs
 |text=Seat Belts and Airbags for bash
 }}
-** use with care: https://github.com/pottmi/stringent.sh
+** use with care: [https://github.com/pottmi/stringent.sh stringent.sh]
 
 = See Also =
 * [[Dev/coding style]]
