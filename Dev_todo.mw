@@ -24,6 +24,12 @@ Developer task list and work queue. This page summarizes short-term development 
 = TODO DEV =
 == reject vim modlines ==
 * todo
+* Aaron: Removed both Vim and Emacs modelines from the codebase because both can sometimes be used to execute arbitrary code. Commits pushed to developer-meta-files, lxqt-wayland-session, msgcollector, ram-wipe, tor-control-panel, usability-misc, qubes-whonix, whonix-firewall, qubes-template-kicksecure, qubes-template-whonix, and Whonix-Starter.
+* Patrick: Should be implemented in grep-unicode-wrapper instead of dm-check-unicode? Or invent a more comprehensive tool that checks unicode, modlines and is perhaps easier to use for users? (exit code 0 and simpler syntax program-name folder-or-file)
+
+== misc chatgpt review ==
+* sdwdate-gui chatgpt diff review
+* tb-updater chatgpt diff review
 
 == guard new merges unicode ==
 * todo
@@ -1274,6 +1280,58 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * https://github.com/Kicksecure/sdwdate-gui/pull/6
 ** Aaron: Accepted with tweaks.
 
+== nvidia - research raw framebuffer driver ==
+* nouveau is unstable on some NVIDIA hardware
+* users may want to avoid proprietary drivers or may be unable to use them if they have an old enough graphics card
+* determine if there is a working raw framebuffer driver for NVIDIA that we could offer as an option or possibly use by default
+* we can provide NVIDIA driver configuration options in sysmaint-panel
+* Aaron: Researched, shared results with Nurmagoz: https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/23 Waiting on a reply.
+** Reply received, this worked for Nurmagoz. Should we add a button somewhere for forcing software rendering, perhaps in sysmaint-panel?
+* [[Nvidia|NVIDIA]]
+
+== virtualbox clipboard contribution review ==
+* https://forums.whonix.org/t/i-made-a-fix-for-the-shared-clipboard-issue/22705
+* Aaron: Posted initial review. Waiting for reply.
+** Reply received, waiting for a second iteration. If the original developer goes missing, we may polish their work and integrate it into the codebase ourselves.
+*** Original developer seems to have vanished, good to get an implementation working ourselves?
+
+== bdev_allow_write_mounted=0 vs fwupd ==
+* https://github.com/Kicksecure/security-misc/pull/334#issuecomment-3904448654
+** Aaron: Researched, replied.
+
+== grub dpkg-new ==
+* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
+
+<pre>
+dpkg -S /etc/grub.d/*
+grub-common: /etc/grub.d/00_header
+grub-common: /etc/grub.d/05_debian_theme
+dist-base-files: /etc/grub.d/10_00_linux_dist
+dist-base-files: /etc/grub.d/10_05_linux_main
+dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
+dist-base-files: /etc/grub.d/10_55_linux_main_advanced
+dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
+grub-common: /etc/grub.d/20_linux_xen
+grub-common: /etc/grub.d/25_bli
+grub-common: /etc/grub.d/30_os-prober
+grub-common: /etc/grub.d/30_uefi-firmware
+grub-common: /etc/grub.d/40_custom
+grub-common: /etc/grub.d/41_custom
+usability-misc: /etc/grub.d/44_kb_layout
+grub-common: /etc/grub.d/README
+zsh: exit 1     dpkg -S /etc/grub.d/*
+</pre>
+
+* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
+** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
+
+== trixie-port - suspend bug ==
+* user reported
+* Bug: suspend results in black screen with no recovery (unless hard reboot)
+* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
+* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
+
+= ARCHIVED =
 == chatgpt kloak readme review ==
 * as provided
 ** Aaron: Reviewed, answered in chat.
@@ -1334,16 +1392,19 @@ Intermittent / rare
 * Patrick: Merged.
 * Patrick: Shared AI review.
 * Aaron: Pushed a new commit to sdwdate-gui fixing AI review issues. Also found and fixed some memory leaks. Could use another AI review.
+* Patrick: Done.
 
 == document rationale of QT_QPA_PLATFORM ==
 * https://github.com/Kicksecure/desktop-config-dist/issues/20
 * Aaron: Left a comment, we may be able to remove these variables. Needs testing / testers.
 ** Patrick rejected the request on Github. Commit pushed to desktop-config-dist to document why these variables are being kept.
+* Patrick: Done.
 
 == kloak - fix manual login ==
 * Aaron:
 ** https://forums.whonix.org/t/updating-broke-mouse/23114/14
 ** Fix found, commit pushed to kloak.
+* Patrick: Done.
 
 == user-sysmaint-split AI code review ==
 * https://github.com/Kicksecure/user-sysmaint-split/pull/2
@@ -1351,6 +1412,7 @@ Intermittent / rare
 * https://github.com/Kicksecure/user-sysmaint-split/pull/3
 * https://www.reddit.com/r/Whonix/comments/1sb01zf/cant_log_in_to_sysmaint/
 * Aaron: All PRs reviewed, merged two of them in with tweaks. Commits pushed to user-sysmaint-split and helper-scripts.
+* Patrick: Done.
 
 == privleap bug ==
 * https://github.com/Kicksecure/privleap/pull/2
@@ -1374,63 +1436,12 @@ Apr 03 11:25:03 kicksecure.com privleapd[1578]: ValueError: recv_buf contains da
 </pre>
 
 * Aaron: Issue unclear, shared notes in chat. AI PR is likely not valuable.
+* Patrick: Done.
 
 == sdwdate-gui broken in Qubes - bug ==
 * https://forums.whonix.org/t/sdwdate-gui-broken-after-last-update/23116
 ** Aaron: Fix found, commit pushed to sdwdate-gui.
 
-== nvidia - research raw framebuffer driver ==
-* nouveau is unstable on some NVIDIA hardware
-* users may want to avoid proprietary drivers or may be unable to use them if they have an old enough graphics card
-* determine if there is a working raw framebuffer driver for NVIDIA that we could offer as an option or possibly use by default
-* we can provide NVIDIA driver configuration options in sysmaint-panel
-* Aaron: Researched, shared results with Nurmagoz: https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/23 Waiting on a reply.
-** Reply received, this worked for Nurmagoz. Should we add a button somewhere for forcing software rendering, perhaps in sysmaint-panel?
-* [[Nvidia|NVIDIA]]
-
-== virtualbox clipboard contribution review ==
-* https://forums.whonix.org/t/i-made-a-fix-for-the-shared-clipboard-issue/22705
-* Aaron: Posted initial review. Waiting for reply.
-** Reply received, waiting for a second iteration. If the original developer goes missing, we may polish their work and integrate it into the codebase ourselves.
-*** Original developer seems to have vanished, good to get an implementation working ourselves?
-
-== bdev_allow_write_mounted=0 vs fwupd ==
-* https://github.com/Kicksecure/security-misc/pull/334#issuecomment-3904448654
-** Aaron: Researched, replied.
-
-== grub dpkg-new ==
-* Could /etc/grub.d/10_linux.dpkg-new cause an issue?
-
-<pre>
-dpkg -S /etc/grub.d/*
-grub-common: /etc/grub.d/00_header
-grub-common: /etc/grub.d/05_debian_theme
-dist-base-files: /etc/grub.d/10_00_linux_dist
-dist-base-files: /etc/grub.d/10_05_linux_main
-dist-base-files: /etc/grub.d/10_50_linux_dist_advanced
-dist-base-files: /etc/grub.d/10_55_linux_main_advanced
-dpkg-query: no path found matching pattern /etc/grub.d/10_linux.dpkg-new
-grub-common: /etc/grub.d/20_linux_xen
-grub-common: /etc/grub.d/25_bli
-grub-common: /etc/grub.d/30_os-prober
-grub-common: /etc/grub.d/30_uefi-firmware
-grub-common: /etc/grub.d/40_custom
-grub-common: /etc/grub.d/41_custom
-usability-misc: /etc/grub.d/44_kb_layout
-grub-common: /etc/grub.d/README
-zsh: exit 1     dpkg -S /etc/grub.d/*
-</pre>
-
-* Aaron: Possibly. <code>grub-mkconfig</code> does not filter out <code>.dpkg-new</code> files under <code>/etc/grub.d/*</code> when generating the GRUB configuration file. However, the file must also be executable for <code>grub-mkconfig</code> to run it as part of the config file generation process, so if the .dpkg-new file is not executable, it will be benign.
-** How did this file get generated? Was it a consequence of an OS update or upgrade? Is it executable?
-
-== trixie-port - suspend bug ==
-* user reported
-* Bug: suspend results in black screen with no recovery (unless hard reboot)
-* lock-screen reports it cannot lock the screen and system then frozen. Might not be related to lock-screen.
-* Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
-
-= ARCHIVED =
 == genmkfile and or developer-meta-files - scan for empty folders and abort ==
 * cause reproducible issues
 * Patrick: Done, fixed in developer-meta-files and genmkfile.
