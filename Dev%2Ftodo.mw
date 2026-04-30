@@ -22,6 +22,15 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 
 = TODO DEV =
+== prevent DKMS generation during Qubes template builds ==
+* Aaron:
+** Marek reported a systemcheck MOK key rotation screen appearing in CI: https://openqa.qubes-os.org/tests/173881#step/whonix_firstrun/8
+** legacy-dist's <code>fixes</code> script is potentially hanging while trying to do something? Consider enabling `set -x` on it in https://github.com/QubesOS/openqa-tests-qubesos/blob/main/extra-files/update/zsystemtests.py
+** Adjust the template build scripts so that a MOK isn't generated in the first place or at least are deleted during the build process
+** Commits pushed to qubes-template-kicksecure and qubes-template-whonix to hopefully fix this
+** Filed https://github.com/QubesOS/openqa-tests-qubesos/pull/52
+*** Patrick: Patrick detected in Kicksecure. As discussed in chat.
+
 == legacy-dist - don't automatically restart legacy-dist.service ==
 * dh_installsystemd restarts legacy-dist.service on upgrade, which re-runs <code>fixes</code> while the system is up. <code>fixes</code> must run before the system is fully up to do its job correctly though.
 * Figure out how to stop this behavior of dh_installsystemd, then bump function version numbers in <code>fixes</code> where necessary.
@@ -30,6 +39,13 @@ Developer task list and work queue. This page summarizes short-term development 
 * as discussed, see emails with intrigeri
 * Mostly figured out, awaiting review from roddhjav (apparmor.d maintainer)
 ** Review received, time to submit to AppArmor upstream.
+
+== misc review #2 ==
+* https://github.com/Kicksecure/tb-updater/pull/37/changes
+* https://github.com/Kicksecure/privleap/pull/1/changes/3ca72ac577cf7efe61f9683e8c4bc01a936e425b..38f8354093687d454950e7abefffe999cdbd9ab1
+* https://github.com/Kicksecure/vm-config-dist/pull/3
+* https://github.com/assisted-by-ai/privleap/pull/1#discussion_r3149620508 (and the new commit at the bottom)
+* https://github.com/assisted-by-ai/usability-misc/pull/4#discussion_r3150237498
 
 == per-app UID sandboxing ==
 * todo: discuss
@@ -1175,77 +1191,36 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== review misc ==
-* dm-check-unicode changes
-** Aaron: Reviewed, looks good, no changed made.
-* classify_tag changes
-** Aaron: Checked this, looked good to me.
-* developer-meta-files /usr/bin/dm-tor-update-repository changes
-** Aaron: Reviewed, looks good, made a couple minor changes.
-* newer:
-** https://github.com/assisted-by-ai/kloak/pull/8
-*** Aaron: Rejected, pushed a commit to kloak adding a comment documenting why.
-** https://github.com/assisted-by-ai/kloak/pull/9
-*** Aaron: Rejected.
-
-== DKMS suppression in template scripts ==
-* Aaron:
-** Build is broken, see https://gitlab.com/QubesOS/qubes-builderv2/-/jobs/14117797896
-** Almost certainly the result of missing mkdir calls
-*** Fixed, commits pushed to qubes-template-kicksecure and qubes-template-whonix.
-
-== avoid more Bash code injection ==
-* see chat
-** Aaron: Audit complete, some issues found, all commits have already been merged.
-
-== systemcheck - fix metapackage detection ==
-* kicksecure-*-cli packages are now usable as "top-level" metapackages, but systemcheck doesn't know this.
-** Aaron: Fixed, commit pushed to systemcheck.
-
-== zsh improvements ==
-* https://github.com/assisted-by-ai/usability-misc/pull/4
-* https://github.com/assisted-by-ai/usability-misc/pull/5
-** https://forums.kicksecure.com/t/path-overwritten-by-etc-zsh-zshrc/1677
-* Aaron: Merged both with changes.
-
-== fix archiver integration ==
-* https://forums.whonix.org/t/compression-utility-does-not-work-in-the-right-click-context-menu/23171/2
-* default archiver should be lxqt-archiver, not xarchiver
-* Aaron: Mostly fixed, commits pushed to kicksecure-base-files and legacy-dist, but a possible larger issue was discovered, see chat.
-
-== prevent DKMS generation during Qubes template builds ==
-* Aaron:
-** Marek reported a systemcheck MOK key rotation screen appearing in CI: https://openqa.qubes-os.org/tests/173881#step/whonix_firstrun/8
-** legacy-dist's <code>fixes</code> script is potentially hanging while trying to do something? Consider enabling `set -x` on it in https://github.com/QubesOS/openqa-tests-qubesos/blob/main/extra-files/update/zsystemtests.py
-** Adjust the template build scripts so that a MOK isn't generated in the first place or at least are deleted during the build process
-** Commits pushed to qubes-template-kicksecure and qubes-template-whonix to hopefully fix this
-** Filed https://github.com/QubesOS/openqa-tests-qubesos/pull/52
-
 == avoid Bash code injection when dereferencing variables by name ==
 * https://www.kicksecure.com/wiki/Dev/bash#Safely_Dereferencing_Variables
 * we should likely modify all variable dereferencing code to check the variable name before attempting a dereference
 ** Aaron: Done, commits pushed to helper-scripts, mediawiki-shell, tor-ctrl, usability-misc, user-sysmaint-split, and whonix-firewall.
+* Patrick: Merged.
 
 == better support for Unicode in fm-shim ==
 * Add "Show all Unicode" and "Analyze Unicode" buttons if Unicode is detected in some filenames
 ** "Show all Unicode" will simply show the "raw" filenames
 ** "Analyze Unicode" will show each filename in a list and the unicode-show analysis of the selected filename next to it
 ** Aaron: Done, commit pushed to security-misc.
+* Patrick: Merged.
 
 == run-via-xwayland wrapper creation ==
 * GDK_BACKEND=x11
 * QT_QPA_PLATFORM=xcb
 * Aaron: Done, commit pushed to helper-scripts.
+* Patrick: Merged.
 
 == file manager shim logging ==
 * https://forums.whonix.org/t/is-catfish-the-new-default-in-the-qubes-domain-open-file-manager-quick-widget-for-whonix/20233/54
 ** Aaron: Implemented, commit pushed to security-misc.
+* Patrick: Merged.
 
 == kloak wlroots layer-shell rejects width=0 without left/right anchors ==
 * https://github.com/Whonix/kloak/issues/13
 * https://github.com/NixOS/nixpkgs/pull/507060
 * Aaron: PR is not suitable for merge. Asked contributor for more info and am waiting for a response.
 ** Aaron: Clarification received, PR updated. Reviewed, tested, merged into my arraybolt3/trixie branch.
+* Patrick: Merged.
 
 == sq-git feature request or bug report ==
 <pre>
@@ -1495,6 +1470,49 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== review misc ==
+* dm-check-unicode changes
+** Aaron: Reviewed, looks good, no changed made.
+* classify_tag changes
+** Aaron: Checked this, looked good to me.
+* developer-meta-files /usr/bin/dm-tor-update-repository changes
+** Aaron: Reviewed, looks good, made a couple minor changes.
+* newer:
+** https://github.com/assisted-by-ai/kloak/pull/8
+*** Aaron: Rejected, pushed a commit to kloak adding a comment documenting why.
+** https://github.com/assisted-by-ai/kloak/pull/9
+*** Aaron: Rejected.
+
+== DKMS suppression in template scripts ==
+* Aaron:
+** Build is broken, see https://gitlab.com/QubesOS/qubes-builderv2/-/jobs/14117797896
+** Almost certainly the result of missing mkdir calls
+*** Fixed, commits pushed to qubes-template-kicksecure and qubes-template-whonix.
+* Patrick: Merged.
+
+== avoid more Bash code injection ==
+* see chat
+** Aaron: Audit complete, some issues found, all commits have already been merged.
+* Patrick: Merged.
+
+== systemcheck - fix metapackage detection ==
+* kicksecure-*-cli packages are now usable as "top-level" metapackages, but systemcheck doesn't know this.
+** Aaron: Fixed, commit pushed to systemcheck.
+* Patrick: Merged.
+
+== zsh improvements ==
+* https://github.com/assisted-by-ai/usability-misc/pull/4
+* https://github.com/assisted-by-ai/usability-misc/pull/5
+** https://forums.kicksecure.com/t/path-overwritten-by-etc-zsh-zshrc/1677
+* Aaron: Merged both with changes.
+* Patrick: Merged.
+
+== fix archiver integration ==
+* https://forums.whonix.org/t/compression-utility-does-not-work-in-the-right-click-context-menu/23171/2
+* default archiver should be lxqt-archiver, not xarchiver
+* Aaron: Mostly fixed, commits pushed to kicksecure-base-files and legacy-dist, but a possible larger issue was discovered, see chat.
+* Patrick: Merged.
+
 == qps crash on some systems with hyperthreading disabled ==
 * https://forums.kicksecure.com/t/qps-crashing-on-some-hardware-hyperthreading-related/1588
 * Report to LXQt if this is a problem with the latest version

@@ -1,0 +1,147 @@
+{{Header}} {{hide_all_banners}}
+{{Title|title=
+copy.fail security vulnerability (CVE-2026-31431)
+}}
+{{#seo:
+|description=User-friendly overview, mitigation notes, and reference links for the copy.fail Linux kernel vulnerability, CVE-2026-31431.
+}}
+{{intro|
+CVE-2026-31431 is a Linux kernel local privilege escalation vulnerability. The main action for most users is to install kernel security updates once available. [[Advanced Users|Advanced users]] may also review temporary mitigation options and their possible compatibility risks.
+}}
+= Introduction =
+copy.fail documents CVE-2026-31431, a Linux kernel security vulnerability related to <code>algif_aead</code> and <code>AF_ALG</code>.
+
+In simple terms, this vulnerability can allow code that is already running as a normal local user to become <code>root</code>. It is therefore most important for shared systems, container hosts, CI runners, servers that execute untrusted code, and systems where an attacker might already have limited local code execution.
+
+* <u>What it is:</u> CVE-2026-31431 is a Linux kernel local privilege escalation vulnerability.
+* <u>Main risk:</u> Code that is already running as a normal local user may be able to gain <code>root</code> privileges.
+* <u>Most important action:</u> Install kernel security updates once available and reboot into the updated kernel.
+* <u>Higher risk systems:</u> Shared servers, container hosts, CI runners, build systems, and systems that run untrusted code need special attention.
+* <u>Temporary mitigation caution:</u> Disabling <code>algif_aead</code> may reduce exposure before patching, but it can affect software that uses <code>AF_ALG</code> AEAD functionality.
+* <u>Relation to {{project_name_long}}:</u> This issue is [[Unspecific|unspecific to {{project_name_long}}]]. {{project_name_long}} inherits it because [[Based_on_Debian|{{project_name_long}} is based on Debian]].
+* <u>Affected Linux distributions:</u> Most mainstream Linux distributions.
+
+{{quotation
+|quote=If your kernel was built between 2017 and the patch — which covers essentially every mainstream Linux distribution — you're in scope.
+|context=[https://copy.fail/ Copy Fail: official disclosure and mitigation]
+}}
+
+* <u>Help wanted:</u> Yes. See [[Copy.fail#Help_Wanted_-_Contribute|Help Wanted - Contribute]].
+
+= What users should do =
+* <u>Regular desktop users:</u> Install normal operating system security updates once available and reboot into the updated kernel.
+* <u>Debian stable users:</u> As of 30 April 2026, no fixed Linux kernel package appears to be available yet for Debian stable through the Debian Security Tracker. Monitor Debian security updates and reboot after installing a fixed kernel. See: [https://security-tracker.debian.org/tracker/CVE-2026-31431 Debian Security Tracker: CVE-2026-31431]
+* <u>Server administrators:</u> Prioritize systems where untrusted users, containers, build jobs, or web services can run code.
+* <u>Container and CI operators:</u> Treat this as higher risk because containers and CI jobs share the host kernel.
+* <u>Do not test exploit code casually:</u> Only test proof-of-concept code on systems you own or are authorized to test.
+
+= Mitigation =
+The preferred mitigation is to install a fixed kernel and reboot.
+
+A temporary mitigation has been suggested upstream, but it may affect software that uses <code>AF_ALG</code> AEAD functionality. Users who are unsure should prefer distribution kernel updates over manual kernel feature changes.
+
+Careful with the following:
+
+{{quotation
+|quote=
+Patch first. Update your distribution's kernel package to one that includes mainline commit <code>a664bf3d603d</code> - it reverts the 2017 <code>algif_aead</code> in-place optimization, so page-cache pages can no longer end up in the writable destination scatterlist. Most major distributions are shipping the fix now.
+
+Before you can patch: disable the <code>algif_aead</code> module.
+
+{{CodeSelect|code=
+# echo "install algif_aead /bin/false" > /etc/modprobe.d/disable-algif.conf
+# rmmod algif_aead 2>/dev/null || true
+}}
+
+What does this break? For the vast majority of systems - nothing measurable.
+
+* Will not affect: dm-crypt / LUKS, kTLS, IPsec/XFRM, in-kernel TLS, OpenSSL/GnuTLS/NSS default builds, SSH, kernel keyring crypto. These all use the in-kernel crypto API directly - they don't go through <code>AF_ALG</code>.
+* May affect: userspace specifically configured to use AF_ALG - e.g. OpenSSL with the <code>afalg</code> engine explicitly enabled, some embedded crypto offload paths, or applications that bind <code>aead</code>/<code>skcipher</code>/<code>hash</code> sockets directly. Check with <code>lsof {{!}} grep AF_ALG</code> or <code>ss -xa</code> if in doubt.
+* Performance: <code>AF_ALG</code> is a userspace front door to the kernel crypto API. Disabling it does not slow anything that wasn't already calling it; for the things that were, performance falls back to a normal userspace crypto library, which is what almost everything else already does.
+
+For untrusted workloads (containers, sandboxes, CI), block <code>AF_ALG</code> socket creation via seccomp regardless of patch state.
+|context=[https://copy.fail/#mitigation Copy Fail - Mitigation]
+}}
+
+The following caution explains why the temporary mitigation should not be treated as risk-free:
+
+{{quotation
+|quote=
+I'd like to also point out that the copy.fail website may underplay the impact this mitigation has on userspace. It's not the easiest thing in the world to find out everywhere where an AF_ALG socket is opened and then set up in AEAD mode in Debian, but so far I've found that at least bluez, cryptsetup, iwd, and stress-ng contain code that does this, as does a particular test in some Rust code in rustc, firefox-esr, and thunderbird. libkcapi is also a thing, anything that does AEAD with it will be affected. Simply nuking this part of the kernel API from orbit is not a universally safe operation.<br/><br/>
+
+(Note that I've not yet made any of these applications misbehave by applying the mitigation, I tried some experiments with cryptsetup and the results were inconclusive. So this might be safe enough for most people.)
+|context=[https://forums.kicksecure.com/u/arraybolt3 @arraybolt3] quote [https://www.openwall.com/lists/oss-security/2026/04/30/5 Aaron Rainbolt on oss-security]
+}}
+
+= Technical background =
+This section is intended for advanced users, administrators, developers, and contributors.
+
+* <u>Kernel feature involved:</u> The vulnerability involves Linux kernel crypto functionality exposed through <code>AF_ALG</code>.
+* <u>Relevant module:</u> The temporary mitigation focuses on <code>algif_aead</code>.
+* <u>Exploit class:</u> This is a local privilege escalation issue, not a normal remote attack by itself.
+* <u>Container relevance:</u> Containers share the host kernel, so a kernel local privilege escalation can be especially serious on container hosts.
+* <u>Patch direction:</u> The upstream kernel fix reverts the affected <code>algif_aead</code> in-place behavior so affected page-cache pages can no longer end up in the writable destination scatterlist.
+
+= Help Wanted - Contribute =
+[[SUID_Disabler_and_Permission_Hardener#Introduction|SUID]] binaries are a long-known security issue.
+
+{{quotation
+|quote=Ideally, there should be no SUID binaries reachable from the user account, as otherwise significant extra attack surface inside the VM is exposed (dynamic linker, libc startup, portions of Linux kernel including ELF loader, etc.)
+|context=[https://github.com/QubesOS/qubes-issues/issues/2695 Quote] security researcher [https://en.wikipedia.org/wiki/Solar_Designer Solar Designer]
+}}
+
+[[About|{{project_name_short}}]] has been working towards making SUID unreachable for non-root user accounts by implementing [[SUID_Disabler_and_Permission_Hardener|SUID Disabler and Permission Hardener]], which is part of {{Github_link|
+https://github.com/Kicksecure/security-misc
+}}. However, {{project_name_short}} has not been able to disable all SUID for non-root users yet due to the massive development effort required and converting SUID binaries to Linux capabilities not being a high priority for the wider security community. ([[Dev/About_Computer_(In)Security#Scattered_Attention|Scattered Attention]])
+
+Configuration folder {{Github_link|
+https://github.com/Kicksecure/security-misc/tree/master/usr/lib/permission-hardener.d
+}} contains documented whitelists of SUID binaries such as:
+
+* <code>fusermount</code>: disabling would break AppImages / Docker
+** {{Github_link|
+https://github.com/Kicksecure/security-misc/blob/master/usr/lib/permission-hardener.d/25_default_whitelist_fuse.conf%23security-misc-shared
+}}
+* <code>pam-tmpdir-helper</code>: disabling would break [[Dev/Strong_Linux_User_Account_Isolation#libpam-tmpdir|libpam-tmpdir]], which is a security feature.
+** {{Github_link|
+https://github.com/Kicksecure/security-misc/blob/master/usr/lib/permission-hardener.d/25_default_whitelist_pam.conf%23security-misc-shared
+}}
+* Qubes specific: <code>qfile-unpacker</code>
+** {{Github_link|
+https://github.com/Kicksecure/security-misc/blob/master/usr/lib/permission-hardener.d/25_default_whitelist_qubes.conf%23security-misc-shared
+}}
+
+To see a list of SUIDs reachable for account <code>user</code>, refer to [[SUID_Disabler_and_Permission_Hardener#Search_for_SUID_SGID|Search for SUID SGID]]. At the time of writing, the list of SUID binaries is greatly reduced compared to most other Linux distributions, but unfortunately not zero. Current list:
+
+{{CodeSelect|code=
+/usr/libexec/pam-tmpdir/pam-tmpdir-helper
+/usr/lib/qubes/qfile-unpacker
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/bin/qfile-unpacker
+/usr/bin/fusermount3
+}}
+
+What volunteer developers can do:
+
+* <u>Work upstream:</u> Contact the upstream projects that ship remaining SUID binaries and propose safer designs.
+* <u>Convert where possible:</u> Replace SUID use with Linux capabilities where that is technically sufficient and accepted upstream.
+* <u>Reduce privilege:</u> Where Linux capabilities are not enough, help upstream investigate other privilege separation designs.
+* <u>Test compatibility:</u> Verify whether removing SUID breaks existing software, and document the exact reason if it does.
+* <u>Submit patches:</u> Send changes directly to the relevant upstream projects rather than only to {{project_name_short}}.
+
+This work is [[Unspecific|unspecific to {{project_name_long}}]]. Therefore, coordination with {{project_name_long}} is appreciated, but not required.
+
+If you do not work on this, probably nobody else will either and SUID will remain a security issue in the future. Converting SUID binaries to safer alternatives will require many more years, if not decades. ([[Dev/About_Computer_(In)Security#Security_Mindset_of_Open_Source_Software_Ecosystem|Security Mindset of Open Source Software Ecosystem]])
+
+= Resources =
+* [https://copy.fail/ Copy Fail: official disclosure and mitigation]
+* [https://xint.io/blog/copy-fail-linux-distributions Xint: technical write-up, 732 bytes to root on major Linux distributions]
+* [https://github.com/theori-io/copy-fail-CVE-2026-31431 Theori GitHub: Copy Fail README and PoC repository]
+* [https://security-tracker.debian.org/tracker/CVE-2026-31431 Debian Security Tracker: CVE-2026-31431]
+* [https://bugzilla.redhat.com/show_bug.cgi?id=2460538 Red Hat Bugzilla: CVE-2026-31431 kernel algif_aead tracking]
+* [https://lore.kernel.org/linux-cve-announce/2026042214-CVE-2026-31431-3d65@gregkh/T Linux CVE announcement: crypto algif_aead revert to operating out-of-place]
+* [https://www.openwall.com/lists/oss-security/2026/04/30/2 oss-security: mitigation discussion for built-in AEAD kernels]
+* [https://www.openwall.com/lists/oss-security/2026/04/29/23 oss-security: initial CopyFail CVE-2026-31431 report]
+
+[[Category:Documentation]]
+{{Footer}}
