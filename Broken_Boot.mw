@@ -14,7 +14,116 @@ The system or {{VM}} is no longer booting?
 This can be [[Dev/image_creation|very difficult]] to analyze and difficult to fix. Asking in support forums might not result in helpful answers. Fixing this most likely requires being an [[Advanced Users|advanced user]] or even a very advanced user.
 }}
 
+== What to do first ==
+[[File:kicksecure-persistent-mode-user-session.png|[[grub|GRUB]] boot menu|thumb]]
+
+{{IntroLike|
+Start here. Identify where the boot process stops, then follow only the matching recovery path. This page contains multiple recovery methods; not every method applies to every boot failure.
+}}
+
+{{IconSet|h1|1}} Identify where boot stops.
+
+Check whether the failure happens before firmware, before [[grub|GRUB]], after GRUB, during early Linux boot, or after login manager startup.
+
+{{IconSet|h1|2}} Choose the matching symptom.
+
+Use the quick diagnosis section to choose the first description that matches the problem.
+
+{{IconSet|h1|3}} Try only the relevant recovery method.
+
+Avoid applying unrelated recovery steps, especially commands that modify disks, bootloaders, or firmware boot entries.
+
+{{IconSet|h1|4}} Ask for help if unsure.
+
+If the correct path is unclear, ask for help before changing bootloader, disk, firmware, or encryption-related configuration.
+
+== Quick diagnosis ==
+
+{{IntroLike|
+Choose the first description that matches your situation.
+}}
+
+{{Tab
+|type=controller
+|addToClass=tcc-indent
+|content=
+
+{{Tab
+|title= ==A. Power or firmware issue==
+|type=section
+|active=true
+|content=
+{{IconSet|h2|A}} The computer does not power on, or firmware errors appear.
+
+Use this path if the machine does not react normally to the power button, shows firmware-level errors, emits beep codes, or fails before Linux or GRUB messages appear.
+
+See:
+* [[#Power_on|Power on]]
+* [[#BIOS_/_Firmware|BIOS / Firmware]]
+}} <!-- close tab -->
+
+{{Tab
+|title= ==B. Bootloader not found==
+|type=section
+|content=
+{{IconSet|h2|B}} The firmware cannot find Kicksecure or no boot menu appears.
+
+Use this path if the system shows a message such as "No Operating System Found", enters a UEFI shell, boots the wrong operating system, or does not show the Kicksecure GRUB menu.
+
+See:
+* [[#Bootloader_discovery_and_launch|Bootloader discovery and launch]]
+* [[#Boot_Recovery_Tools|Boot Recovery Tools]]
+}} <!-- close tab -->
+
+{{Tab
+|title= ==C. GRUB appears, but Kicksecure does not start==
+|type=section
+|content=
+[[File:kicksecure-persistent-mode-user-session.png|[[grub|GRUB]] boot menu|thumb]]
+
+{{IconSet|h2|C}} GRUB appears, but boot hangs, freezes, blackscreens, or drops to a prompt.
+
+Use this path if the Kicksecure GRUB menu appears and the kernel starts, but the system does not reach a usable live system or installed system.
+
+See:
+* [[#Kernel_/_initramfs_discovery_and_kernel_launch|Kernel / initramfs discovery and kernel launch]]
+* [[#Hardware_preparation|Hardware preparation]]
+* [[#Initramfs_launch|Initramfs launch]]
+* [[#Root_filesystem_discovery_and_handoff|Root filesystem discovery and handoff]]
+}} <!-- close tab -->
+
+{{Tab
+|title= ==D. Installed system needs repair==
+|type=section
+|content=
+{{IconSet|h2|D}} Kicksecure is installed, but no longer boots.
+
+Use this path when an installed Kicksecure system needs repair from a live ISO.
+
+See:
+* [[#Chroot_Boot_Recovery|Chroot Boot Recovery]]
+}} <!-- close tab -->
+
+{{Tab
+|title= ==E. Login or desktop failure==
+|type=section
+|content=
+{{IconSet|h2|E}} The system reaches login or desktop startup, but the GUI fails.
+
+Use this path if text-mode boot works, but graphical login, session startup, or desktop components fail.
+
+See:
+* [[#Login_manager_startup|Login manager startup]]
+* [[#Desktop_startup|Desktop startup]]
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
+
 == Troubleshooting ==
+
+{{IntroLike|
+Use this section to identify where the boot process fails. Do not start with repair commands until the failure stage is known.
+}}
 
 Boot failure is a general term for a broad range of conditions that prevent a system from becoming fully operational for general use after being powered on. The number of potential causes and resulting issues are far too large to cover here, but in practice most "boot failures" are caused by a select few issues. This page will attempt to help you find the reason your system is "failing to boot" and fix it.
 
@@ -24,9 +133,37 @@ Note that this page assumes that the boot failure is not the result of a malware
 
 === Triage ===
 
+{{IntroLike|
+Triage means identifying the first part of the boot process that fails. This determines which recovery method is appropriate.
+}}
+
+{{IconSet|h1|1}} Check whether the machine powers on normally.
+
+Look for signs of power, fan activity, keyboard lights, display backlight, beep codes, or other hardware-level behavior.
+
+{{IconSet|h1|2}} Check whether firmware finds a bootloader.
+
+Determine whether the system reaches a firmware boot menu, reports no operating system found, enters a UEFI shell, or starts the wrong operating system.
+
+{{IconSet|h1|3}} Check whether GRUB appears.
+
+If GRUB appears, firmware and bootloader discovery probably succeeded, and the problem is likely later in the boot process.
+
+{{IconSet|h1|4}} Check whether the kernel and initramfs start.
+
+Look for Linux kernel messages, kernel panic output, an emergency shell, or a hang during early boot.
+
+{{IconSet|h1|5}} Check whether the system reaches login or desktop startup.
+
+If text-mode login or the graphical login manager appears, the failure is likely in system service startup, login manager startup, or desktop startup.
+
 The first step in debugging a boot failure is to determine what *exactly* has failed. All boot failures have in common that the system does not reach a working GUI where the user can begin working, however there are many places in the startup process that can break, and identifying which place has broken is very important.
 
 The boot process goes through the following stages from power-on to a working system. Use this guide to determine which part of the boot process has most likely failed. Keep in mind that some issues may be difficult to pinpoint to any one particular part of the boot process. Even in those instances, having a general idea of the location of the issue is still very useful.
+
+<div class="toccolours mw-collapsible mw-collapsed">
+'''Show detailed boot process stages'''
+<div class="mw-collapsible-content">
 
 * Power on
 ** This is the stage your system starts at when you first press the power button. Power is applied to the various system components, triggering each device's processor to load firmware and begin processing.
@@ -66,7 +203,14 @@ The boot process goes through the following stages from power-on to a working sy
 ** Once the user logs in, or if autologin is configured, the graphical login manager will run the set of programs the user sees at the "desktop". This includes a "panel" (on Kicksecure this is the task bar at the top of the screen), a "desktop" (the program that displays a wallpaper and shows your desktop icons), and a number of smaller services and applets that complete the desktop experience. From here the user can launch and use applications.
 *** Issues with desktop startup can manifest in a large number of different ways. The user may be unable to graphically log in, or important desktop components may be missing or behave erratically.
 
+</div>
+</div>
+
 === Fixing the problem ===
+
+{{IntroLike|
+Once the failed boot stage is known, use only the matching section below. Some fixes are harmless tests, while others modify bootloader or disk configuration.
+}}
 
 Once you have located the step of the boot process that has failed, you can attempt to fix the issue. The following are some common problems, and how to resolve them.
 
@@ -78,7 +222,7 @@ Once you have located the step of the boot process that has failed, you can atte
 * BIOS / Firmware
 ** Potential problem: <b>Bad BIOS configuration option</b>
 *** The firmware on most computers has a large array of options one can enable or disable. Blindly changing these options is not a good idea. However, if you see an error message describing a particular component of the system as being unusable or misconfigured, there may be a firmware setting you can change to resolve the issue.
-* Bootloader discovery and launch
+* {{anchor|show=true|Bootloader discovery and launch}}
 ** Potential problem: <b>Overwritten boot information</b>
 *** Some activities will overwrite a disk's boot files or modify the NVRAM operating system list. Reinstalling the bootloader or installing an additional operating system usually will do this. This oftentimes works as intended, but it is possible for the firmware to not be able to locate boot files any longer after this. If this occurs, you can boot from a USB drive, chroot into your original operating system (if it is still available), and reinstall the bootloader from there. See the Chroot Boot Recovery section below for instructions.
 ** {{Anchor|uefi_firmware_bootentry_bug}} Potential problem: <b>UEFI firmware fails to pick up Kicksecure boot entry</b>
@@ -108,44 +252,177 @@ Once you have located the step of the boot process that has failed, you can atte
 * Login manager startup
 ** Potential problem: <b>Login screen is displayed and attempting to log in immediately drops you back to the login screen again</b>
 *** This issue is typically the result of a misconfigured login manager. You may be able to resolve the issue by using <code>sudo apt-get install --reinstall greetd wlgreet</code>.
+
+{{CodeSelect|code=
+sudo apt-get install --reinstall greetd wlgreet
+}}
+
 * Desktop startup
 ** Potential problem: <b>Graphics driver issues</b>
 *** Your desktop might not load or may behave erratically if your system's graphics drivers are not working properly with your graphics hardware. You can try to boot with safe graphics mode to see if this is a likely issue. To do this, when Kicksecure's boot menu appears, press <code>e</code> to edit the boot options. Move the cursor down to the line that starts with <code>linux</code>, then move your cursor to immediately after the <code>ro</code> argument and type <code>nomodeset</code>, ensuring that the newly added option is separated from surrounding options with at least one space on each side. Then press Ctrl+X to boot.
 
+=== GRUB appears, but Kicksecure live USB does not start ===
+[[File:kicksecure-persistent-mode-user-session.png|[[grub|GRUB]] boot menu|thumb]]
+
+{{IntroLike|
+Use this section when the Kicksecure live USB reaches GRUB, but boot hangs, freezes, shows a black screen, or drops to a prompt before the live system starts. This is different from repairing an installed system.
+}}
+
+{{IconSet|h1|1}} Confirm that GRUB appears.
+
+This test applies only if the Kicksecure live USB reaches the GRUB boot menu.
+
+{{IconSet|h1|2}} Edit the selected GRUB boot entry temporarily.
+
+The edit affects only the current boot attempt unless the bootloader configuration is later changed permanently.
+
+{{IconSet|h1|3}} Test whether Kicksecure-specific boot parameters are involved.
+
+Remove extra kernel parameters only for this temporary diagnostic boot attempt.
+
+{{IconSet|h1|4}} Report the result if the test changes the boot behavior.
+
+If the system boots differently after the edit, include that result when asking for support.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = This is a temporary diagnostic boot test. Removing Kicksecure kernel command line options may disable security hardening for that boot only. Do not use this as a permanent configuration.
+}}
+
+<div class="toccolours mw-collapsible mw-collapsed">
+'''Show live ISO GRUB boot parameter diagnostic test'''
+<div class="mw-collapsible-content">
+
+# Boot from the Kicksecure live USB.
+# At the GRUB menu, highlight the boot entry to test.
+# Press <code>e</code> to edit the entry.
+# Find the line that starts with <code>linux</code>.
+# On that line, remove extra kernel parameters before the live-boot parameters.
+# Keep the live-boot parameters required for the live ISO to find its filesystem.
+# Press <code>Ctrl+X</code> to boot with the edited parameters.
+
+The purpose of this test is to determine whether one of the additional Kicksecure kernel command line options causes the boot failure on specific hardware or firmware.
+
+</div>
+</div>
+
 === Chroot Boot Recovery ===
 
+{{IntroLike|
+Use this only when repairing an installed Kicksecure system from a live ISO. This is usually not the right section for a live USB that itself fails to boot.
+}}
+
 Many of the boot issues mentioned in this document can be solved by chrooting into the broken system. From here you can regenerate boot configuration data and modify incorrect configuration files. You will need a live Kicksecure ISO for this procedure, see the [[ISO|download page]] for guidance on how to obtain one and prepare it for use.
+
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    = Replace placeholder device names such as <code>sdX</code>, <code>sdXY</code>, and <code>Y</code> with the correct disk or partition. Do not blindly copy commands that modify bootloader or disk configuration.
+}}
+
+<div class="toccolours mw-collapsible mw-collapsed">
+'''Show Chroot Boot Recovery instructions'''
+<div class="mw-collapsible-content">
 
 * Boot the affected system from the live ISO.
 ** On physical hardware, flash the ISO to a USB drive and boot the machine from the USB drive.
 ** On virtual hardware (VirtualBox or KVM), configure the virtual machine to use the Kicksecure ISO file as a virtual CD-ROM, and set the ISO file to be at the top of the boot order.
 * Open a terminal using Ctrl+Alt+T.
 * Run <code>lsblk</code> to view the drives and partitions in the system. The partition containing Kicksecure's root filesystem should be recognizable by size.
+
+{{CodeSelect|code=
+lsblk
+}}
+
 * Mount Kicksecure's root filesystem using <code>sudo mount /dev/sdXY /mnt</code>, replacing <code>sdXY</code> as appropriate.
+
+{{CodeSelect|code=
+sudo mount /dev/sdXY /mnt
+}}
+
 * Determine which partition contains Kicksecure's boot filesystem (which is always separate from the root filesystem). Mount it using <code>sudo mount /dev/sdXY /mnt/boot</code>, again replacing <code>sdXY</code> as appropriate.
+
+{{CodeSelect|code=
+sudo mount /dev/sdXY /mnt/boot
+}}
+
 * If the system uses UEFI firmware, there will be an additional, small fat32 partition near the beginning of the drive Kicksecure is installed onto. Mount it using <code>mount /dev/sdXY /mnt/boot/efi</code>, again replacing <code>sdXY</code> as appropriate.
+
+{{CodeSelect|code=
+sudo mount /dev/sdXY /mnt/boot/efi
+}}
+
 * Bind-mount several system directories into <code>/mnt</code> so that recovery tools will work:
 ** <code>sudo mount --bind /dev /mnt/dev</code>
 ** <code>sudo mount --bind /dev/pts /mnt/dev/pts</code>
 ** <code>sudo mount --bind /proc /mnt/proc</code>
 ** <code>sudo mount --bind /sys /mnt/sys</code>
+
+{{CodeSelect|code=
+sudo mount --bind /dev /mnt/dev
+sudo mount --bind /dev/pts /mnt/dev/pts
+sudo mount --bind /proc /mnt/proc
+sudo mount --bind /sys /mnt/sys
+}}
+
 * Run <code>chroot /mnt</code> to enter the chroot environment. Commands you run at this point will act as if you were running them on the installed system.
+
+{{CodeSelect|code=
+sudo chroot /mnt
+}}
+
 * Depending on which boot issue you are attempting to resolve, you may have to modify some configuration files before regenerating boot data.
 ** {{Anchor|uefi_firmware_fix}} <b>UEFI firmware fails to pick up Kicksecure boot entry</b>
 *** Determine the disk containing Kicksecure's EFI system partition, then determine which partition on the disk is the EFI system partition.
 *** Run <code>efibootmgr -c -d /dev/sdX -p Y -L 'Kicksecure' -l 'EFI\Kicksecure\shimx64.efi'</code>, replacing <code>sdX</code> with the device name of the disk containing the Kicksecure installation, and replacing <code>Y</code> with the partition number of the EFI system partition. This should add a Kicksecure boot entry to your UEFI NVRAM.
+
+{{CodeSelect|code=
+efibootmgr -c -d /dev/sdX -p Y -L 'Kicksecure' -l 'EFI\Kicksecure\shimx64.efi'
+}}
+
 ** <b>Incorrectly named filesystem in crypttab</b>
 *** Run <code>nano /etc/crypttab</code>. For each entry in the file (usually there will only be one), copy down the first field (the filesystem name) and paste it into a Mousepad text document. Close the file with Ctrl+X, then run <code>nano /etc/fstab</code>. Check all fstab lines that point to a filesystem under <code>/dev/mapper</code> and ensure that the names shown in those fstab lines match those shown in the crypttab file.
+
+{{CodeSelect|code=
+nano /etc/crypttab
+nano /etc/fstab
+}}
+
 ** <b>Important system software was uninstalled</b>
 *** Reinstall any important packages you uninstalled previously, using <code>apt install</code>. You can check your apt history log at <code>/var/log/apt/history.log</code> to see what packages you may have uninstalled recently.
+
+{{CodeSelect|code=
+apt install package-name
+less /var/log/apt/history.log
+}}
+
 * After completing any necessary prerequiste steps from above, regenerate boot information.
 ** Reinstall the bootloader by running <code>grub-install /dev/sdXY</code> replacing <code>sdXY</code> as appropriate.
 ** Regenerate GRUB's configuration file by running <code>update-grub</code>.
 ** Regenerate all initramfs files on the system by running <code>dracut --regenerate-all --force</code>.
+
+{{CodeSelect|code=
+grub-install /dev/sdX
+update-grub
+dracut --regenerate-all --force
+}}
+
 * After running the above commands, exit the chroot environment by running <code>exit</code>.
+
+{{CodeSelect|code=
+exit
+}}
+
 * Shut down the system and remove the Kicksecure live ISO. Then power the system back on. If all goes well, Kicksecure should now boot successfully.
 
+</div>
+</div>
+
 == Boot Recovery Tools ==
+
+{{IntroLike|
+Boot recovery tools can help start or repair a system when the normal boot path is broken. These tools should be chosen according to the failure mode identified above.
+}}
+
 There are several tools that can be useful for fixing or working around broken boot issues. The following is not an endorsement or recommendation of any particular tool.
 
 === Super Grub2 Disk ===
@@ -165,6 +442,10 @@ It is recommended to use the first download in the list of USB bootable images, 
 
 Once you have downloaded Super Grub2 Disk, you can verify it, unzip it, and flash it to a USB drive. The following commands can be used to do this. Note that your download location, file name, and device ID may differ from those shown here, thus you should adjust these commands as appropriate. '''Do NOT blindly copy and paste this code into a terminal!'''
 
+<div class="toccolours mw-collapsible mw-collapsed">
+'''Show Super Grub2 Disk installation commands'''
+<div class="mw-collapsible-content">
+
 {{CodeSelect|code=
 cd ~/Downloads
 sha256sum supergrub2-2.06s4-multiarch-USB.img.zip
@@ -176,6 +457,9 @@ unzip supergrub2-2.06s4-multiarch-USB.img.zip
 sudo dd if=./supergrub2-2.06s4-multiarch-USB.img of=/dev/sdX bs=4M
 sync
 }}
+
+</div>
+</div>
 
 Super Grub2 Disk is now installed.
 
@@ -189,26 +473,57 @@ To find available operating systems on the computer, use the arrow keys to selec
 
 The Super Grub2 Disk boot menu provides a large number of options for loading operating systems in various different ways. This guide will cover four of the provided methods. Which method to use depends on what hardware you are using and how badly the system is broken.
 
+{{Tab
+|type=controller
+|addToClass=tcc-indent
+|content=
+
+{{Tab
+|title= ==Direct Linux boot==
+|type=section
+|active=true
+|content=
 * Direct Linux boot
 ** The direct Linux boot options are listed under the <code>Linux</code> and <code>Linux from /boot partition</code> sections. These options will load the selected Linux kernel and its corresponding initramfs, point the kernel at the correct drive to boot from, and then boot it. The drive to boot from is automatically detected by parsing the <code>/etc/fstab</code> file from the Linux installation.
 ** This option is mainly useful if your system's boot data is entirely broken or missing. It does not rely on the installed system's boot configuration at all, so it can work to boot the system when nothing else will. However, you should usually '''not''' use this boot method, as it will not enable the large number of security options Kicksecure enables via Linux command line options. This leaves you more open to malware and other security threats.
 ** This boot method only works on unencrypted systems. In order to know which partition Linux should use as the root partition, it has to parse the <code>/etc/fstab</code> file from the installed system. This is impossible when the system is encrypted.
 ** To boot an OS using direct Linux boot, select one of the displayed kernels in the appropriate section, and press Enter. Usually the kernels will be named something like <code>/vmlinuz-6.1.0-26-amd64</code>. There are also <code>( recovery )</code> and <code>( single )</code> options underneath each kernel. The <code>( recovery )</code> option will work to boot into recovery mode on systems such as Ubuntu. For other operating systems (including Kicksecure), the <code>( single )</code> option can be used to boot into rescue mode. See [[Recovery]].
+}} <!-- close tab -->
+
+{{Tab
+|title= ==GRUB configuration chaining==
+|type=section
+|content=
 * GRUB configuration chaining
 ** The GRUB configuration chaining options are listed under the <code>Entries from...</code> and <code>grub.cfg - (GRUB2 configuration files)</code> sections. These options will load boot entries from the installed system's GRUB configuration files, allowing you to boot one of these entries.
 ** This option is recommended for most use cases. All of Kicksecure's kernel command line options will be enabled, since the GRUB configuration where these settings are embedded will be used. This greatly improves security on Kicksecure.
 ** This boot method works on both BIOS and UEFI systems, regardless of whether they are encrypted or unencrypted. However, it only works if the installed system has a working GRUB configuration. If your bootloader is corrupted or damaged but your GRUB configuration is still intact, this will work, but if your GRUB configuration is damaged or incorrect, this may not work.
 ** To boot an OS using GRUB configuration chaining, select the desired boot option underneath one of the <code>Entries from...</code> headers. For Kicksecure, the entry to use will usually be <code>Kicksecure GNU/Linux</code> or <code>LIVE mode USER (For daily activities.) GNU/Linux</code>. Alternatively, find the desired grub.cfg file under the <code>grub.cfg - (GRUB2 configuration files)</code> section, select it, and press Enter. If you are shown another boot menu, select your desired boot option.
+}} <!-- close tab -->
+
+{{Tab
+|title= ==BIOS chainloading==
+|type=section
+|content=
 * BIOS chainloading
 ** The BIOS chainloading options are listed under the <code>Disks and Partitions (Chainload)</code> section. These options will load and execute whatever happens to be in the boot sector of the selected device or partition. Assuming the selected device or partition has a bootloader installed, this will run that bootloader.
 ** This option is only really useful if your system's BIOS settings are misconfigured. The system needs to have a bootloader installed and configured properly for this option to work. If Kicksecure installed successfully but the system reports "No operating system found" upon reboot, this option may be useful to work around the problem.
 ** This boot method only works on BIOS systems. The boot process on UEFI systems works in a fundamentally different way that doesn't involve boot sectors. Super Grub2 Disk will display an error message if you try to use BIOS chainloading on a UEFI system. This boot method works with both encrypted and unencrypted systems.
 ** To boot an OS using BIOS chainloading, navigate to the <code>Disks and Partitions (Chainload)</code> section, select your desired device or partition, and press Enter. The bootloader from that device or partition will run. This will either immediately boot an OS, or, in the case of Kicksecure, display a list of boot options. Note that to boot Kicksecure with BIOS chainloading, you must select either the "boot" partition, or the device containing the "boot" partition. Attempting to chainload the "rootfs" partition will result in an "invalid signature" error message.
+}} <!-- close tab -->
+
+{{Tab
+|title= ==UEFI chainloading==
+|type=section
+|content=
 * UEFI chainloading
 ** The UEFI chainloading options are listed under the <code>EFI files on EFI partitions</code> section. These options will execute a UEFI executable of your choice. Usually this executable will be a UEFI bootloader of some sort.
 ** All of the caveats of BIOS chainloading apply.
 ** This boot method only works on UEFI systems. It is essentially the UEFI equivalent of BIOS chainloading, although it works in a very different manner under the hood. This boot method works with both encrypted and unencrypted systems.
 ** To boot an OS using UEFI chainloading, navigate to the <code>EFI files on EFI partitions</code> section. You will be shown a list of EFI system partition directories, and the EFI executables available underneath them. Find the directory that corresponds to the OS you wish to load (for instance, <code>/efi/Kicksecure</code>), then select the <code>shimx64.efi</code> file from the list of files in that directory. If <code>shimx64.efi</code> does not exist, select <code>grubx64.efi</code> instead. If ''that'' doesn't exist either, you're either using a non-GRUB bootloader, or your bootloader is misconfigured somehow, in which case you should probably try using one of the other boot methods. As a last resort, you can try booting the <code>/efi/boot/bootx64.efi</code> file if it exists. Do not attempt to boot from any files named <code>mmx64.efi</code><ref><code>mmx64.efi</code> is the MokManager utility, usually used for configuring Secure Boot settings. This tool doesn't do anything useful if booted manually in most instances. The only times it is useful are when you are configuring a Secure Boot key for signing self-compiled kernel modules. When that happens, MokManager should automatically be booted into when necessary.</ref> or <code>fbx64.efi</code><ref><code>fbx64.efi</code> is the fallback bootloader, usually copied to <code>bootx64.efi</code>. It will rebuild your UEFI boot variables using any <code>bootx64.csv</code> files it can find in your system's EFI system partitions. This can be useful for boot recovery, but generally the system will boot this automatically if it becomes necessary.</ref> unless you know what you're doing.
+}} <!-- close tab -->
+
+}} <!-- close tab controller -->
 
 ==== Booting ISO Files ====
 
@@ -218,11 +533,19 @@ Not all ISO files can be booted this way. In particular, Kicksecure's ISO does n
 
 Super Grub2 Disk provides a partition with a directory called "BOOTISOS". You can save ISO files here in order to boot them with Super Grub2 Disk. By default, this partition is much too small to contain most ISO files. To fix this, use the GParted program to resize the Super Grub2 Disk USB drive's second partition so that it uses the full space available on the USB drive. You can install GParted on Kicksecure by running <code>sudo apt install gparted</code>. You will also need the fatresize tool, which GParted will use under the hood to resize the filesystem. This can be installed by running <code>sudo apt install fatresize</code>.
 
+{{CodeSelect|code=
+sudo apt install gparted fatresize
+}}
+
 Once the partition is large enough to contain your ISO files, simply mount it and copy your desired ISO files to the BOOTISOS directory on the drive. Note that the ISO storage partition is formatted with the fat32 filesystem, meaning it will not support ISO files larger than 4 GiB in size.
 
 To boot one of these ISOs, boot the Super Grub2 Disk drive, and select "Detect and show boot methods". All loopback bootable ISO files saved in this the "BOOTISOS" directory will be detected and displayed in the <code>Bootable ISOs (in /boot-isos or /boot/boot-isos)</code> section. Select the ISO you wish to boot, and press Enter.
 
 === Getting Help ===
+
+{{IntroLike|
+If you are unsure which recovery path applies, ask for help before running commands that modify disks, bootloaders, or firmware boot entries.
+}}
 
 If you are not comfortable attempting to repair your system by yourself, you can ask for help via Kicksecure's support forum at https://forums.kicksecure.com/.
 
