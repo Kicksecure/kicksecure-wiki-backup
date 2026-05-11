@@ -36,20 +36,27 @@
     <!--{assign var="rel"         value=$path|regex_replace:'/^[^\/]+\/[^\/]+\/releases\/tag\/([^\/?#]+).*/' : '$1'}-->
     <!--{assign var="anchor"      value=$path|regex_replace:'/^[^#]*#(.+)$/' : '$1'}-->
 
+    <!--{* Generate blob URL for raw sources (for consistent display) *}-->
+    <!--{if $file_type == 'raw'}-->
+      <!--{assign var="blob_url" value=$url|regex_replace:'/^(https?:\/\/github\.com\/[^\/]+\/[^\/]+\/)raw(\/.*)$/':'$1blob$2'}-->
+    <!--{/if}-->
+
     <!--{capture assign="repo_pill"}--><a href="<!--{$repo_url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub repository"><code><!--{$repo|escape:'html'}--></code></a><!--{/capture}-->
 
     <!--{if $file_path != $path}-->
       <!--{assign var="path_display" value=$file_path|regex_replace:'/[?#].*$/' : ''}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub file path"><code>/<!--{$path_display|escape:'html'}--></code></a>
-      <!--{* /raw/ pill only when source is /blob/ (a file). /tree/ is a
-              directory and has no /raw/ equivalent (would 404); /raw/ would be
-              a no-op. Note: by policy Github_link is only used with regular
-              (non-raw) URLs as input, so /raw/ inputs are not expected. *}-->
-      <!--{if $file_type == 'blob'}-->
+      <!--{if $file_type == 'raw'}-->
+        <a href="<!--{$blob_url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub file path"><code>/<!--{$path_display|escape:'html'}--></code></a>
         |
-        <a href="<!--{$url|regex_replace:'/^(https?:\/\/github\.com\/[^\/]+\/[^\/]+\/)blob(\/.*)$/':'$1raw$2'|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub raw file path"><code>raw</code></a>
+        <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub raw file path"><code>raw</code></a>
+      <!--{else}-->
+        <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub file path"><code>/<!--{$path_display|escape:'html'}--></code></a>
+        <!--{if $file_type == 'blob'}-->
+          |
+          <a href="<!--{$url|regex_replace:'/^(https?:\/\/github\.com\/[^\/]+\/[^\/]+\/)blob(\/.*)$/':'$1raw$2'|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub raw file path"><code>raw</code></a>
+        <!--{/if}-->
       <!--{/if}-->
 
     <!--{* Commit hash. No leading symbol (the hex is self-evident). When a
@@ -57,44 +64,44 @@
     <!--{elseif $sha != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub commit"><code><!--{$sha|escape:'html'}--><!--{if $commit_diff == '@'}--> diff<!--{/if}--></code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub commit"><code>&#10003; <!--{$sha|escape:'html'}--><!--{if $commit_diff == '@'}--> diff<!--{/if}--></code></a>
 
     <!--{elseif $pr_disc != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request review comment"><code>#<!--{$pr_disc|escape:'html'}--> review comment</code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request review comment"><code>? <!--{$pr_disc|escape:'html'}--> review comment</code></a>
 
     <!--{elseif $pr_review != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request review"><code>#<!--{$pr_review|escape:'html'}--> review</code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request review"><code>? <!--{$pr_review|escape:'html'}--> review</code></a>
 
     <!--{elseif $pr_cmt != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request comment"><code>#<!--{$pr_cmt|escape:'html'}--> comment</code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request comment"><code>? <!--{$pr_cmt|escape:'html'}--> comment</code></a>
 
     <!--{elseif $pr != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request"><code>#<!--{$pr|escape:'html'}--></code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub pull request"><code>? <!--{$pr|escape:'html'}--></code></a>
 
     <!--{elseif $iss_cmt != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub issue comment"><code>#<!--{$iss_cmt|escape:'html'}--> comment</code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub issue comment"><code>! <!--{$iss_cmt|escape:'html'}--> comment</code></a>
 
     <!--{elseif $iss != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub issue"><code>#<!--{$iss|escape:'html'}--></code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub issue"><code>! <!--{$iss|escape:'html'}--></code></a>
 
     <!--{* Release tag. "^" denotes "moving up" to a tagged version; @ is
             reserved for user profiles to avoid confusion with @mentions. *}-->
     <!--{elseif $rel != $path}-->
       <!--{$repo_pill}-->
       |
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub release"><code>^<!--{$rel|escape:'html'}--></code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub release"><code>^ <!--{$rel|escape:'html'}--></code></a>
 
     <!--{* Repo (catch-all for /owner/repo[/...]). If the URL carries a
             #fragment, surface it as a second pill so it isn't silently dropped. *}-->
@@ -109,7 +116,7 @@
 
     <!--{* User profile. "@" is the conventional symbol for a user (cf. @mention). *}-->
     <!--{elseif $owner != ''}-->
-      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub user profile"><code>@<!--{$owner|escape:'html'}--></code></a>
+      <a href="<!--{$url|escape:'html'}-->" target="_blank" rel="noopener" title="GitHub user profile"><code>@ <!--{$owner|escape:'html'}--></code></a>
 
     <!--{else}-->
       <code class="github-link-widget-error">github-link-widget-no-valid-url</code>
