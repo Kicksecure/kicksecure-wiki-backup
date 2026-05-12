@@ -345,17 +345,79 @@ Below are 3 tests. The first without the paramter scope, it should show the page
 
 * These test cases cover all functionality and error conditions of the <code><nowiki>{{#css:}}</nowiki></code> parser function.
 * The results are checked via javascript. Detailed results are rendered into the "detailed results" area below
-* Tests are structured like this : Test ID | Description | Input | Expected Result | PASSED/FAILED
+* Tests are structured like this : PASSED/FAILED | Test ID | Description | Input | Expected Result
 
 '''A. Basic Functionality'''
 <div id="css-fork-tests-a">
-* A1 | Empty input | <code><nowiki>{{#css:}}</nowiki></code> | No output, no <code>&lt;style&gt;</code> tag | {{IconSet|maybe|Test is Processing...}}
-* A2 | Simple inline CSS | <code><nowiki>{{#css:#made-up-id1 { color: red; }}}</nowiki></code> | <code>&lt;style type="text/css"&gt;made-up-id1{color:red}&lt;/style&gt;</code> added to page head | {{IconSet|maybe|Test is Processing...}}
-* A3 | Multiple inline rules and leading / trailing whitespaces | <code><nowiki>{{#css:#made-up-id2 { font-size: 2em; } #made-up-id3 { font-size: 1.5em; }}}</nowiki></code> | Both rules minified in a single <code>&lt;style&gt;</code> tag and whitespace trimmed, CSS parsed normally | {{IconSet|maybe|Test is Processing...}}
+# {{IconSet|maybe|Wait...}} | A1 | Empty input | <code><nowiki>{{#css:}}</nowiki></code> | No output, no <code>&lt;style&gt;</code> tag
+# {{IconSet|maybe|Wait...}} | A2 | Simple inline CSS | <code><nowiki>{{#css:#made-up-id1 { color: red; }}}</nowiki></code> | <code>&lt;style type="text/css"&gt;made-up-id1{color:red}&lt;/style&gt;</code> added to page head
+# {{IconSet|maybe|Wait...}} | A3 | Multiple inline rules and leading / trailing whitespaces | <code><nowiki>{{#css:#made-up-id2 { font-size: 2em; } #made-up-id3 { font-size: 1.5em; }}}</nowiki></code> | Both rules minified in a single <code>&lt;style&gt;</code> tag and whitespace trimmed, CSS parsed normally
 </div>
 
 '''B. File-Based CSS'''
 <div id="css-fork-tests-b">
+# {{IconSet|maybe|Wait...}} | B1 | Local file path (absolute) | <code><nowiki>{{#css:/src-copy/CssExtensionForkTests.css}}</nowiki></code> | <code>&lt;link rel="stylesheet" href=".../mw-autogen/src-copy/CssExtensionForkTests.css?css-extension=1&hsversion_from_server_replacement_unixtime=1778583349&hsversion_from_server_replacement_unixtime=1778583349&hsversion_from_server_replacement_unixtime=1778583349&hsversion_from_server_replacement_unixtime=1778583349&hsversion_from_server_replacement_unixtime=1778583349&amp;hsversion_from_server_replacement_unixtime=..." /&gt;</code>
+# {{IconSet|maybe|Wait...}} | B2 | Local file path (relative) | <code><nowiki>{{#css:/resources/css/print.css}}</nowiki></code> | Relative path resolved against <code>$wgCSSPath</code>
+# {{IconSet|maybe|Wait...}} | B3 | File path with path traversal attempt | <code><nowiki>{{#css:/src-copy/../../../etc/passwd}}</nowiki></code> | After normalization, blocked with "<!-- Invalid/malicious path -->"
+# {{IconSet|maybe|Wait...}} | B4 | URL-encoded path traversal (security test) | <code><nowiki>{{#css:/src-copy/%2e%2e/%2e%2e/COPYING}}</nowiki></code> | Should be BLOCKED. If it returns a valid <code>&lt;link&gt;</code> tag, the sanitizer is vulnerable to URL-encoded traversal.
+# {{IconSet|maybe|Wait...}} | B5 | File path with backslash traversal | <code><nowiki>{{#css:/src-copy\..\..\etc\passwd}}</nowiki></code> | Backslashes converted to forward slashes, then blocked
+</div>
+
+'''C. Article-Based CSS (Whitelist)'''
+<div id="css-fork-tests-c">
+# {{IconSet|maybe|Wait...}} | C1 | Article in whitelisted namespace | <code><nowiki>{{#css:MediaWiki:Common.css}}</nowiki></code> | <code>&lt;link rel="stylesheet" href=".../MediaWiki:Common.css?action=raw&amp;ctype=text/css&amp;css-extension=1" /&gt;</code>
+# {{IconSet|maybe|Wait...}} | C2 | Article in non-whitelisted namespace | <code><nowiki>{{#css:User:Patrick/myskin.css}}</nowiki></code> | HTML comment error: "Only namespaces [...] allowed. You use: 2 (namespace id)"
+# {{IconSet|maybe|Wait...}} | C3 | Non-existing article | <code><nowiki>{{#css:MediaWiki:NonExistent.css}}</nowiki></code> | Article does not exist → treated as inline CSS → sanitizer fails with <code>/* css-sanitizer failed to parse CSS */</code>
+# {{IconSet|maybe|Wait...}} | C4 | Article without namespace prefix | <code><nowiki>{{#css:ExactlyThirtyOneCharactersLong.css}}</nowiki></code> | No namespace prefix → not recognized as article → treated as inline CSS → sanitizer fails with <code>/* css-sanitizer failed to parse CSS */</code>
+</div>
+
+'''D. CSS Sanitizer'''
+<div id="css-fork-tests-d">
+# {{IconSet|maybe|Wait...}} | D1 | Disallowed property | <code><nowiki>{{#css:body { behavior: url(script.htc); }}}</nowiki></code> | Property removed by sanitizer
+# {{IconSet|maybe|Wait...}} | D2 | @import rule (BLOCKED) | <code><nowiki>{{#css:@import url('https://evil.com/bad.css');}}</nowiki></code> | @import removed by sanitizer (not in allowed list)
+# {{IconSet|maybe|Wait...}} | D3 | Malformed CSS (parse error) | <code><nowiki>{{#css:body { color: red; {} }}</nowiki></code> | Output: <code>/* css-sanitizer failed to parse CSS */</code>
+# {{IconSet|maybe|Wait...}} | D4 | CSS that fails sanitization | <code><nowiki>{{#css:body { -evil-vendor-property: bad-value; }}</nowiki></code> | Property silently removed by sanitizer, output CSS without the disallowed property
+# {{IconSet|maybe|Wait...}} | D5 | Closing style tag injection | <code><nowiki>{{#css:body { content: "&lt;/style&gt;&lt;script&gt;alert('xss')&lt;/script&gt;"; } }}</nowiki></code> | Output: <code>/* Closing style tag found in resulting CSS */</code>
+# {{IconSet|maybe|Wait...}} | D6 | U+007F control character | <code><nowiki>{{#css:body { content: "\7f "; } }}</nowiki></code> | U+007F escaped to <code>\7f </code> in CSS output
+</div>
+
+'''E. Edge Cases'''
+<div id="css-fork-tests-e">
+# {{IconSet|maybe|Wait...}} | E1 | CSS with comments | <code><nowiki>{{#css:/* comment */ body { color: red; }}</nowiki></code> | Comment stripped, valid CSS remains
+# {{IconSet|maybe|Wait...}} | E2 | CSS custom properties | <code><nowiki>{{#css::root { --main-color: #ff0000; } }}</nowiki></code> | Custom properties not supported by older sanitizer → <code>/* css-sanitizer failed to sanitize CSS */</code>
+# {{IconSet|maybe|Wait...}} | E3 | Multiple CSS calls on one page | Two separate <code><nowiki>{{#css:...}}</nowiki></code> calls (this is already given by the other tests) | Both processed independently, multiple <code>&lt;style&gt;</code> or <code>&lt;link&gt;</code> tags
+</div>
+
+{{Collapsible|title=Detailed Results for Failed tests.|content=<div id="css-fork-tests-failed-details">No tests were failed.</div>}}
+
+'''Tests (not visible)'''
+{{Collapsible|title=Tests (not visible)|content=
+<!-- A -->
+{{#css:}}
+{{#css:#made-up-id1 { color: red; } }}
+{{#css:#made-up-id2 { font-size: 2em; } #made-up-id3 { font-size: 1.5em; } }}
+<!-- B -->
+{{#css:/src-copy/_Page_Dev_Wikitest_CssExtensionFork.css}}
+{{#css:/resources/css/print.css}}
+{{#css:/src-copy/../../../etc/passwd}}
+{{#css:/src-copy/%2e%2e/%2e%2e/COPYING}}
+{{#css:/src-copy\..\..\etc\passwd}}
+<!-- C -->
+{{#css:MediaWiki:Common.css}}
+{{#css:User:Patrick/myskin.css}}
+{{#css:MediaWiki:NonExistent.css}}
+{{#css:ExactlyThirtyOneCharactersLong.css}}
+<!-- D -->
+{{#css:body { behavior: url(script.htc); }}
+{{#css:@import url('https://evil.com/bad.css');}}
+{{#css:body { color: red; {} }}
+{{#css:body { -evil-vendor-property: bad-value; } }}
+{{#css:body { content: "</style><script>alert('xss')</script>"; } }}
+{{#css:body { content: "\7f "; } }}
+<!-- E -->
+{{#css:/* comment */ body { color: red; } }}
+{{#css::root { --main-color: #ff0000; } }}
+}}
 
 == CustomRepo (Template) ==
 
