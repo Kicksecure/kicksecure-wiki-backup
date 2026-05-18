@@ -1150,6 +1150,37 @@ For demonstrative purposes only: https://web.archive.org/web/20220204103725/http
 #* Never use unescaped output for parameters from untrusted sources
 #* Document which <code>Html_*</code> templates are used by which widgets
 
+== Security sanitisation for URL parameters ==
+
+Any user-supplied URL that will be output into an HTML attribute (e.g. <code>href</code>, <code>src</code>, <code>data-*</code>) must be passed through a three-stage filter chain to prevent XSS via dangerous URL schemes.
+
+<pre>
+<!--{assign var="safeUrl" value=$url|default:''|regex_replace:'/[\x00-\x1F\x7F]/':''|regex_replace:'/^(javascript|data|vbscript|file)\s*:/i':'#blocked-$1:'|escape:'html'}-->
+</pre>
+
+This pattern is used across multiple widgets (e.g. <code>LeftRightImageText</code>, <code>CodeSelect</code>, and any widget accepting URLs from user input).
+
+'''Stage 1 — Strip ASCII control characters:''' <code>regex_replace:'/[\x00-\x1F\x7F]/':''</code>
+* Browsers silently strip control characters from URLs before navigation
+* An attacker can embed e.g. <code>\x00</code> into <code>jav\x00ascript:</code> to evade a literal string blacklist, yet the browser navigates to <code>javascript:</code> after stripping
+* Removing them first ensures the scheme check in stage 2 sees what the browser actually executes
+
+'''Stage 2 — Block dangerous URL schemes:''' <code>regex_replace:'/^(javascript|data|vbscript|file)\s*:/i':'#blocked-$1:'</code>
+* Rewrites dangerous schemes into inert relative URLs: <code>javascript:alert(1)</code> → <code>#blocked-javascript:alert(1)</code>
+* The <code>\s*</code> catches whitespace-padded variants that some browsers accept (e.g. <code>javascript\t:</code>)
+* Case-insensitive match via the <code>i</code> flag
+* The blocked schemes are:
+** <code>javascript:</code> — direct script execution
+** <code>data:</code> — inline content that can contain active script
+** <code>vbscript:</code> — legacy IE script execution (still parsed by some engines)
+** <code>file:</code> — local file access
+
+'''Stage 3 — HTML-escape for attribute context:''' <code>escape:'html'</code>
+* Standard entity encoding to prevent breaking out of the attribute with quotes or angle brackets
+* Must be applied last so the escaping doesn't interfere with the regex patterns above
+
+'''Order matters:''' Control chars must be stripped before scheme checking (otherwise browser and filter see different strings), and HTML-escaping must happen after the other filters to avoid false negatives.
+
 = Module Documentation (Alphabetical order) =
 
 == AddMessageToCopiedText (Copyright text injection) ==
@@ -2280,6 +2311,7 @@ Result:
 * '''IMPORTANT NOTE''': In same cases PreBox may not work due to being a template. In this case use <code><nowiki>{{#tag:pre|your-content}}</nowiki></code> equivalently to <code><nowiki>{{PreBox|your-content}}</nowiki></code>
 * Relevant Files
 ** [[Template:PreBox]]
+* Tests: [[Dev/wikitest#Prebox_template|Prebox template]]
 
 '''EXAMPLES'''
 

