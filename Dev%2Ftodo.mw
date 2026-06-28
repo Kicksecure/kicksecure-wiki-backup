@@ -22,19 +22,17 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 
 = TODO DEV =
-== onion-grater hardening ==
-* as discussed
-* https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/onion-grater
-** https://gitlab.tails.boum.org/tails/tails/-/raw/master/config/chroot_local-includes/usr/local/lib/onion-grater
-* https://github.com/org-ai-assisted/onion-grater-bugs
-** only worth fixing if applicable to Whonix
-
-== clipboard - upstream shared folder based clipboard sharing script ==
+== virtualbox - fork vbox-guest-additions-iso, replace existing guest additions with it and fix clipboard ==
 * Aaron:
-** https://forums.whonix.org/t/i-made-a-fix-for-the-shared-clipboard-issue/22705
-** Original author seems to have vanished
-** Create a Python script that serves the same purpose as the original, possibly based on the original work if it is still accessible, integrate it into usability-misc
-** Possibly better solution: https://forums.whonix.org/t/shared-clipboard-fixed/23258/3
+** Add Breaks/Replaces against virtualbox-guest-x11 and virtualbox-guest-utils to dist-vm-gui-all, dist-baremetal-gui-all
+** Add Depends on virtualbox-guest-additions-iso to dist-vm-gui-all, dist-baremetal-gui-all
+** Add code to vm-config-dist postinst that installs Guest Additions from the ISO as part of the installation process
+** Add a user service to vm-config-dist that will start <code>VBoxClient --wayland</code> on bootup
+** Consider adjusting vbox-guest-installer to have both fail-open and fail-closed modes, we should use fail-closed in derivative-maker (this needs more discussion before doing it)
+** Consider installing Guest Additions even on non-VBox systems so that it transparently works everywhere, right now vbox-guest-installer refuses to install Guest Additions on non-Oracle machines unless building a VirtualBox image (This needs more discussion before doing it)
+** Test upgrading an existing VirtualBox VM with this, ensure clipboard sharing mostly works after upgrading
+** If this works for upgrades, try to build a VirtualBox image with newer Guest Additions pre-installed, ensure clipboard sharing mostly works after installation
+** Write a packaging helper script that will download the latest VirtualBox package from Oracle upstream, extract the VBoxGuestAdditions ISO from it, and add it to our fork of virtualbox-guest-additions-iso
 
 == tor-control-panel re-review ==
 * todo
@@ -52,6 +50,7 @@ Developer task list and work queue. This page summarizes short-term development 
 ** https://www.openwall.com/lists/oss-security/2026/05/19/1
 ** The current MIME handler situation on Linux means that there is no way to distinguish between MIME handlers that open files and MIME handlers that execute files. There is a real need for the latter, despite the fact that the xdg-mime manpage currently documents that MIME handlers should never blindly execute code.
 ** Try to work with FreeDesktop and other projects to introduce a way for MIME handlers that execute code to be registered and handled safely.
+*** Draft spec MR: https://gitlab.freedesktop.org/xdg/xdg-specs/-/merge_requests/116
 
 == labwc versus WAYLAND_DISPLAY environment variable ==
 * https://forums.kicksecure.com/t/system-maintenance-panel-not-showing-up/1603
@@ -771,6 +770,14 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 ** https://github.com/Whonix/anon-apps-config/blob/master/etc/skel/.config/vlc/vlcrc
 
 = WAITING ON =
+== onion-grater hardening ==
+* as discussed
+* https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/onion-grater
+** https://gitlab.tails.boum.org/tails/tails/-/raw/master/config/chroot_local-includes/usr/local/lib/onion-grater
+* https://github.com/org-ai-assisted/onion-grater-bugs
+** only worth fixing if applicable to Whonix
+** Aaron: Submitted reports for three of the four bugs I thought were worth reporting, the last one has not been reported yet to avoid flooding upstream with reports
+
 == user-sysmaint-split forum thread ==
 * https://forums.whonix.org/t/sysadmint-and-its-removal-broken/23255
 ** Aaron: Could not reproduce, left a comment with testing results and awaiting a reply.
@@ -1047,6 +1054,10 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== privleap env hardening ==
+* https://github.com/org-ai-assisted/privleap/pull/1
+** Aaron: Researched, rejected, added a comment to the shim instead documenting a situation in the future where we might want to strip environment variables and do other cleanup. Also committed some minor improvements I had made earlier but never committed.
+
 == sdwdate-gui review ==
 * todo as discussed
 ** Aaron: Done, commit pushed to sdwdate-gui.
@@ -1347,6 +1358,14 @@ zsh: exit 1     dpkg -S /etc/grub.d/*
 * Aaron: Cannot reproduce on my main development machine. On a testing machine, an instant reboot was observed after waking from sleep, but installing <code>debug-misc</code> made the reboots stop. Checking <code>dmesg</code> after wake revealed a kernel warning occurring while waking a device from suspend during a filesystem write. Issue is therefore likely hardware-specific, and may be resolved by disabling panic-on-warn.
 
 = ARCHIVED =
+== clipboard - upstream shared folder based clipboard sharing script ==
+* Aaron:
+** https://forums.whonix.org/t/i-made-a-fix-for-the-shared-clipboard-issue/22705
+** Original author seems to have vanished
+** Create a Python script that serves the same purpose as the original, possibly based on the original work if it is still accessible, integrate it into usability-misc
+** Possibly better solution: https://forums.whonix.org/t/shared-clipboard-fixed/23258/3
+*** Researched, rejected after discovering numerous problems with this approach. New ticket filed for new approach.
+
 == Kernel BUG when loading vboxdrv module ==
 * see chat
 * Aaron: Bug filed: https://github.com/VirtualBox/virtualbox/issues/639
