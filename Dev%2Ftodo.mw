@@ -22,30 +22,6 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 
 = TODO DEV =
-== strip-markup fixes ==
-* https://github.com/org-ai-assisted/helper-scripts/pull/57
-
-== virtualbox - black screen ==
-* https://download.whonix.org/ova/18.2.1.0/
-* https://forums.whonix.org/t/whonix-18-2-1-0-black-screen-after-upgrading-vbox-guest-additions/23380
-
-== virtualbox - fork vbox-guest-additions-iso, replace existing guest additions with it and fix clipboard ==
-* Aaron:
-** Add Breaks/Replaces against virtualbox-guest-x11 and virtualbox-guest-utils to dist-vm-gui-all, dist-baremetal-gui-all
-** Add Depends on virtualbox-guest-additions-iso to dist-vm-gui-all, dist-baremetal-gui-all
-** Add code to vm-config-dist postinst that installs Guest Additions from the ISO as part of the installation process
-** Add a user service to vm-config-dist that will start <code>VBoxClient --wayland</code> on bootup
-** Consider adjusting vbox-guest-installer to have both fail-open and fail-closed modes, we should use fail-closed in derivative-maker (this needs more discussion before doing it)
-** Consider installing Guest Additions even on non-VBox systems so that it transparently works everywhere, right now vbox-guest-installer refuses to install Guest Additions on non-Oracle machines unless building a VirtualBox image (This needs more discussion before doing it)
-** Test upgrading an existing VirtualBox VM with this, ensure clipboard sharing mostly works after upgrading
-** If this works for upgrades, try to build a VirtualBox image with newer Guest Additions pre-installed, ensure clipboard sharing mostly works after installation
-** Write a packaging helper script that will download the latest VirtualBox package from Oracle upstream, extract the VBoxGuestAdditions ISO from it, and add it to our fork of virtualbox-guest-additions-iso
-*** Mostly done, commits pushed to vm-config-dist, developer-meta-files, user-sysmaint-split, kicksecure-meta-packages, and anon-meta-packages. New repo created: https://github.com/ArrayBolt3/virtualbox-guest-additions-iso. Still need to write the script for fetching new ISOs, the ISO currently present in virtualbox-guest-additions-iso was taken from my ks-dev qube where virtualbox-7.2 (specifically version 7.2.10) is installed.
-
-== append-shared - fix newline handling ==
-* Aaron:
-** POSIX considers a 0-byte file a valid text file despite lacking a terminating newline. append-shared currently (wrongly) operates such that 0-byte files are considered "not true text files" and insists on adding a terminating newline to them. Fix this.
-
 == tor-control-panel re-review ==
 * todo
 ** Aaron: Most of the TODOs haven't been handled. A meld between troubadour's most recent code and my merged-tcp-review repo shows the remaining issues that need fixed or at least considered.
@@ -781,6 +757,11 @@ Nov 24 10:13:35 localhost agetty[1346]: -: failed to get terminal attributes: In
 ** https://github.com/Whonix/anon-apps-config/blob/master/etc/skel/.config/vlc/vlcrc
 
 = WAITING ON =
+== virtualbox - black screen ==
+* https://download.whonix.org/ova/18.2.1.0/
+* https://forums.whonix.org/t/whonix-18-2-1-0-black-screen-after-upgrading-vbox-guest-additions/23380
+** Aaron: Could not reproduce. Asked for more info.
+
 == onion-grater hardening ==
 * as discussed
 * https://gitlab.tails.boum.org/tails/tails/-/blob/master/config/chroot_local-includes/usr/local/lib/onion-grater
@@ -811,14 +792,6 @@ f4cc44bdad86254a9b4aa355320e52e1749c93c0 to f4cc44bdad86254a9b4aa355320e52e1749c
 * Aaron: Existing bug report found at https://gitlab.com/sequoia-pgp/sequoia-git/-/work_items/15, commented.
 * Patrick: Please review upstream's PR.
 ** Aaron: I don't know Rust, so it's hard for me to review the bulk of the code. However, I did review the behavior as shown by the test suite, was able to run the tests, and did add a couple new (passing) tests for the remaining concerns: https://gitlab.com/sequoia-pgp/sequoia-git/-/merge_requests/119
-
-== AppArmor - assist with maintenance upstream ==
-* as discussed, see emails with intrigeri
-* Mostly figured out, awaiting review from roddhjav (apparmor.d maintainer)
-** Review received, time to submit to AppArmor upstream.
-*** Upstream MR created: https://gitlab.com/apparmor/apparmor/-/merge_requests/2084
-**** Approved and merged.
-*** Debian-side MR created: https://salsa.debian.org/apparmor-team/apparmor/-/merge_requests/35
 
 == live-build - deb822 support PR ==
 * Aaron:
@@ -1065,6 +1038,29 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== virtualbox - fork vbox-guest-additions-iso, replace existing guest additions with it and fix clipboard ==
+* Aaron:
+** Add Breaks/Replaces against virtualbox-guest-x11 and virtualbox-guest-utils to dist-vm-gui-all, dist-baremetal-gui-all
+** Add Depends on virtualbox-guest-additions-iso to dist-vm-gui-all, dist-baremetal-gui-all
+** Add code to vm-config-dist postinst that installs Guest Additions from the ISO as part of the installation process
+** Add a user service to vm-config-dist that will start <code>VBoxClient --wayland</code> on bootup
+** Consider adjusting vbox-guest-installer to have both fail-open and fail-closed modes, we should use fail-closed in derivative-maker (this needs more discussion before doing it)
+** Consider installing Guest Additions even on non-VBox systems so that it transparently works everywhere, right now vbox-guest-installer refuses to install Guest Additions on non-Oracle machines unless building a VirtualBox image (This needs more discussion before doing it)
+** Test upgrading an existing VirtualBox VM with this, ensure clipboard sharing mostly works after upgrading
+** If this works for upgrades, try to build a VirtualBox image with newer Guest Additions pre-installed, ensure clipboard sharing mostly works after installation
+** Write a packaging helper script that will download the latest VirtualBox package from Oracle upstream, extract the VBoxGuestAdditions ISO from it, and add it to our fork of virtualbox-guest-additions-iso
+*** Mostly done, commits pushed to vm-config-dist, developer-meta-files, user-sysmaint-split, kicksecure-meta-packages, and anon-meta-packages. New repo created: https://github.com/ArrayBolt3/virtualbox-guest-additions-iso. Still need to write the script for fetching new ISOs, the ISO currently present in virtualbox-guest-additions-iso was taken from my ks-dev qube where virtualbox-7.2 (specifically version 7.2.10) is installed.
+* Seems to be working for new builds, ready for merge and developers packages to be published. (This will allow easier, more accurate testing of upgrades.)
+
+== strip-markup fixes ==
+* https://github.com/org-ai-assisted/helper-scripts/pull/57
+** Aaron: Merged, then added a commit on top to make it more strict. See https://github.com/org-ai-assisted/helper-scripts/pull/57#issuecomment-4884929130 for rationale and a possible concern.
+
+== append-shared - fix newline handling ==
+* Aaron:
+** POSIX considers a 0-byte file a valid text file despite lacking a terminating newline. append-shared currently (wrongly) operates such that 0-byte files are considered "not true text files" and insists on adding a terminating newline to them. Fix this.
+*** Fixed, commit pushed to helper-scripts.
+
 == sdwdate-gui not showing up in sysmaint session race condition fix ==
 * https://forums.whonix.org/t/sdwdate-gui-systray-is-not-appearing-in-whonix-gateway-sysmaint-session/23342
 * https://github.com/org-ai-assisted/sdwdate-gui/pull/1
@@ -1088,6 +1084,14 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 *** Aaron: Reviewed, made some minor tweaks but otherwise kept the fix. Commit pushed to sdwdate-gui.
 
 = ARCHIVED =
+== AppArmor - assist with maintenance upstream ==
+* as discussed, see emails with intrigeri
+* Mostly figured out, awaiting review from roddhjav (apparmor.d maintainer)
+** Review received, time to submit to AppArmor upstream.
+*** Upstream MR created: https://gitlab.com/apparmor/apparmor/-/merge_requests/2084
+**** Approved and merged.
+*** Debian-side MR created: https://salsa.debian.org/apparmor-team/apparmor/-/merge_requests/35
+**** Also approved and merged. This may be the extent of AppArmor support we can reasonably provide for now, but we should keep any eye on this and help out more in the future if and when possible.
 
 == arti preliminary research ==
 * https://forums.whonix.org/t/keep-an-eye-on-arti-tor/15815
