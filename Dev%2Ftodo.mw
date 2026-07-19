@@ -22,13 +22,17 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 
 = TODO DEV =
-== onion-client-refetch-stall-tor ==
-* Anything useful here?
-* https://github.com/org-ai-assisted/onion-client-refetch-stall-tor
-** Aaron: Mostly confirmed that there is indeed not any bug (at least not one worth worrying about) here.
-* https://github.com/org-ai-assisted/onion-client-refetch-stall-arti
-** Aaron: Confirmed the bug, reproduced, filed a report: https://gitlab.torproject.org/tpo/core/arti/-/work_items/2629 Move to WAITING ON if this is good enough, since I will want to follow up with upstream and potentially prepare the reproduction script for publication.
-* Patrick: Please provide reproduction scripts (even if rough) so I can do more AI testing.
+== apps in start menu not launching ==
+* see chat
+** Aaron:
+*** Livecheck does not appear broken. By design, it does not pop up a window when launched, it only places itself in the start menu. Maybe we should add features that will make it pop up a window when launched from the start menu?
+*** tb-updater is broken due to a bug in tb-updater itself. Environment variables are most likely not a factor.
+**** Found the issue and fixed it, commit pushed to helper-scripts to fix a library that was breaking under update-torbrowser nounset.
+*** gparted is broken because it attempts to launch itself using pkexec, which we intentionally break via permissions in user sessions. However, it is broken in unrestricted admin mode as well, because Xwayland is not configured to allow root to connect by default. Running <code>xhost +si:localuser:root</code> is not enough, as Xwayland automatically terminates if it hasn't been used for some amount of time, and when it starts next, it no longer allows root to connect. Needs further investigation. An acceptable solution will fix this by changing OS-level code or configuration, not by adding code to any applications.
+**** Xwayland automatically terminating is configurable in labwc. If we enable Xwayland persistence, and run <code>xhost +si:localuser:root</code> at graphical session startup, it will likely fix gparted launch. This will also consume more RAM though. It's unclear if other solutions exist; Xauthority in particular no longer seems to exist by default with Xwayland.
+*** Global Firewall Settings and User Firewall Settings both work in unrestricted admin mode. They do not work in normal user mode due to restricted permissions. Environment variables are not the problem. We might want to add code specifically to these launchers to display a GUI message if superuser permissions aren't available.
+*** askpass is broken, not because of any graphical environment issues, but because yad is being launched wrong. It pops up a window, but the window lacks anything to type into.
+**** Fix created, commit pushed to usability-misc.
 
 == security-misc - misc review and merge ==
 * https://github.com/Kicksecure/security-misc/pulls
@@ -1055,6 +1059,17 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== onion-client-refetch-stall-tor ==
+* Anything useful here?
+* https://github.com/org-ai-assisted/onion-client-refetch-stall-tor
+** Aaron: Mostly confirmed that there is indeed not any bug (at least not one worth worrying about) here.
+* https://github.com/org-ai-assisted/onion-client-refetch-stall-arti
+** Aaron: Confirmed the bug, reproduced, filed a report: https://gitlab.torproject.org/tpo/core/arti/-/work_items/2629 Move to WAITING ON if this is good enough, since I will want to follow up with upstream and potentially prepare the reproduction script for publication.
+* Patrick: Please provide reproduction scripts (even if rough) so I can do more AI testing.
+** Aaron: Pushed:
+*** https://github.com/ArrayBolt3/onion-client-refetch-stall-tor
+*** https://github.com/ArrayBolt3/onion-client-refetch-stall-arti
+
 == qemu aes bug ==
 * https://github.com/org-ai-assisted/qemu-x86_64-aes-gcm-miscompile-ppc64el
 * Patrick: Need to provide PPC server.
