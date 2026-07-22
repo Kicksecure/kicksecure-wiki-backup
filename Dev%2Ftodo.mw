@@ -22,18 +22,6 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 
 = TODO DEV =
-== apps in start menu not launching ==
-* see chat
-** Aaron:
-*** Livecheck does not appear broken. By design, it does not pop up a window when launched, it only places itself in the start menu. Maybe we should add features that will make it pop up a window when launched from the start menu?
-*** tb-updater is broken due to a bug in tb-updater itself. Environment variables are most likely not a factor.
-**** Found the issue and fixed it, commit pushed to helper-scripts to fix a library that was breaking under update-torbrowser nounset.
-*** gparted is broken because it attempts to launch itself using pkexec, which we intentionally break via permissions in user sessions. However, it is broken in unrestricted admin mode as well, because Xwayland is not configured to allow root to connect by default. Running <code>xhost +si:localuser:root</code> is not enough, as Xwayland automatically terminates if it hasn't been used for some amount of time, and when it starts next, it no longer allows root to connect. Needs further investigation. An acceptable solution will fix this by changing OS-level code or configuration, not by adding code to any applications.
-**** Xwayland automatically terminating is configurable in labwc. If we enable Xwayland persistence, and run <code>xhost +si:localuser:root</code> at graphical session startup, it will likely fix gparted launch. This will also consume more RAM though. It's unclear if other solutions exist; Xauthority in particular no longer seems to exist by default with Xwayland.
-*** Global Firewall Settings and User Firewall Settings both work in unrestricted admin mode. They do not work in normal user mode due to restricted permissions. Environment variables are not the problem. We might want to add code specifically to these launchers to display a GUI message if superuser permissions aren't available.
-*** askpass is broken, not because of any graphical environment issues, but because yad is being launched wrong. It pops up a window, but the window lacks anything to type into.
-**** Fix created, commit pushed to usability-misc.
-
 == grml-debootstrap - reproducible GPT disk GUID ==
 * please review and upstream:
 ** https://github.com/org-ai-assisted/grml-debootstrap/pull/2
@@ -1064,6 +1052,21 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== apps in start menu not launching ==
+* see chat
+** Aaron:
+*** Livecheck does not appear broken. By design, it does not pop up a window when launched, it only places itself in the start menu. Maybe we should add features that will make it pop up a window when launched from the start menu?
+**** Implemented this using D-Bus, mostly works well, but see chat for notes on shortcomings.
+*** tb-updater is broken due to a bug in tb-updater itself. Environment variables are most likely not a factor.
+**** Found the issue and fixed it, commit pushed to helper-scripts to fix a library that was breaking under update-torbrowser nounset.
+*** gparted is broken because it attempts to launch itself using pkexec, which we intentionally break via permissions in user sessions. However, it is broken in unrestricted admin mode as well, because Xwayland is not configured to allow root to connect by default. Running <code>xhost +si:localuser:root</code> is not enough, as Xwayland automatically terminates if it hasn't been used for some amount of time, and when it starts next, it no longer allows root to connect. Needs further investigation. An acceptable solution will fix this by changing OS-level code or configuration, not by adding code to any applications.
+**** Xwayland automatically terminating is configurable in labwc. If we enable Xwayland persistence, and run <code>xhost +si:localuser:root</code> at graphical session startup, it will likely fix gparted launch. This will also consume more RAM though. It's unclear if other solutions exist; Xauthority in particular no longer seems to exist by default with Xwayland.
+**** For now, hiding the start menu entry.
+*** Global Firewall Settings and User Firewall Settings both work in unrestricted admin mode. They do not work in normal user mode due to restricted permissions. Environment variables are not the problem. We might want to add code specifically to these launchers to display a GUI message if superuser permissions aren't available.
+**** Added prompts for when sudo isn't available.
+*** askpass is broken, not because of any graphical environment issues, but because yad is being launched wrong. It pops up a window, but the window lacks anything to type into.
+**** Fix created, commit pushed to usability-misc.
+
 == fix StandaloneVMs defaulting to sysmaint mode ==
 * Aaron:
 ** https://github.com/QubesOS/qubes-core-admin/pull/813
