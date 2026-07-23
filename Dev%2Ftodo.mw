@@ -25,10 +25,26 @@ Developer task list and work queue. This page summarizes short-term development 
 == grml-debootstrap - reproducible GPT disk GUID ==
 * please review and upstream:
 ** https://github.com/org-ai-assisted/grml-debootstrap/pull/2
-* https://github.com/org-ai-assisted/grml-debootstrap/pull/4
+*** Aaron: Reviewed, was slightly confusing, not as flexible as could be hoped, seemed a bit brittle. Rewrote: https://github.com/grml/grml-debootstrap/pull/380
+** https://github.com/org-ai-assisted/grml-debootstrap/pull/4
+*** Aaron: Will not work as written. FAT supports other kinds of timestamps that mtools is not capable of modifying. There does not appear to be a good library or utility for modifying this metadata on Linux yet. See chat for detailed notes.
 
-== console-setup PR review ==
-* https://github.com/Kicksecure/usability-misc/pull/25
+== apps in start menu not launching ==
+* see chat
+** Aaron:
+*** Livecheck does not appear broken. By design, it does not pop up a window when launched, it only places itself in the start menu. Maybe we should add features that will make it pop up a window when launched from the start menu?
+**** Implemented this using D-Bus, mostly works well, but see chat for notes on shortcomings.
+**** Try porting to Qt6 to see if this overcomes the shortcomings.
+***** Qt6 seemed to help some issues, but caused the tray icon to sometimes not appear at startup. https://github.com/org-ai-assisted/sdwdate-gui/pull/1/changes may have code that can be used to work around this.
+*** tb-updater is broken due to a bug in tb-updater itself. Environment variables are most likely not a factor.
+**** Found the issue and fixed it, commit pushed to helper-scripts to fix a library that was breaking under update-torbrowser nounset.
+*** gparted is broken because it attempts to launch itself using pkexec, which we intentionally break via permissions in user sessions. However, it is broken in unrestricted admin mode as well, because Xwayland is not configured to allow root to connect by default. Running <code>xhost +si:localuser:root</code> is not enough, as Xwayland automatically terminates if it hasn't been used for some amount of time, and when it starts next, it no longer allows root to connect. Needs further investigation. An acceptable solution will fix this by changing OS-level code or configuration, not by adding code to any applications.
+**** Xwayland automatically terminating is configurable in labwc. If we enable Xwayland persistence, and run <code>xhost +si:localuser:root</code> at graphical session startup, it will likely fix gparted launch. This will also consume more RAM though. It's unclear if other solutions exist; Xauthority in particular no longer seems to exist by default with Xwayland.
+**** For now, hiding the start menu entry.
+*** Global Firewall Settings and User Firewall Settings both work in unrestricted admin mode. They do not work in normal user mode due to restricted permissions. Environment variables are not the problem. We might want to add code specifically to these launchers to display a GUI message if superuser permissions aren't available.
+**** Added prompts for when sudo isn't available.
+*** askpass is broken, not because of any graphical environment issues, but because yad is being launched wrong. It pops up a window, but the window lacks anything to type into.
+**** Fix created, commit pushed to usability-misc.
 
 == sandbox-manager-dist ==
 * Polish, implement https://github.com/ArrayBolt3/sandbox-manager-dist/blob/master/sandbox-manager-dist-design.md
@@ -1052,20 +1068,9 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
-== apps in start menu not launching ==
-* see chat
-** Aaron:
-*** Livecheck does not appear broken. By design, it does not pop up a window when launched, it only places itself in the start menu. Maybe we should add features that will make it pop up a window when launched from the start menu?
-**** Implemented this using D-Bus, mostly works well, but see chat for notes on shortcomings.
-*** tb-updater is broken due to a bug in tb-updater itself. Environment variables are most likely not a factor.
-**** Found the issue and fixed it, commit pushed to helper-scripts to fix a library that was breaking under update-torbrowser nounset.
-*** gparted is broken because it attempts to launch itself using pkexec, which we intentionally break via permissions in user sessions. However, it is broken in unrestricted admin mode as well, because Xwayland is not configured to allow root to connect by default. Running <code>xhost +si:localuser:root</code> is not enough, as Xwayland automatically terminates if it hasn't been used for some amount of time, and when it starts next, it no longer allows root to connect. Needs further investigation. An acceptable solution will fix this by changing OS-level code or configuration, not by adding code to any applications.
-**** Xwayland automatically terminating is configurable in labwc. If we enable Xwayland persistence, and run <code>xhost +si:localuser:root</code> at graphical session startup, it will likely fix gparted launch. This will also consume more RAM though. It's unclear if other solutions exist; Xauthority in particular no longer seems to exist by default with Xwayland.
-**** For now, hiding the start menu entry.
-*** Global Firewall Settings and User Firewall Settings both work in unrestricted admin mode. They do not work in normal user mode due to restricted permissions. Environment variables are not the problem. We might want to add code specifically to these launchers to display a GUI message if superuser permissions aren't available.
-**** Added prompts for when sudo isn't available.
-*** askpass is broken, not because of any graphical environment issues, but because yad is being launched wrong. It pops up a window, but the window lacks anything to type into.
-**** Fix created, commit pushed to usability-misc.
+== console-setup PR review ==
+* https://github.com/Kicksecure/usability-misc/pull/25
+** Aaron: Cannot reproduce the issue this is intended to solve. I can create a vanilla Debian 13 VM with no <code>/dev/fb0</code> device, by booting a properly configured VM image with <code>qemu-system-x86_64 -drive file=./vm.img,format=raw,if=virtio -enable-kvm -m 2G -machine q35 -nographic -vga none -nic user</code>, but console-setup does not show any errors when such a system is booted. Trying to set other fonts using setfont manually also does not cause any errors.
 
 == fix StandaloneVMs defaulting to sysmaint mode ==
 * Aaron:
