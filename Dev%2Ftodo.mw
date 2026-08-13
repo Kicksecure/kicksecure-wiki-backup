@@ -22,16 +22,6 @@ Developer task list and work queue. This page summarizes short-term development 
 }}
 
 = TODO DEV =
-== grml-debootstrap - reproducible GPT disk GUID ==
-* please review and upstream:
-** https://github.com/org-ai-assisted/grml-debootstrap/pull/2
-*** Aaron: Reviewed, was slightly confusing, not as flexible as could be hoped, seemed a bit brittle. Rewrote: https://github.com/grml/grml-debootstrap/pull/380
-** https://github.com/org-ai-assisted/grml-debootstrap/pull/4
-*** Aaron: Will not work as written. FAT supports other kinds of timestamps that mtools is not capable of modifying. There does not appear to be a good library or utility for modifying this metadata on Linux yet. See chat for detailed notes.
-* https://github.com/grml/grml-debootstrap/issues/383
-* Patrick:
-** https://github.com/org-ai-assisted/grml-debootstrap/pull/6
-
 == derivative-maker - reproducible - initial review ==
 * included tasks:
 ** full non-malicious review
@@ -69,6 +59,16 @@ follow-up tasks for claude - will be done by Patrick - after arraybolt3 initial 
 * https://github.com/org-ai-assisted/anon-gw-base-files/pull/1
 * https://github.com/org-ai-assisted/anon-ws-base-files/pull/1
 
+== grml-debootstrap - reproducible GPT disk GUID ==
+* please review and upstream:
+** https://github.com/org-ai-assisted/grml-debootstrap/pull/2
+*** Aaron: Reviewed, was slightly confusing, not as flexible as could be hoped, seemed a bit brittle. Rewrote: https://github.com/grml/grml-debootstrap/pull/380
+** https://github.com/org-ai-assisted/grml-debootstrap/pull/4
+*** Aaron: Will not work as written. FAT supports other kinds of timestamps that mtools is not capable of modifying. There does not appear to be a good library or utility for modifying this metadata on Linux yet. See chat for detailed notes.
+* https://github.com/grml/grml-debootstrap/issues/383
+* Patrick:
+** https://github.com/org-ai-assisted/grml-debootstrap/pull/6
+
 == vbox-guest-installer issues ==
 * https://forums.whonix.org/t/shared-folders-vanished-from-the-workstation/23415
 
@@ -80,6 +80,10 @@ follow-up tasks for claude - will be done by Patrick - after arraybolt3 initial 
 
 == privleapd - switch to numeric ids internally ==
 * as discussed, to avoid user confusion issues if usernames are changed on-the-fly
+
+== security-misc misc improvements ==
+* https://github.com/Kicksecure/security-misc/pull/378
+* https://github.com/org-ai-assisted/security-misc/pull/27
 
 == sandbox-manager-dist ==
 * Polish, implement https://github.com/ArrayBolt3/sandbox-manager-dist/blob/master/sandbox-manager-dist-design.md
@@ -1125,6 +1129,16 @@ debsums: changed file /etc/machine-id (from dist-base-files package) - issue for
 * Note that the use of apt-get in the binary stage appears to be very baked into live-build's logic. It's pretty unlikely this will change.
 
 = REVIEW PLEASE =
+== genmkfile cross-builds ==
+* Aaron:
+** Necessary to unbreak https://forums.kicksecure.com/t/dist-vm-gui-all-dependency-on-virtualbox-breaks-installation-on-ppc64/1815/6
+** genmkfile supports pseudo-cross-builds using architecture emulation and pbuilder chroots, but this is unnecessarily slow for trivial arch-specific packages and probably doesn't work all that well for source packages that contain both <code>arch: all</code> and <code>arch: any</code> binary packages
+** cross-builds for everything shouldn't be done when not using pbuilder, because of the junk that gets left behind in a debian package's directory when doing an in-situ build
+** The following changes need made for this to work well:
+*** Make pbuilder place the result of a build somewhere other than <code>DISTDIR</code> by default. We should move all build results to <code>DISTDIR</code> when the <code>target_architecture</code> is equal to <code>first_arch</code>, otherwise we should move only those files that are arch-specific into <code>DISTDIR</code>. This should prevent any possible issues that could come from giving people <code>arch: any</code> packages that were built on a non-standard arch where a qemu bug could have caused an issue with the build.
+*** Add a user-defined field to our source package control files, such as <code>X-Private-Trivial-Cross-Build</code>. If set to <code>yes</code>, genmkfile will use the <code>--host-arch=</code> option to pbuilder to attempt a true cross-build. If set to <code>no</code>, genmkfile will set up a native chroot and build there.
+** Untested changes pushed to genmkfile, developer-meta-files, and kicksecure-meta-packages.
+
 == privleap watchdog timeout in Qubes CI ==
 * https://github.com/org-ai-assisted/privleap/pull/7
 ** Aaron: Integrated the changes that made sense, added some of my own. Commit pushed to privleap.
