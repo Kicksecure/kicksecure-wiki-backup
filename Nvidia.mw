@@ -182,6 +182,12 @@ Select Debian Repository or NVIDIA's Repository.
 This option installs the NVIDIA proprietary driver packages from the Debian repositories. It is generally the simplest proprietary driver installation method because it uses Debian packaged software and integrates with the normal APT package management workflow.
 }}
 
+{{mbox
+| image   = [[File:Ambox_warning_pn.svg.png|40px]]
+| text    =
+'''Security Warning:''' {{project_name_short}} 18 is based on Debian Trixie. The version of NVIDIA's drivers present in Debian Trixie by default is 550. The NVIDIA 550 drivers are end-of-life, unmaintained, and are very likely to contain security vulnerabilities. Do not proceed with this process unless you fully understand the risks.
+}}
+
 {{Install_Package|package=
 linux-headers-$(uname -r) firmware-nvidia-gsp firmware-nvidia-graphics nvidia-smi nvidia-driver nvidia-kernel-dkms
 }}
@@ -355,6 +361,17 @@ sudo reboot
 Nouveau has been blacklisted and will no longer load.
 }}
 }}
+
+=== nvidia-smi and other NVIDIA management tools don't work ===
+While applications should be able to use the NVIDIA GPU right away once the drivers are installed, some applications that manage or monitor the GPU may be broken by default. <code>nvidia-smi</code> for instance will display the following message when run:
+
+<pre>
+NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver. Make sure that the latest NVIDIA driver is installed and running.
+</pre>
+
+The reason for this is that NVIDIA's drivers do not create important device nodes such as <code>/dev/nvidiactl</code> by default. They rely on a SUID-root helper, <code>/usr/bin/nvidia-modprobe</code>, to do this for them.<ref>https://docs.nvidia.com/datacenter/tesla/mig-user-guide/device-nodes-and-capabilities.html#dev-based-nvidia-capabilities</ref> {{project_name_short}}'s [[SUID Disabler and Permission Hardener]] strips the SUID bit from this file for security reasons, rendering it unusable. As <code>nvidia-modprobe</code> is a closed-source, difficult-to-audit binary, and the NVIDIA driver version in Debian Stable is generally outdated and therefore potentially vulnerable, there are no plans to whitelist it in permission-hardener's configuration.
+
+If you understand the risks and wish to restore the SUID bit anyway, you can manually whitelist the binary. Follow the instructions to [[SUID_Disabler_and_Permission_Hardener#Whitelist_Specific_SUID_Binaries|Whitelist Specific SUID Binaries]] to do this.
 
 = NVIDIA and Freedom Software =
 {{IntroLike|
