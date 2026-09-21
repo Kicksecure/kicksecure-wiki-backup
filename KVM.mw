@@ -17,6 +17,7 @@ title={{project_name_long}} for KVM
 This is the KVM flavor of the {{project_name_short}} project.
 }}
 {{Community_Support|scope=page}}
+
 = Introduction =
 Much of the warnings and use case instructions from Whonix KVM, such as running the OS [https://www.whonix.org/wiki/KVM#Command_Line_Interface_(CLI) headlessly] or using [https://www.whonix.org/wiki/KVM#Shared_Folder shared folders], are applicable.
 
@@ -29,7 +30,7 @@ Support tickets should be forwarded to the [https://forums.{{project_clearnet}}/
 For '''{{project_name_short}}''' on Intel / AMD, install:
 
 {{CodeSelect|code=
-sudo apt install --no-install-recommends qemu-system-x86 qemu-system-gui qemu-system-modules-spice qemu-utils libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-driver-storage libvirt-clients virt-manager gir1.2-spiceclientgtk-3.0 passt ovmf swtpm swtpm-tools safe-rm xz-utils
+sudo apt install --no-install-recommends qemu-system-x86 qemu-system-gui qemu-system-modules-spice qemu-utils libvirt-daemon libvirt-daemon-driver-qemu libvirt-daemon-driver-storage libvirt-daemon-driver-nodedev libvirt-clients virt-manager gir1.2-spiceclientgtk-3.0 passt ovmf swtpm swtpm-tools safe-rm xz-utils
 }}
 
 For '''{{project_name_short}}''' on PowerPC, install:
@@ -327,6 +328,212 @@ Start Virtual Machine Manager:
 Start {{project_name_short}}:
 
 <code>click on {{project_name_short}}</code> &rarr; <code>click Open</code> &rarr; <code>click the play symbol</code>
+
+= Inserting dGPU (e.g Nvidia) directly to VM =
+
+One of the unique features for KVM is that it allows the insertion of the host dedicated/discrete GPU (e.g Nvidia) into the VM directly instead of only virtualized graphics.
+
+There are hardware and software requirements needs to be available: 
+
+== Hardware ==
+
+'''1.''' Make sure you have [https://en.wikipedia.org/wiki/Integrated_GPU#Integrated_graphics_processing_unit Integrated GPU] (built-in GPU in your processor). Most PCs are coming with iGPU if it has dGPU (hybrid) by default but sometimes thats not the case <ref>https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/17</ref>. In order to check that run:
+
+{{CodeSelect|code=
+lspci -Dnnk {{!}} grep -A4 -E 'VGA{{!}}3D{{!}}Audio'
+}}
+
+Expected output as an example:
+
+<pre>
+VGA compatible controller [0300]: Intel Raptor Lake-S UHD Graphics
+</pre>
+
+'''2.''' Make sure you have dGPU available, you can run the same command and it will show as e.g:
+
+<pre>
+0000:01:00.0 VGA compatible controller [0300]: NVIDIA Corporation AD107M [Geforce RTX 4060 Max-Q / Mobile] [10de:28a0]
+        kernel driver in use: nouveau
+0000:01:00.1 Audio device [0403]: NVIDIA Corporation AD107 High Definition Audio Controller [10de:22be] 
+</pre>
+
+Note: These IDs/addresses <code>0000:01:00.0</code>, <code>0000:01:00.1</code>, <code>10de:28a0</code>, <code>10de:22be</code> we are going to use them later.
+
+'''3.''' Check the support of Input-output memory management ([https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit IOMMU]) support:
+
+{{CodeSelect|code=
+grep --color=auto -E iommu /proc/cmdline
+}}
+
+The important output in case you have Intel:
+
+<pre>
+intel_iommu=on
+</pre>
+
+== Software ==
+
+=== SYSMAINT side (root/admin) ===
+
+'''1.''' Switch to [[Nvidia#Software_Rendering_(Pixman)|software rendering (Pixman)]].
+
+'''2.''' [[Nvidia#Debian_Repository|Install Nvidia]] and make sure its [[Nvidia#Check_NVIDIA_Functionality|recognized]] by SYSMAINT (optional to make sure your card is working properly before inserting it or you want to switch back later).
+
+Then follow these steps:
+
+==== GRUB ====
+
+* Add these parameters to GRUB 
+
+{{CodeSelect|code=
+sudoedit /etc/default/grub.d/50_user.cfg
+}}
+
+* Then add:
+
+{{CodeSelect|code=
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX nouveau.noaccel=1 intel_iommu=on vfio-pci.ids=10de:28a0,10de:22be"
+}}
+
+==== Blacklist the host from loading NVIDIA drivers ====
+
+* Creat and edit this file in modprobe.d: 
+
+{{CodeSelect|code=
+sudoedit /etc/modprobe.d/blacklist-nvidia.conf
+}}
+
+* Add these entries to blacklist: 
+
+{{CodeSelect|code=
+blacklist nouveau
+blacklist nvidia
+blacklist nvidia_drm
+blacklist nvidia_modeset
+blacklist nvidia_uvm
+}}
+
+==== Configure dracut to load VFIO early ====
+
+* Creat and edit this file in modprobe.d: 
+
+{{CodeSelect|code=
+sudoedit /etc/dracut.conf.d/vfio.conf
+}}
+
+* Add (Keep the spaces inside the quotation marks):
+
+{{CodeSelect|code=
+force_drivers+=" vfio vfio_pci vfio_iommu_type1 "
+omit_drivers+=" nouveau nvidia nvidia_drm nvidia_modeset nvidia_uvm "
+}}
+
+<code>force_drivers</code> makes dracut attempt early module loading, <code>omit_drivers</code> excludes the listed drivers from the generated initramfs.
+
+==== Give the account KVM access and create the VFIO access group ====
+
+{{CodeSelect|code=
+sudo groupadd -f vfio
+}}
+
+{{CodeSelect|code=
+sudo usermod -aG vfio,kvm user
+}}
+
+==== Configure memory-lock limits ====
+
+* per-account PAM login limits
+
+{{CodeSelect|code=
+sudoedit /etc/security/limits.d/99-memlock.conf
+}}
+
+* Add:
+
+{{CodeSelect|code=
+user soft memlock unlimited
+user hard memlock unlimited
+}}
+
+* libvirt launched through the user's systemd manager
+
+{{CodeSelect|code=
+sudo systemctl edit "user@$(id -u user).service"
+}}
+
+* Add at the bottom:
+
+{{CodeSelect|code=
+[Service]
+LimitMEMLOCK=infinity
+}}
+
+==== Rebuild the initramfs and GRUB, then reboot ====
+
+===== GRUB =====
+
+{{CodeSelect|code=
+sudo update-grub
+}}
+
+===== Dracut =====
+
+{{CodeSelect|code=
+sudo dracut --force --regenerate-all 
+}}
+
+===== Reboot =====
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+* Then boot into SYSMAINT again.
+
+==== Create persistent permissions for the verified group ====
+
+{{CodeSelect|code=
+ls -l /dev/vfio
+}}
+
+* The output should be something similar to:
+
+<pre>
+crw-rw---- 1 root vfio 245,   0  Sep 21 12:58 17
+crw-rw-rw- 1 root root  10, 196  Sep 21 12:58 vfio
+</pre>
+
+* The important number is we are looking for in our example here is <code>17</code>.
+
+{{CodeSelect|code=
+sudoedit /etc/udev/rules.d/70-vfio-user.rules
+}}
+
+* Add:
+
+{{CodeSelect|code=
+SUBSYSTEM=="vfio", KERNEL=="17", OWNER="root", GROUP="vfio", MODE="0660"
+}}
+
+* Then reboot:
+
+{{CodeSelect|code=
+sudo reboot
+}}
+
+=== User ===
+
+* Boot into user, and go to virt-manager main window (the window listing your virtual machines) then open:
+
+<code> Edit -> Preferences -> General -> tick "Enable XML editing" </code>
+
+* After that press on the VM that you want to attach the GPU to, then press on Open button, then press on the bulb (Show virtual hardware details), Go to the bottom and press on Add Hardware, Go to PCI Host Devices then click on your graphic card then press on Finish. 
+
+* Go to the added PCI/graphic card then press on XML change <code>managed="yes"</code> to <code>managed="no"</code>, then press on Apply.
+
+* After that run your VM and the graphic card should be appeared in the VM (dont forget to install the graphic card driver in the VM as well).
+
+* Done
 
 = Uninstall =
 
