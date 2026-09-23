@@ -331,25 +331,25 @@ Start {{project_name_short}}:
 
 = Inserting dGPU (e.g Nvidia) directly to VM =
 
-One of the unique features for KVM is that it allows the insertion of the host dedicated/discrete GPU (e.g Nvidia) into the VM directly instead of only virtualized graphics.
+One of the unique features of KVM is that it allows the host's dedicated/discrete GPU (e.g Nvidia) to be inserted directly into the VM instead of using only virtualized graphics.
 
-There are hardware and software requirements needs to be available: 
+There are '''hardware''' and '''software''' requirements that need to be met: 
 
 == Hardware ==
 
-'''1.''' Make sure you have [https://en.wikipedia.org/wiki/Integrated_GPU#Integrated_graphics_processing_unit Integrated GPU] (built-in GPU in your processor). Most PCs are coming with iGPU if it has dGPU (hybrid) by default but sometimes thats not the case <ref>https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/17</ref>. In order to check that run:
+'''1.''' Make sure you have an [https://en.wikipedia.org/wiki/Integrated_GPU#Integrated_graphics_processing_unit Integrated GPU] (built-in GPU in your processor). Most PCs with a dGPU (hybrid) also come with an iGPU by default, but sometimes that is not the case <ref>https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/17</ref>. In order to check that, run:
 
 {{CodeSelect|code=
 lspci -Dnnk {{!}} grep -A4 -E 'VGA{{!}}3D{{!}}Audio'
 }}
 
-Expected output as an example:
+Example of the expected output (CPU/iGPU):
 
 <pre>
 VGA compatible controller [0300]: Intel Raptor Lake-S UHD Graphics
 </pre>
 
-'''2.''' Make sure you have dGPU available, you can run the same command and it will show as e.g:
+'''2.''' To make sure you have a dGPU available, you can run the same command, and it will show, for example:
 
 <pre>
 0000:01:00.0 VGA compatible controller [0300]: NVIDIA Corporation AD107M [Geforce RTX 4060 Max-Q / Mobile] [10de:28a0]
@@ -357,15 +357,15 @@ VGA compatible controller [0300]: Intel Raptor Lake-S UHD Graphics
 0000:01:00.1 Audio device [0403]: NVIDIA Corporation AD107 High Definition Audio Controller [10de:22be] 
 </pre>
 
-Note: These IDs/addresses <code>0000:01:00.0</code>, <code>0000:01:00.1</code>, <code>10de:28a0</code>, <code>10de:22be</code> we are going to use them later.
+'''Note''': These IDs/addresses for the dGPU <code>0000:01:00.0</code>, <code>10de:28a0</code>. While these are optional in our case <code>0000:01:00.1</code>, <code>10de:22be</code>. We are going to use them later.
 
-'''3.''' Check the support of Input-output memory management ([https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit IOMMU]) support:
+'''3.''' Check for Input-output memory management ([https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit IOMMU]) support:
 
 {{CodeSelect|code=
 grep --color=auto -E iommu /proc/cmdline
 }}
 
-The important output in case you have Intel:
+The important output if you have Intel:
 
 <pre>
 intel_iommu=on
@@ -377,33 +377,33 @@ intel_iommu=on
 
 '''1.''' Switch to [[Nvidia#Software_Rendering_(Pixman)|software rendering (Pixman)]].
 
-'''2.''' [[Nvidia#Debian_Repository|Install Nvidia]] and make sure its [[Nvidia#Check_NVIDIA_Functionality|recognized]] by SYSMAINT (optional to make sure your card is working properly before inserting it or you want to switch back later).
+'''2.''' [[Nvidia#Debian_Repository|Install Nvidia]] and make sure it is [[Nvidia#Check_NVIDIA_Functionality|recognized]] by SYSMAINT (optional, to make sure your card is working properly before inserting it, or if you want to switch back later).
 
 Then follow these steps:
 
 ==== GRUB ====
 
-* Add these parameters to GRUB 
+* Add these parameters to Grub by creating a file in <code>/grub.d</code>:
 
 {{CodeSelect|code=
 sudoedit /etc/default/grub.d/50_user.cfg
 }}
 
-* Then add:
+* Then add (the important one which represents the dGPU is <code>10de:28a0</code> in our case) :
 
 {{CodeSelect|code=
 GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX nouveau.noaccel=1 intel_iommu=on vfio-pci.ids=10de:28a0,10de:22be"
 }}
 
-==== Blacklist the host from loading NVIDIA drivers ====
+==== Blacklist the host from loading Nvidia drivers ====
 
-* Creat and edit this file in modprobe.d: 
+* Create and edit a file in <code>modprobe.d</code>: 
 
 {{CodeSelect|code=
 sudoedit /etc/modprobe.d/blacklist-nvidia.conf
 }}
 
-* Add these entries to blacklist: 
+* Add these entries to the blacklist: 
 
 {{CodeSelect|code=
 blacklist nouveau
@@ -415,20 +415,20 @@ blacklist nvidia_uvm
 
 ==== Configure dracut to load VFIO early ====
 
-* Creat and edit this file in modprobe.d: 
+* Create and edit a file in <code>modprobe.d</code>: 
 
 {{CodeSelect|code=
 sudoedit /etc/dracut.conf.d/vfio.conf
 }}
 
-* Add (Keep the spaces inside the quotation marks):
+* Add the following (Keep the spaces inside the quotation marks):
 
 {{CodeSelect|code=
 force_drivers+=" vfio vfio_pci vfio_iommu_type1 "
 omit_drivers+=" nouveau nvidia nvidia_drm nvidia_modeset nvidia_uvm "
 }}
 
-<code>force_drivers</code> makes dracut attempt early module loading, <code>omit_drivers</code> excludes the listed drivers from the generated initramfs.
+<code>force_drivers</code> makes dracut attempt to load modules early, while <code>omit_drivers</code> excludes the listed drivers from the generated initramfs.
 
 ==== Give the account KVM access and create the VFIO access group ====
 
@@ -442,7 +442,7 @@ sudo usermod -aG vfio,kvm user
 
 ==== Configure memory-lock limits ====
 
-* per-account PAM login limits
+* Edit per-account PAM login limits:
 
 {{CodeSelect|code=
 sudoedit /etc/security/limits.d/99-memlock.conf
@@ -455,7 +455,7 @@ user soft memlock unlimited
 user hard memlock unlimited
 }}
 
-* libvirt launched through the user's systemd manager
+* For libvirt launched through the user's systemd manager, edit:
 
 {{CodeSelect|code=
 sudo systemctl edit "user@$(id -u user).service"
@@ -503,7 +503,7 @@ crw-rw---- 1 root vfio 245,   0  Sep 21 12:58 17
 crw-rw-rw- 1 root root  10, 196  Sep 21 12:58 vfio
 </pre>
 
-* The important number is we are looking for in our example here is <code>17</code>.
+'''Note''': The important number we are looking for in our example is <code>17</code> (it may be different in your case).
 
 {{CodeSelect|code=
 sudoedit /etc/udev/rules.d/70-vfio-user.rules
@@ -521,17 +521,43 @@ SUBSYSTEM=="vfio", KERNEL=="17", OWNER="root", GROUP="vfio", MODE="0660"
 sudo reboot
 }}
 
+* This time boot into user.
+
 === User ===
 
-* Boot into user, and go to virt-manager main window (the window listing your virtual machines) then open:
+* Go to virt-manager main window (the window listing your virtual machines), then go to:
 
-<code> Edit -> Preferences -> General -> tick "Enable XML editing" </code>
+<code> Edit &rarr; Preferences &rarr; General &rarr; tick "Enable XML editing" </code>
 
-* After that press on the VM that you want to attach the GPU to, then press on Open button, then press on the bulb (Show virtual hardware details), Go to the bottom and press on Add Hardware, Go to PCI Host Devices then click on your graphic card then press on Finish. 
+[[File:PCI-1.png|500px]]
 
-* Go to the added PCI/graphic card then press on XML change <code>managed="yes"</code> to <code>managed="no"</code>, then press on Apply.
+[[File:PCI-2.png|500px]]
 
-* After that run your VM and the graphic card should be appeared in the VM (dont forget to install the graphic card driver in the VM as well).
+* After that, select the VM to which you want to attach the GPU, then click the Open button. Click the light bulb icon (Show virtual hardware details), go to the bottom, and click Add Hardware. Go to PCI Host Devices, select your graphics card, then click Finish.
+
+[[File:PCI-3.png|500px]]
+
+[[File:PCI-4.png|500px]]
+
+[[File:PCI-5.png|500px]]
+
+* Go to the added PCI/graphics card, then click XML and change <code>managed="yes"</code> to <code>managed="no"</code>. Then click Apply (this is important for the <code>qemu:///session</code>/user-level case).
+
+<pre>
+<hostdev mode="subsystem" type="pci" managed="yes> 
+</pre>
+
+[[File:PCI-6.png|500px]]
+
+<pre>
+<hostdev mode="subsystem" type="pci" managed="no> 
+</pre>
+
+[[File:PCI-7.png|500px]]
+
+* After that, run your VM, and the graphics card should appear in the VM (don't forget to install the graphics card driver in the VM as well).
+
+[[File:PCI-8.png|500px]]
 
 * Done
 
