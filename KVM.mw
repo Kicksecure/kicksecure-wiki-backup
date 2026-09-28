@@ -337,7 +337,7 @@ There are '''hardware''' and '''software''' requirements that need to be met:
 
 == Hardware ==
 
-'''1.''' Make sure you have an [https://en.wikipedia.org/wiki/Integrated_GPU#Integrated_graphics_processing_unit Integrated GPU] (built-in GPU in your processor). Most PCs with a dGPU (hybrid) also come with an iGPU by default, but sometimes that is not the case <ref>https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/17</ref>. In order to check that, run:
+'''1.''' Make sure you have an [https://en.wikipedia.org/wiki/Integrated_GPU#Integrated_graphics_processing_unit Integrated GPU] (built-in GPU in your processor). Most PCs with a dGPU also come with an iGPU (hybrid) by default, but sometimes that is not the case <ref>https://forums.kicksecure.com/t/black-login-screen-crash-due-to-nouveau-gsp-killing-labwc/1556/17</ref>. In order to check that, run:
 
 {{CodeSelect|code=
 lspci -Dnnk {{!}} grep -A4 -E 'VGA{{!}}3D{{!}}Audio'
@@ -357,7 +357,7 @@ VGA compatible controller [0300]: Intel Raptor Lake-S UHD Graphics
 0000:01:00.1 Audio device [0403]: NVIDIA Corporation AD107 High Definition Audio Controller [10de:22be] 
 </pre>
 
-'''Note''': These IDs/addresses for the dGPU <code>0000:01:00.0</code>, <code>10de:28a0</code>. While these are optional in our case <code>0000:01:00.1</code>, <code>10de:22be</code>. We are going to use them later.
+'''Note''': These IDs/addresses for the dGPU <code>0000:01:00.0</code>, <code>10de:28a0</code>, <code>0000:01:00.1</code>, <code>10de:22be</code> we are going to use them later.
 
 '''3.''' Check for Input-output memory management ([https://en.wikipedia.org/wiki/Input%E2%80%93output_memory_management_unit IOMMU]) support:
 
@@ -375,11 +375,7 @@ intel_iommu=on
 
 === SYSMAINT side (root/admin) ===
 
-'''1.''' Switch to [[Nvidia#Software_Rendering_(Pixman)|software rendering (Pixman)]].
-
-'''2.''' [[Nvidia#Debian_Repository|Install Nvidia]] and make sure it is [[Nvidia#Check_NVIDIA_Functionality|recognized]] by SYSMAINT (optional, to make sure your card is working properly before inserting it, or if you want to switch back later).
-
-Then follow these steps:
+Boot into SYSMAINT Then follow these steps:
 
 ==== GRUB ====
 
@@ -389,10 +385,10 @@ Then follow these steps:
 sudoedit /etc/default/grub.d/50_user.cfg
 }}
 
-* Then add (the important one which represents the dGPU is <code>10de:28a0</code> in our case) :
+* Then add the IOMMU and dGPU readings you obtained above:
 
 {{CodeSelect|code=
-GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX nouveau.noaccel=1 intel_iommu=on vfio-pci.ids=10de:28a0,10de:22be"
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX intel_iommu=on vfio-pci.ids=10de:28a0,10de:22be"
 }}
 
 ==== Blacklist the host from loading Nvidia drivers ====
@@ -415,7 +411,7 @@ blacklist nvidia_uvm
 
 ==== Configure dracut to load VFIO early ====
 
-* Create and edit a file in <code>modprobe.d</code>: 
+* Create and edit a file in <code>dracut.conf.d</code>: 
 
 {{CodeSelect|code=
 sudoedit /etc/dracut.conf.d/vfio.conf
@@ -429,16 +425,6 @@ omit_drivers+=" nouveau nvidia nvidia_drm nvidia_modeset nvidia_uvm "
 }}
 
 <code>force_drivers</code> makes dracut attempt to load modules early, while <code>omit_drivers</code> excludes the listed drivers from the generated initramfs.
-
-==== Give the account KVM access and create the VFIO access group ====
-
-{{CodeSelect|code=
-sudo groupadd -f vfio
-}}
-
-{{CodeSelect|code=
-sudo usermod -aG vfio,kvm user
-}}
 
 ==== Configure memory-lock limits ====
 
@@ -482,14 +468,6 @@ sudo update-grub
 sudo dracut --force --regenerate-all 
 }}
 
-===== Reboot =====
-
-{{CodeSelect|code=
-sudo reboot
-}}
-
-* Then boot into SYSMAINT again.
-
 ==== Create persistent permissions for the verified group ====
 
 {{CodeSelect|code=
@@ -511,7 +489,7 @@ sudoedit /etc/udev/rules.d/70-vfio-user.rules
 * Add:
 
 {{CodeSelect|code=
-SUBSYSTEM=="vfio", KERNEL=="17", OWNER="root", GROUP="vfio", MODE="0660"
+SUBSYSTEM=="vfio", KERNEL=="17", OWNER="root", GROUP="user", MODE="0660"
 }}
 
 * Then reboot:
@@ -520,7 +498,7 @@ SUBSYSTEM=="vfio", KERNEL=="17", OWNER="root", GROUP="vfio", MODE="0660"
 sudo reboot
 }}
 
-* This time boot into user.
+* Then boot into user.
 
 === User ===
 
